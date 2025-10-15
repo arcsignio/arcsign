@@ -11,7 +11,16 @@
       "Bash(.specify/scripts/bash/check-prerequisites.sh:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nfeat: complete BIP39/BIP44 wallet implementation planning\n\nComplete Phase 0 (Research) and Phase 1 (Design) for secure HD wallet:\n\nPlanning Artifacts:\n- plan.md: Technical context, constitution checks, project structure\n- research.md: Library selection (go-bip39, btcsuite, Argon2id, USB I/O)\n- data-model.md: Complete entity definitions (Wallet, Mnemonic, Account, Address)\n- contracts/wallet-api.yaml: OpenAPI 3.0 specification (10 endpoints)\n- quickstart.md: Developer guide with TDD workflow\n- tasks.md: 111 implementation tasks organized by user story\n\nFramework Updates:\n- Migrate Speckit commands from PowerShell to Bash for cross-platform support\n- Add CLAUDE.md for agent context management\n- Update templates with checklist format rules\n\nTechnical Stack:\n- Go 1.21+ with tyler-smith/go-bip39 + btcsuite/hdkeychain\n- Argon2id (4 iter, 256 MiB) + AES-256-GCM encryption\n- USB storage with atomic writes and 0600 permissions\n\nReady for Phase 2 implementation (T001-T111).\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(go mod init:*)",
+      "Bash(go get:*)",
+      "Bash(go mod:*)",
+      "Bash(go test:*)",
+      "Bash(go build:*)",
+      "Bash(.arcsign.exe help)",
+      "Bash(./arcsign.exe version)",
+      "Bash(./arcsign.exe help)"
     ],
     "deny": [],
     "ask": []

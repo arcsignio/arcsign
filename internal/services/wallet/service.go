@@ -1,0 +1,255 @@
+package wallet
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/yourusername/arcsign/internal/models"
+	"github.com/yourusername/arcsign/internal/services/audit"
+	"github.com/yourusername/arcsign/internal/services/bip39service"
+	"github.com/yourusername/arcsign/internal/services/crypto"
+	"github.com/yourusername/arcsign/internal/services/ratelimit"
+	"github.com/yourusername/arcsign/internal/services/storage"
+	"github.com/yourusername/arcsign/internal/utils"
+)
+
+// WalletService handles wallet creation and management operations
+type WalletService struct {
+	storagePath  string
+	bip39Service *bip39service.BIP39Service
+	rateLimiter  *ratelimit.RateLimiter
+}
+
+// NewWalletService creates a new wallet service instance
+// storagePath: base directory for wallet storage (usually USB drive path)
+func NewWalletService(storagePath string) *WalletService {
+	return &WalletService{
+		storagePath:  storagePath,
+		bip39Service: bip39service.NewBIP39Service(),
+		rateLimiter:  ratelimit.NewRateLimiter(3, 1*time.Minute), // 3 attempts per minute
+	}
+}
+
+// CreateWallet creates a new HD wallet with encrypted mnemonic storage
+//
+// Parameters:
+//   - name: Optional wallet name (max 64 chars, empty string allowed)
+//   - password: Encryption password (validated for strength)
+//   - wordCount: BIP39 mnemonic word count (12 or 24)
+//   - usesPassphrase: Whether wallet uses BIP39 passphrase extension
+//   - bip39Passphrase: Optional BIP39 passphrase (empty if usesPassphrase is false)
+//
+// Returns:
+//   - *models.Wallet: Wallet metadata
+//   - string: Plaintext mnemonic (MUST be shown to user once and cleared)
+//   - error: Any error during creation
+func (s *WalletService) CreateWallet(
+	name string,
+	password string,
+	wordCount int,
+	usesPassphrase bool,
+	bip39Passphrase string,
+) (*models.Wallet, string, error) {
+	// 1. Validate inputs
+	if err := utils.ValidatePassword(password); err != nil {
+		return nil, "", fmt.Errorf("password validation failed: %w", err)
+	}
+
+	if err := models.ValidateWalletName(name); err != nil {
+		return nil, "", fmt.Errorf("wallet name validation failed: %w", err)
+	}
+
+	// 2. Generate secure wallet ID
+	walletID, err := utils.GenerateSecureUUID()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate wallet ID: %w", err)
+	}
+
+	// 3. Generate BIP39 mnemonic
+	mnemonic, err := s.bip39Service.GenerateMnemonic(wordCount)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate mnemonic: %w", err)
+	}
+
+	// 4. Encrypt mnemonic with password
+	encryptedMnemonic, err := crypto.EncryptMnemonic(mnemonic, password)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to encrypt mnemonic: %w", err)
+	}
+
+	// 5. Create wallet directory structure
+	walletDir := filepath.Join(s.storagePath, walletID)
+	mnemonicPath := filepath.Join(walletDir, "mnemonic.enc")
+
+	// 6. Serialize and save encrypted mnemonic
+	encryptedData := crypto.SerializeEncryptedData(encryptedMnemonic)
+	if err := storage.AtomicWriteFile(mnemonicPath, encryptedData, 0600); err != nil {
+		return nil, "", fmt.Errorf("failed to save encrypted mnemonic: %w", err)
+	}
+
+	// 7. Create wallet metadata
+	now := time.Now()
+	wallet := &models.Wallet{
+		ID:                    walletID,
+		Name:                  name,
+		CreatedAt:             now,
+		LastAccessedAt:        now,
+		EncryptedMnemonicPath: mnemonicPath,
+		UsesPassphrase:        usesPassphrase,
+	}
+
+	// 8. Save wallet metadata as JSON
+	metadataPath := filepath.Join(walletDir, "wallet.json")
+	metadataJSON, err := json.MarshalIndent(wallet, "", "  ")
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to marshal wallet metadata: %w", err)
+	}
+
+	if err := storage.AtomicWriteFile(metadataPath, metadataJSON, 0600); err != nil {
+		return nil, "", fmt.Errorf("failed to save wallet metadata: %w", err)
+	}
+
+	// 9. Create audit log entry
+	auditPath := filepath.Join(walletDir, "audit.log")
+	auditLogger, err := audit.NewAuditLogger(auditPath)
+	if err != nil {
+		// Non-fatal: log error but don't fail wallet creation
+		fmt.Printf("Warning: failed to create audit logger: %v\n", err)
+	} else {
+		auditEntry := audit.AuditLogEntry{
+			ID:        walletID + "-create",
+			WalletID:  walletID,
+			Timestamp: now,
+			Operation: "WALLET_CREATE",
+			Status:    "SUCCESS",
+		}
+		if err := auditLogger.LogOperation(auditEntry); err != nil {
+			fmt.Printf("Warning: failed to log audit entry: %v\n", err)
+		}
+	}
+
+	// 10. Return wallet metadata and plaintext mnemonic
+	// IMPORTANT: Caller MUST display mnemonic to user and clear it from memory
+	return wallet, mnemonic, nil
+}
+
+// LoadWallet loads wallet metadata from disk
+// Returns the wallet metadata without decrypting the mnemonic
+func (s *WalletService) LoadWallet(walletID string) (*models.Wallet, error) {
+	// Load wallet metadata
+	metadataPath := filepath.Join(s.storagePath, walletID, "wallet.json")
+
+	data, err := os.ReadFile(metadataPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, utils.ErrWalletNotFound
+		}
+		return nil, fmt.Errorf("failed to read wallet metadata: %w", err)
+	}
+
+	var wallet models.Wallet
+	if err := json.Unmarshal(data, &wallet); err != nil {
+		return nil, fmt.Errorf("failed to parse wallet metadata: %w", err)
+	}
+
+	return &wallet, nil
+}
+
+// RestoreWallet decrypts and returns the mnemonic for a wallet
+// Implements rate limiting to prevent brute-force attacks
+// Logs all access attempts (success and failure) to audit log
+func (s *WalletService) RestoreWallet(walletID string, password string) (string, error) {
+	// 1. Check rate limit
+	if !s.rateLimiter.AllowAttempt(walletID) {
+		return "", utils.ErrRateLimitExceeded
+	}
+
+	// 2. Load wallet metadata
+	wallet, err := s.LoadWallet(walletID)
+	if err != nil {
+		return "", err
+	}
+
+	// 3. Read encrypted mnemonic
+	encryptedData, err := os.ReadFile(wallet.EncryptedMnemonicPath)
+	if err != nil {
+		s.logAuditFailure(walletID, "file_read_error")
+		return "", fmt.Errorf("failed to read encrypted mnemonic: %w", err)
+	}
+
+	// 4. Deserialize encrypted data
+	encryptedMnemonic, err := crypto.DeserializeEncryptedData(encryptedData)
+	if err != nil {
+		s.logAuditFailure(walletID, "corrupted_data")
+		return "", fmt.Errorf("failed to deserialize encrypted data: %w", err)
+	}
+
+	// 5. Decrypt mnemonic
+	mnemonic, err := crypto.DecryptMnemonic(encryptedMnemonic, password)
+	if err != nil {
+		// Failed decryption - log and return
+		s.logAuditFailure(walletID, "wrong_password")
+		return "", utils.ErrDecryptionFailed
+	}
+
+	// 6. Success! Reset rate limiter and log access
+	s.rateLimiter.ResetWallet(walletID)
+	s.logAuditSuccess(walletID)
+
+	// 7. Update last accessed time
+	wallet.LastAccessedAt = time.Now()
+	s.saveWalletMetadata(wallet)
+
+	return mnemonic, nil
+}
+
+// logAuditSuccess logs successful wallet access
+func (s *WalletService) logAuditSuccess(walletID string) {
+	auditPath := filepath.Join(s.storagePath, walletID, "audit.log")
+	auditLogger, err := audit.NewAuditLogger(auditPath)
+	if err != nil {
+		return // Non-fatal
+	}
+
+	entry := audit.AuditLogEntry{
+		ID:        walletID + "-access-" + fmt.Sprintf("%d", time.Now().Unix()),
+		WalletID:  walletID,
+		Timestamp: time.Now(),
+		Operation: "WALLET_ACCESS",
+		Status:    "SUCCESS",
+	}
+	auditLogger.LogOperation(entry)
+}
+
+// logAuditFailure logs failed wallet access attempt
+func (s *WalletService) logAuditFailure(walletID string, reason string) {
+	auditPath := filepath.Join(s.storagePath, walletID, "audit.log")
+	auditLogger, err := audit.NewAuditLogger(auditPath)
+	if err != nil {
+		return // Non-fatal
+	}
+
+	entry := audit.AuditLogEntry{
+		ID:            walletID + "-access-fail-" + fmt.Sprintf("%d", time.Now().Unix()),
+		WalletID:      walletID,
+		Timestamp:     time.Now(),
+		Operation:     "WALLET_ACCESS",
+		Status:        "FAILURE",
+		FailureReason: reason,
+	}
+	auditLogger.LogOperation(entry)
+}
+
+// saveWalletMetadata updates wallet metadata on disk
+func (s *WalletService) saveWalletMetadata(wallet *models.Wallet) error {
+	metadataPath := filepath.Join(s.storagePath, wallet.ID, "wallet.json")
+	metadataJSON, err := json.MarshalIndent(wallet, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal wallet metadata: %w", err)
+	}
+
+	return storage.AtomicWriteFile(metadataPath, metadataJSON, 0600)
+}
