@@ -20,7 +20,8 @@
       "Bash(go build:*)",
       "Bash(.arcsign.exe help)",
       "Bash(./arcsign.exe version)",
-      "Bash(./arcsign.exe help)"
+      "Bash(./arcsign.exe help)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
