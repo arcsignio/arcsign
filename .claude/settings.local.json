@@ -21,7 +21,10 @@
       "Bash(.arcsign.exe help)",
       "Bash(./arcsign.exe version)",
       "Bash(./arcsign.exe help)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git merge-base:*)",
+      "Bash(git log:*)",
+      "Bash(git merge:*)"
     ],
     "deny": [],
     "ask": []
