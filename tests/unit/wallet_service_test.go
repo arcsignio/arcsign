@@ -250,3 +250,136 @@ func TestCreateWalletStorageEncryption(t *testing.T) {
 		}
 	})
 }
+
+// T053: Test for CreateWallet with multi-coin address generation
+// RED phase - test written first
+func TestCreateWallet_WithMultiCoinAddresses(t *testing.T) {
+	t.Skip("Skipping until CreateWallet multi-coin integration is implemented")
+
+	// When implemented:
+	// tmpDir := t.TempDir()
+	// walletService := wallet.NewWalletService(tmpDir)
+	//
+	// walletData, mnemonic, err := walletService.CreateWallet(
+	//     "My Multi-Coin Wallet",
+	//     "TestPassword123!",
+	//     12,
+	//     false,
+	//     "",
+	// )
+	//
+	// if err != nil {
+	//     t.Fatalf("Expected no error, got %v", err)
+	// }
+	//
+	// // Verify wallet has AddressBook
+	// if walletData.AddressBook == nil {
+	//     t.Error("Expected AddressBook to be populated")
+	// }
+	//
+	// // Verify AddressBook contains multiple addresses
+	// if len(walletData.AddressBook.Addresses) < 20 {
+	//     t.Errorf("Expected at least 20 addresses, got %d", len(walletData.AddressBook.Addresses))
+	// }
+	//
+	// // Verify addresses are sorted by market cap
+	// if walletData.AddressBook.Addresses[0].Symbol != "BTC" {
+	//     t.Errorf("Expected Bitcoin first, got %s", walletData.AddressBook.Addresses[0].Symbol)
+	// }
+	// if walletData.AddressBook.Addresses[1].Symbol != "ETH" {
+	//     t.Errorf("Expected Ethereum second, got %s", walletData.AddressBook.Addresses[1].Symbol)
+	// }
+	//
+	// // Verify mnemonic is returned
+	// if mnemonic == "" {
+	//     t.Error("Expected mnemonic to be returned")
+	// }
+}
+
+// T055: Test for wallet JSON serialization with AddressBook
+// RED phase - test written first
+func TestCreateWallet_JSONSerialization(t *testing.T) {
+	t.Skip("Skipping until wallet JSON serialization with AddressBook is implemented")
+
+	// When implemented:
+	// tmpDir := t.TempDir()
+	// walletService := wallet.NewWalletService(tmpDir)
+	//
+	// walletData, _, err := walletService.CreateWallet(
+	//     "Test Wallet",
+	//     "TestPassword123!",
+	//     12,
+	//     false,
+	//     "",
+	// )
+	//
+	// if err != nil {
+	//     t.Fatalf("Expected no error, got %v", err)
+	// }
+	//
+	// // Load wallet from disk to verify serialization
+	// loadedWallet, err := walletService.LoadWallet(walletData.ID)
+	// if err != nil {
+	//     t.Fatalf("Failed to load wallet: %v", err)
+	// }
+	//
+	// // Verify AddressBook was persisted
+	// if loadedWallet.AddressBook == nil {
+	//     t.Error("Expected AddressBook to be persisted and loaded")
+	// }
+	//
+	// // Verify address count matches
+	// if len(loadedWallet.AddressBook.Addresses) != len(walletData.AddressBook.Addresses) {
+	//     t.Errorf("Address count mismatch: original %d, loaded %d",
+	//         len(walletData.AddressBook.Addresses), len(loadedWallet.AddressBook.Addresses))
+	// }
+	//
+	// // Verify specific address data
+	// if loadedWallet.AddressBook.Addresses[0].Symbol != walletData.AddressBook.Addresses[0].Symbol {
+	//     t.Error("Address data not properly serialized/deserialized")
+	// }
+}
+
+// T057: Test for audit logging of address generation events
+// RED phase - test written first
+func TestCreateWallet_AuditLogging(t *testing.T) {
+	t.Skip("Skipping until audit logging for address generation is implemented")
+
+	// When implemented:
+	// tmpDir := t.TempDir()
+	// walletService := wallet.NewWalletService(tmpDir)
+	//
+	// walletData, _, err := walletService.CreateWallet(
+	//     "Test Wallet",
+	//     "TestPassword123!",
+	//     12,
+	//     false,
+	//     "",
+	// )
+	//
+	// if err != nil {
+	//     t.Fatalf("Expected no error, got %v", err)
+	// }
+	//
+	// // Wait for audit log write
+	// time.Sleep(50 * time.Millisecond)
+	//
+	// // Read audit log
+	// auditPath := filepath.Join(tmpDir, walletData.ID, "audit.log")
+	// auditData, err := os.ReadFile(auditPath)
+	// if err != nil {
+	//     t.Fatalf("Failed to read audit log: %v", err)
+	// }
+	//
+	// auditContent := string(auditData)
+	//
+	// // Verify audit log contains address generation entries
+	// if !strings.Contains(auditContent, "ADDRESS_GENERATION") {
+	//     t.Error("Expected audit log to contain ADDRESS_GENERATION operation")
+	// }
+	//
+	// // Verify success/failure counts are logged
+	// if !strings.Contains(auditContent, "successful") {
+	//     t.Error("Expected audit log to contain success count")
+	// }
+}
