@@ -29,7 +29,8 @@
       "Bash(then ls -la \"/Users/jnr350/Desktop/Yansiang/arcSignv2/specs/002-slip-44-btc/checklists\")",
       "Bash(else echo \"NO_CHECKLIST_DIR\")",
       "Bash(fi)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
