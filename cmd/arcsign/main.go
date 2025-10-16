@@ -225,6 +225,46 @@ func handleCreateWallet() {
 		fmt.Println("  BIP39 Passphrase: Enabled")
 	}
 	fmt.Printf("  Storage: %s\n", usbPath)
+
+	// T060-T061: Display address generation summary
+	if walletData.AddressBook != nil && len(walletData.AddressBook.Addresses) > 0 {
+		fmt.Println()
+		fmt.Println("Multi-Coin Addresses:")
+		fmt.Printf("  ✓ Generated %d cryptocurrency addresses\n", len(walletData.AddressBook.Addresses))
+		fmt.Println()
+
+		// Display first few addresses as examples
+		fmt.Println("  Sample addresses (sorted by market cap):")
+		maxDisplay := 5
+		if len(walletData.AddressBook.Addresses) < maxDisplay {
+			maxDisplay = len(walletData.AddressBook.Addresses)
+		}
+
+		for i := 0; i < maxDisplay; i++ {
+			addr := walletData.AddressBook.Addresses[i]
+			// Truncate long addresses for display
+			displayAddr := addr.Address
+			if len(displayAddr) > 42 {
+				displayAddr = displayAddr[:38] + "..."
+			}
+			fmt.Printf("    %d. %s (%s): %s\n", i+1, addr.CoinName, addr.Symbol, displayAddr)
+		}
+
+		if len(walletData.AddressBook.Addresses) > maxDisplay {
+			fmt.Printf("    ... and %d more\n", len(walletData.AddressBook.Addresses)-maxDisplay)
+		}
+
+		fmt.Println()
+		fmt.Println("  💡 Use 'arcsign list-addresses' to view all addresses")
+		fmt.Println("  💡 Use 'arcsign get-address --coin BTC' to get specific coin address")
+	} else {
+		// Address generation failed or produced no results
+		fmt.Println()
+		fmt.Println("⚠️  Multi-Coin Addresses:")
+		fmt.Println("  Address generation was not successful")
+		fmt.Println("  You can still derive addresses manually using 'arcsign derive'")
+	}
+
 	fmt.Println()
 	fmt.Println("Your wallet is now ready to use!")
 }

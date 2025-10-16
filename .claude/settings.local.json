@@ -21,10 +21,19 @@
       "Bash(.arcsign.exe help)",
       "Bash(./arcsign.exe version)",
       "Bash(./arcsign.exe help)",
+      "Bash(.specify/scripts/bash/create-new-feature.sh:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:pkg.go.dev)",
+      "Bash(bash:*)",
+      "Bash(if [ -d \"/Users/jnr350/Desktop/Yansiang/arcSignv2/specs/002-slip-44-btc/checklists\" ])",
+      "Bash(then ls -la \"/Users/jnr350/Desktop/Yansiang/arcSignv2/specs/002-slip-44-btc/checklists\")",
+      "Bash(else echo \"NO_CHECKLIST_DIR\")",
+      "Bash(fi)",
       "Bash(git checkout:*)",
       "Bash(git merge-base:*)",
       "Bash(git log:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
