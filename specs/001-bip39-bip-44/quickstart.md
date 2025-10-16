@@ -53,6 +53,11 @@ go get golang.org/x/crypto@v0.17.0
 go get github.com/SonarBeserk/gousbdrivedetector@latest
 go get golang.org/x/sys@v0.15.0
 
+# Install multi-coin address libraries (v0.2.0+)
+go get github.com/ethereum/go-ethereum/crypto@latest
+go get github.com/stellar/go/keypair@latest
+go get github.com/gagliardetto/solana-go@latest
+
 # Verify dependencies
 go mod tidy
 go mod verify
@@ -92,7 +97,7 @@ GOOS=windows GOARCH=amd64 go build -o bin/arcsign-windows-amd64.exe ./cmd/arcsig
 ### 5. Run CLI
 
 ```bash
-# Create new wallet
+# Create new wallet (automatically generates 24+ crypto addresses)
 ./bin/arcsign wallet create --name "My Wallet"
 
 # Restore wallet from mnemonic
@@ -101,7 +106,13 @@ GOOS=windows GOARCH=amd64 go build -o bin/arcsign-windows-amd64.exe ./cmd/arcsig
 # List wallets
 ./bin/arcsign wallet list
 
-# Derive Bitcoin address
+# View all auto-generated addresses (v0.2.0+)
+./bin/arcsign address list-all --wallet-id <uuid>
+
+# Get specific coin address (v0.2.0+)
+./bin/arcsign address get --wallet-id <uuid> --coin BTC
+
+# Derive custom address
 ./bin/arcsign address derive --wallet-id <uuid> --coin-type 0
 
 # View audit log
@@ -127,13 +138,24 @@ GOOS=windows GOARCH=amd64 go build -o bin/arcsign-windows-amd64.exe ./cmd/arcsig
 │   │   ├── bip44/          # BIP44 multi-account hierarchy
 │   │   ├── crypto/         # Argon2id + AES-256-GCM encryption
 │   │   ├── storage/        # USB file operations
-│   │   └── audit/          # Audit log management
+│   │   ├── audit/          # Audit log management
+│   │   ├── coinregistry/   # SLIP-44 coin metadata registry (v0.2.0+)
+│   │   └── address/        # Multi-coin address formatters (v0.2.0+)
+│   │       ├── service.go      # Core address service
+│   │       ├── bitcoin.go      # Bitcoin-compatible formatters
+│   │       ├── stellar.go      # Stellar (XLM) formatter
+│   │       ├── solana.go       # Solana (SOL) formatter
+│   │       ├── tron.go         # TRON (TRX) formatter
+│   │       ├── ripple.go       # Ripple (XRP) formatter
+│   │       └── cosmos.go       # Cosmos (ATOM) formatter
 │   ├── cli/                # CLI commands
 │   └── lib/                # Shared utilities
 ├── tests/
-│   ├── contract/           # BIP39/32/44 test vectors
+│   ├── contract/           # BIP39/32/44/SLIP-44 test vectors
 │   ├── integration/        # End-to-end workflows
 │   └── unit/               # Unit tests for each service
+├── docs/                   # Feature documentation
+│   └── MULTI_COIN_ADDRESSES.md  # Multi-coin feature guide (v0.2.0+)
 ├── specs/
 │   └── 001-bip39-bip-44/   # This feature's documentation
 ├── go.mod
@@ -202,6 +224,9 @@ go test ./tests/integration/wallet_lifecycle_test.go -v
 
 # Encryption/decryption roundtrip
 go test ./tests/integration/encryption_test.go -v
+
+# Multi-coin address generation performance (v0.2.0+)
+go test ./tests/integration/performance_test.go -v
 ```
 
 **Security Tests** (memory clearing, randomness quality):
@@ -211,6 +236,14 @@ go test ./tests/security/memory_test.go -v
 
 # Entropy quality
 go test ./tests/security/entropy_test.go -v
+```
+
+**Performance Benchmarks** (v0.2.0+):
+```bash
+# Benchmark wallet creation with multi-coin addresses
+go test -bench=BenchmarkWalletCreation -benchtime=3x ./tests/integration/performance_test.go
+
+# Expected: < 10 seconds per wallet creation with 24+ addresses
 ```
 
 ### Code Quality Checks
@@ -301,6 +334,59 @@ go tool cover -func=coverage.out | grep total
 # Lock wallet (clear mnemonic from memory)
 ./bin/arcsign wallet lock --wallet-id <uuid>
 ```
+
+### Multi-Coin Address Generation (v0.2.0+)
+
+**Automatic Address Generation**:
+Starting with v0.2.0, ArcSign automatically generates addresses for 24+ cryptocurrencies during wallet creation:
+
+```bash
+# Create wallet - addresses are generated automatically
+./bin/arcsign wallet create --name "Multi-Coin Wallet"
+
+# Output shows:
+# Multi-Coin Addresses:
+#   ✓ Generated 24 cryptocurrency addresses
+#
+#   Sample addresses (sorted by market cap):
+#     1. Bitcoin (BTC): 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+#     2. Ethereum (ETH): 0x742d35Cc6634C0532925a3b844Bc9e759...
+#     3. Tether (USDT): 0x742d35Cc6634C0532925a3b844Bc9e759...
+#     4. BNB (BNB): 0x742d35Cc6634C0532925a3b844Bc9e759...
+#     5. Solana (SOL): 7EcDhSYGxXyscszYEp35KHN8vvw3svAuLK...
+#     ... and 19 more
+```
+
+**List All Addresses**:
+```bash
+# View all auto-generated addresses
+./bin/arcsign address list-all --wallet-id <uuid>
+
+# JSON output (for scripting)
+./bin/arcsign address list-all --wallet-id <uuid> --output json
+```
+
+**Get Specific Coin Address**:
+```bash
+# Get Bitcoin address
+./bin/arcsign address get --wallet-id <uuid> --coin BTC
+
+# Get Ethereum address
+./bin/arcsign address get --wallet-id <uuid> --coin ETH
+
+# Get Solana address
+./bin/arcsign address get --wallet-id <uuid> --coin SOL
+```
+
+**Supported Cryptocurrencies** (24 coins):
+- Bitcoin (BTC), Ethereum (ETH), Tether (USDT), BNB (BNB)
+- Solana (SOL), USD Coin (USDC), XRP (XRP), Dogecoin (DOGE)
+- TRON (TRX), Avalanche (AVAX), Shiba Inu (SHIB), Chainlink (LINK)
+- Polygon (MATIC), Litecoin (LTC), Bitcoin Cash (BCH), Stellar (XLM)
+- Uniswap (UNI), Cosmos (ATOM), Ethereum Classic (ETC), Dash (DASH)
+- Zcash (ZEC), and more...
+
+For full details, see [docs/MULTI_COIN_ADDRESSES.md](../../docs/MULTI_COIN_ADDRESSES.md)
 
 ### Account Management
 
@@ -466,6 +552,39 @@ TestBIP39Vectors FAIL: seed mismatch
 - Ensure you're using correct BIP39 implementation
 - Verify passphrase is empty for test vectors (unless specified)
 - Check test vector source: https://github.com/bitcoin/bips/blob/master/bip-0039/bip-0039-test-vectors.json
+
+**8. Multi-Coin Address Generation Partial Failure (v0.2.0+)**
+
+**Error**:
+```
+⚠️ Multi-Coin Addresses:
+  Generated 20 addresses successfully (4 failed)
+```
+
+**Explanation**:
+- This is a non-fatal warning, not an error
+- Wallet creation succeeds even if some formatters fail
+- Some cryptocurrencies require specialized libraries not yet implemented
+- Examples: Cardano (ADA), Polkadot (DOT), Monero (XMR), Filecoin (FIL)
+
+**Solution**:
+- No action needed - your wallet is fully functional
+- Successfully generated addresses are ready to use
+- Failed addresses can be derived manually: `./bin/arcsign address derive --coin-type <type>`
+- Check audit log for details: `./bin/arcsign audit log --wallet-id <uuid>`
+
+**9. Coin Not Found in AddressBook**
+
+**Error**:
+```
+address not found for symbol: ADA
+```
+
+**Solution**:
+- Check which coins were successfully generated: `./bin/arcsign address list-all --wallet-id <uuid>`
+- See supported coins list in [docs/MULTI_COIN_ADDRESSES.md](../../docs/MULTI_COIN_ADDRESSES.md)
+- Derive unsupported coins manually: `./bin/arcsign address derive --wallet-id <uuid> --coin-type 1815`
+- Coin type reference: https://github.com/satoshilabs/slips/blob/master/slip-0044.md
 
 ---
 
@@ -647,11 +766,20 @@ make test-release
 - **BIP44**: https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
 - **SLIP-44 Coin Types**: https://github.com/satoshilabs/slips/blob/master/slip-0044.md
 
+### Multi-Coin Address Generation (v0.2.0+)
+
+- **Multi-Coin Addresses Feature Guide**: [docs/MULTI_COIN_ADDRESSES.md](../../docs/MULTI_COIN_ADDRESSES.md)
+- **Supported Cryptocurrencies**: 24+ coins with automatic address generation
+- **Address Formatters**: Bitcoin, Ethereum, Ripple, Stellar, Solana, TRON, Cosmos, and more
+
 ### Go Documentation
 
 - **tyler-smith/go-bip39**: https://pkg.go.dev/github.com/tyler-smith/go-bip39
 - **btcsuite/hdkeychain**: https://pkg.go.dev/github.com/btcsuite/btcd/btcutil/hdkeychain
 - **golang.org/x/crypto/argon2**: https://pkg.go.dev/golang.org/x/crypto/argon2
+- **ethereum/go-ethereum/crypto**: https://pkg.go.dev/github.com/ethereum/go-ethereum/crypto
+- **stellar/go/keypair**: https://pkg.go.dev/github.com/stellar/go/keypair
+- **gagliardetto/solana-go**: https://pkg.go.dev/github.com/gagliardetto/solana-go
 
 ### Security Resources
 
