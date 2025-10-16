@@ -8,9 +8,12 @@ import (
 	"time"
 
 	"github.com/yourusername/arcsign/internal/models"
+	"github.com/yourusername/arcsign/internal/services/address"
 	"github.com/yourusername/arcsign/internal/services/audit"
 	"github.com/yourusername/arcsign/internal/services/bip39service"
+	"github.com/yourusername/arcsign/internal/services/coinregistry"
 	"github.com/yourusername/arcsign/internal/services/crypto"
+	"github.com/yourusername/arcsign/internal/services/hdkey"
 	"github.com/yourusername/arcsign/internal/services/ratelimit"
 	"github.com/yourusername/arcsign/internal/services/storage"
 	"github.com/yourusername/arcsign/internal/utils"
@@ -90,7 +93,12 @@ func (s *WalletService) CreateWallet(
 		return nil, "", fmt.Errorf("failed to save encrypted mnemonic: %w", err)
 	}
 
-	// 7. Create wallet metadata
+	// 7. T054: Generate multi-coin addresses from mnemonic
+	addressBook, addressGenErr := s.generateMultiCoinAddresses(mnemonic, bip39Passphrase, walletID)
+	// Non-fatal: wallet creation continues even if address generation fails
+	// Addresses can be regenerated later if needed
+
+	// 8. Create wallet metadata
 	now := time.Now()
 	wallet := &models.Wallet{
 		ID:                    walletID,
@@ -99,9 +107,10 @@ func (s *WalletService) CreateWallet(
 		LastAccessedAt:        now,
 		EncryptedMnemonicPath: mnemonicPath,
 		UsesPassphrase:        usesPassphrase,
+		AddressBook:           addressBook, // T054: Include generated addresses
 	}
 
-	// 8. Save wallet metadata as JSON
+	// 9. T056: Save wallet metadata as JSON (includes AddressBook automatically)
 	metadataPath := filepath.Join(walletDir, "wallet.json")
 	metadataJSON, err := json.MarshalIndent(wallet, "", "  ")
 	if err != nil {
@@ -112,13 +121,14 @@ func (s *WalletService) CreateWallet(
 		return nil, "", fmt.Errorf("failed to save wallet metadata: %w", err)
 	}
 
-	// 9. Create audit log entry
+	// 10. Create audit log entries
 	auditPath := filepath.Join(walletDir, "audit.log")
 	auditLogger, err := audit.NewAuditLogger(auditPath)
 	if err != nil {
 		// Non-fatal: log error but don't fail wallet creation
 		fmt.Printf("Warning: failed to create audit logger: %v\n", err)
 	} else {
+		// Log wallet creation
 		auditEntry := audit.AuditLogEntry{
 			ID:        walletID + "-create",
 			WalletID:  walletID,
@@ -129,9 +139,40 @@ func (s *WalletService) CreateWallet(
 		if err := auditLogger.LogOperation(auditEntry); err != nil {
 			fmt.Printf("Warning: failed to log audit entry: %v\n", err)
 		}
+
+		// T058: Log address generation results
+		if addressBook != nil {
+			addressEntry := audit.AuditLogEntry{
+				ID:        walletID + "-addresses",
+				WalletID:  walletID,
+				Timestamp: now,
+				Operation: "ADDRESS_GENERATION",
+				Status:    "SUCCESS",
+			}
+			if addressGenErr != nil {
+				addressEntry.Status = "PARTIAL_FAILURE"
+				addressEntry.FailureReason = fmt.Sprintf("Address generation errors: %v", addressGenErr)
+			}
+			if err := auditLogger.LogOperation(addressEntry); err != nil {
+				fmt.Printf("Warning: failed to log address generation audit entry: %v\n", err)
+			}
+		} else if addressGenErr != nil {
+			// Address generation completely failed
+			addressEntry := audit.AuditLogEntry{
+				ID:            walletID + "-addresses-fail",
+				WalletID:      walletID,
+				Timestamp:     now,
+				Operation:     "ADDRESS_GENERATION",
+				Status:        "FAILURE",
+				FailureReason: addressGenErr.Error(),
+			}
+			if err := auditLogger.LogOperation(addressEntry); err != nil {
+				fmt.Printf("Warning: failed to log address generation failure: %v\n", err)
+			}
+		}
 	}
 
-	// 10. Return wallet metadata and plaintext mnemonic
+	// 11. Return wallet metadata and plaintext mnemonic
 	// IMPORTANT: Caller MUST display mnemonic to user and clear it from memory
 	return wallet, mnemonic, nil
 }
@@ -252,4 +293,44 @@ func (s *WalletService) saveWalletMetadata(wallet *models.Wallet) error {
 	}
 
 	return storage.AtomicWriteFile(metadataPath, metadataJSON, 0600)
+}
+
+// T054: generateMultiCoinAddresses generates addresses for multiple cryptocurrencies
+// from a BIP39 mnemonic. This is called during wallet creation to pre-generate
+// addresses for 30+ mainstream coins.
+func (s *WalletService) generateMultiCoinAddresses(mnemonic string, passphrase string, walletID string) (*models.AddressBook, error) {
+	// 1. Convert mnemonic to seed
+	seed, err := s.bip39Service.MnemonicToSeed(mnemonic, passphrase)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert mnemonic to seed: %w", err)
+	}
+
+	// Security: Clear seed from memory when done (defense in depth)
+	defer func() {
+		for i := range seed {
+			seed[i] = 0
+		}
+	}()
+
+	// 2. Create HD key service and derive master key
+	hdKeyService := hdkey.NewHDKeyService()
+	masterKey, err := hdKeyService.NewMasterKey(seed)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive master key: %w", err)
+	}
+
+	// 3. Initialize coin registry
+	registry := coinregistry.NewRegistry()
+
+	// 4. Initialize address service
+	addressService := address.NewAddressService()
+
+	// 5. Generate addresses for all coins in registry
+	addressBook, err := addressService.GenerateMultiCoinAddresses(masterKey, registry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate multi-coin addresses: %w", err)
+	}
+
+	// 6. Return generated address book
+	return addressBook, nil
 }
