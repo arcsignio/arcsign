@@ -326,9 +326,15 @@ func (s *WalletService) generateMultiCoinAddresses(mnemonic string, passphrase s
 	addressService := address.NewAddressService()
 
 	// 5. Generate addresses for all coins in registry
-	addressBook, err := addressService.GenerateMultiCoinAddresses(masterKey, registry)
+	addressBook, metrics, err := addressService.GenerateMultiCoinAddresses(masterKey, registry)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate multi-coin addresses: %w", err)
+	}
+
+	// v0.3.0: Log generation metrics
+	if metrics != nil {
+		fmt.Printf("Address generation metrics: %d/%d chains (%.2f%% success rate), %d retries, duration: %v\n",
+			metrics.SuccessCount, metrics.TotalChains, metrics.SuccessRate(), metrics.RetryCount, metrics.TotalDuration)
 	}
 
 	// 6. Return generated address book
