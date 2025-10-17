@@ -13,6 +13,16 @@ Extend ArcSign wallet to support 24 additional blockchain networks beyond the cu
 **Target State**: 54 blockchains supported (+24 new chains)
 **Primary Value**: Comprehensive multi-chain coverage for users managing diverse cryptocurrency portfolios
 
+## Clarifications
+
+### Session 2025-10-17
+
+- Q: When a chain formatter fails during wallet creation, should the system fail the entire wallet creation, retry the operation, or skip the failed chain and continue? → A: Retry once per chain, then continue with remaining chains
+- Q: For new address formatters (Starknet, Kusama, Tezos, Zilliqa, Harmony, ICON), should we use ecosystem-standard libraries, implement from scratch, or evaluate options during implementation? → A: Use ecosystem-standard libraries
+- Q: What is the maximum number of blockchains the data model and storage schema should be designed to support (current needs vs future growth)? → A: Design for 100-150 total chains (current + ~5 years of ecosystem growth)
+- Q: When a user upgrades from v0.2.0 to v0.3.0, how should new chain addresses be generated (immediately on upgrade, on first wallet access, or manually on demand)? → A: Automatic on first wallet access after upgrade
+- Q: What level of observability (logging, metrics, telemetry) should be implemented for address generation operations? → A: Summary metrics + detailed error logging
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Access Layer 2 Ecosystem Addresses (Priority: P1)
@@ -97,7 +107,8 @@ Users need addresses for specialized blockchains including Kusama (Polkadot's ca
 
 ### Edge Cases
 
-- What happens when a user upgrades from v0.2.0 to v0.3.0 with existing wallet? (Answer: New chain addresses are generated on-demand or during next wallet access, backwards compatible)
+- What happens when a user upgrades from v0.2.0 to v0.3.0 with existing wallet? (Answer: System automatically detects missing chains on first wallet access after upgrade and generates the 24 new chain addresses in background; user sees progress notification "Generating addresses for 24 new blockchains..."; wallet remains fully functional during generation; backwards compatible with v0.2.0 wallets)
+- What happens when chain formatter fails even after retry during wallet creation? (Answer: System logs detailed error to audit log including chain symbol, error message, and timestamp; wallet creation continues successfully with remaining chains; user sees summary showing "X of 54 chains generated successfully, Y failed - check audit log"; failed chains can be manually regenerated later using derive command)
 - How does system handle chains with multiple address formats (e.g., Starknet has two address types)? (Answer: Use most widely supported standard format for initial release)
 - What happens when EVM-compatible chain requires special derivation path beyond m/44'/60'? (Answer: Use chain-specific SLIP-44 coin type with standard derivation; fallback to Ethereum formatter for address generation)
 - How does system handle Cosmos chains that use different Bech32 prefixes? (Answer: Apply correct prefix based on chain identifier: osmo1 for Osmosis, juno1 for Juno, evmos1 for Evmos, secret1 for Secret Network)
@@ -154,14 +165,19 @@ Users need addresses for specialized blockchains including Kusama (Polkadot's ca
 - **FR-027**: System MUST allow users to view addresses grouped by chain type (UTXO, EVM, Layer 2, Cosmos, Substrate, Other)
 - **FR-028**: System MUST display chain-specific identifiers (e.g., "Arbitrum (ARB) - Ethereum L2" vs "Ethereum (ETH) - Mainnet") to prevent user confusion
 - **FR-029**: System MUST use BIP44 standard derivation paths for all chains (m/44'/coin_type'/0'/0/0) with appropriate coin_type from SLIP-44 registry
-- **FR-030**: System MUST handle graceful failures if specific chain formatter is not yet implemented (log failure, continue with remaining chains)
+- **FR-030**: System MUST retry address generation once for each chain that fails, then continue with remaining chains (log all failures to audit log with error details)
+- **FR-031**: System MUST automatically detect v0.2.0 wallets (30 chains) on first access and generate missing 24 chain addresses in background with user notification
+- **FR-032**: System MUST allow v0.2.0 wallets to remain functional during automatic upgrade address generation (non-blocking operation)
+- **FR-033**: System MUST track summary metrics for address generation including: total generation time, per-chain generation time, success count, failure count, retry count
+- **FR-034**: System MUST log detailed error information for failed address generation including: chain symbol, error message, stack trace, timestamp, attempt number (initial vs retry)
 
 ### Key Entities *(include if feature involves data)*
 
-- **Chain Metadata**: Represents blockchain configuration including symbol (e.g., ARB), full name (e.g., Arbitrum), chain type (EVM/Layer 2), coin type (SLIP-44 number), formatter ID (address generation method), key type (secp256k1/ed25519/sr25519)
+- **Chain Metadata**: Represents blockchain configuration including symbol (e.g., ARB), full name (e.g., Arbitrum), chain type (EVM/Layer 2), coin type (SLIP-44 number), formatter ID (address generation method), key type (secp256k1/ed25519/sr25519). Data model designed to scale to 100-150 total chains.
 - **Derived Address**: Represents generated blockchain address including chain symbol, address string, derivation path (BIP44), market cap rank (for sorting), chain category (UTXO/EVM/L2/Cosmos/etc.)
-- **Address Book**: Collection of derived addresses for all supported chains, associated with single wallet/mnemonic seed
+- **Address Book**: Collection of derived addresses for all supported chains, associated with single wallet/mnemonic seed. JSON structure designed to efficiently store 100-150 addresses (~15-25 KB estimated wallet file size).
 - **Chain Category**: Logical grouping (UTXO chains, EVM Mainnet, Layer 2, Cosmos SDK, Substrate, Custom) for display organization
+- **Generation Metrics**: Summary statistics for address generation operations including total time, per-chain timing, success/failure counts, retry counts. Used for performance monitoring and troubleshooting.
 
 ## Success Criteria *(mandatory)*
 
@@ -170,7 +186,7 @@ Users need addresses for specialized blockchains including Kusama (Polkadot's ca
 - **SC-001**: Users can create a wallet and receive addresses for 54 blockchains (30 existing + 24 new) in under 15 seconds
 - **SC-002**: 95% of new chain address generation succeeds on first attempt (allows 2-3 chains to gracefully fail if formatters pending)
 - **SC-003**: Users can locate specific chain address within 5 seconds using chain category grouping or search
-- **SC-004**: Wallet upgrade from v0.2.0 to v0.3.0 completes without errors or data loss for 100% of users
+- **SC-004**: Wallet upgrade from v0.2.0 to v0.3.0 automatically generates 24 new chain addresses on first wallet access within 10 seconds, with zero data loss for 100% of users
 - **SC-005**: Address derivation for all chains produces identical results when using same mnemonic seed (deterministic generation)
 - **SC-006**: Users can receive tokens on any of the 24 new chains within 2 minutes of wallet creation (addresses immediately usable)
 - **SC-007**: System maintains backward compatibility: v0.2.0 wallets with 30 chains continue to function when loaded in v0.3.0
@@ -201,6 +217,12 @@ Users need addresses for specialized blockchains including Kusama (Polkadot's ca
 
 8. **Evmos Dual Format**: Evmos supports both Ethereum-style (0x) and Cosmos-style (evmos1) addresses. System generates both formats for maximum compatibility.
 
+9. **Library Selection**: Ecosystem-standard libraries are preferred for new formatters (Starknet, Kusama, Tezos, Zilliqa, Harmony, ICON) to ensure compatibility with existing wallets, reduce security audit burden, and leverage battle-tested community implementations.
+
+10. **Scale Planning**: Data model and storage schema designed to support 100-150 total blockchains, accommodating approximately 5 years of ecosystem growth (10-20 significant new chains annually). This allows for v0.4.0 through v0.6.0 expansions without major refactoring. Estimated wallet file growth: 54 chains (~8 KB) → 150 chains (~25 KB), acceptable for USB storage.
+
+11. **Observability Strategy**: Address generation operations use summary metrics (generation time per chain, success/failure counts) and detailed error logging (stack traces, timestamps, retry attempts) for actionable troubleshooting. This balanced approach provides sufficient visibility without excessive complexity or dependencies inappropriate for an offline cold wallet.
+
 ## Out of Scope
 
 - **Token Balance Display**: Showing token balances for each chain (requires RPC node integration)
@@ -219,6 +241,13 @@ Users need addresses for specialized blockchains including Kusama (Polkadot's ca
 - **Cryptographic Libraries**: Support for secp256k1, ed25519, sr25519 key types
 - **Address Format Libraries**: Bech32 encoding, Base58Check, ss58 format libraries
 - **Existing Formatters**: Reuse Ethereum formatter for 18 EVM-compatible chains, Cosmos formatter for 4 IBC chains
+- **Ecosystem-Standard Libraries** (for new formatters):
+  - Starknet: Use starknet.go or caigo (Cairo/Starknet Go library) for address derivation
+  - Kusama: Use go-substrate-rpc-client or gsrpc for sr25519 Substrate address generation
+  - Tezos: Use go-tezos or tezos-go for tz1 address formatting with ed25519
+  - Zilliqa: Use gozilliqa-sdk or Zilliqa Go libraries for Bech32 zil1 addresses
+  - Harmony: Use harmony-go or go-sdk for Bech32 one1 address generation
+  - ICON: Use icon-go or ICON SDK for hx-prefixed address formatting
 
 ## Security Considerations
 

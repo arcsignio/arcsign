@@ -4,6 +4,8 @@ import (
 	"errors"
 	"sort"
 	"strings"
+
+	"github.com/yourusername/arcsign/internal/models"
 )
 
 // Registry manages the collection of supported cryptocurrency coins
@@ -29,6 +31,8 @@ func NewRegistry() *Registry {
 		CoinType:      0,
 		FormatterID:   "bitcoin",
 		MarketCapRank: 1,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryUTXO,
 	})
 
 	// Rank 2: Ethereum
@@ -290,6 +294,74 @@ func NewRegistry() *Registry {
 		CoinType:      5,
 		FormatterID:   "dash",
 		MarketCapRank: 30,
+	})
+
+	// v0.3.0 - Layer 2 Networks (User Story 1)
+
+	// T018: Arbitrum (Layer 2)
+	r.addCoin(CoinMetadata{
+		Symbol:        "ARB",
+		Name:          "Arbitrum",
+		CoinType:      9001,
+		FormatterID:   "ethereum",
+		MarketCapRank: 31,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryLayer2,
+	})
+
+	// T019: Optimism (Layer 2)
+	r.addCoin(CoinMetadata{
+		Symbol:        "OP",
+		Name:          "Optimism",
+		CoinType:      614,
+		FormatterID:   "ethereum",
+		MarketCapRank: 32,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryLayer2,
+	})
+
+	// T020: Base (Layer 2)
+	r.addCoin(CoinMetadata{
+		Symbol:        "BASE",
+		Name:          "Base",
+		CoinType:      8453,
+		FormatterID:   "ethereum",
+		MarketCapRank: 33,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryLayer2,
+	})
+
+	// T021: zkSync (Layer 2)
+	r.addCoin(CoinMetadata{
+		Symbol:        "ZKS",
+		Name:          "zkSync",
+		CoinType:      324,
+		FormatterID:   "ethereum",
+		MarketCapRank: 34,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryLayer2,
+	})
+
+	// T022: Linea (Layer 2)
+	r.addCoin(CoinMetadata{
+		Symbol:        "LINEA",
+		Name:          "Linea",
+		CoinType:      59144,
+		FormatterID:   "ethereum",
+		MarketCapRank: 35,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryLayer2,
+	})
+
+	// T029: Starknet (Layer 2 - uses custom starknet formatter with EIP-2645 grinding)
+	r.addCoin(CoinMetadata{
+		Symbol:        "STRK",
+		Name:          "Starknet",
+		CoinType:      9004,
+		FormatterID:   "starknet",
+		MarketCapRank: 36,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryLayer2,
 	})
 
 	return r

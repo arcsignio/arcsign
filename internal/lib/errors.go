@@ -3,6 +3,7 @@ package lib
 import (
 	"errors"
 	"fmt"
+	"time"
 )
 
 // T101: Comprehensive error messages with suggestions for all error cases
@@ -118,4 +119,31 @@ func IsRecoverableError(err error) bool {
 	default:
 		return false
 	}
+}
+
+// ChainMetric tracks generation metrics for a single blockchain (v0.3.0+)
+type ChainMetric struct {
+	Symbol       string        `json:"symbol"`       // Chain symbol (e.g., "ARB", "KSM")
+	Success      bool          `json:"success"`      // Whether address generation succeeded
+	Duration     time.Duration `json:"duration"`     // Time taken to generate address
+	Attempts     int           `json:"attempts"`     // Number of attempts (1 = first try, 2 = retry)
+	ErrorMessage string        `json:"errorMessage"` // Error message if failed
+}
+
+// GenerationMetrics tracks overall multi-chain address generation metrics (v0.3.0+)
+type GenerationMetrics struct {
+	TotalChains     int                    `json:"totalChains"`     // Total number of chains attempted
+	SuccessCount    int                    `json:"successCount"`    // Number of successful generations
+	FailureCount    int                    `json:"failureCount"`    // Number of failed generations
+	RetryCount      int                    `json:"retryCount"`      // Total number of retries across all chains
+	TotalDuration   time.Duration          `json:"totalDuration"`   // Total time for all generations
+	PerChainMetrics map[string]ChainMetric `json:"perChainMetrics"` // Detailed metrics per chain (keyed by symbol)
+}
+
+// SuccessRate calculates the percentage of successful address generations
+func (g *GenerationMetrics) SuccessRate() float64 {
+	if g.TotalChains == 0 {
+		return 0.0
+	}
+	return float64(g.SuccessCount) / float64(g.TotalChains) * 100.0
 }

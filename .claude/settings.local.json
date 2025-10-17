@@ -33,7 +33,19 @@
       "Bash(git merge-base:*)",
       "Bash(git log:*)",
       "Bash(git merge:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(for branch in 001-bip39-bip-44 002-slip-44-btc 003-name-bitcoin-symbol)",
+      "Bash(do)",
+      "Bash(echo:*)",
+      "Bash(done)",
+      "WebFetch(domain:docs.starkware.co)",
+      "WebFetch(domain:docs.tzgo.io)",
+      "WebFetch(domain:eips.ethereum.org)",
+      "WebFetch(domain:docs.icon.community)",
+      "WebFetch(domain:icon.community)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(if [ -d \"/Users/jnr350/Desktop/Yansiang/arcSignv2/specs/003-name-bitcoin-symbol/checklists\" ])",
+      "Bash(then ls -la \"/Users/jnr350/Desktop/Yansiang/arcSignv2/specs/003-name-bitcoin-symbol/checklists\")"
     ],
     "deny": [],
     "ask": []

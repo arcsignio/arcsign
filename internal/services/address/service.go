@@ -4,11 +4,13 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/yourusername/arcsign/internal/lib"
 	"github.com/yourusername/arcsign/internal/models"
 	"github.com/yourusername/arcsign/internal/services/coinregistry"
 	"golang.org/x/crypto/ripemd160"
@@ -84,85 +86,128 @@ func (s *AddressService) FormatAddressWithLabel(coinType string, address string,
 	return fmt.Sprintf("[%s] %s\n  Derivation Path: %s", coinType, address, path)
 }
 
+// retryOnce executes a function once, and retries one more time if it fails (v0.3.0+)
+// Returns: result, attempts (1 or 2), error
+func retryOnce(fn func() (string, error)) (string, int, error) {
+	// First attempt
+	result, err := fn()
+	if err == nil {
+		return result, 1, nil
+	}
+
+	// Retry once
+	result, retryErr := fn()
+	if retryErr == nil {
+		return result, 2, nil
+	}
+
+	// Both attempts failed, return the retry error
+	return "", 2, retryErr
+}
+
 // T050: GenerateMultiCoinAddresses generates addresses for all coins in the registry
 // T052: Implements graceful failure handling - continues with remaining coins if one fails
-func (s *AddressService) GenerateMultiCoinAddresses(masterKey *hdkeychain.ExtendedKey, registry *coinregistry.Registry) (*models.AddressBook, error) {
+// v0.3.0+: Now includes retry-once logic and generation metrics tracking
+func (s *AddressService) GenerateMultiCoinAddresses(masterKey *hdkeychain.ExtendedKey, registry *coinregistry.Registry) (*models.AddressBook, *lib.GenerationMetrics, error) {
+	startTime := time.Now()
 	coins := registry.GetAllCoinsSortedByMarketCap()
 	addresses := make([]models.DerivedAddress, 0, len(coins))
 
-	successCount := 0
-	failCount := 0
+	// Initialize metrics
+	metrics := &lib.GenerationMetrics{
+		TotalChains:     len(coins),
+		SuccessCount:    0,
+		FailureCount:    0,
+		RetryCount:      0,
+		PerChainMetrics: make(map[string]lib.ChainMetric),
+	}
 
 	// Generate address for each coin
 	for _, coin := range coins {
-		// Derive BIP44 path: m/44'/coin_type'/0'/0/0
-		// Path components: purpose=44, coin_type, account=0, change=0, address_index=0
+		chainStart := time.Now()
 
-		// Derive account key: m/44'/coin_type'/0'
-		purpose, err := masterKey.Derive(hdkeychain.HardenedKeyStart + 44)
+		// Wrap address generation in retry-once logic
+		address, attempts, err := retryOnce(func() (string, error) {
+			// Derive BIP44 path: m/44'/coin_type'/0'/0/0
+			purpose, err := masterKey.Derive(hdkeychain.HardenedKeyStart + 44)
+			if err != nil {
+				return "", fmt.Errorf("failed to derive purpose: %w", err)
+			}
+
+			coinTypeKey, err := purpose.Derive(hdkeychain.HardenedKeyStart + coin.CoinType)
+			if err != nil {
+				return "", fmt.Errorf("failed to derive coin type: %w", err)
+			}
+
+			accountKey, err := coinTypeKey.Derive(hdkeychain.HardenedKeyStart + 0)
+			if err != nil {
+				return "", fmt.Errorf("failed to derive account: %w", err)
+			}
+
+			externalKey, err := accountKey.Derive(0)
+			if err != nil {
+				return "", fmt.Errorf("failed to derive external chain: %w", err)
+			}
+
+			addressKey, err := externalKey.Derive(0)
+			if err != nil {
+				return "", fmt.Errorf("failed to derive address key: %w", err)
+			}
+
+			return s.deriveAddressByFormatter(addressKey, coin.FormatterID)
+		})
+
+		chainDuration := time.Since(chainStart)
+
+		// Track metrics for this chain
+		chainMetric := lib.ChainMetric{
+			Symbol:   coin.Symbol,
+			Duration: chainDuration,
+			Attempts: attempts,
+		}
+
 		if err != nil {
-			log.Printf("Failed to derive purpose for %s: %v", coin.Symbol, err)
-			failCount++
-			continue
+			// Generation failed
+			log.Printf("Failed to generate address for %s after %d attempt(s): %v", coin.Symbol, attempts, err)
+			chainMetric.Success = false
+			chainMetric.ErrorMessage = err.Error()
+			metrics.FailureCount++
+			if attempts > 1 {
+				metrics.RetryCount++
+			}
+		} else {
+			// Generation succeeded
+			chainMetric.Success = true
+			metrics.SuccessCount++
+			if attempts > 1 {
+				metrics.RetryCount++
+			}
+
+			// Create DerivedAddress with Category field (v0.3.0+)
+			derivedAddr := models.DerivedAddress{
+				Symbol:         coin.Symbol,
+				CoinName:       coin.Name,
+				CoinType:       coin.CoinType,
+				Address:        address,
+				DerivationPath: fmt.Sprintf("m/44'/%d'/0'/0/0", coin.CoinType),
+				MarketCapRank:  coin.MarketCapRank,
+				Category:       coin.Category,
+			}
+
+			addresses = append(addresses, derivedAddr)
 		}
 
-		coinTypeKey, err := purpose.Derive(hdkeychain.HardenedKeyStart + coin.CoinType)
-		if err != nil {
-			log.Printf("Failed to derive coin type for %s: %v", coin.Symbol, err)
-			failCount++
-			continue
-		}
-
-		accountKey, err := coinTypeKey.Derive(hdkeychain.HardenedKeyStart + 0)
-		if err != nil {
-			log.Printf("Failed to derive account for %s: %v", coin.Symbol, err)
-			failCount++
-			continue
-		}
-
-		// Derive external chain: m/44'/coin_type'/0'/0
-		externalKey, err := accountKey.Derive(0)
-		if err != nil {
-			log.Printf("Failed to derive external chain for %s: %v", coin.Symbol, err)
-			failCount++
-			continue
-		}
-
-		// Derive first address: m/44'/coin_type'/0'/0/0
-		addressKey, err := externalKey.Derive(0)
-		if err != nil {
-			log.Printf("Failed to derive address key for %s: %v", coin.Symbol, err)
-			failCount++
-			continue
-		}
-
-		// Generate address using appropriate formatter
-		address, err := s.deriveAddressByFormatter(addressKey, coin.FormatterID)
-		if err != nil {
-			log.Printf("Failed to generate address for %s (%s): %v", coin.Symbol, coin.FormatterID, err)
-			failCount++
-			continue
-		}
-
-		// Create DerivedAddress
-		derivedAddr := models.DerivedAddress{
-			Symbol:         coin.Symbol,
-			CoinName:       coin.Name,
-			CoinType:       coin.CoinType,
-			Address:        address,
-			DerivationPath: fmt.Sprintf("m/44'/%d'/0'/0/0", coin.CoinType),
-			MarketCapRank:  coin.MarketCapRank,
-		}
-
-		addresses = append(addresses, derivedAddr)
-		successCount++
+		metrics.PerChainMetrics[coin.Symbol] = chainMetric
 	}
 
-	log.Printf("Multi-coin address generation complete: %d successful, %d failed", successCount, failCount)
+	metrics.TotalDuration = time.Since(startTime)
+
+	log.Printf("Multi-coin address generation complete: %d successful, %d failed, %d retries, %.2f%% success rate, total time: %v",
+		metrics.SuccessCount, metrics.FailureCount, metrics.RetryCount, metrics.SuccessRate(), metrics.TotalDuration)
 
 	return &models.AddressBook{
 		Addresses: addresses,
-	}, nil
+	}, metrics, nil
 }
 
 // deriveAddressByFormatter calls the appropriate formatter method based on FormatterID
@@ -192,6 +237,8 @@ func (s *AddressService) deriveAddressByFormatter(key *hdkeychain.ExtendedKey, f
 		return s.DeriveSolanaAddress(key)
 	case "cosmos":
 		return s.DeriveCosmosAddress(key)
+	case "starknet":
+		return s.DeriveStarknetAddress(key)
 	default:
 		return "", fmt.Errorf("unsupported formatter: %s", formatterID)
 	}

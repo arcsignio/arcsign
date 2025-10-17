@@ -5,6 +5,18 @@ import (
 	"time"
 )
 
+// ChainCategory represents the blockchain ecosystem type (v0.3.0+)
+type ChainCategory string
+
+const (
+	ChainCategoryUTXO        ChainCategory = "UTXO"         // Bitcoin-style UTXO chains
+	ChainCategoryEVMMainnet  ChainCategory = "EVM_Mainnet"  // Ethereum mainnet
+	ChainCategoryLayer2      ChainCategory = "Layer2"       // Ethereum Layer 2 networks
+	ChainCategoryCosmos      ChainCategory = "Cosmos_SDK"   // Cosmos SDK chains
+	ChainCategorySubstrate   ChainCategory = "Substrate"    // Polkadot/Kusama substrate chains
+	ChainCategoryCustom      ChainCategory = "Custom"       // Other specialized chains
+)
+
 // Address represents a derived cryptocurrency address from a BIP44 path
 type Address struct {
 	AccountID      string    `json:"accountId"`
@@ -36,12 +48,13 @@ func ValidateAddressIndex(index uint32) error {
 // T012: DerivedAddress represents a pre-generated cryptocurrency address
 // for a specific coin type (v0.2.0+ - multi-coin address generation feature)
 type DerivedAddress struct {
-	Symbol         string `json:"symbol"`         // Ticker symbol (e.g., "BTC", "ETH")
-	CoinName       string `json:"coinName"`       // Full coin name (e.g., "Bitcoin", "Ethereum")
-	CoinType       uint32 `json:"coinType"`       // SLIP-44 coin type (e.g., 0 for BTC, 60 for ETH)
-	Address        string `json:"address"`        // Formatted address (plaintext - public key)
-	DerivationPath string `json:"derivationPath"` // BIP44 path used to derive this address
-	MarketCapRank  int    `json:"marketCapRank"`  // Market cap ranking (for sorting)
+	Symbol         string        `json:"symbol"`         // Ticker symbol (e.g., "BTC", "ETH")
+	CoinName       string        `json:"coinName"`       // Full coin name (e.g., "Bitcoin", "Ethereum")
+	CoinType       uint32        `json:"coinType"`       // SLIP-44 coin type (e.g., 0 for BTC, 60 for ETH)
+	Address        string        `json:"address"`        // Formatted address (plaintext - public key)
+	DerivationPath string        `json:"derivationPath"` // BIP44 path used to derive this address
+	MarketCapRank  int           `json:"marketCapRank"`  // Market cap ranking (for sorting)
+	Category       ChainCategory `json:"category"`       // Blockchain category (v0.3.0+)
 }
 
 // Validate checks if the DerivedAddress has valid values
@@ -93,4 +106,15 @@ func (ab *AddressBook) GetByCoinType(coinType uint32) (*DerivedAddress, error) {
 	}
 
 	return nil, errors.New("address not found for coin type")
+}
+
+// GetByCategory retrieves all addresses for a specific blockchain category (v0.3.0+)
+func (ab *AddressBook) GetByCategory(category ChainCategory) []DerivedAddress {
+	var result []DerivedAddress
+	for i := range ab.Addresses {
+		if ab.Addresses[i].Category == category {
+			result = append(result, ab.Addresses[i])
+		}
+	}
+	return result
 }
