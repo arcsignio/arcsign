@@ -246,6 +246,15 @@ func (s *AddressService) deriveAddressByFormatter(key *hdkeychain.ExtendedKey, f
 			return "", fmt.Errorf("failed to get ECDSA private key for Harmony: %w", err)
 		}
 		return s.DeriveHarmonyAddress(ecdsaPrivKey.ToECDSA())
+	// T069: Cosmos ecosystem chains (User Story 3)
+	case "osmosis":
+		return s.DeriveOsmosisAddress(key)
+	case "juno":
+		return s.DeriveJunoAddress(key)
+	case "evmos":
+		return s.DeriveEvmosAddress(key)
+	case "secret":
+		return s.DeriveSecretAddress(key)
 	default:
 		return "", fmt.Errorf("unsupported formatter: %s", formatterID)
 	}

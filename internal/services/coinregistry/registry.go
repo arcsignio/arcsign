@@ -410,6 +410,52 @@ func NewRegistry() *Registry {
 		Category:      models.ChainCategoryEVMMainnet, // Alternative EVM
 	})
 
+	// v0.3.0 - User Story 3: Cosmos Ecosystem
+
+	// T065: Osmosis (Cosmos SDK - DEX)
+	r.addCoin(CoinMetadata{
+		Symbol:        "OSMO",
+		Name:          "Osmosis",
+		CoinType:      118, // Cosmos coin type (shared by many Cosmos SDK chains)
+		FormatterID:   "osmosis",
+		MarketCapRank: 41,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryCosmos,
+	})
+
+	// T066: Juno (Cosmos SDK - Smart Contracts)
+	r.addCoin(CoinMetadata{
+		Symbol:        "JUNO",
+		Name:          "Juno",
+		CoinType:      118, // Cosmos coin type
+		FormatterID:   "juno",
+		MarketCapRank: 42,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryCosmos,
+	})
+
+	// T067: Evmos (Cosmos SDK with EVM compatibility)
+	r.addCoin(CoinMetadata{
+		Symbol:        "EVMOS",
+		Name:          "Evmos",
+		CoinType:      60, // Uses Ethereum coin type due to EVM compatibility
+		FormatterID:   "evmos",
+		MarketCapRank: 43,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryCosmos,
+	})
+
+	// T068: Secret Network (Cosmos SDK - Privacy)
+	r.addCoin(CoinMetadata{
+		Symbol:        "SCRT",
+		Name:          "Secret Network",
+		CoinType:      529, // Secret-specific coin type
+		FormatterID:   "secret",
+		MarketCapRank: 44,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryCosmos,
+	})
+
 	return r
 }
 

@@ -35,8 +35,8 @@ func TestPhase1_Layer2_6Chains(t *testing.T) {
 		t.Fatalf("GenerateMultiCoinAddresses failed: %v", err)
 	}
 
-	// Verify we have 40 chains (30 v0.2.0 + 6 Layer 2 + 4 Regional)
-	expectedChainCount := 40
+	// Verify we have 44 chains (30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos)
+	expectedChainCount := 44
 	if metrics.TotalChains != expectedChainCount {
 		t.Errorf("Expected %d chains, got %d", expectedChainCount, metrics.TotalChains)
 	}
@@ -183,8 +183,8 @@ func TestPhase2_Regional_4Chains(t *testing.T) {
 		t.Fatalf("GenerateMultiCoinAddresses failed: %v", err)
 	}
 
-	// Verify we have 40 chains (30 v0.2.0 + 6 Layer 2 + 4 Regional)
-	expectedChainCount := 40
+	// Verify we have 44 chains (30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos)
+	expectedChainCount := 44
 	if metrics.TotalChains != expectedChainCount {
 		t.Errorf("Expected %d chains, got %d", expectedChainCount, metrics.TotalChains)
 	}

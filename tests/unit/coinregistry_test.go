@@ -188,12 +188,12 @@ func TestRegistry_GetAllCoinsSortedByMarketCap(t *testing.T) {
 	})
 }
 
-// T040/T054: Test total chain count for v0.3.0 (40 chains: 30 v0.2.0 + 6 Layer 2 + 4 Regional)
+// T040/T054/T070: Test total chain count for v0.3.0 (44 chains: 30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos)
 func TestRegistry_TotalChainCount(t *testing.T) {
 	registry := coinregistry.NewRegistry()
 	coins := registry.GetAllCoinsSortedByMarketCap()
 
-	expectedCount := 40 // 30 v0.2.0 + 6 Layer 2 + 4 Regional
+	expectedCount := 44 // 30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos
 	actualCount := len(coins)
 
 	if actualCount != expectedCount {
@@ -230,7 +230,23 @@ func TestRegistry_TotalChainCount(t *testing.T) {
 		t.Errorf("Expected 4 Regional chains, got %d", regionalCount)
 	}
 
-	t.Logf("✓ Total chains: %d (30 v0.2.0 + 6 Layer 2 + 4 Regional)", actualCount)
+	// Verify we have exactly 4 Cosmos ecosystem chains
+	cosmosCount := 0
+	cosmosSymbols := []string{"OSMO", "JUNO", "EVMOS", "SCRT"}
+	for _, coin := range coins {
+		for _, symbol := range cosmosSymbols {
+			if coin.Symbol == symbol {
+				cosmosCount++
+			}
+		}
+	}
+
+	if cosmosCount != 4 {
+		t.Errorf("Expected 4 Cosmos ecosystem chains, got %d", cosmosCount)
+	}
+
+	t.Logf("✓ Total chains: %d (30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos)", actualCount)
 	t.Logf("✓ Layer 2 chains: %d", layer2Count)
 	t.Logf("✓ Regional chains: %d", regionalCount)
+	t.Logf("✓ Cosmos ecosystem chains: %d", cosmosCount)
 }
