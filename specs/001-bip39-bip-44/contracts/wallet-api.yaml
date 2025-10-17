@@ -1,0 +1,771 @@
+openapi: 3.0.3
+info:
+  title: ArcSign Wallet API
+  description: |
+    Secure hierarchical deterministic (HD) wallet API following BIP39/BIP44 standards.
+
+    **Security-First Design**:
+    - Mnemonics encrypted using Argon2id + AES-256-GCM
+    - Multi-factor authentication: Application password + Wallet password
+    - Rate-limited password attempts (5 per 15 minutes)
+    - Audit logging for all wallet operations
+
+    **Phase 1 Note**: This API specification is for future API development. Phase 1 implements CLI-only functionality.
+  version: 1.0.0
+  contact:
+    name: ArcSign Team
+    url: https://github.com/yourusername/arcsign
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+  - url: https://api.arcsign.example.com/v1
+    description: Production server (future)
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: wallets
+    description: Wallet management operations
+  - name: accounts
+    description: BIP44 account operations
+  - name: addresses
+    description: Address derivation operations
+  - name: audit
+    description: Audit log operations
+
+paths:
+  /wallets:
+    post:
+      tags: [wallets]
+      summary: Create new wallet
+      description: |
+        Generates a new BIP39 mnemonic (24 words), encrypts it using user password,
+        and stores it on USB storage.
+
+        **User Story**: US-001 (Generate New Wallet Mnemonic)
+      operationId: createWallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWalletRequest'
+      responses:
+        '201':
+          description: Wallet created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateWalletResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/USBUnavailable'
+      security: []
+
+    get:
+      tags: [wallets]
+      summary: List all wallets
+      description: Returns list of all wallets on USB storage
+      operationId: listWallets
+      responses:
+        '200':
+          description: Wallet list retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListWalletsResponse'
+        '503':
+          $ref: '#/components/responses/USBUnavailable'
+
+  /wallets/{walletId}:
+    get:
+      tags: [wallets]
+      summary: Get wallet details
+      description: Retrieves wallet metadata (does not decrypt mnemonic)
+      operationId: getWallet
+      parameters:
+        - $ref: '#/components/parameters/WalletId'
+      responses:
+        '200':
+          description: Wallet details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/USBUnavailable'
+
+  /wallets/{walletId}/restore:
+    post:
+      tags: [wallets]
+      summary: Restore wallet from mnemonic
+      description: |
+        Restores a wallet from a BIP39 mnemonic phrase, validates checksum,
+        and stores encrypted version on USB.
+
+        **User Story**: US-002 (Restore Wallet from Mnemonic)
+      operationId: restoreWallet
+      parameters:
+        - $ref: '#/components/parameters/WalletId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestoreWalletRequest'
+      responses:
+        '200':
+          description: Wallet restored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestoreWalletResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/USBUnavailable'
+      security: []
+
+  /wallets/{walletId}/unlock:
+    post:
+      tags: [wallets]
+      summary: Unlock wallet (decrypt mnemonic)
+      description: |
+        Decrypts mnemonic using provided password. Required before deriving addresses.
+        Mnemonic remains in memory until wallet is locked or session expires.
+      operationId: unlockWallet
+      parameters:
+        - $ref: '#/components/parameters/WalletId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnlockWalletRequest'
+      responses:
+        '200':
+          description: Wallet unlocked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnlockWalletResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/USBUnavailable'
+      security: []
+
+  /wallets/{walletId}/lock:
+    post:
+      tags: [wallets]
+      summary: Lock wallet (clear mnemonic from memory)
+      description: Clears decrypted mnemonic and derived keys from memory
+      operationId: lockWallet
+      parameters:
+        - $ref: '#/components/parameters/WalletId'
+      responses:
+        '204':
+          description: Wallet locked successfully
+
+  /wallets/{walletId}/accounts:
+    get:
+      tags: [accounts]
+      summary: List wallet accounts
+      description: Returns all BIP44 accounts for the wallet
+      operationId: listAccounts
+      parameters:
+        - $ref: '#/components/parameters/WalletId'
+      responses:
+        '200':
+          description: Account list retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAccountsResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [accounts]
+      summary: Create new account
+      description: |
+        Creates a new BIP44 account for specified coin type.
+        Wallet must be unlocked before creating accounts.
+      operationId: createAccount
+      parameters:
+        - $ref: '#/components/parameters/WalletId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+      responses:
+        '201':
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /wallets/{walletId}/accounts/{accountId}/addresses:
+    get:
+      tags: [addresses]
+      summary: List account addresses
+      description: Returns all derived addresses for the account
+      operationId: listAddresses
+      parameters:
+        - $ref: '#/components/parameters/WalletId'
+        - $ref: '#/components/parameters/AccountId'
+        - name: change
+          in: query
+          description: Filter by change type (0=external/receive, 1=internal/change)
+          schema:
+            type: integer
+            enum: [0, 1]
+      responses:
+        '200':
+          description: Address list retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAddressesResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [addresses]
+      summary: Derive new address
+      description: |
+        Derives a new address from the account using BIP44 derivation path.
+        Wallet must be unlocked before deriving addresses.
+
+        **User Story**: US-003 (Derive Hierarchical Deterministic Addresses)
+      operationId: deriveAddress
+      parameters:
+        - $ref: '#/components/parameters/WalletId'
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeriveAddressRequest'
+      responses:
+        '201':
+          description: Address derived successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /wallets/{walletId}/audit-log:
+    get:
+      tags: [audit]
+      summary: View wallet audit log
+      description: |
+        Returns audit log entries for security monitoring.
+        Does not contain sensitive data (passwords, keys, addresses, amounts).
+      operationId: getAuditLog
+      parameters:
+        - $ref: '#/components/parameters/WalletId'
+        - name: limit
+          in: query
+          description: Maximum number of entries to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+        - name: offset
+          in: query
+          description: Number of entries to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Audit log retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from authentication endpoint (future)
+
+  parameters:
+    WalletId:
+      name: walletId
+      in: path
+      required: true
+      description: Unique wallet identifier (UUID)
+      schema:
+        type: string
+        format: uuid
+
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      description: Account identifier (composite: walletId_accountIndex_coinType)
+      schema:
+        type: string
+        pattern: '^[a-f0-9-]+_\d+_\d+$'
+
+  schemas:
+    CreateWalletRequest:
+      type: object
+      required:
+        - password
+      properties:
+        name:
+          type: string
+          description: User-friendly wallet name
+          maxLength: 64
+          example: "My Main Wallet"
+        password:
+          type: string
+          description: Strong encryption password (min 12 chars, complexity required)
+          minLength: 12
+          format: password
+          example: "MySecureP@ssw0rd!"
+        passphrase:
+          type: string
+          description: Optional BIP39 passphrase (25th word) for additional security
+          format: password
+          example: ""
+        mnemonicLength:
+          type: integer
+          description: Mnemonic word count (12 or 24)
+          enum: [12, 24]
+          default: 24
+
+    CreateWalletResponse:
+      type: object
+      required:
+        - walletId
+        - mnemonic
+        - displayTimeout
+      properties:
+        walletId:
+          type: string
+          format: uuid
+          description: Unique wallet identifier
+        mnemonic:
+          type: string
+          description: Generated BIP39 mnemonic (MUST be backed up immediately)
+          example: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+        displayTimeout:
+          type: integer
+          description: Seconds until mnemonic is cleared from response (60 seconds)
+          example: 60
+        warningMessage:
+          type: string
+          description: Critical warning about mnemonic backup
+          example: "CRITICAL: Write down this mnemonic phrase immediately. It will disappear in 60 seconds and cannot be recovered."
+
+    RestoreWalletRequest:
+      type: object
+      required:
+        - mnemonic
+        - password
+      properties:
+        mnemonic:
+          type: string
+          description: BIP39 mnemonic phrase (12 or 24 words)
+          example: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+        password:
+          type: string
+          description: Strong encryption password
+          minLength: 12
+          format: password
+        passphrase:
+          type: string
+          description: Optional BIP39 passphrase (if wallet was created with one)
+          format: password
+        name:
+          type: string
+          description: User-friendly wallet name
+          maxLength: 64
+
+    RestoreWalletResponse:
+      type: object
+      required:
+        - walletId
+        - status
+      properties:
+        walletId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [restored]
+
+    UnlockWalletRequest:
+      type: object
+      required:
+        - password
+      properties:
+        password:
+          type: string
+          format: password
+          description: Wallet encryption password
+        passphrase:
+          type: string
+          format: password
+          description: Optional BIP39 passphrase (if wallet uses one)
+
+    UnlockWalletResponse:
+      type: object
+      required:
+        - status
+        - sessionExpires
+      properties:
+        status:
+          type: string
+          enum: [unlocked]
+        sessionExpires:
+          type: string
+          format: date-time
+          description: Timestamp when wallet will auto-lock
+          example: "2025-10-15T11:00:00Z"
+
+    ListWalletsResponse:
+      type: object
+      required:
+        - wallets
+      properties:
+        wallets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Wallet'
+
+    Wallet:
+      type: object
+      required:
+        - id
+        - createdAt
+        - lastAccessedAt
+        - encryptedMnemonicPath
+        - usesPassphrase
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 64
+        createdAt:
+          type: string
+          format: date-time
+        lastAccessedAt:
+          type: string
+          format: date-time
+        encryptedMnemonicPath:
+          type: string
+          description: USB file path
+        usesPassphrase:
+          type: boolean
+          description: Whether wallet uses BIP39 passphrase
+
+    CreateAccountRequest:
+      type: object
+      required:
+        - coinType
+      properties:
+        coinType:
+          type: integer
+          description: BIP44 coin type (SLIP-44): 0=Bitcoin, 60=Ethereum, etc.
+          minimum: 0
+          example: 0
+        name:
+          type: string
+          description: User-friendly account name
+          maxLength: 64
+          example: "Bitcoin Main"
+
+    Account:
+      type: object
+      required:
+        - walletId
+        - accountIndex
+        - coinType
+        - createdAt
+        - nextAddressIndex
+        - nextChangeIndex
+      properties:
+        walletId:
+          type: string
+          format: uuid
+        accountIndex:
+          type: integer
+          minimum: 0
+          maximum: 100
+        coinType:
+          type: integer
+          minimum: 0
+        name:
+          type: string
+          maxLength: 64
+        createdAt:
+          type: string
+          format: date-time
+        nextAddressIndex:
+          type: integer
+          description: Next unused external address index
+        nextChangeIndex:
+          type: integer
+          description: Next unused internal address index
+
+    ListAccountsResponse:
+      type: object
+      required:
+        - accounts
+      properties:
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Account'
+
+    DeriveAddressRequest:
+      type: object
+      properties:
+        change:
+          type: integer
+          description: Change type (0=external/receive, 1=internal/change)
+          enum: [0, 1]
+          default: 0
+        label:
+          type: string
+          description: User-friendly address label
+          maxLength: 128
+
+    Address:
+      type: object
+      required:
+        - accountId
+        - change
+        - addressIndex
+        - derivationPath
+        - address
+        - publicKey
+        - createdAt
+      properties:
+        accountId:
+          type: string
+        change:
+          type: integer
+          enum: [0, 1]
+        addressIndex:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        derivationPath:
+          type: string
+          description: Full BIP44 path
+          example: "m/44'/0'/0'/0/0"
+        address:
+          type: string
+          description: Public cryptocurrency address
+          example: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+        publicKey:
+          type: string
+          description: Compressed public key (hex-encoded)
+          pattern: '^[0-9a-f]{66}$'
+          example: "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+        createdAt:
+          type: string
+          format: date-time
+        label:
+          type: string
+          maxLength: 128
+
+    ListAddressesResponse:
+      type: object
+      required:
+        - addresses
+      properties:
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+
+    AuditLogEntry:
+      type: object
+      required:
+        - id
+        - walletId
+        - timestamp
+        - operation
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        walletId:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+        operation:
+          type: string
+          enum: [WALLET_CREATE, WALLET_ACCESS, WALLET_RESTORE, ACCOUNT_CREATE, ADDRESS_DERIVE]
+        status:
+          type: string
+          enum: [SUCCESS, FAILURE]
+        failureReason:
+          type: string
+          description: Present only if status=FAILURE
+          enum: [wrong_password, wrong_mnemonic, usb_unavailable, usb_full, usb_disconnected, rate_limited, corrupted_data]
+
+    AuditLogResponse:
+      type: object
+      required:
+        - entries
+        - total
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLogEntry'
+        total:
+          type: integer
+          description: Total number of audit log entries
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Error code for programmatic handling
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details
+          additionalProperties: true
+
+  responses:
+    BadRequest:
+      description: Bad request (invalid parameters)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            invalidMnemonic:
+              value:
+                code: "INVALID_MNEMONIC"
+                message: "Invalid mnemonic: checksum failed"
+            weakPassword:
+              value:
+                code: "WEAK_PASSWORD"
+                message: "Password must be at least 12 characters with complexity requirements"
+
+    Unauthorized:
+      description: Unauthorized (wrong password, wallet locked)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            wrongPassword:
+              value:
+                code: "WRONG_PASSWORD"
+                message: "Authentication failed: wrong password or corrupted data"
+            walletLocked:
+              value:
+                code: "WALLET_LOCKED"
+                message: "Wallet is locked. Please unlock before performing this operation."
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: "NOT_FOUND"
+            message: "Wallet not found"
+
+    RateLimited:
+      description: Rate limited (too many failed attempts)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: "RATE_LIMITED"
+            message: "Too many failed attempts. Please wait 15 minutes before trying again."
+            details:
+              lockoutUntil: "2025-10-15T10:35:00Z"
+
+    USBUnavailable:
+      description: USB storage unavailable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            usbNotFound:
+              value:
+                code: "USB_NOT_FOUND"
+                message: "USB storage device not detected. Please insert a USB drive and try again."
+            usbFull:
+              value:
+                code: "USB_FULL"
+                message: "USB storage device is full. Please free up space or use a different USB drive."
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: "INTERNAL_ERROR"
+            message: "An unexpected error occurred. Please try again."
