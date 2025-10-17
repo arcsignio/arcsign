@@ -364,6 +364,52 @@ func NewRegistry() *Registry {
 		Category:      models.ChainCategoryLayer2,
 	})
 
+	// v0.3.0 - User Story 2: Regional Chains
+
+	// T042: Klaytn (Regional Asia - Korea)
+	r.addCoin(CoinMetadata{
+		Symbol:        "KLAY",
+		Name:          "Klaytn",
+		CoinType:      8217,
+		FormatterID:   "ethereum",
+		MarketCapRank: 37,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryCustom, // Regional Asia
+	})
+
+	// T043: Cronos (Regional Global - Crypto.com Chain)
+	r.addCoin(CoinMetadata{
+		Symbol:        "CRO",
+		Name:          "Cronos",
+		CoinType:      394,
+		FormatterID:   "ethereum",
+		MarketCapRank: 38,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryCustom, // Regional Global
+	})
+
+	// T044: HECO (Regional Global - Huobi ECO Chain)
+	r.addCoin(CoinMetadata{
+		Symbol:        "HT",
+		Name:          "HECO",
+		CoinType:      1010,
+		FormatterID:   "ethereum",
+		MarketCapRank: 39,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryCustom, // Regional Global
+	})
+
+	// T048: Harmony (Alternative EVM with Bech32 encoding)
+	r.addCoin(CoinMetadata{
+		Symbol:        "ONE",
+		Name:          "Harmony",
+		CoinType:      1023,
+		FormatterID:   "harmony",
+		MarketCapRank: 40,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryEVMMainnet, // Alternative EVM
+	})
+
 	return r
 }
 

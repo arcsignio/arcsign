@@ -188,12 +188,12 @@ func TestRegistry_GetAllCoinsSortedByMarketCap(t *testing.T) {
 	})
 }
 
-// T040: Test total chain count for v0.3.0 (36 chains: 30 v0.2.0 + 6 Layer 2)
+// T040/T054: Test total chain count for v0.3.0 (40 chains: 30 v0.2.0 + 6 Layer 2 + 4 Regional)
 func TestRegistry_TotalChainCount(t *testing.T) {
 	registry := coinregistry.NewRegistry()
 	coins := registry.GetAllCoinsSortedByMarketCap()
 
-	expectedCount := 36 // 30 v0.2.0 chains + 6 v0.3.0 Layer 2 chains
+	expectedCount := 40 // 30 v0.2.0 + 6 Layer 2 + 4 Regional
 	actualCount := len(coins)
 
 	if actualCount != expectedCount {
@@ -215,6 +215,22 @@ func TestRegistry_TotalChainCount(t *testing.T) {
 		t.Errorf("Expected 6 Layer 2 chains, got %d", layer2Count)
 	}
 
-	t.Logf("✓ Total chains: %d (30 v0.2.0 + 6 v0.3.0 Layer 2)", actualCount)
+	// Verify we have exactly 4 Regional chains
+	regionalCount := 0
+	regionalSymbols := []string{"KLAY", "CRO", "HT", "ONE"}
+	for _, coin := range coins {
+		for _, symbol := range regionalSymbols {
+			if coin.Symbol == symbol {
+				regionalCount++
+			}
+		}
+	}
+
+	if regionalCount != 4 {
+		t.Errorf("Expected 4 Regional chains, got %d", regionalCount)
+	}
+
+	t.Logf("✓ Total chains: %d (30 v0.2.0 + 6 Layer 2 + 4 Regional)", actualCount)
 	t.Logf("✓ Layer 2 chains: %d", layer2Count)
+	t.Logf("✓ Regional chains: %d", regionalCount)
 }

@@ -239,6 +239,13 @@ func (s *AddressService) deriveAddressByFormatter(key *hdkeychain.ExtendedKey, f
 		return s.DeriveCosmosAddress(key)
 	case "starknet":
 		return s.DeriveStarknetAddress(key)
+	case "harmony":
+		// T049: Harmony uses Ethereum derivation + Bech32 encoding
+		ecdsaPrivKey, err := key.ECPrivKey()
+		if err != nil {
+			return "", fmt.Errorf("failed to get ECDSA private key for Harmony: %w", err)
+		}
+		return s.DeriveHarmonyAddress(ecdsaPrivKey.ToECDSA())
 	default:
 		return "", fmt.Errorf("unsupported formatter: %s", formatterID)
 	}

@@ -45,7 +45,8 @@
       "WebFetch(domain:icon.community)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(if [ -d \"/Users/jnr350/Desktop/Yansiang/arcSignv2/specs/003-name-bitcoin-symbol/checklists\" ])",
-      "Bash(then ls -la \"/Users/jnr350/Desktop/Yansiang/arcSignv2/specs/003-name-bitcoin-symbol/checklists\")"
+      "Bash(then ls -la \"/Users/jnr350/Desktop/Yansiang/arcSignv2/specs/003-name-bitcoin-symbol/checklists\")",
+      "Bash(go run:*)"
     ],
     "deny": [],
     "ask": []
