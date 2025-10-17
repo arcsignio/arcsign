@@ -2,15 +2,21 @@ package main
 
 import (
 	"bufio"
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
+	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/yourusername/arcsign/internal/models"
 	"github.com/yourusername/arcsign/internal/services/address"
 	"github.com/yourusername/arcsign/internal/services/bip39service"
+	"github.com/yourusername/arcsign/internal/services/coinregistry"
 	"github.com/yourusername/arcsign/internal/services/hdkey"
 	"github.com/yourusername/arcsign/internal/services/storage"
 	"github.com/yourusername/arcsign/internal/services/wallet"
@@ -36,6 +42,8 @@ func main() {
 		handleRestoreWallet()
 	case "derive":
 		handleDeriveAddress()
+	case "generate-all":
+		handleGenerateAll()
 	case "version":
 		fmt.Printf("ArcSign v%s\n", Version)
 	case "help", "--help", "-h":
@@ -54,6 +62,7 @@ func printUsage() {
 	fmt.Println("  arcsign create       Create a new wallet")
 	fmt.Println("  arcsign restore      Restore an existing wallet")
 	fmt.Println("  arcsign derive       Derive cryptocurrency addresses")
+	fmt.Println("  arcsign generate-all Generate all 54 blockchain addresses to file")
 	fmt.Println("  arcsign version      Show version information")
 	fmt.Println("  arcsign help         Show this help message")
 	fmt.Println()
@@ -662,4 +671,341 @@ func handleDeriveAddress() {
 	fmt.Println()
 	fmt.Println("You can use this address to receive funds.")
 	fmt.Println()
+}
+
+func handleGenerateAll() {
+	fmt.Println("=== ArcSign - Generate All Addresses ===")
+	fmt.Println()
+
+	// Step 1: Detect USB device
+	fmt.Println("Step 1: Detecting USB storage...")
+	devices, err := storage.DetectUSBDevices()
+	if err != nil || len(devices) == 0 {
+		fmt.Println("❌ Error: No USB storage device found")
+		fmt.Println("Please insert the USB drive containing your wallet.")
+		os.Exit(1)
+	}
+
+	usbPath := devices[0]
+	fmt.Printf("✓ USB device detected: %s\n\n", usbPath)
+
+	// Step 2: Get wallet ID
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Step 2: Enter wallet ID: ")
+	walletID, _ := reader.ReadString('\n')
+	walletID = strings.TrimSpace(walletID)
+
+	if walletID == "" {
+		fmt.Println("❌ Error: Wallet ID cannot be empty")
+		os.Exit(1)
+	}
+
+	// Step 3: Load wallet metadata
+	fmt.Println()
+	fmt.Println("Step 3: Loading wallet...")
+	walletService := wallet.NewWalletService(usbPath)
+	walletData, err := walletService.LoadWallet(walletID)
+	if err != nil {
+		fmt.Printf("❌ Error loading wallet: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("✓ Wallet found!")
+	fmt.Printf("  Name: %s\n", walletData.Name)
+	fmt.Println()
+
+	// Step 4: Get password and restore mnemonic
+	fmt.Println("Step 4: Enter encryption password to unlock wallet")
+	fmt.Print("Enter password: ")
+	passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
+	if err != nil {
+		fmt.Printf("\n❌ Error reading password: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println()
+
+	password := string(passwordBytes)
+	mnemonic, err := walletService.RestoreWallet(walletID, password)
+	if err != nil {
+		fmt.Printf("❌ Error unlocking wallet: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Get BIP39 passphrase if needed
+	var bip39Passphrase string
+	if walletData.UsesPassphrase {
+		fmt.Println()
+		fmt.Println("⚠️  This wallet uses a BIP39 passphrase")
+		fmt.Print("Enter BIP39 passphrase: ")
+		bip39Passphrase, _ = reader.ReadString('\n')
+		bip39Passphrase = strings.TrimSpace(bip39Passphrase)
+	}
+
+	fmt.Println()
+	fmt.Println("✓ Wallet unlocked successfully!")
+	fmt.Println()
+
+	// Step 5: Generate addresses for all 54 blockchains
+	fmt.Println("Step 5: Generating addresses for all 54 blockchains...")
+	fmt.Println("(This will take about 10-15 seconds)")
+	fmt.Println()
+
+	// Create BIP39 seed
+	bip39Service := bip39service.NewBIP39Service()
+	seed, err := bip39Service.MnemonicToSeed(mnemonic, bip39Passphrase)
+	if err != nil {
+		fmt.Printf("❌ Error generating seed: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Create master key
+	hdkeyService := hdkey.NewHDKeyService()
+	masterKey, err := hdkeyService.NewMasterKey(seed)
+	if err != nil {
+		fmt.Printf("❌ Error creating master key: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Get coin registry
+	registry := coinregistry.NewRegistry()
+	coins := registry.GetAllCoinsSortedByMarketCap()
+	addressService := address.NewAddressService()
+
+	// Generate addresses
+	type AddressResult struct {
+		Rank       int    `json:"rank"`
+		Symbol     string `json:"symbol"`
+		Name       string `json:"name"`
+		CoinType   uint32 `json:"coin_type"`
+		Address    string `json:"address"`
+		Path       string `json:"path"`
+		Category   string `json:"category"`
+		KeyType    string `json:"key_type"`
+		Error      string `json:"error,omitempty"`
+	}
+
+	results := make([]AddressResult, 0, len(coins))
+	successCount := 0
+	failCount := 0
+
+	for _, coin := range coins {
+		// Build BIP44 path: m/44'/coin_type'/0'/0/0
+		path := fmt.Sprintf("m/44'/%d'/0'/0/0", coin.CoinType)
+
+		// Derive key
+		derivedKey, err := hdkeyService.DerivePath(masterKey, path)
+		if err != nil {
+			results = append(results, AddressResult{
+				Rank:     coin.MarketCapRank,
+				Symbol:   coin.Symbol,
+				Name:     coin.Name,
+				CoinType: coin.CoinType,
+				Path:     path,
+				Category: string(coin.Category),
+				KeyType:  string(coin.KeyType),
+				Error:    fmt.Sprintf("Path derivation failed: %v", err),
+			})
+			failCount++
+			fmt.Printf("  ❌ %s (%s): Derivation failed\n", coin.Name, coin.Symbol)
+			continue
+		}
+
+		// Derive address using formatter
+		addr, err := deriveAddressByFormatter(addressService, derivedKey, coin.FormatterID)
+		if err != nil {
+			results = append(results, AddressResult{
+				Rank:     coin.MarketCapRank,
+				Symbol:   coin.Symbol,
+				Name:     coin.Name,
+				CoinType: coin.CoinType,
+				Path:     path,
+				Category: string(coin.Category),
+				KeyType:  string(coin.KeyType),
+				Error:    fmt.Sprintf("Address generation failed: %v", err),
+			})
+			failCount++
+			fmt.Printf("  ❌ %s (%s): Generation failed\n", coin.Name, coin.Symbol)
+			continue
+		}
+
+		results = append(results, AddressResult{
+			Rank:     coin.MarketCapRank,
+			Symbol:   coin.Symbol,
+			Name:     coin.Name,
+			CoinType: coin.CoinType,
+			Address:  addr,
+			Path:     path,
+			Category: string(coin.Category),
+			KeyType:  string(coin.KeyType),
+		})
+		successCount++
+
+		// Show abbreviated address
+		displayAddr := addr
+		if len(displayAddr) > 42 {
+			displayAddr = displayAddr[:38] + "..."
+		}
+		fmt.Printf("  ✓ %s (%s): %s\n", coin.Name, coin.Symbol, displayAddr)
+	}
+
+	fmt.Println()
+	fmt.Printf("✓ Generation complete: %d success, %d failed\n", successCount, failCount)
+	fmt.Println()
+
+	// Step 6: Save to files
+	fmt.Println("Step 6: Saving address list...")
+
+	// Create output directory
+	outputDir := filepath.Join(usbPath, walletID, "addresses")
+	err = os.MkdirAll(outputDir, 0700)
+	if err != nil {
+		fmt.Printf("❌ Error creating output directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	timestamp := time.Now().Format("20060102-150405")
+
+	// Save as JSON
+	jsonPath := filepath.Join(outputDir, fmt.Sprintf("addresses-%s.json", timestamp))
+	jsonData, err := json.MarshalIndent(map[string]interface{}{
+		"wallet_id":      walletID,
+		"wallet_name":    walletData.Name,
+		"generated_at":   time.Now().Format(time.RFC3339),
+		"total_chains":   len(coins),
+		"success_count":  successCount,
+		"failed_count":   failCount,
+		"addresses":      results,
+	}, "", "  ")
+	if err != nil {
+		fmt.Printf("❌ Error creating JSON: %v\n", err)
+		os.Exit(1)
+	}
+
+	err = os.WriteFile(jsonPath, jsonData, 0600)
+	if err != nil {
+		fmt.Printf("❌ Error writing JSON file: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("✓ JSON saved: %s\n", jsonPath)
+
+	// Save as CSV
+	csvPath := filepath.Join(outputDir, fmt.Sprintf("addresses-%s.csv", timestamp))
+	csvFile, err := os.Create(csvPath)
+	if err != nil {
+		fmt.Printf("❌ Error creating CSV file: %v\n", err)
+		os.Exit(1)
+	}
+	defer csvFile.Close()
+
+	err = os.Chmod(csvPath, 0600)
+	if err != nil {
+		fmt.Printf("⚠️  Warning: Could not set file permissions: %v\n", err)
+	}
+
+	csvWriter := csv.NewWriter(csvFile)
+	defer csvWriter.Flush()
+
+	// Write CSV header
+	csvWriter.Write([]string{"Rank", "Symbol", "Name", "Category", "Coin Type", "Key Type", "Derivation Path", "Address", "Error"})
+
+	// Write CSV rows
+	for _, result := range results {
+		csvWriter.Write([]string{
+			fmt.Sprintf("%d", result.Rank),
+			result.Symbol,
+			result.Name,
+			result.Category,
+			fmt.Sprintf("%d", result.CoinType),
+			result.KeyType,
+			result.Path,
+			result.Address,
+			result.Error,
+		})
+	}
+
+	fmt.Printf("✓ CSV saved: %s\n", csvPath)
+	fmt.Println()
+
+	// Step 7: Summary
+	fmt.Println("═══════════════════════════════════════════════════════════")
+	fmt.Println("                    GENERATION SUMMARY")
+	fmt.Println("═══════════════════════════════════════════════════════════")
+	fmt.Println()
+	fmt.Printf("  Total blockchains: %d\n", len(coins))
+	fmt.Printf("  Successfully generated: %d\n", successCount)
+	fmt.Printf("  Failed: %d\n", failCount)
+	fmt.Println()
+	fmt.Println("  Output files:")
+	fmt.Printf("    JSON: %s\n", filepath.Base(jsonPath))
+	fmt.Printf("    CSV:  %s\n", filepath.Base(csvPath))
+	fmt.Println()
+	fmt.Printf("  Location: %s\n", outputDir)
+	fmt.Println()
+	fmt.Println("═══════════════════════════════════════════════════════════")
+	fmt.Println()
+	fmt.Println("✓ All addresses have been saved to USB drive!")
+	fmt.Println()
+	fmt.Println("⚠️  Security reminder:")
+	fmt.Println("  - Keep your USB drive safe")
+	fmt.Println("  - These addresses are derived from your wallet")
+	fmt.Println("  - Anyone with these addresses can see your balances")
+	fmt.Println("  - Never share your mnemonic or encryption password")
+	fmt.Println()
+}
+
+// deriveAddressByFormatter calls the appropriate formatter method based on FormatterID
+func deriveAddressByFormatter(addressService *address.AddressService, key *hdkeychain.ExtendedKey, formatterID string) (string, error) {
+	s := addressService
+	switch formatterID {
+	case "bitcoin":
+		return s.DeriveBitcoinAddress(key)
+	case "ethereum":
+		return s.DeriveEthereumAddress(key)
+	case "litecoin":
+		return s.DeriveLitecoinAddress(key)
+	case "dogecoin":
+		return s.DeriveDogecoinAddress(key)
+	case "dash":
+		return s.DeriveDashAddress(key)
+	case "bitcoincash":
+		return s.DeriveBitcoinCashAddress(key)
+	case "zcash":
+		return s.DeriveZcashAddress(key)
+	case "ripple":
+		return s.DeriveRippleAddress(key)
+	case "stellar":
+		return s.DeriveStellarAddress(key)
+	case "tron":
+		return s.DeriveTronAddress(key)
+	case "solana":
+		return s.DeriveSolanaAddress(key)
+	case "cosmos":
+		return s.DeriveCosmosAddress(key)
+	case "starknet":
+		return s.DeriveStarknetAddress(key)
+	case "harmony":
+		ecdsaPrivKey, err := key.ECPrivKey()
+		if err != nil {
+			return "", fmt.Errorf("failed to get ECDSA private key for Harmony: %w", err)
+		}
+		return s.DeriveHarmonyAddress(ecdsaPrivKey.ToECDSA())
+	case "osmosis":
+		return s.DeriveOsmosisAddress(key)
+	case "juno":
+		return s.DeriveJunoAddress(key)
+	case "evmos":
+		return s.DeriveEvmosAddress(key)
+	case "secret":
+		return s.DeriveSecretAddress(key)
+	case "kusama":
+		return s.DeriveKusamaAddress(key)
+	case "icon":
+		return s.DeriveIconAddress(key)
+	case "tezos":
+		return s.DeriveTezosAddress(key)
+	case "zilliqa":
+		return s.DeriveZilliqaAddress(key)
+	default:
+		return "", fmt.Errorf("unsupported formatter: %s", formatterID)
+	}
 }
