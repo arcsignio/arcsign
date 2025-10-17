@@ -188,12 +188,12 @@ func TestRegistry_GetAllCoinsSortedByMarketCap(t *testing.T) {
 	})
 }
 
-// T040/T054/T070/T080: Test total chain count for v0.3.0 (52 chains: 30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos + 6 Alternative EVM + 2 Specialized)
+// T040/T054/T070/T080: Test total chain count for v0.3.0 (54 chains: 30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos + 6 Alternative EVM + 4 Specialized)
 func TestRegistry_TotalChainCount(t *testing.T) {
 	registry := coinregistry.NewRegistry()
 	coins := registry.GetAllCoinsSortedByMarketCap()
 
-	expectedCount := 52 // 30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos + 6 Alternative EVM + 2 Specialized
+	expectedCount := 54 // 30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos + 6 Alternative EVM + 4 Specialized
 	actualCount := len(coins)
 
 	if actualCount != expectedCount {
@@ -260,9 +260,9 @@ func TestRegistry_TotalChainCount(t *testing.T) {
 		t.Errorf("Expected 6 Alternative EVM chains, got %d", altEvmCount)
 	}
 
-	// Verify we have exactly 2 Specialized chains (Kusama, ICON)
+	// Verify we have exactly 4 Specialized chains (Kusama, ICON, Tezos, Zilliqa)
 	specializedCount := 0
-	specializedSymbols := []string{"KSM", "ICX"}
+	specializedSymbols := []string{"KSM", "ICX", "XTZ", "ZIL"}
 	for _, coin := range coins {
 		for _, symbol := range specializedSymbols {
 			if coin.Symbol == symbol {
@@ -271,11 +271,11 @@ func TestRegistry_TotalChainCount(t *testing.T) {
 		}
 	}
 
-	if specializedCount != 2 {
-		t.Errorf("Expected 2 Specialized chains, got %d", specializedCount)
+	if specializedCount != 4 {
+		t.Errorf("Expected 4 Specialized chains, got %d", specializedCount)
 	}
 
-	t.Logf("✓ Total chains: %d (30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos + 6 Alt EVM + 2 Specialized)", actualCount)
+	t.Logf("✓ Total chains: %d (30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos + 6 Alt EVM + 4 Specialized)", actualCount)
 	t.Logf("✓ Layer 2 chains: %d", layer2Count)
 	t.Logf("✓ Regional chains: %d", regionalCount)
 	t.Logf("✓ Cosmos ecosystem chains: %d", cosmosCount)

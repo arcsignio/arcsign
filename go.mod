@@ -8,8 +8,11 @@ require (
 )
 
 require (
-	github.com/btcsuite/btcd v0.24.2
-	github.com/btcsuite/btcd/btcutil v1.1.6
+	blockwatch.cc/tzgo v1.18.4
+	github.com/Zilliqa/gozilliqa-sdk v1.2.0
+	github.com/anyproto/go-slip10 v1.0.0
+	github.com/btcsuite/btcd v0.22.1
+	github.com/btcsuite/btcd/btcutil v1.1.1
 	github.com/ethereum/go-ethereum v1.16.4
 	github.com/gagliardetto/solana-go v1.14.0
 	github.com/mr-tron/base58 v1.2.0

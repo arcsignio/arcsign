@@ -255,11 +255,15 @@ func (s *AddressService) deriveAddressByFormatter(key *hdkeychain.ExtendedKey, f
 		return s.DeriveEvmosAddress(key)
 	case "secret":
 		return s.DeriveSecretAddress(key)
-	// T090, T108: Specialized chains (User Story 5 - partial)
+	// T090, T095, T101, T108: Specialized chains (User Story 5 - complete)
 	case "kusama":
 		return s.DeriveKusamaAddress(key)
 	case "icon":
 		return s.DeriveIconAddress(key)
+	case "tezos":
+		return s.DeriveTezosAddress(key)
+	case "zilliqa":
+		return s.DeriveZilliqaAddress(key)
 	default:
 		return "", fmt.Errorf("unsupported formatter: %s", formatterID)
 	}

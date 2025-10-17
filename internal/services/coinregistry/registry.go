@@ -548,6 +548,28 @@ func NewRegistry() *Registry {
 		Category:      models.ChainCategoryCustom,
 	})
 
+	// T095: Tezos (Ed25519 + SLIP-10 derivation)
+	r.addCoin(CoinMetadata{
+		Symbol:        "XTZ",
+		Name:          "Tezos",
+		CoinType:      1729, // The Ramanujan number!
+		FormatterID:   "tezos",
+		MarketCapRank: 53,
+		KeyType:       KeyTypeEd25519, // Ed25519 signature scheme
+		Category:      models.ChainCategoryCustom,
+	})
+
+	// T101: Zilliqa (Schnorr signatures + Bech32)
+	r.addCoin(CoinMetadata{
+		Symbol:        "ZIL",
+		Name:          "Zilliqa",
+		CoinType:      313, // SLIP-0044 coin type
+		FormatterID:   "zilliqa",
+		MarketCapRank: 54,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryCustom,
+	})
+
 	return r
 }
 
