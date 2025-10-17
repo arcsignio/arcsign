@@ -1,0 +1,517 @@
+openapi: 3.0.3
+info:
+  title: ArcSign CLI - Subprocess Integration Contract
+  description: |
+    Defines the subprocess interface between Tauri Rust backend and Go CLI.
+    The dashboard invokes the `arcsign` CLI binary as a subprocess and communicates
+    via stdin (env vars for secrets), stdout (JSON responses), and stderr (errors).
+
+    **Security Notes**:
+    - Passwords/mnemonics passed via environment variables (not CLI args)
+    - All CLI commands validate inputs before operations
+    - CLI handles all cryptographic operations (never in Tauri/React)
+  version: 1.0.0 (matches CLI v0.3.0)
+
+tags:
+  - name: wallet
+    description: Wallet creation and restore commands
+  - name: address
+    description: Address derivation commands
+  - name: usb
+    description: USB device management
+
+paths:
+  /create:
+    post:
+      operationId: cli_create_wallet
+      tags: [wallet]
+      summary: CLI command - arcsign create
+      description: |
+        Creates a new BIP39 HD wallet and stores encrypted on USB.
+
+        **Command**: `arcsign create`
+        **Environment**: `WALLET_PASSWORD`, `WALLET_NAME`, `BIP39_PASSPHRASE`, `MNEMONIC_LENGTH`
+        **Subprocess invocation**:
+        ```rust
+        Command::new("./arcsign")
+            .arg("create")
+            .env("WALLET_PASSWORD", password)
+            .env("WALLET_NAME", name)
+            .env("BIP39_PASSPHRASE", passphrase)  // optional
+            .env("MNEMONIC_LENGTH", "24")          // optional
+            .env("USB_PATH", usb_path)
+            .output()
+            .await
+        ```
+
+        **Stdout** (success): JSON wallet response + mnemonic
+        **Stderr** (failure): Error message
+      requestBody:
+        description: Environment variables passed to CLI
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - WALLET_PASSWORD
+                - USB_PATH
+              properties:
+                WALLET_PASSWORD:
+                  type: string
+                  description: Encryption password (12+ chars, complexity validated)
+                  example: MySecurePass123!
+                USB_PATH:
+                  type: string
+                  description: USB mount point
+                  example: /Volumes/ARCSIGN_WALLET
+                WALLET_NAME:
+                  type: string
+                  description: Optional wallet name (default: "Wallet {timestamp}")
+                  example: My Personal Wallet
+                BIP39_PASSPHRASE:
+                  type: string
+                  description: Optional BIP39 passphrase (25th word)
+                  example: extra-secret-word
+                MNEMONIC_LENGTH:
+                  type: string
+                  enum: ["12", "24"]
+                  description: Mnemonic word count (default: "24")
+                  example: "24"
+      responses:
+        '200':
+          description: Wallet created successfully (stdout JSON)
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - wallet_id
+                  - wallet_name
+                  - mnemonic
+                  - created_at
+                  - has_passphrase
+                properties:
+                  wallet_id:
+                    type: string
+                    format: uuid
+                    description: Generated wallet ID (SHA-256 of mnemonic)
+                    example: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+                  wallet_name:
+                    type: string
+                    description: Wallet display name
+                    example: My Personal Wallet
+                  mnemonic:
+                    type: string
+                    description: BIP39 mnemonic phrase (12 or 24 words, space-separated)
+                    example: abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about
+                  created_at:
+                    type: string
+                    format: date-time
+                    description: Wallet creation timestamp (ISO 8601)
+                    example: '2025-10-17T14:30:25+08:00'
+                  has_passphrase:
+                    type: boolean
+                    description: True if BIP39 passphrase was provided
+                    example: false
+        '400':
+          description: Invalid input (stderr message)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Error: Password must be at least 12 characters long'
+        '500':
+          description: Internal CLI error (stderr message)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Error: Failed to write wallet file: USB drive not writable'
+
+  /restore:
+    post:
+      operationId: cli_restore_wallet
+      tags: [wallet]
+      summary: CLI command - arcsign restore
+      description: |
+        Imports an existing BIP39 wallet from mnemonic phrase.
+
+        **Command**: `arcsign restore`
+        **Environment**: `WALLET_PASSWORD`, `MNEMONIC`, `BIP39_PASSPHRASE`, `WALLET_NAME`
+        **Subprocess invocation**:
+        ```rust
+        Command::new("./arcsign")
+            .arg("restore")
+            .env("WALLET_PASSWORD", password)
+            .env("MNEMONIC", mnemonic)
+            .env("BIP39_PASSPHRASE", passphrase)  // optional
+            .env("WALLET_NAME", name)              // optional
+            .env("USB_PATH", usb_path)
+            .output()
+            .await
+        ```
+
+        **Stdout** (success): JSON wallet response (no mnemonic returned)
+        **Stderr** (failure): Error message
+      requestBody:
+        description: Environment variables passed to CLI
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - WALLET_PASSWORD
+                - MNEMONIC
+                - USB_PATH
+              properties:
+                WALLET_PASSWORD:
+                  type: string
+                  description: Encryption password for this wallet
+                  example: MySecurePass123!
+                MNEMONIC:
+                  type: string
+                  description: BIP39 mnemonic phrase (12 or 24 words, space-separated, normalized)
+                  example: abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about
+                USB_PATH:
+                  type: string
+                  description: USB mount point
+                  example: /Volumes/ARCSIGN_WALLET
+                BIP39_PASSPHRASE:
+                  type: string
+                  description: Optional BIP39 passphrase (25th word)
+                  example: extra-secret-word
+                WALLET_NAME:
+                  type: string
+                  description: Optional wallet name
+                  example: Imported Wallet
+      responses:
+        '200':
+          description: Wallet restored successfully (stdout JSON)
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - wallet_id
+                  - wallet_name
+                  - created_at
+                  - has_passphrase
+                  - is_duplicate
+                properties:
+                  wallet_id:
+                    type: string
+                    format: uuid
+                    description: Derived wallet ID (same as original creation)
+                    example: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+                  wallet_name:
+                    type: string
+                    description: Wallet display name
+                    example: Imported Wallet
+                  created_at:
+                    type: string
+                    format: date-time
+                    description: Wallet creation timestamp
+                    example: '2025-10-17T14:30:25+08:00'
+                  has_passphrase:
+                    type: boolean
+                    description: True if BIP39 passphrase was provided
+                    example: false
+                  is_duplicate:
+                    type: boolean
+                    description: True if wallet with same ID already exists on USB
+                    example: false
+        '400':
+          description: Invalid mnemonic (stderr message)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Error: Invalid mnemonic: checksum verification failed'
+        '500':
+          description: Restore failed (stderr message)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Error: Failed to write wallet file: USB drive not writable'
+
+  /generate-all:
+    post:
+      operationId: cli_generate_all_addresses
+      tags: [address]
+      summary: CLI command - arcsign generate-all
+      description: |
+        Derives addresses for all 54 supported blockchains.
+
+        **Command**: `arcsign generate-all`
+        **Environment**: `WALLET_PASSWORD`
+        **CLI Args**: `--wallet-id <UUID>`
+        **Subprocess invocation**:
+        ```rust
+        Command::new("./arcsign")
+            .arg("generate-all")
+            .arg("--wallet-id")
+            .arg(wallet_id)
+            .env("WALLET_PASSWORD", password)
+            .env("USB_PATH", usb_path)
+            .output()
+            .await
+        ```
+
+        **Performance**: ~10-15 seconds first run, <1s if cached
+        **Stdout** (success): JSON array of 54 addresses
+        **Stderr** (failure): Error message
+      requestBody:
+        description: CLI arguments + environment variables
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - wallet_id
+                - WALLET_PASSWORD
+                - USB_PATH
+              properties:
+                wallet_id:
+                  type: string
+                  format: uuid
+                  description: Wallet identifier (CLI arg)
+                  example: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+                WALLET_PASSWORD:
+                  type: string
+                  description: Wallet encryption password (env var)
+                  example: MySecurePass123!
+                USB_PATH:
+                  type: string
+                  description: USB mount point (env var)
+                  example: /Volumes/ARCSIGN_WALLET
+      responses:
+        '200':
+          description: Addresses generated successfully (stdout JSON array)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Address'
+                minItems: 54
+                maxItems: 54
+        '401':
+          description: Incorrect password (stderr message)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Error: Incorrect password or wallet not found'
+        '500':
+          description: Address generation failed (stderr message)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Error: Failed to derive address for coin type 145 (Starknet): grindKey timeout'
+
+  /detect-usb:
+    post:
+      operationId: cli_detect_usb
+      tags: [usb]
+      summary: CLI command - arcsign detect-usb (optional, may not exist in CLI)
+      description: |
+        Detects available USB storage devices.
+        **Note**: This command may not exist in current CLI. Tauri can detect USB directly
+        by scanning known mount points (/Volumes, /media, /mnt) instead.
+
+        **Command**: `arcsign detect-usb` (if implemented)
+        **Subprocess invocation**:
+        ```rust
+        Command::new("./arcsign")
+            .arg("detect-usb")
+            .output()
+            .await
+        ```
+
+        **Alternative**: Tauri scans filesystem directly:
+        ```rust
+        // macOS
+        std::fs::read_dir("/Volumes")?
+        // Linux
+        std::fs::read_dir("/media")?
+        std::fs::read_dir("/mnt")?
+        // Windows
+        // Use Win32 API to enumerate drives
+        ```
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: USB devices detected (stdout JSON)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  devices:
+                    type: array
+                    items:
+                      type: string
+                      description: USB mount path
+                    example:
+                      - /Volumes/ARCSIGN_WALLET
+                      - /media/user/wallet-usb
+        '500':
+          description: Detection failed (stderr message)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Error: No USB devices detected'
+
+  /list:
+    post:
+      operationId: cli_list_wallets
+      tags: [wallet]
+      summary: CLI command - arcsign list (optional)
+      description: |
+        Lists all wallets on USB device.
+        **Note**: This command may not exist in current CLI. Tauri can list wallets
+        by scanning USB directory structure directly.
+
+        **Command**: `arcsign list` (if implemented)
+        **CLI Args**: `--usb-path <path>`
+        **Subprocess invocation**:
+        ```rust
+        Command::new("./arcsign")
+            .arg("list")
+            .arg("--usb-path")
+            .arg(usb_path)
+            .output()
+            .await
+        ```
+
+        **Alternative**: Tauri scans USB directly:
+        ```rust
+        // Read wallet directories: {usb_path}/*/wallet.enc
+        std::fs::read_dir(usb_path)?
+            .filter(|e| e.path().join("wallet.enc").exists())
+            .map(|e| e.file_name())  // UUID directory names
+        ```
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - usb_path
+              properties:
+                usb_path:
+                  type: string
+                  description: USB mount point (CLI arg)
+                  example: /Volumes/ARCSIGN_WALLET
+      responses:
+        '200':
+          description: Wallet list retrieved (stdout JSON)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  wallets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WalletMetadata'
+        '500':
+          description: Failed to list wallets (stderr message)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Error: USB path not accessible'
+
+components:
+  schemas:
+    Address:
+      type: object
+      required:
+        - rank
+        - symbol
+        - name
+        - coin_type
+        - address
+        - path
+        - category
+        - key_type
+      properties:
+        rank:
+          type: integer
+          description: Market cap ranking (1-54)
+          example: 1
+        symbol:
+          type: string
+          description: Blockchain symbol (uppercase)
+          example: BTC
+        name:
+          type: string
+          description: Full blockchain name
+          example: Bitcoin
+        coin_type:
+          type: integer
+          description: SLIP-44 coin type
+          example: 0
+        address:
+          type: string
+          description: Derived cryptocurrency address
+          example: 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+        path:
+          type: string
+          description: BIP44 derivation path
+          example: m/44'/0'/0'/0/0
+        category:
+          type: string
+          enum: [base, layer2, regional, cosmos, alt_evm, specialized]
+          description: Blockchain category
+          example: base
+        key_type:
+          type: string
+          enum: [secp256k1, ed25519, sr25519, schnorr]
+          description: Cryptographic signature scheme
+          example: secp256k1
+
+    WalletMetadata:
+      type: object
+      required:
+        - id
+        - name
+        - created_at
+        - has_passphrase
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Wallet unique identifier
+          example: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+        name:
+          type: string
+          description: Wallet display name
+          example: My Personal Wallet
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: '2025-10-17T14:30:25+08:00'
+        has_passphrase:
+          type: boolean
+          description: BIP39 passphrase flag
+          example: false
+
+  securitySchemes: {}
+
+externalDocs:
+  description: ArcSign CLI Implementation
+  url: file://./cmd/arcsign/main.go

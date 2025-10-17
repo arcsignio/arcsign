@@ -64,3 +64,45 @@ desktop.ini
 *.tar.bz2
 *.rar
 *.7z
+
+# ============================================
+# Dashboard (Tauri + React + TypeScript)
+# ============================================
+
+# Node.js dependencies
+dashboard/node_modules/
+node_modules/
+
+# Build outputs
+dashboard/dist/
+dashboard/build/
+dashboard/out/
+
+# Rust/Tauri build artifacts
+dashboard/src-tauri/target/
+dashboard/src-tauri/Cargo.lock
+
+# Tauri artifacts
+dashboard/src-tauri/arcsign
+dashboard/src-tauri/*.exe
+dashboard/src-tauri/*.dmg
+dashboard/src-tauri/*.deb
+dashboard/src-tauri/*.AppImage
+
+# Frontend cache
+dashboard/.vite/
+dashboard/.turbo/
+dashboard/.next/
+dashboard/.cache/
+
+# Testing
+dashboard/coverage/
+dashboard/.nyc_output/
+
+# TypeScript
+dashboard/*.tsbuildinfo
+
+# Package manager files (optional)
+# dashboard/package-lock.json
+# dashboard/yarn.lock
+# dashboard/pnpm-lock.yaml

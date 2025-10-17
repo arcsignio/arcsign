@@ -1,0 +1,669 @@
+openapi: 3.0.3
+info:
+  title: ArcSign Dashboard - Tauri Commands API
+  description: |
+    Tauri backend command definitions for the ArcSign cryptocurrency wallet dashboard.
+    These commands are invoked from the React frontend via Tauri's IPC mechanism (`invoke()`).
+
+    All commands are implemented in Rust (dashboard/src-tauri/src/commands/) and communicate
+    with the Go CLI via subprocess for wallet operations.
+  version: 1.0.0
+  contact:
+    name: ArcSign Development Team
+
+servers:
+  - url: tauri://localhost
+    description: Tauri IPC communication (not HTTP)
+
+tags:
+  - name: usb
+    description: USB device detection and management
+  - name: wallet
+    description: Wallet creation, import, and management
+  - name: address
+    description: Address derivation and display
+  - name: export
+    description: Address list export functionality
+  - name: security
+    description: Security and memory management
+
+paths:
+  /detect_usb:
+    post:
+      operationId: detect_usb_devices
+      tags: [usb]
+      summary: Detect available USB storage devices
+      description: |
+        Scans for USB storage devices that can store encrypted wallet files.
+        Calls Go CLI's USB detection or directly scans known mount points.
+
+        **Security**: Does not return device IDs or serial numbers (privacy).
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: Successfully detected USB devices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  devices:
+                    type: array
+                    items:
+                      type: string
+                      description: USB mount path (e.g., /Volumes/MY_WALLET_USB)
+                    example:
+                      - /Volumes/ARCSIGN_WALLET
+                      - /media/user/wallet-usb
+        '500':
+          description: USB detection failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /create_wallet:
+    post:
+      operationId: create_wallet
+      tags: [wallet]
+      summary: Create a new HD wallet
+      description: |
+        Creates a new hierarchical deterministic wallet by calling Go CLI `arcsign create`.
+        Generates BIP39 mnemonic, derives wallet ID, encrypts with user password, and stores on USB.
+
+        **Security**:
+        - Password passed via environment variable (not CLI arg)
+        - Mnemonic returned ONCE for user backup (cleared after confirmation)
+        - Wallet file encrypted with Argon2id + AES-256-GCM
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+                - usb_path
+              properties:
+                password:
+                  type: string
+                  description: Encryption password (12+ chars, complexity enforced by CLI)
+                  minLength: 12
+                  example: MySecurePass123!
+                usb_path:
+                  type: string
+                  description: USB mount point from detect_usb
+                  example: /Volumes/ARCSIGN_WALLET
+                name:
+                  type: string
+                  description: Optional wallet name (default: "Wallet {timestamp}")
+                  maxLength: 50
+                  example: My Personal Wallet
+                passphrase:
+                  type: string
+                  description: Optional BIP39 passphrase (25th word)
+                  example: extra-secret-word
+                mnemonic_length:
+                  type: integer
+                  enum: [12, 24]
+                  description: Mnemonic word count (default: 24)
+                  default: 24
+      responses:
+        '200':
+          description: Wallet created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - wallet
+                  - mnemonic
+                properties:
+                  wallet:
+                    $ref: '#/components/schemas/Wallet'
+                  mnemonic:
+                    type: string
+                    description: |
+                      BIP39 mnemonic phrase (12 or 24 words, space-separated).
+                      **SECURITY**: Display ONCE in secure component, then clear from memory.
+                    example: abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about
+        '400':
+          description: Invalid input (weak password, invalid USB path, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Wallet creation failed (CLI error)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /import_wallet:
+    post:
+      operationId: import_wallet
+      tags: [wallet]
+      summary: Import existing wallet from mnemonic
+      description: |
+        Imports an existing BIP39 wallet by calling Go CLI `arcsign restore`.
+        Validates mnemonic, derives wallet ID, encrypts with user password, stores on USB.
+
+        **Security**:
+        - Mnemonic validated (checksum, word list) before storage
+        - Duplicate detection (same mnemonic = same wallet ID)
+        - Mnemonic never stored in React state (passed directly to CLI)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - mnemonic
+                - password
+                - usb_path
+              properties:
+                mnemonic:
+                  type: string
+                  description: BIP39 mnemonic phrase (12 or 24 words, space-separated, normalized)
+                  example: abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about
+                password:
+                  type: string
+                  description: Encryption password for this wallet
+                  minLength: 12
+                  example: MySecurePass123!
+                usb_path:
+                  type: string
+                  description: USB mount point
+                  example: /Volumes/ARCSIGN_WALLET
+                passphrase:
+                  type: string
+                  description: Optional BIP39 passphrase (25th word)
+                  example: extra-secret-word
+                name:
+                  type: string
+                  description: Optional wallet name
+                  maxLength: 50
+                  example: Imported Wallet
+      responses:
+        '200':
+          description: Wallet imported successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - wallet
+                  - is_duplicate
+                properties:
+                  wallet:
+                    $ref: '#/components/schemas/Wallet'
+                  is_duplicate:
+                    type: boolean
+                    description: True if wallet with same ID already exists (FR-031)
+        '400':
+          description: Invalid mnemonic (checksum failure, invalid words, wrong length)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                example:
+                  code: INVALID_MNEMONIC
+                  message: Invalid mnemonic: checksum verification failed
+                  details: Word 12 ("abouts") not in BIP39 wordlist
+        '500':
+          description: Import failed (CLI error)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /list_wallets:
+    post:
+      operationId: list_wallets
+      tags: [wallet]
+      summary: List all wallets on USB device
+      description: |
+        Scans USB for wallet directories and returns metadata.
+        Does NOT decrypt wallets (no password required).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - usb_path
+              properties:
+                usb_path:
+                  type: string
+                  description: USB mount point
+                  example: /Volumes/ARCSIGN_WALLET
+      responses:
+        '200':
+          description: Wallet list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  wallets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Wallet'
+        '500':
+          description: Failed to list wallets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /load_addresses:
+    post:
+      operationId: load_addresses
+      tags: [address]
+      summary: Load addresses for a wallet
+      description: |
+        Loads all 54 blockchain addresses for a wallet by calling Go CLI `arcsign generate-all`.
+
+        **Performance**:
+        - First call: ~10-15 seconds (derives all addresses)
+        - Subsequent calls: <1 second (cached in Tauri State)
+        - Cache invalidated on wallet switch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - wallet_id
+                - password
+                - usb_path
+              properties:
+                wallet_id:
+                  type: string
+                  format: uuid
+                  description: Wallet identifier
+                  example: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+                password:
+                  type: string
+                  description: Wallet encryption password
+                  example: MySecurePass123!
+                usb_path:
+                  type: string
+                  description: USB mount point
+                  example: /Volumes/ARCSIGN_WALLET
+      responses:
+        '200':
+          description: Addresses loaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  addresses:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Address'
+                    minItems: 54
+                    maxItems: 54
+        '401':
+          description: Incorrect password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                example:
+                  code: AUTH_FAILED
+                  message: Wallet not found or incorrect password
+                  details: null
+        '500':
+          description: Address derivation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /export_addresses:
+    post:
+      operationId: export_addresses
+      tags: [export]
+      summary: Export addresses to CSV or JSON
+      description: |
+        Exports all addresses for a wallet to a file on USB.
+        Calls Go CLI `arcsign generate-all` and saves to formatted file.
+
+        **File location**: `{usb_path}/{wallet_id}/addresses/addresses-{timestamp}.{format}`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - wallet_id
+                - password
+                - format
+                - usb_path
+              properties:
+                wallet_id:
+                  type: string
+                  format: uuid
+                  description: Wallet identifier
+                  example: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+                password:
+                  type: string
+                  description: Wallet encryption password
+                  example: MySecurePass123!
+                format:
+                  type: string
+                  enum: [json, csv]
+                  description: Export format
+                  example: json
+                usb_path:
+                  type: string
+                  description: USB mount point
+                  example: /Volumes/ARCSIGN_WALLET
+      responses:
+        '200':
+          description: Export completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  export_path:
+                    type: string
+                    description: Full path to exported file
+                    example: /Volumes/ARCSIGN_WALLET/3c3e0aba.../addresses/addresses-20251017-143025.json
+                  file_size:
+                    type: integer
+                    description: File size in bytes
+                    example: 15234
+        '401':
+          description: Incorrect password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Export failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /rename_wallet:
+    post:
+      operationId: rename_wallet
+      tags: [wallet]
+      summary: Rename a wallet
+      description: Updates wallet display name (metadata only, no decryption required)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - wallet_id
+                - new_name
+                - usb_path
+              properties:
+                wallet_id:
+                  type: string
+                  format: uuid
+                  description: Wallet identifier
+                  example: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+                new_name:
+                  type: string
+                  description: New wallet name (1-50 chars)
+                  minLength: 1
+                  maxLength: 50
+                  example: Updated Wallet Name
+                usb_path:
+                  type: string
+                  description: USB mount point
+                  example: /Volumes/ARCSIGN_WALLET
+      responses:
+        '200':
+          description: Wallet renamed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  wallet:
+                    $ref: '#/components/schemas/Wallet'
+        '400':
+          description: Invalid name (too long, contains invalid characters)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Wallet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /enable_screenshot_protection:
+    post:
+      operationId: enable_screenshot_protection
+      tags: [security]
+      summary: Enable OS-level screenshot prevention
+      description: |
+        Activates screenshot/screen recording prevention for the current window.
+        Used during mnemonic display (SEC-004).
+
+        **Platform Support**:
+        - macOS: NSWindow.sharingType = .none
+        - Windows: SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)
+        - Linux: Limited support (logs warning)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: Screenshot protection enabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    description: True if successfully enabled
+                    example: true
+                  platform:
+                    type: string
+                    description: OS platform
+                    example: macos
+        '500':
+          description: Failed to enable protection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /disable_screenshot_protection:
+    post:
+      operationId: disable_screenshot_protection
+      tags: [security]
+      summary: Disable screenshot prevention
+      description: Restores normal window sharing behavior
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: Screenshot protection disabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  disabled:
+                    type: boolean
+                    example: true
+
+  /clear_sensitive_memory:
+    post:
+      operationId: clear_sensitive_memory
+      tags: [security]
+      summary: Clear sensitive data from Rust memory
+      description: |
+        Explicitly clears sensitive data (mnemonics, passwords) from Tauri backend memory.
+        Called after mnemonic confirmation or wallet operation completion (SEC-003).
+
+        **Note**: JavaScript strings are immutable and cannot be reliably cleared.
+        This only clears Rust backend memory.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: Memory cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cleared:
+                    type: boolean
+                    example: true
+
+components:
+  schemas:
+    Wallet:
+      type: object
+      required:
+        - id
+        - name
+        - created_at
+        - updated_at
+        - has_passphrase
+        - address_count
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Wallet unique identifier (derived from mnemonic hash)
+          example: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+        name:
+          type: string
+          description: User-assigned wallet name
+          example: My Personal Wallet
+        created_at:
+          type: string
+          format: date-time
+          description: Wallet creation timestamp (ISO 8601)
+          example: '2025-10-17T14:30:25+08:00'
+        updated_at:
+          type: string
+          format: date-time
+          description: Last modification timestamp
+          example: '2025-10-17T14:30:25+08:00'
+        has_passphrase:
+          type: boolean
+          description: True if BIP39 passphrase (25th word) was used
+          example: false
+        address_count:
+          type: integer
+          description: Number of derived addresses (always 54 for v0.3.0)
+          example: 54
+          minimum: 54
+          maximum: 54
+
+    Address:
+      type: object
+      required:
+        - wallet_id
+        - rank
+        - symbol
+        - name
+        - coin_type
+        - derivation_path
+        - address
+        - category
+        - key_type
+      properties:
+        wallet_id:
+          type: string
+          format: uuid
+          description: Parent wallet identifier
+          example: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+        rank:
+          type: integer
+          description: Market cap ranking (1-54)
+          minimum: 1
+          maximum: 54
+          example: 1
+        symbol:
+          type: string
+          description: Blockchain symbol (uppercase)
+          example: BTC
+        name:
+          type: string
+          description: Full blockchain name
+          example: Bitcoin
+        coin_type:
+          type: integer
+          description: SLIP-44 coin type
+          example: 0
+        derivation_path:
+          type: string
+          description: BIP44 derivation path
+          pattern: ^m/44'/\d+'/0'/0/0$
+          example: m/44'/0'/0'/0/0
+        address:
+          type: string
+          description: Derived cryptocurrency address (format varies by blockchain)
+          example: 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+        category:
+          type: string
+          enum: [base, layer2, regional, cosmos, alt_evm, specialized]
+          description: Blockchain category for filtering
+          example: base
+        key_type:
+          type: string
+          enum: [secp256k1, ed25519, sr25519, schnorr]
+          description: Cryptographic signature scheme
+          example: secp256k1
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+          example: USB_NOT_DETECTED
+        message:
+          type: string
+          description: User-friendly error message (safe to display)
+          example: USB drive not detected. Please insert your wallet drive.
+        details:
+          type: string
+          nullable: true
+          description: Technical details (logged, not shown to user per SEC-008)
+          example: 'Failed to mount /dev/sdb1: permission denied'
