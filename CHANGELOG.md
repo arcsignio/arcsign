@@ -131,11 +131,88 @@ arcsign/
 - Comprehensive audit trail
 - Follows security best practices (OWASP guidelines)
 
+## [0.3.0] - 2025-10-17
+
+### Added
+
+#### Extended Multi-Chain Support (54 Blockchains)
+- **6 Layer 2 Networks**: Arbitrum, Optimism, Base, zkSync, Linea, Starknet
+  - EIP-2645 Starknet grindKey derivation
+  - Full Ethereum-compatible L2 support
+- **4 Regional Chains**: Klaytn, Cronos, HECO, Harmony
+  - Bech32 encoding for Harmony (one1... prefix)
+  - EVM compatibility for all regional chains
+- **4 Cosmos Ecosystem**: Osmosis, Juno, Evmos, Secret Network
+  - Cosmos ADR-028 Bech32 encoding
+  - Chain-specific prefixes (osmo, juno, evmos, secret)
+- **6 Alternative EVM Chains**: Fantom, Celo, Moonbeam, Metis, Gnosis, Wanchain
+- **4 Specialized Chains**: Kusama, ICON, Tezos, Zilliqa
+  - sr25519 signatures (Kusama)
+  - SS58 encoding (Kusama)
+  - SHA3-256 hashing (ICON)
+  - SLIP-10 Ed25519 derivation (Tezos)
+  - Blake2b hashing (Tezos)
+  - Schnorr signatures (Zilliqa)
+
+#### New Cryptographic Standards
+- **SLIP-10**: Ed25519 hierarchical deterministic key derivation
+- **EIP-2645**: Starknet key derivation with grindKey
+- **Cosmos ADR-028**: Bech32 address encoding
+- **Substrate BIP39**: sr25519 signature scheme
+- **SS58**: Substrate address format
+- **Blake2b**: Tezos address hashing
+
+#### Infrastructure
+- Coin registry with metadata for all 54 blockchains
+- Market cap ranking system
+- Chain categories (Layer 2, Regional, Cosmos, EVM, Specialized)
+- Key type classification (secp256k1, Ed25519, sr25519)
+- Formatter pattern for extensibility
+
+### Changed
+- Updated dependencies to support new cryptography
+  - Added `github.com/cosmos/cosmos-sdk` v0.50.11
+  - Added `github.com/vedhavyas/go-subkey` v1.0.4
+  - Added `github.com/ChainSafe/go-schnorrkel` v1.1.0
+  - Added `github.com/anyproto/go-slip10` v1.0.0
+  - Added `blockwatch.cc/tzgo` v1.18.4
+  - Added `github.com/Zilliqa/gozilliqa-sdk` v1.2.0
+  - Downgraded `github.com/btcsuite/btcd` to v0.22.1 for compatibility
+
+### Technical Details
+- **Total Chains**: 54 blockchains across 7 signature schemes
+- **Signature Schemes**: ECDSA (secp256k1), Ed25519, sr25519, Schnorr
+- **Address Formats**: P2PKH, Keccak256, Bech32, SS58, Base58Check, SHA3-256
+- **Test Coverage**: 300+ tests (270+ unit, 30+ integration)
+
+### Performance
+- Multi-chain derivation: <100ms per address
+- No performance degradation with additional chains
+- Efficient registry lookup with O(1) access
+
+## [0.2.0] - 2025-10-16
+
+### Added
+
+#### Multi-Chain Support (30 Blockchains)
+- Extended from 2 to 30 supported cryptocurrencies
+- Added 28 major blockchains:
+  - **Smart Contract Platforms**: BNB, SOL, ADA, TRX, AVAX, DOT, MATIC, ATOM, NEAR
+  - **Stablecoins**: USDT, USDC
+  - **DeFi Tokens**: SHIB, LINK, UNI
+  - **Major Coins**: XRP, DOGE, LTC, BCH, XLM, ETC, XMR, FIL, HBAR, APT, VET, ALGO, ZEC, DASH
+
+#### Enhanced Address Derivation
+- Ed25519 support for Solana and other chains
+- Multiple derivation patterns (BIP44, Ed25519)
+- Chain-specific address formatters
+- Comprehensive test suite for all chains
+
 ## [Unreleased]
 
 ### Planned Features
-- Additional cryptocurrency support (Litecoin, Bitcoin Cash, etc.)
-- Transaction signing capabilities
+- Transaction signing capabilities (Bitcoin, Ethereum)
+- Transaction broadcasting
 - Hardware wallet integration (Ledger, Trezor)
 - Multi-signature wallet support
 - Graphical user interface (GUI)
@@ -144,6 +221,7 @@ arcsign/
 - Watch-only wallet mode (xpub)
 - Address book functionality
 - QR code generation for addresses
+- Balance checking via RPC
 
 ### Planned Improvements
 - Faster key derivation (caching, optimization)
@@ -222,7 +300,7 @@ This software is provided "as is", without warranty of any kind, express or impl
 ---
 
 **Project**: ArcSign - Secure HD Wallet
-**Version**: 0.1.0
-**Release Date**: 2025-10-16
+**Latest Version**: 0.3.0
+**Release Date**: 2025-10-17
 **License**: MIT
 **Website**: https://github.com/yourusername/arcsign

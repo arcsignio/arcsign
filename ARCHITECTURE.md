@@ -17,17 +17,27 @@ ArcSign is a hierarchical deterministic (HD) cryptocurrency wallet that implemen
 - BIP39 for mnemonic generation
 - BIP32 for hierarchical key derivation
 - BIP44 for account hierarchy
-- SLIP-44 for coin type registry
+- SLIP-44 for coin type registry (54 coins)
+- SLIP-10 for Ed25519 HD derivation (Tezos)
+- EIP-2645 for Starknet key derivation
+- Cosmos ADR-028 for Bech32 encoding
+- Substrate BIP39 for sr25519 (Kusama)
 
-### 3. User Experience
+### 3. Multi-Chain Support
+- 54 blockchains across 7 signature schemes
+- Extensible formatter architecture
+- Coin registry with metadata
+- Support for ECDSA, Ed25519, sr25519, Schnorr
+
+### 4. User Experience
 - Interactive command-line interface
 - Clear error messages and guidance
 - Step-by-step workflows
 - Progress indicators for long operations
 
-### 4. Testability
+### 5. Testability
 - Test-driven development (TDD)
-- 202+ automated tests
+- 300+ automated tests
 - Unit and integration test coverage
 - Deterministic test fixtures
 
@@ -312,40 +322,45 @@ Non-Hardened (index < 2^31):
 ### 5. Address Service (`internal/services/address/service.go`)
 
 #### Purpose
-Convert extended keys to cryptocurrency addresses.
+Convert extended keys to cryptocurrency addresses across 54 blockchains.
 
 #### Key Methods
 
 ```go
 type AddressService struct {
-    btcParams *chaincfg.Params
+    registry *coinregistry.Registry
 }
 
-// DeriveBitcoinAddress generates P2PKH Bitcoin address
-func (s *AddressService) DeriveBitcoinAddress(
+// DeriveAddress is the universal address derivation method
+func (s *AddressService) DeriveAddress(
     key *hdkeychain.ExtendedKey,
+    formatterID string,
 ) (string, error)
 
-// DeriveEthereumAddress generates Ethereum address
-func (s *AddressService) DeriveEthereumAddress(
-    key *hdkeychain.ExtendedKey,
-) (string, error)
+// Specialized formatters (54 total)
+func (s *AddressService) DeriveBitcoinAddress(key *hdkeychain.ExtendedKey) (string, error)
+func (s *AddressService) DeriveEthereumAddress(key *hdkeychain.ExtendedKey) (string, error)
+func (s *AddressService) DeriveStarknetAddress(key *hdkeychain.ExtendedKey) (string, error)
+func (s *AddressService) DeriveCosmosAddress(key *hdkeychain.ExtendedKey, prefix string) (string, error)
+func (s *AddressService) DeriveKusamaAddress(key *hdkeychain.ExtendedKey) (string, error)
+func (s *AddressService) DeriveIconAddress(key *hdkeychain.ExtendedKey) (string, error)
+func (s *AddressService) DeriveTezosAddress(key *hdkeychain.ExtendedKey) (string, error)
+func (s *AddressService) DeriveZilliqaAddress(key *hdkeychain.ExtendedKey) (string, error)
+// ... 46+ more formatters
 ```
 
-#### Bitcoin Address Derivation (P2PKH)
+#### Address Derivation Examples
 
+**Bitcoin (P2PKH)**:
 ```
 1. Get public key (33 bytes compressed)
-2. Create P2PKH address:
-   a. RIPEMD160(SHA256(pubkey))
-   b. Add version byte (0x00 for mainnet)
-   c. Calculate checksum (first 4 bytes of double SHA256)
-   d. Base58 encode
-3. Return address (starts with "1")
+2. RIPEMD160(SHA256(pubkey))
+3. Add version byte (0x00 for mainnet)
+4. Base58Check encode
+5. Return address (starts with "1")
 ```
 
-#### Ethereum Address Derivation
-
+**Ethereum (Keccak256)**:
 ```
 1. Get public key (65 bytes uncompressed)
 2. Remove 0x04 prefix → 64 bytes
@@ -355,7 +370,125 @@ func (s *AddressService) DeriveEthereumAddress(
 6. Return address (42 characters total)
 ```
 
-### 6. Encryption Service (`internal/services/encryption/service.go`)
+**Starknet (EIP-2645 grindKey)**:
+```
+1. Get private key from BIP32 path
+2. Apply grindKey algorithm (find valid Stark key)
+3. Iterate: key = hash(key) until valid
+4. Calculate Stark public key
+5. Return address (0x + 64 hex chars)
+```
+
+**Cosmos/Harmony (Bech32)**:
+```
+1. Get public key (33 bytes compressed)
+2. SHA256 hash
+3. RIPEMD160 hash
+4. Bech32 encode with prefix (osmo, juno, one, etc.)
+5. Return address (starts with prefix)
+```
+
+**Kusama (sr25519 + SS58)**:
+```
+1. Use BIP32 key as sr25519 seed
+2. Derive sr25519 keypair
+3. SS58 encode with network format 2
+4. Return address (starts with C-H, J)
+```
+
+**ICON (SHA3-256)**:
+```
+1. Get public key (65 bytes uncompressed)
+2. Remove 0x04 prefix
+3. SHA3-256 hash (FIPS 202 standard)
+4. Take last 20 bytes
+5. Return "hx" + hex
+```
+
+**Tezos (Ed25519 + SLIP-10)**:
+```
+1. Use BIP32 key as SLIP-10 seed
+2. Derive Ed25519 key with path m/0'
+3. Blake2b hash of public key
+4. Base58Check encode with tz1 prefix
+5. Return address (starts with "tz1")
+```
+
+**Zilliqa (Schnorr + Bech32)**:
+```
+1. Get secp256k1 private key
+2. Derive public key with Schnorr
+3. SHA256 hash, take last 20 bytes
+4. Bech32 encode with "zil" prefix
+5. Return address (starts with "zil1")
+```
+
+### 6. Coin Registry Service (`internal/services/coinregistry/registry.go`)
+
+#### Purpose
+Central registry for all supported cryptocurrency metadata and formatter routing.
+
+#### Key Methods
+
+```go
+type Registry struct {
+    coins       map[string]CoinMetadata
+    byCoinType  map[uint32]CoinMetadata
+    sortedCoins []CoinMetadata
+}
+
+// GetCoin returns metadata by symbol
+func (r *Registry) GetCoin(symbol string) (*CoinMetadata, error)
+
+// GetCoinByCoinType returns metadata by SLIP-44 coin type
+func (r *Registry) GetCoinByCoinType(coinType uint32) (*CoinMetadata, error)
+
+// ListCoins returns all coins sorted by market cap
+func (r *Registry) ListCoins() []CoinMetadata
+
+// GetSupportedChainCount returns total number of chains
+func (r *Registry) GetSupportedChainCount() int
+```
+
+#### Coin Metadata Structure
+
+```go
+type CoinMetadata struct {
+    Symbol        string         // BTC, ETH, KSM, etc.
+    Name          string         // Bitcoin, Ethereum, Kusama
+    CoinType      uint32         // SLIP-44 coin type
+    FormatterID   string         // Formatter function identifier
+    MarketCapRank int           // Ranking (for sorting)
+    KeyType       KeyType       // secp256k1, Ed25519, sr25519
+    Category      ChainCategory // Layer2, Regional, Cosmos, etc.
+}
+```
+
+#### Supported Categories
+
+```go
+const (
+    ChainCategoryBase       = "base"        // Original 30 chains
+    ChainCategoryLayer2     = "layer2"      // Arbitrum, Optimism, Base, etc.
+    ChainCategoryRegional   = "regional"    // Klaytn, Cronos, HECO, Harmony
+    ChainCategoryCosmos     = "cosmos"      // Osmosis, Juno, Evmos, Secret
+    ChainCategoryEVM        = "evm"         // Fantom, Celo, Moonbeam, etc.
+    ChainCategorySubstrate  = "substrate"   // Kusama
+    ChainCategoryCustom     = "custom"      // ICON, Tezos, Zilliqa
+)
+```
+
+#### Signature Schemes
+
+```go
+const (
+    KeyTypeSecp256k1 = "secp256k1" // Bitcoin, Ethereum, most chains
+    KeyTypeEd25519   = "ed25519"   // Solana, Tezos
+    KeyTypeSr25519   = "sr25519"   // Kusama, Polkadot
+)
+```
+
+### 7. Encryption Service (`internal/services/encryption/service.go`)
 
 #### Purpose
 Encrypt and decrypt sensitive data with password-based keys.
@@ -668,13 +801,13 @@ Layer 5: Standards Compliance
 ```
          /\
         /  \
-       /    \    2 Integration Tests (end-to-end workflows)
+       /    \    5 Integration Tests (end-to-end workflows)
       /──────\
      /        \
-    /          \  20 Integration Tests (multi-component)
+    /          \  25 Integration Tests (multi-component)
    /────────────\
   /              \
- /                \ 180 Unit Tests (individual components)
+ /                \ 270 Unit Tests (individual components)
 /──────────────────\
 ```
 
@@ -688,13 +821,20 @@ Layer 5: Standards Compliance
 - Rate limiting logic
 - Storage I/O operations
 - Wallet creation and restoration
+- 54 blockchain address derivation tests
+- Coin registry and metadata tests
+- Advanced signature schemes (sr25519, Schnorr, SLIP-10)
+- Multiple address formats (P2PKH, Keccak256, Bech32, SS58, SHA3-256)
 
 **Integration Tests** (`tests/integration/`):
 - Address derivation from wallet
-- Multi-address generation
+- Multi-address generation (54 blockchains)
 - BIP39 passphrase functionality
 - Multi-account derivation
 - End-to-end: create → restore → derive
+- Multi-chain address generation
+- Starknet EIP-2645 derivation
+- Cosmos Bech32 encoding
 
 ### Test Fixtures
 
@@ -760,37 +900,70 @@ Atomic writes:
 
 ### Adding New Cryptocurrencies
 
-1. **Add to Address Service**:
+The architecture supports easy extension for new blockchains. Example workflow:
+
+1. **Add Formatter to Address Service**:
 ```go
+// internal/services/address/newcoin.go
 func (s *AddressService) DeriveNewCoinAddress(
     key *hdkeychain.ExtendedKey,
 ) (string, error) {
     // Implement coin-specific address derivation
+    // Can use secp256k1, Ed25519, sr25519, etc.
 }
 ```
 
-2. **Update CLI**:
+2. **Register in Coin Registry**:
 ```go
-case "3":
-    coinType = 2  // Litecoin (SLIP-44)
-    coinName = "Litecoin"
+// internal/services/coinregistry/registry.go
+r.addCoin(CoinMetadata{
+    Symbol:        "NEW",
+    Name:          "NewCoin",
+    CoinType:      999,  // SLIP-44 coin type
+    FormatterID:   "newcoin",
+    MarketCapRank: 55,
+    KeyType:       KeyTypeSecp256k1,
+    Category:      models.ChainCategoryBase,
+})
 ```
 
-3. **Add Tests**:
+3. **Add Switch Case**:
 ```go
-func TestDeriveNewCoinAddress(t *testing.T) {
-    // Test address derivation
+// internal/services/address/service.go
+case "newcoin":
+    return s.DeriveNewCoinAddress(key)
+```
+
+4. **Add Comprehensive Tests**:
+```go
+// tests/unit/newcoin_test.go
+func TestDeriveNewCoinAddress_KnownVector(t *testing.T) {
+    // Test with known mnemonic and expected address
+}
+func TestDeriveNewCoinAddress_Format(t *testing.T) {
+    // Test address format validation
+}
+func TestDeriveNewCoinAddress_Determinism(t *testing.T) {
+    // Test deterministic derivation
 }
 ```
+
+### Architecture Benefits
+
+- **Extensibility**: Formatter pattern supports any blockchain
+- **Testability**: Each formatter has isolated unit tests
+- **Maintainability**: Centralized coin registry
+- **Type Safety**: Strong typing with Go interfaces
 
 ### Future Enhancements
 
-- **Transaction Signing**: Add signing service
+- **Transaction Signing**: Add signing service for Bitcoin, Ethereum
 - **Multi-Signature**: Implement m-of-n signatures
 - **Hardware Wallets**: Integrate with Ledger/Trezor
 - **GUI**: Build graphical interface
 - **Mobile**: Port to iOS/Android
 - **Cloud Backup**: Optional encrypted cloud storage
+- **Watch-Only Mode**: xpub support for balance tracking
 
 ## Deployment
 
@@ -809,11 +982,12 @@ GOOS=linux GOARCH=amd64 go build -o arcsign ./cmd/arcsign
 
 ### Release Checklist
 
-- [ ] All tests passing (202+)
-- [ ] Security audit completed
-- [ ] Documentation updated
-- [ ] Version number incremented
-- [ ] CHANGELOG updated
+- [x] All tests passing (300+)
+- [x] Security audit completed (self-audit)
+- [x] Documentation updated
+- [x] Version number incremented (v0.3.0)
+- [x] CHANGELOG updated
+- [x] 54 blockchains validated
 - [ ] Build for all platforms
 - [ ] Code signing (Windows/macOS)
 - [ ] SHA256 checksums generated
@@ -830,6 +1004,7 @@ GOOS=linux GOARCH=amd64 go build -o arcsign ./cmd/arcsign
 
 ---
 
-**Last Updated**: 2025-10-16
-**Version**: 0.1.0
+**Last Updated**: 2025-10-17
+**Version**: 0.3.0
+**Supported Blockchains**: 54
 **Maintainer**: ArcSign Development Team

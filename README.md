@@ -24,10 +24,22 @@ ArcSign is a command-line cryptocurrency wallet that implements BIP39/BIP44 stan
 - **BIP44**: Multi-account hierarchy (m/44'/coin_type'/account'/change/address_index)
 - **SLIP-44**: Standard coin type registry
 
-### Cryptocurrency Support
-- Bitcoin (BTC) - P2PKH addresses
-- Ethereum (ETH) - Native addresses
-- Extensible architecture for additional cryptocurrencies
+### Cryptocurrency Support (54 Blockchains)
+
+**v0.3.0 Extended Multi-Chain Support**
+- **30 Base Chains** (v0.2.0): BTC, ETH, USDT, BNB, SOL, USDC, XRP, DOGE, ADA, TRX, AVAX, SHIB, DOT, LINK, MATIC, LTC, BCH, XLM, UNI, ATOM, ETC, XMR, FIL, HBAR, APT, VET, ALGO, NEAR, ZEC, DASH
+- **6 Layer 2 Networks**: Arbitrum (ARB), Optimism (OP), Base (BASE), zkSync (ZKS), Linea (LINEA), Starknet (STRK)
+- **4 Regional Chains**: Klaytn (KLAY), Cronos (CRO), HECO (HT), Harmony (ONE)
+- **4 Cosmos Ecosystem**: Osmosis (OSMO), Juno (JUNO), Evmos (EVMOS), Secret Network (SCRT)
+- **6 Alternative EVM**: Fantom (FTM), Celo (CELO), Moonbeam (GLMR), Metis (METIS), Gnosis (GNO), Wanchain (WAN)
+- **4 Specialized Chains**: Kusama (KSM), ICON (ICX), Tezos (XTZ), Zilliqa (ZIL)
+
+**Address Format Support**:
+- P2PKH (Bitcoin), Keccak256 (Ethereum/EVM), Ed25519 (Solana, Tezos)
+- Bech32 (Cosmos, Harmony, Zilliqa), SS58 (Kusama/Substrate)
+- Base58Check (Bitcoin, Stellar, Ripple, Tezos), SHA3-256 (ICON)
+- Schnorr signatures (Zilliqa), sr25519 (Kusama)
+- SLIP-10 (Tezos), EIP-2645 (Starknet)
 
 ## Installation
 
