@@ -187,3 +187,34 @@ func TestRegistry_GetAllCoinsSortedByMarketCap(t *testing.T) {
 		}
 	})
 }
+
+// T040: Test total chain count for v0.3.0 (36 chains: 30 v0.2.0 + 6 Layer 2)
+func TestRegistry_TotalChainCount(t *testing.T) {
+	registry := coinregistry.NewRegistry()
+	coins := registry.GetAllCoinsSortedByMarketCap()
+
+	expectedCount := 36 // 30 v0.2.0 chains + 6 v0.3.0 Layer 2 chains
+	actualCount := len(coins)
+
+	if actualCount != expectedCount {
+		t.Errorf("Expected %d total chains, got %d", expectedCount, actualCount)
+	}
+
+	// Verify we have exactly 6 Layer 2 chains
+	layer2Count := 0
+	layer2Symbols := []string{"ARB", "OP", "BASE", "ZKS", "LINEA", "STRK"}
+	for _, coin := range coins {
+		for _, symbol := range layer2Symbols {
+			if coin.Symbol == symbol {
+				layer2Count++
+			}
+		}
+	}
+
+	if layer2Count != 6 {
+		t.Errorf("Expected 6 Layer 2 chains, got %d", layer2Count)
+	}
+
+	t.Logf("✓ Total chains: %d (30 v0.2.0 + 6 v0.3.0 Layer 2)", actualCount)
+	t.Logf("✓ Layer 2 chains: %d", layer2Count)
+}
