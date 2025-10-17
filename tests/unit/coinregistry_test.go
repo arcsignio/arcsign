@@ -188,12 +188,12 @@ func TestRegistry_GetAllCoinsSortedByMarketCap(t *testing.T) {
 	})
 }
 
-// T040/T054/T070: Test total chain count for v0.3.0 (44 chains: 30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos)
+// T040/T054/T070/T080: Test total chain count for v0.3.0 (50 chains: 30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos + 6 Alternative EVM)
 func TestRegistry_TotalChainCount(t *testing.T) {
 	registry := coinregistry.NewRegistry()
 	coins := registry.GetAllCoinsSortedByMarketCap()
 
-	expectedCount := 44 // 30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos
+	expectedCount := 50 // 30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos + 6 Alternative EVM
 	actualCount := len(coins)
 
 	if actualCount != expectedCount {
@@ -245,8 +245,24 @@ func TestRegistry_TotalChainCount(t *testing.T) {
 		t.Errorf("Expected 4 Cosmos ecosystem chains, got %d", cosmosCount)
 	}
 
-	t.Logf("✓ Total chains: %d (30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos)", actualCount)
+	// Verify we have exactly 6 Alternative EVM chains
+	altEvmCount := 0
+	altEvmSymbols := []string{"FTM", "CELO", "GLMR", "METIS", "GNO", "WAN"}
+	for _, coin := range coins {
+		for _, symbol := range altEvmSymbols {
+			if coin.Symbol == symbol {
+				altEvmCount++
+			}
+		}
+	}
+
+	if altEvmCount != 6 {
+		t.Errorf("Expected 6 Alternative EVM chains, got %d", altEvmCount)
+	}
+
+	t.Logf("✓ Total chains: %d (30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos + 6 Alt EVM)", actualCount)
 	t.Logf("✓ Layer 2 chains: %d", layer2Count)
 	t.Logf("✓ Regional chains: %d", regionalCount)
 	t.Logf("✓ Cosmos ecosystem chains: %d", cosmosCount)
+	t.Logf("✓ Alternative EVM chains: %d", altEvmCount)
 }

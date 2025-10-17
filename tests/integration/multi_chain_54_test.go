@@ -35,8 +35,8 @@ func TestPhase1_Layer2_6Chains(t *testing.T) {
 		t.Fatalf("GenerateMultiCoinAddresses failed: %v", err)
 	}
 
-	// Verify we have 44 chains (30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos)
-	expectedChainCount := 44
+	// Verify we have 50 chains (30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos + 6 Alt EVM)
+	expectedChainCount := 50
 	if metrics.TotalChains != expectedChainCount {
 		t.Errorf("Expected %d chains, got %d", expectedChainCount, metrics.TotalChains)
 	}
@@ -183,8 +183,8 @@ func TestPhase2_Regional_4Chains(t *testing.T) {
 		t.Fatalf("GenerateMultiCoinAddresses failed: %v", err)
 	}
 
-	// Verify we have 44 chains (30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos)
-	expectedChainCount := 44
+	// Verify we have 50 chains (30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos + 6 Alt EVM)
+	expectedChainCount := 50
 	if metrics.TotalChains != expectedChainCount {
 		t.Errorf("Expected %d chains, got %d", expectedChainCount, metrics.TotalChains)
 	}
@@ -265,4 +265,106 @@ func TestPhase2_Regional_4Chains(t *testing.T) {
 	}
 
 	t.Logf("✓ Regional chains: %d/4 successful (100%%)", regionalSuccessCount)
+}
+
+// T077: TestPhase3_AlternativeEVM_6Chains tests that all 6 alternative EVM chains generate addresses successfully
+func TestPhase3_AlternativeEVM_6Chains(t *testing.T) {
+	// Setup: Create registry with all chains including Alternative EVM
+	registry := coinregistry.NewRegistry()
+
+	// Test mnemonic
+	mnemonic := "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+	seed := bip39.NewSeed(mnemonic, "")
+
+	// Create master key
+	masterKey, err := hdkeychain.NewMaster(seed, &chaincfg.MainNetParams)
+	if err != nil {
+		t.Fatalf("Failed to create master key: %v", err)
+	}
+
+	// Generate addresses for all chains
+	service := address.NewAddressService()
+	addressBook, metrics, err := service.GenerateMultiCoinAddresses(masterKey, registry)
+	if err != nil {
+		t.Fatalf("GenerateMultiCoinAddresses failed: %v", err)
+	}
+
+	// Verify we have 50 chains (30 v0.2.0 + 6 Layer 2 + 4 Regional + 4 Cosmos + 6 Alt EVM)
+	expectedChainCount := 50
+	if metrics.TotalChains != expectedChainCount {
+		t.Errorf("Expected %d chains, got %d", expectedChainCount, metrics.TotalChains)
+	}
+
+	// Verify Alternative EVM chains are present
+	altEvmSymbols := []string{"FTM", "CELO", "GLMR", "METIS", "GNO", "WAN"}
+
+	// Find alternative EVM addresses in the address book
+	altEvmAddresses := make([]models.DerivedAddress, 0)
+	for _, addr := range addressBook.Addresses {
+		for _, symbol := range altEvmSymbols {
+			if addr.Symbol == symbol {
+				altEvmAddresses = append(altEvmAddresses, addr)
+				break
+			}
+		}
+	}
+
+	if len(altEvmAddresses) != 6 {
+		t.Errorf("Expected 6 Alternative EVM addresses, got %d", len(altEvmAddresses))
+	}
+
+	// Verify each Alternative EVM chain has a valid address
+	foundSymbols := make(map[string]bool)
+	for _, addr := range altEvmAddresses {
+		foundSymbols[addr.Symbol] = true
+
+		// Verify address is not empty
+		if addr.Address == "" {
+			t.Errorf("Alternative EVM chain %s has empty address", addr.Symbol)
+		}
+
+		// All Alternative EVM chains use Ethereum formatter (0x prefix)
+		if !strings.HasPrefix(addr.Address, "0x") {
+			t.Errorf("Alternative EVM chain %s should have 0x prefix, got: %s", addr.Symbol, addr.Address)
+		}
+
+		// Verify address format (0x + 40 hex characters)
+		if len(addr.Address) != 42 {
+			t.Errorf("Alternative EVM chain %s address should be 42 characters, got: %d", addr.Symbol, len(addr.Address))
+		}
+
+		// Verify derivation path format
+		if len(addr.DerivationPath) == 0 {
+			t.Errorf("Chain %s has empty derivation path", addr.Symbol)
+		}
+	}
+
+	// Verify all expected Alternative EVM symbols are present
+	for _, symbol := range altEvmSymbols {
+		if !foundSymbols[symbol] {
+			t.Errorf("Alternative EVM chain %s not found in generated addresses", symbol)
+		}
+	}
+
+	// Log success metrics
+	t.Logf("Alternative EVM address generation complete:")
+	t.Logf("  Total chains: %d", metrics.TotalChains)
+	t.Logf("  Success count: %d", metrics.SuccessCount)
+	t.Logf("  Failure count: %d", metrics.FailureCount)
+	t.Logf("  Success rate: %.2f%%", metrics.SuccessRate())
+	t.Logf("  Total duration: %v", metrics.TotalDuration)
+
+	// Verify Alternative EVM chains specifically (all 6 should succeed)
+	altEvmSuccessCount := 0
+	for _, symbol := range altEvmSymbols {
+		if metric, ok := metrics.PerChainMetrics[symbol]; ok && metric.Success {
+			altEvmSuccessCount++
+		}
+	}
+
+	if altEvmSuccessCount != 6 {
+		t.Errorf("Expected all 6 Alternative EVM chains to succeed, got %d", altEvmSuccessCount)
+	}
+
+	t.Logf("✓ Alternative EVM chains: %d/6 successful (100%%)", altEvmSuccessCount)
 }

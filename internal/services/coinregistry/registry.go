@@ -456,6 +456,74 @@ func NewRegistry() *Registry {
 		Category:      models.ChainCategoryCosmos,
 	})
 
+	// v0.3.0 - User Story 4: Alternative EVM Chains
+
+	// T071: Fantom (Alternative EVM - DeFi)
+	r.addCoin(CoinMetadata{
+		Symbol:        "FTM",
+		Name:          "Fantom",
+		CoinType:      60, // Uses Ethereum coin type
+		FormatterID:   "ethereum",
+		MarketCapRank: 45,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryEVMMainnet,
+	})
+
+	// T072: Celo (Alternative EVM - Mobile payments)
+	r.addCoin(CoinMetadata{
+		Symbol:        "CELO",
+		Name:          "Celo",
+		CoinType:      52752, // Celo-specific coin type
+		FormatterID:   "ethereum",
+		MarketCapRank: 46,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryEVMMainnet,
+	})
+
+	// T073: Moonbeam (Alternative EVM - Polkadot parachain)
+	r.addCoin(CoinMetadata{
+		Symbol:        "GLMR",
+		Name:          "Moonbeam",
+		CoinType:      1284, // Moonbeam-specific coin type
+		FormatterID:   "ethereum",
+		MarketCapRank: 47,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryEVMMainnet,
+	})
+
+	// T074: Metis (Alternative EVM - Layer 2)
+	r.addCoin(CoinMetadata{
+		Symbol:        "METIS",
+		Name:          "Metis",
+		CoinType:      1088, // Metis-specific coin type
+		FormatterID:   "ethereum",
+		MarketCapRank: 48,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryEVMMainnet,
+	})
+
+	// T075: Gnosis (Alternative EVM - DAO infrastructure)
+	r.addCoin(CoinMetadata{
+		Symbol:        "GNO",
+		Name:          "Gnosis",
+		CoinType:      700, // Gnosis-specific coin type
+		FormatterID:   "ethereum",
+		MarketCapRank: 49,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryEVMMainnet,
+	})
+
+	// T076: Wanchain (Alternative EVM - Cross-chain)
+	r.addCoin(CoinMetadata{
+		Symbol:        "WAN",
+		Name:          "Wanchain",
+		CoinType:      5718350, // Wanchain-specific coin type
+		FormatterID:   "ethereum",
+		MarketCapRank: 50,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryEVMMainnet,
+	})
+
 	return r
 }
 
