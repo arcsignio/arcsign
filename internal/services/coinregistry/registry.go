@@ -524,6 +524,30 @@ func NewRegistry() *Registry {
 		Category:      models.ChainCategoryEVMMainnet,
 	})
 
+	// v0.3.0 - User Story 5: Specialized Chains (partial implementation)
+
+	// T089: Kusama (Substrate - Polkadot's canary network)
+	r.addCoin(CoinMetadata{
+		Symbol:        "KSM",
+		Name:          "Kusama",
+		CoinType:      434, // Kusama coin type
+		FormatterID:   "kusama",
+		MarketCapRank: 51,
+		KeyType:       KeyTypeSr25519, // sr25519 signature scheme
+		Category:      models.ChainCategorySubstrate,
+	})
+
+	// T107: ICON (Enterprise blockchain - South Korea)
+	r.addCoin(CoinMetadata{
+		Symbol:        "ICX",
+		Name:          "ICON",
+		CoinType:      74, // Registered SLIP-0044 coin type (note: ecosystem uses 4801368)
+		FormatterID:   "icon",
+		MarketCapRank: 52,
+		KeyType:       KeyTypeSecp256k1,
+		Category:      models.ChainCategoryCustom,
+	})
+
 	return r
 }
 
