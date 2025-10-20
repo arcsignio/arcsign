@@ -116,7 +116,11 @@ export async function listWallets(usbPath: string): Promise<Wallet[]> {
 
 export async function renameWallet(params: RenameWalletParams): Promise<Wallet> {
   try {
-    return await invoke<Wallet>('rename_wallet', params);
+    return await invoke<Wallet>('rename_wallet', {
+      walletId: params.wallet_id,
+      newName: params.new_name,
+      usbPath: params.usb_path,
+    });
   } catch (error) {
     throw parseError(error);
   }

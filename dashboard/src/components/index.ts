@@ -5,6 +5,7 @@
 
 export { WalletCreate } from './WalletCreate';
 export { WalletImport } from './WalletImport';
+export { WalletSelector } from './WalletSelector';
 export { MnemonicDisplay } from './MnemonicDisplay';
 export { AddressList } from './AddressList';
 export { AddressRow } from './AddressRow';

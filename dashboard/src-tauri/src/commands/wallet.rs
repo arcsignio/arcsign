@@ -371,6 +371,85 @@ pub async fn list_wallets(usb_path: String) -> Result<Vec<Wallet>, String> {
     Ok(wallets)
 }
 
+/// Rename wallet (T082)
+/// Requirements: FR-019 (Wallet rename functionality)
+#[tauri::command]
+pub async fn rename_wallet(
+    wallet_id: String,
+    new_name: String,
+    usb_path: String,
+) -> Result<Wallet, String> {
+    // Validate wallet ID format
+    if !Wallet::validate_id(&wallet_id) {
+        return Err(AppError::new(
+            ErrorCode::InvalidWalletId,
+            "Invalid wallet ID format",
+        )
+        .into());
+    }
+
+    // Validate new name
+    if !Wallet::validate_name(&new_name) {
+        return Err(AppError::new(
+            ErrorCode::InvalidWalletId,
+            "Wallet name must be 1-50 characters",
+        )
+        .into());
+    }
+
+    // Create CLI wrapper
+    let cli = CliWrapper::new("./arcsign");
+
+    // Execute rename wallet command
+    let cmd = CliCommand::RenameWallet {
+        wallet_id: wallet_id.clone(),
+        new_name: new_name.trim().to_string(),
+        usb_path,
+    };
+
+    let output = cli
+        .execute(cmd)
+        .await
+        .map_err(|e| {
+            // Check for wallet not found error
+            if e.contains("not found") || e.contains("NOT_FOUND") {
+                AppError::new(
+                    ErrorCode::WalletNotFound,
+                    "Wallet not found on USB drive",
+                )
+            } else {
+                AppError::with_details(
+                    ErrorCode::CliExecutionFailed,
+                    "Failed to rename wallet",
+                    e,
+                )
+            }
+        })?;
+
+    // Parse CLI response (should return updated wallet metadata)
+    let wallet_info: WalletInfo = cli
+        .parse_json(&output)
+        .map_err(|e| {
+            AppError::with_details(
+                ErrorCode::DeserializationError,
+                "Failed to parse wallet rename response",
+                e,
+            )
+        })?;
+
+    // Convert to domain model
+    let wallet = Wallet {
+        id: wallet_info.id,
+        name: wallet_info.name,
+        created_at: wallet_info.created_at,
+        updated_at: wallet_info.updated_at,
+        has_passphrase: wallet_info.has_passphrase,
+        address_count: wallet_info.address_count,
+    };
+
+    Ok(wallet)
+}
+
 /// Parse category string to Category enum
 fn parse_category(s: &str) -> Category {
     match s {
