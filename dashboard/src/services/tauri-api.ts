@@ -94,7 +94,13 @@ export async function createWallet(params: WalletCreateParams): Promise<WalletCr
 
 export async function importWallet(params: WalletImportParams): Promise<WalletImportResponse> {
   try {
-    return await invoke<WalletImportResponse>('import_wallet', params);
+    return await invoke<WalletImportResponse>('import_wallet', {
+      mnemonic: params.mnemonic,
+      password: params.password,
+      usbPath: params.usb_path,
+      passphrase: params.passphrase,
+      name: params.name,
+    });
   } catch (error) {
     throw parseError(error);
   }

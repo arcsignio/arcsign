@@ -150,14 +150,14 @@ This document provides a detailed, sequential task breakdown for implementing th
 - [X] T051 [US3] Create Address model in dashboard/src-tauri/src/models/address.rs
 - [X] T052 [US3] Implement load_addresses Tauri command in dashboard/src-tauri/src/commands/wallet.rs
 - [X] T053 [US3] Add Tauri State for address caching in dashboard/src-tauri/src/main.rs
-- [ ] T054 [P] [US3] Create AddressRow subcomponent in dashboard/src/components/AddressRow.tsx
-- [ ] T055 [US3] Create AddressList component with react-window in dashboard/src/components/AddressList.tsx
-- [ ] T056 [US3] Implement category filter dropdown in AddressList component
-- [ ] T057 [US3] Implement search input with debouncing in AddressList component
-- [ ] T058 [US3] Create clipboard service with 30s auto-clear in dashboard/src/services/clipboard.ts
-- [ ] T059 [US3] Add copy-to-clipboard button in AddressRow component
-- [ ] T060 [US3] Add loading state and error handling for address loading
-- [ ] T061 [US3] Update Dashboard page to display AddressList for selected wallet
+- [X] T054 [P] [US3] Create AddressRow subcomponent in dashboard/src/components/AddressRow.tsx
+- [X] T055 [US3] Create AddressList component with react-window in dashboard/src/components/AddressList.tsx
+- [X] T056 [US3] Implement category filter dropdown in AddressList component
+- [X] T057 [US3] Implement search input with debouncing in AddressList component
+- [X] T058 [US3] Create clipboard service with 30s auto-clear in dashboard/src/services/clipboard.ts
+- [X] T059 [US3] Add copy-to-clipboard button in AddressRow component
+- [X] T060 [US3] Add loading state and error handling for address loading
+- [X] T061 [US3] Update Dashboard page to display AddressList for selected wallet
 
 **Completion Criteria**:
 - ✅ All 54 addresses displayed within 15 seconds (SC-003)

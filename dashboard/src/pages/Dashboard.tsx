@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { useDashboardStore, useSelectedWallet, useHasWallets } from '@/stores/dashboardStore';
 import tauriApi, { type AppError } from '@/services/tauri-api';
 import { WalletCreate } from '@/components/WalletCreate';
+import { WalletImport } from '@/components/WalletImport';
 import { AddressList } from '@/components/AddressList';
 import type { Address } from '@/types/address';
 
@@ -150,14 +151,24 @@ export function Dashboard() {
     );
   }
 
-  // Show wallet import view
+  // Show wallet import view (T075)
   if (currentView === 'import') {
     return (
       <div className="dashboard">
         <button onClick={handleBackToList} className="back-button">
           ← Back to Wallets
         </button>
-        <div>Wallet Import (To be implemented in Phase 5)</div>
+        {usbPath ? (
+          <WalletImport
+            usbPath={usbPath}
+            onSuccess={handleBackToList}
+            onCancel={handleBackToList}
+          />
+        ) : (
+          <div className="error-message">
+            No USB drive detected. Please insert a USB drive.
+          </div>
+        )}
       </div>
     );
   }

@@ -7,11 +7,12 @@
 
 use crate::cli::wrapper::{
     AddressListResponse as CliAddressListResponse, CliCommand, CliWrapper,
-    WalletCreateResponse as CliWalletCreateResponse, WalletInfo, WalletListResponse,
+    WalletCreateResponse as CliWalletCreateResponse, WalletImportResponse as CliWalletImportResponse,
+    WalletInfo, WalletListResponse,
 };
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::models::address::{Address, AddressListResponse, Category, KeyType};
-use crate::models::wallet::{Wallet, WalletCreateResponse};
+use crate::models::wallet::{Wallet, WalletCreateResponse, WalletImportResponse};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::State;
@@ -132,6 +133,116 @@ pub async fn create_wallet(
     let response = WalletCreateResponse {
         wallet,
         mnemonic: cli_response.mnemonic,
+    };
+
+    Ok(response)
+}
+
+/// Normalize mnemonic phrase (T068)
+/// Requirements: FR-030 (Whitespace normalization)
+fn normalize_mnemonic(mnemonic: &str) -> String {
+    mnemonic
+        .split_whitespace()
+        .collect::<Vec<&str>>()
+        .join(" ")
+        .to_lowercase()
+}
+
+/// Validate mnemonic word count
+fn validate_mnemonic_length(mnemonic: &str) -> AppResult<()> {
+    let word_count = mnemonic.split_whitespace().count();
+    if word_count != 12 && word_count != 24 {
+        return Err(AppError::new(
+            ErrorCode::InvalidMnemonicLength,
+            "Mnemonic must be 12 or 24 words",
+        ));
+    }
+    Ok(())
+}
+
+/// Import/restore wallet from mnemonic (T067)
+/// Requirements: FR-006 (BIP39 import), FR-029 (validation), FR-031 (duplicate detection)
+#[tauri::command]
+pub async fn import_wallet(
+    mnemonic: String,
+    password: String,
+    usb_path: String,
+    passphrase: Option<String>,
+    name: Option<String>,
+) -> Result<WalletImportResponse, String> {
+    // Validate password
+    validate_password(&password).map_err(|e| e.into())?;
+
+    // Normalize mnemonic (FR-030)
+    let normalized_mnemonic = normalize_mnemonic(&mnemonic);
+
+    // Validate mnemonic length
+    validate_mnemonic_length(&normalized_mnemonic).map_err(|e| e.into())?;
+
+    // Validate wallet name if provided
+    if let Some(ref n) = name {
+        if !Wallet::validate_name(n) {
+            return Err(AppError::new(
+                ErrorCode::InvalidWalletId,
+                "Wallet name must be 1-50 characters",
+            )
+            .into());
+        }
+    }
+
+    // Create CLI wrapper
+    let cli = CliWrapper::new("./arcsign");
+
+    // Execute restore wallet command
+    let cmd = CliCommand::RestoreWallet {
+        mnemonic: normalized_mnemonic,
+        password,
+        usb_path,
+        passphrase,
+        name,
+    };
+
+    let output = cli
+        .execute(cmd)
+        .await
+        .map_err(|e| {
+            // Check for duplicate wallet error (FR-031)
+            if e.contains("already exists") || e.contains("DUPLICATE") {
+                AppError::new(
+                    ErrorCode::WalletAlreadyExists,
+                    "Wallet with this mnemonic already exists on USB",
+                )
+            } else {
+                AppError::with_details(
+                    ErrorCode::CliExecutionFailed,
+                    "Failed to import wallet",
+                    e,
+                )
+            }
+        })?;
+
+    // Parse CLI response
+    let cli_response: CliWalletImportResponse = cli
+        .parse_json(&output)
+        .map_err(|e| {
+            AppError::with_details(
+                ErrorCode::DeserializationError,
+                "Failed to parse wallet import response",
+                e,
+            )
+        })?;
+
+    // Convert to domain model
+    let wallet = Wallet::new(
+        cli_response.wallet_id.clone(),
+        cli_response.wallet_id.clone(), // Use ID as default name for now
+        cli_response.created_at,
+        passphrase.is_some(),
+    );
+
+    let response = WalletImportResponse {
+        wallet,
+        is_duplicate: cli_response.is_duplicate,
     };
 
     Ok(response)

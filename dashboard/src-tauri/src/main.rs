@@ -20,7 +20,7 @@ use commands::security::{
     clear_sensitive_memory, disable_screenshot_protection, enable_screenshot_protection,
 };
 use commands::usb::detect_usb;
-use commands::wallet::{create_wallet, list_wallets, load_addresses, AddressCache};
+use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, AddressCache};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -35,13 +35,13 @@ fn main() {
             detect_usb,
             // Wallet commands
             create_wallet,
+            import_wallet,
             list_wallets,
             load_addresses,
             // TODO: Uncomment when additional wallet commands are implemented
-            // commands::wallet::import_wallet,
             // commands::wallet::rename_wallet,
             // Export commands
-            // TODO: Uncomment when export commands are implemented (Phase 5)
+            // TODO: Uncomment when export commands are implemented (Phase 7)
             // commands::export::export_addresses,
             // Security commands
             enable_screenshot_protection,
