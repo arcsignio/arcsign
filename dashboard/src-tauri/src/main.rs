@@ -16,6 +16,7 @@ mod commands;
 mod error;
 mod models;
 
+use commands::export::export_addresses;
 use commands::security::{
     clear_sensitive_memory, disable_screenshot_protection, enable_screenshot_protection,
 };
@@ -40,8 +41,7 @@ fn main() {
             load_addresses,
             rename_wallet,
             // Export commands
-            // TODO: Uncomment when export commands are implemented (Phase 7)
-            // commands::export::export_addresses,
+            export_addresses,
             // Security commands
             enable_screenshot_protection,
             disable_screenshot_protection,

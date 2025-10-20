@@ -10,6 +10,7 @@ import { useDashboardStore, useSelectedWallet, useHasWallets } from '@/stores/da
 import tauriApi, { type AppError } from '@/services/tauri-api';
 import { WalletCreate } from '@/components/WalletCreate';
 import { WalletImport } from '@/components/WalletImport';
+import { ExportDialog } from '@/components/ExportDialog';
 import { AddressList } from '@/components/AddressList';
 import type { Address } from '@/types/address';
 
@@ -27,6 +28,10 @@ export function Dashboard() {
   const [passwordForAddresses, setPasswordForAddresses] = useState<string>('');
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [walletIdForAddresses, setWalletIdForAddresses] = useState<string | null>(null);
+
+  // Export dialog state (T091)
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportPassword, setExportPassword] = useState<string>('');
 
   const {
     wallets,
@@ -139,6 +144,25 @@ export function Dashboard() {
     setAddressError(null);
   };
 
+  // Handle export button click (T091)
+  const handleOpenExportDialog = () => {
+    setShowExportDialog(true);
+    // Reuse the password from address loading
+    setExportPassword(passwordForAddresses);
+  };
+
+  // Handle export success
+  const handleExportSuccess = (filePath: string) => {
+    // Could show a toast notification here
+    console.log('Export successful:', filePath);
+  };
+
+  // Handle export dialog close
+  const handleCloseExportDialog = () => {
+    setShowExportDialog(false);
+    setExportPassword('');
+  };
+
   // Show wallet creation view
   if (currentView === 'create') {
     return (
@@ -173,7 +197,7 @@ export function Dashboard() {
     );
   }
 
-  // Show address list view (T061)
+  // Show address list view (T061, T091)
   if (currentView === 'addresses') {
     const wallet = wallets.find(w => w.id === walletIdForAddresses);
     return (
@@ -182,16 +206,36 @@ export function Dashboard() {
           ← Back to Wallets
         </button>
         <header className="dashboard-header">
-          <div>
+          <div className="flex-1">
             <h1>Wallet Addresses</h1>
             {wallet && <p className="text-gray-600">{wallet.name}</p>}
           </div>
+          {/* Export Button (T091) */}
+          {addresses.length > 0 && usbPath && (
+            <button
+              onClick={handleOpenExportDialog}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+            >
+              Export Addresses
+            </button>
+          )}
         </header>
         <AddressList
           addresses={addresses}
           isLoading={isLoadingAddresses}
           error={addressError}
         />
+
+        {/* Export Dialog (T091) */}
+        {showExportDialog && wallet && usbPath && (
+          <ExportDialog
+            wallet={wallet}
+            usbPath={usbPath}
+            password={exportPassword}
+            onSuccess={handleExportSuccess}
+            onClose={handleCloseExportDialog}
+          />
+        )}
       </div>
     );
   }
