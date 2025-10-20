@@ -1,14 +1,14 @@
+#![cfg_attr(
+    all(not(debug_assertions), target_os = "windows"),
+    windows_subsystem = "windows"
+)]
+
 /**
  * Tauri application main entry point
  * Feature: User Dashboard for Wallet Management
  * Task: T022 - Register all Tauri commands
  * Generated: 2025-10-17
  */
-
-#![cfg_attr(
-    all(not(debug_assertions), target_os = "windows"),
-    windows_subsystem = "windows"
-)]
 
 // Module declarations
 mod cli;

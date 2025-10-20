@@ -65,7 +65,7 @@ pub async fn create_wallet(
     mnemonic_length: Option<usize>,
 ) -> Result<WalletCreateResponse, String> {
     // Validate password
-    validate_password(&password).map_err(|e| e.into())?;
+    validate_password(&password).map_err(String::from)?;
 
     // Validate mnemonic length
     let length = mnemonic_length.unwrap_or(24);
@@ -90,6 +90,9 @@ pub async fn create_wallet(
 
     // Create CLI wrapper
     let cli = CliWrapper::new("./arcsign");
+
+    // Check if passphrase is provided (before moving it)
+    let has_passphrase = passphrase.is_some();
 
     // Execute create wallet command
     let cmd = CliCommand::CreateWallet {
@@ -127,7 +130,7 @@ pub async fn create_wallet(
         cli_response.wallet_id.clone(),
         cli_response.wallet_id.clone(), // Use ID as default name for now
         cli_response.created_at,
-        passphrase.is_some(),
+        has_passphrase,
     );
 
     let response = WalletCreateResponse {
@@ -171,13 +174,13 @@ pub async fn import_wallet(
     name: Option<String>,
 ) -> Result<WalletImportResponse, String> {
     // Validate password
-    validate_password(&password).map_err(|e| e.into())?;
+    validate_password(&password).map_err(String::from)?;
 
     // Normalize mnemonic (FR-030)
     let normalized_mnemonic = normalize_mnemonic(&mnemonic);
 
     // Validate mnemonic length
-    validate_mnemonic_length(&normalized_mnemonic).map_err(|e| e.into())?;
+    validate_mnemonic_length(&normalized_mnemonic).map_err(String::from)?;
 
     // Validate wallet name if provided
     if let Some(ref n) = name {
@@ -192,6 +195,9 @@ pub async fn import_wallet(
 
     // Create CLI wrapper
     let cli = CliWrapper::new("./arcsign");
+
+    // Check if passphrase is provided (before moving it)
+    let has_passphrase = passphrase.is_some();
 
     // Execute restore wallet command
     let cmd = CliCommand::RestoreWallet {
@@ -237,7 +243,7 @@ pub async fn import_wallet(
         cli_response.wallet_id.clone(),
         cli_response.wallet_id.clone(), // Use ID as default name for now
         cli_response.created_at,
-        passphrase.is_some(),
+        has_passphrase,
     );
 
     let response = WalletImportResponse {

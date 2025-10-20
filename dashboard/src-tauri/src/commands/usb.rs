@@ -216,7 +216,7 @@ async fn get_available_space(path: &Path) -> Result<u64, String> {
         let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
 
         if unsafe { libc::statvfs(path_cstr.as_ptr(), &mut stat) } == 0 {
-            let available = stat.f_bavail * stat.f_bsize;
+            let available = (stat.f_bavail as u64) * (stat.f_bsize as u64);
             Ok(available)
         } else {
             Err("Failed to get filesystem stats".to_string())

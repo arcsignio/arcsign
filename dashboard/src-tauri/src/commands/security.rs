@@ -69,14 +69,14 @@ pub async fn clear_sensitive_memory() -> Result<(), String> {
 /// macOS screenshot protection using NSWindow sharing type
 #[cfg(target_os = "macos")]
 async fn enable_screenshot_protection_macos(window: Window) -> Result<(), String> {
-    use cocoa::appkit::{NSWindow, NSWindowSharingType};
-    use cocoa::base::id;
+    use cocoa::base::{id, nil};
+    use objc::{msg_send, sel, sel_impl};
 
     if let Ok(ns_window) = window.ns_window() {
         unsafe {
             let ns_window = ns_window as id;
             // NSWindowSharingNone = 0 (no screen sharing/capture)
-            ns_window.setSharingType_(NSWindowSharingType::NSWindowSharingNone);
+            let _: () = msg_send![ns_window, setSharingType: 0u64];
         }
         tracing::info!("Screenshot protection enabled (macOS)");
         Ok(())
@@ -88,14 +88,14 @@ async fn enable_screenshot_protection_macos(window: Window) -> Result<(), String
 /// macOS screenshot protection disable
 #[cfg(target_os = "macos")]
 async fn disable_screenshot_protection_macos(window: Window) -> Result<(), String> {
-    use cocoa::appkit::{NSWindow, NSWindowSharingType};
-    use cocoa::base::id;
+    use cocoa::base::{id, nil};
+    use objc::{msg_send, sel, sel_impl};
 
     if let Ok(ns_window) = window.ns_window() {
         unsafe {
             let ns_window = ns_window as id;
             // NSWindowSharingReadOnly = 1 (allow screen sharing)
-            ns_window.setSharingType_(NSWindowSharingType::NSWindowSharingReadOnly);
+            let _: () = msg_send![ns_window, setSharingType: 1u64];
         }
         tracing::info!("Screenshot protection disabled (macOS)");
         Ok(())
