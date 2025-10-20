@@ -11,6 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { walletImportSchema, type WalletImportFormData, getMnemonicValidationError, normalizeMnemonic } from '@/validation/mnemonic';
 import tauriApi, { type AppError } from '@/services/tauri-api';
 import { useDashboardStore } from '@/stores/dashboardStore';
+import { ConfirmationDialog } from './ConfirmationDialog';
 
 interface WalletImportProps {
   usbPath: string;
@@ -26,6 +27,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [mnemonicValue, setMnemonicValue] = useState('');
 
   const { addWallet } = useDashboardStore();
@@ -35,7 +37,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
     handleSubmit,
     watch,
     setValue,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<WalletImportFormData>({
     resolver: zodResolver(walletImportSchema),
     mode: 'onBlur',
@@ -128,6 +130,32 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
     setShowDuplicateDialog(false);
     setImportError('Overwrite functionality not yet implemented. Please use a different mnemonic.');
     // TODO: Implement force import with overwrite flag
+  };
+
+  /**
+   * Handle cancel button click (T093, FR-032)
+   */
+  const handleCancelClick = () => {
+    if (isDirty || mnemonicValue.trim()) {
+      // Show confirmation if form has unsaved changes
+      setShowCancelConfirm(true);
+    } else {
+      // Navigate back immediately if no changes
+      if (onCancel) {
+        onCancel();
+      }
+    }
+  };
+
+  const confirmCancel = () => {
+    setShowCancelConfirm(false);
+    if (onCancel) {
+      onCancel();
+    }
+  };
+
+  const cancelCancelAction = () => {
+    setShowCancelConfirm(false);
   };
 
   return (
@@ -301,7 +329,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
           {onCancel && (
             <button
               type="button"
-              onClick={onCancel}
+              onClick={handleCancelClick}
               disabled={isImporting}
               className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
@@ -340,6 +368,18 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
           </div>
         </div>
       )}
+
+      {/* Cancellation Confirmation Dialog (T093, FR-032) */}
+      <ConfirmationDialog
+        isOpen={showCancelConfirm}
+        title="Discard Wallet Import?"
+        message="You have unsaved changes. Are you sure you want to cancel? All entered information will be lost."
+        confirmLabel="Discard Changes"
+        cancelLabel="Continue Editing"
+        confirmVariant="danger"
+        onConfirm={confirmCancel}
+        onCancel={cancelCancelAction}
+      />
     </div>
   );
 };

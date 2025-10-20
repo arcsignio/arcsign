@@ -10,3 +10,6 @@ export { ExportDialog } from './ExportDialog';
 export { MnemonicDisplay } from './MnemonicDisplay';
 export { AddressList } from './AddressList';
 export { AddressRow } from './AddressRow';
+export { InactivityWarningDialog } from './InactivityWarningDialog';
+export { ConfirmationDialog } from './ConfirmationDialog';
+export { LoadingSpinner } from './LoadingSpinner';

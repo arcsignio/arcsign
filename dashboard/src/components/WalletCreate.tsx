@@ -12,8 +12,13 @@ import { walletCreateSchema, type WalletCreateFormData } from '@/validation/pass
 import { useDashboardStore } from '@/stores/dashboardStore';
 import tauriApi, { type UsbDevice, type AppError } from '@/services/tauri-api';
 import { MnemonicDisplay } from './MnemonicDisplay';
+import { ConfirmationDialog } from './ConfirmationDialog';
 
-export function WalletCreate() {
+interface WalletCreateProps {
+  onCancel?: () => void;
+}
+
+export function WalletCreate({ onCancel }: WalletCreateProps = {}) {
   const [usbDevices, setUsbDevices] = useState<UsbDevice[]>([]);
   const [isLoadingUsb, setIsLoadingUsb] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -22,13 +27,14 @@ export function WalletCreate() {
     wallet: any;
     mnemonic: string;
   } | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const { addWallet } = useDashboardStore();
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors, isValid, isDirty },
     watch,
   } = useForm<WalletCreateFormData>({
     resolver: zodResolver(walletCreateSchema),
@@ -81,6 +87,30 @@ export function WalletCreate() {
     // Navigate back to dashboard or wallet list
     setCreatedWallet(null);
     setIsCreating(false);
+  };
+
+  // Handle cancel button click (T093, FR-032)
+  const handleCancelClick = () => {
+    if (isDirty) {
+      // Show confirmation if form has unsaved changes
+      setShowCancelConfirm(true);
+    } else {
+      // Navigate back immediately if no changes
+      if (onCancel) {
+        onCancel();
+      }
+    }
+  };
+
+  const confirmCancel = () => {
+    setShowCancelConfirm(false);
+    if (onCancel) {
+      onCancel();
+    }
+  };
+
+  const cancelCancel = () => {
+    setShowCancelConfirm(false);
   };
 
   // Show mnemonic display if wallet was created
@@ -184,13 +214,26 @@ export function WalletCreate() {
           </select>
         </div>
 
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={!isValid || isCreating || usbDevices.length === 0}
-        >
-          {isCreating ? 'Creating Wallet...' : 'Create Wallet'}
-        </button>
+        {/* Action Buttons (T093, FR-032) */}
+        <div className="form-actions">
+          <button
+            type="submit"
+            disabled={!isValid || isCreating || usbDevices.length === 0}
+            className="primary-button"
+          >
+            {isCreating ? 'Creating Wallet...' : 'Create Wallet'}
+          </button>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={handleCancelClick}
+              disabled={isCreating}
+              className="secondary-button"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
 
       {/* Security Notice */}
@@ -202,6 +245,18 @@ export function WalletCreate() {
           <li>Without your mnemonic, you cannot recover your wallet</li>
         </ul>
       </div>
+
+      {/* Cancellation Confirmation Dialog (T093, FR-032) */}
+      <ConfirmationDialog
+        isOpen={showCancelConfirm}
+        title="Discard Wallet Creation?"
+        message="You have unsaved changes. Are you sure you want to cancel? All entered information will be lost."
+        confirmLabel="Discard Changes"
+        cancelLabel="Continue Editing"
+        confirmVariant="danger"
+        onConfirm={confirmCancel}
+        onCancel={cancelCancel}
+      />
     </div>
   );
 }

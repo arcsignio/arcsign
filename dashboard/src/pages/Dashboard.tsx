@@ -12,6 +12,9 @@ import { WalletCreate } from '@/components/WalletCreate';
 import { WalletImport } from '@/components/WalletImport';
 import { ExportDialog } from '@/components/ExportDialog';
 import { AddressList } from '@/components/AddressList';
+import { InactivityWarningDialog } from '@/components/InactivityWarningDialog';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { useInactivityLogout } from '@/hooks/useInactivityLogout';
 import type { Address } from '@/types/address';
 
 type View = 'list' | 'create' | 'import' | 'addresses';
@@ -44,6 +47,16 @@ export function Dashboard() {
 
   const selectedWallet = useSelectedWallet();
   const hasWallets = useHasWallets();
+
+  // Auto-logout after 15 minutes of inactivity (SEC-006, T092)
+  const { showWarning, remainingSeconds, stayLoggedIn, logout } = useInactivityLogout({
+    enabled: true,
+    onLogout: () => {
+      // Navigate to list view after logout
+      setCurrentView('list');
+      setError('You have been logged out due to inactivity.');
+    },
+  });
 
   // Load USB path and wallets on mount
   useEffect(() => {
@@ -167,10 +180,7 @@ export function Dashboard() {
   if (currentView === 'create') {
     return (
       <div className="dashboard">
-        <button onClick={handleBackToList} className="back-button">
-          ← Back to Wallets
-        </button>
-        <WalletCreate />
+        <WalletCreate onCancel={handleBackToList} />
       </div>
     );
   }
@@ -263,7 +273,7 @@ export function Dashboard() {
 
       {isLoadingWallets ? (
         <div className="loading">
-          <p>Loading wallets from USB...</p>
+          <LoadingSpinner size="lg" message="Loading wallets from USB..." />
         </div>
       ) : !hasWallets ? (
         <div className="empty-state">
@@ -379,6 +389,14 @@ export function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Inactivity Warning Dialog (SEC-006, T092) */}
+      <InactivityWarningDialog
+        isOpen={showWarning}
+        remainingSeconds={remainingSeconds}
+        onStayLoggedIn={stayLoggedIn}
+        onLogout={logout}
+      />
     </div>
   );
 }
