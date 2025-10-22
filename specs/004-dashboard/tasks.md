@@ -62,12 +62,12 @@
 
 ### Address File Generation (Go CLI)
 
-- [ ] T021 [P] Write test for addresses.json generation with schema_version "1.0" in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/wallet/addresses_file_test.go
-- [ ] T022 Create generateAddressesFile() function that derives all 54 addresses and writes to addresses.json in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/wallet/addresses.go
-- [ ] T023 [P] Write test for SHA-256 checksum computation of addresses array in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/wallet/checksum_test.go
-- [ ] T024 Implement computeAddressesChecksum() function in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/wallet/checksum.go
-- [ ] T025 Add AddressesFile struct with schema_version, wallet_id, generated_at, total_count, checksum, addresses in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/wallet/types.go
-- [ ] T026 Update Address struct to include account, change, index fields (BIP44 components) in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/wallet/types.go
+- [X] T021 [P] Write test for addresses.json generation with schema_version "1.0" in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/wallet/addresses_file_test.go
+- [X] T022 Create generateAddressesFile() function that derives all 54 addresses and writes to addresses.json in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/wallet/addresses.go
+- [X] T023 [P] Write test for SHA-256 checksum computation of addresses array in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/wallet/checksum_test.go
+- [X] T024 Implement computeAddressesChecksum() function in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/wallet/checksum.go
+- [X] T025 Add AddressesFile struct with schema_version, wallet_id, generated_at, total_count, checksum, addresses in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/wallet/types.go
+- [X] T026 Update Address struct to include account, change, index fields (BIP44 components) in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/wallet/types.go
 
 ### Tauri CLI Wrapper (Rust)
 
