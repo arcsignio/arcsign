@@ -15,6 +15,14 @@
 - Q: What happens when user tries to import a wallet that already exists in the dashboard? → A: Show warning, allow renaming
 - Q: How does system respond when user cancels wallet creation midway through the flow? → A: Discard changes, return home
 
+### Session 2025-10-22
+
+- Q: The CLI needs to support non-interactive invocation by the Tauri dashboard. How should the CLI be restructured? → A: Refactor CLI to support both modes: detect environment variables (WALLET_PASSWORD, USB_PATH, etc.) for non-interactive mode, output JSON to stdout; keep stdin prompts for interactive mode
+- Q: When the Tauri backend invokes the CLI subprocess and encounters failures (timeout, crash, malformed JSON, or non-zero exit code), what should the error handling behavior be? → A: Set 30-second timeout for wallet operations; capture stderr and parse for JSON error object first, fallback to raw stderr message, then "Wallet operation failed with exit code X" if stderr empty; for malformed JSON return "Invalid response from wallet service"; log full error details (exit code, stdout, stderr) to Tauri debug logs; show sanitized error messages to users (no sensitive data)
+- Q: What should the exact JSON response format structure be for CLI commands, and what should the addresses file format be? → A: **stdout**: Single-line JSON only (machine-readable); **stderr**: logs/debug (human-readable). **Responses include**: `success` boolean, optional `mnemonic` (only if `RETURN_MNEMONIC=true`), `request_id`, `cli_version`, `duration_ms`, `warnings`. **Relative paths**: `wallets/{id}/addresses.json` (Dashboard prepends USB_PATH). **addresses.json**: includes `schema_version: "1.0"`, `checksum` (SHA-256 of addresses array for tamper detection), BIP44 components (`account`, `change`, `index`). **Error codes**: `INVALID_PASSWORD | USB_NOT_FOUND | WALLET_EXISTS | CRYPTO_ERROR | IO_ERROR | TIMEOUT | INVALID_SCHEMA | INVALID_CHECKSUM`. **Security**: mnemonic excluded by default, no sensitive data in stderr. **Versioning**: forward-compatible (add fields only, never remove/rename). **Workflow**: CLI auto-generates all 54 addresses during wallet creation and saves to addresses.json; Dashboard reads file directly for display
+- Q: How should the system detect duplicate wallet imports when user enters a mnemonic phrase? → A: Derive Bitcoin address at `m/44'/0'/0'/0/0` in memory from imported mnemonic+passphrase (without creating wallet file); compare against Bitcoin address in all existing `addresses.json` files; if match found, show duplicate warning dialog with options to Cancel or Import Anyway with different name; same mnemonic with different passphrase produces different addresses and is not considered duplicate; this method is fast (1 derivation only), reliable (Bitcoin address uniquely identifies seed+passphrase), and respects passphrase combinations
+- Q: How should the system implement mnemonic display security, given the risk of screenshots and screen recordings? → A: **Default behavior**: Hide mnemonic completely after wallet creation; show only "Wallet created successfully. Please backup your encrypted wallet file to multiple USB drives." **Advanced option**: Provide "View Mnemonic Phrase (Advanced)" button that requires password re-entry and shows severe warning about screenshot risks before displaying. **Protection measures** (when mnemonic is displayed): macOS uses `NSWindow.setContentProtection(true)`; Windows uses `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)`; Linux shows visible watermark + randomized word layout + warning banner; all platforms implement 30-second mandatory countdown, blur on window focus loss, one-time display (cannot navigate back), disabled copy-paste/text selection, and warning dialog about camera-only backup. **Additional feature**: Separate "Decrypt and View Mnemonic" function accessible from wallet management menu (requires password, applies all security measures)
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Generate New Wallet (Priority: P1)
@@ -109,12 +117,16 @@ A user wants to export their wallet addresses to a file for record-keeping, tax 
 
 - **Invalid mnemonic checksum**: System displays inline error message immediately below input field: "Invalid mnemonic: checksum verification failed". User remains in import interface to correct input.
 - **Extra whitespace in mnemonic**: System automatically trims leading/trailing whitespace and collapses multiple spaces between words to single space before validation. If words are valid BIP39 words but in wrong order, displays "Invalid word order" error.
-- **Duplicate wallet import**: System detects if mnemonic matches an existing wallet and displays warning dialog: "This wallet already exists". User can either cancel or proceed by entering a different wallet name to create duplicate with distinct identifier.
+- **Duplicate wallet import**: System derives Bitcoin address at m/44'/0'/0'/0/0 in memory, compares with existing addresses.json files, displays warning dialog if match found with wallet creation date, allows cancel or import with different name.
 - **Cancellation during wallet creation**: System shows confirmation dialog "Cancel wallet creation? Unsaved data will be lost" with Cancel/Confirm buttons. On confirm, discards all input data, clears mnemonic from memory, and returns user to dashboard home.
-- What happens when user loses internet connection during wallet address generation?
-- How does system handle display of very long addresses on small screens?
-- What happens when clipboard access is denied by the browser?
-- How does system prevent accidental exposure of mnemonic phrases in screenshots or screen recordings?
+- **CLI subprocess timeout**: After 30 seconds, Dashboard terminates subprocess and displays "Wallet operation timed out. Please check USB connection and try again."
+- **CLI subprocess crash**: Dashboard captures stderr, parses for JSON error object; if none, shows raw stderr; if empty, shows "Wallet operation failed with exit code X"
+- **Malformed CLI JSON output**: Dashboard catches JSON parse error and displays "Invalid response from wallet service. Please check USB device and try again."
+- **addresses.json checksum mismatch**: Dashboard validates SHA-256 checksum on file read; if mismatch, shows "Wallet data corrupted. Please restore from backup." error
+- **Mnemonic display screenshot attempt**: Platform-specific protection blocks capture (macOS/Windows OS-level, Linux shows watermark); user sees warning about camera-only backup
+- **Internet connection loss**: Wallet operations work offline (no connectivity required); addresses generated locally from seed
+- **Very long addresses on small screens**: UI implements horizontal scrolling with copy button always visible; address truncated with ellipsis in list view, full address shown on click
+- **Clipboard access denied**: Copy button shows error toast "Clipboard access denied. Please enable in system settings." and displays full address for manual selection
 
 ## Requirements *(mandatory)*
 
@@ -150,14 +162,36 @@ A user wants to export their wallet addresses to a file for record-keeping, tax 
 - **FR-028**: System MUST prevent multiple simultaneous wallet operations to avoid data corruption
 - **FR-029**: System MUST display inline validation errors immediately when invalid mnemonic is entered, showing specific error type (checksum failure, invalid word, wrong length)
 - **FR-030**: System MUST automatically normalize mnemonic input by trimming whitespace and collapsing multiple spaces, then validate each word against BIP39 wordlist before checksum validation
-- **FR-031**: System MUST detect duplicate wallet imports by comparing derived wallet IDs, display warning dialog, and allow user to cancel or proceed with different wallet name
+- **FR-031**: System MUST detect duplicate wallet imports by deriving Bitcoin address at m/44'/0'/0'/0/0 in memory and comparing against existing addresses.json files, display warning dialog if match found, and allow user to cancel or proceed with different wallet name
 - **FR-032**: System MUST display confirmation dialog when user cancels wallet creation, discard all unsaved data, clear sensitive information from memory, and return to dashboard home
+- **FR-033**: CLI MUST support non-interactive mode by detecting environment variables (WALLET_PASSWORD, USB_PATH, MNEMONIC_LENGTH, etc.) and outputting single-line JSON to stdout while logging to stderr
+- **FR-034**: CLI MUST support interactive mode with stdin prompts when environment variables are not set
+- **FR-035**: CLI MUST automatically generate all 54 addresses upon wallet creation and save to {USB_PATH}/wallets/{id}/addresses.json with schema_version, checksum, and full BIP44 derivation components
+- **FR-036**: System MUST implement 30-second timeout for all CLI subprocess operations
+- **FR-037**: System MUST parse CLI subprocess errors in this order: JSON error object from stderr, raw stderr message, then generic message with exit code if stderr empty
+- **FR-038**: System MUST log full subprocess error details (exit code, stdout, stderr) to debug logs while showing sanitized messages to users
+- **FR-039**: CLI JSON responses MUST include success boolean, optional mnemonic (only if RETURN_MNEMONIC=true), request_id, cli_version, duration_ms, and warnings array
+- **FR-040**: addresses.json MUST include schema_version "1.0", SHA-256 checksum of addresses array, and separate account/change/index fields for each address
+- **FR-041**: System MUST use relative paths (wallets/{id}/addresses.json) in CLI responses, with Dashboard prepending USB_PATH for absolute path resolution
+- **FR-042**: CLI error codes MUST be from enumerated set: INVALID_PASSWORD, USB_NOT_FOUND, WALLET_EXISTS, INVALID_MNEMONIC, CRYPTO_ERROR, IO_ERROR, TIMEOUT, INVALID_SCHEMA, INVALID_CHECKSUM
+- **FR-043**: System MUST display mnemonic phrase with security protections (FR-045, FR-046) immediately after wallet creation, require explicit backup confirmation, then hide mnemonic permanently (user can later view via FR-047 "Decrypt and View Mnemonic" with password re-entry)
+- **FR-044**: System MUST provide "View Mnemonic Phrase (Advanced)" button that requires password re-entry and shows security warning before displaying mnemonic
+- **FR-045**: System MUST implement platform-specific screenshot protection: macOS NSWindow.setContentProtection(true), Windows SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE), Linux watermark + randomized layout + warning
+- **FR-046**: System MUST implement mnemonic display protections: 30-second countdown, blur on focus loss, one-time display, disabled copy-paste, and camera-only backup warning
+- **FR-047**: System MUST provide "Decrypt and View Mnemonic" function in wallet management menu with password requirement and all security protections
+- **FR-048**: CLI MUST provide standalone derive_address command that accepts MNEMONIC, BIP39_PASSPHRASE (optional), DERIVATION_PATH environment variables, derives a single address in memory without creating wallet files, and outputs JSON response with derived address for duplicate detection purposes
 
 ### Key Entities
 
 - **Wallet**: Represents a hierarchical deterministic wallet containing a mnemonic seed, encryption metadata, and derived addresses. Each wallet has a unique ID, optional custom name, creation timestamp, and BIP39 passphrase flag.
 
-- **Address**: Represents a cryptocurrency address derived from a wallet, including the blockchain symbol, name, coin type, derivation path (BIP44), address string, and blockchain category.
+- **Address**: Represents a cryptocurrency address derived from a wallet, including the blockchain symbol, name, coin type, BIP44 derivation path with separate account/change/index fields, address string, and blockchain category.
+
+- **Addresses File**: JSON file stored at {USB_PATH}/wallets/{id}/addresses.json containing schema_version "1.0", wallet_id, generated_at timestamp, total_count, SHA-256 checksum of addresses array, and array of all 54 addresses with full metadata.
+
+- **CLI Response**: JSON object output to stdout containing success boolean, optional mnemonic (only if RETURN_MNEMONIC=true), wallet data, request_id (UUID for tracing), cli_version, duration_ms, and warnings array.
+
+- **CLI Error Response**: JSON object output to stdout containing success: false, error object with code (from enumerated set) and message, request_id, cli_version, and duration_ms.
 
 - **Dashboard State**: Represents the current view state including selected wallet, active filters, search query, and display preferences.
 
@@ -188,7 +222,7 @@ A user wants to export their wallet addresses to a file for record-keeping, tax 
 - **A-004**: Dashboard displays all 54 addresses upfront rather than generating on-demand, leveraging existing generate-all functionality
 - **A-005**: Wallet list displays up to 10 wallets before requiring pagination (reasonable default for personal use)
 - **A-006**: Search and filter operations happen client-side (no server component) for security
-- **A-007**: Dashboard uses the existing CLI wallet service layer, providing a GUI wrapper
+- **A-007**: Dashboard invokes the CLI in non-interactive mode via subprocess, passing parameters through environment variables (WALLET_PASSWORD, USB_PATH, MNEMONIC_LENGTH, etc.) and receiving JSON responses from stdout; CLI retains interactive stdin prompts for direct terminal use
 - **A-008**: Mnemonic phrase display includes a mandatory countdown timer (e.g., 30 seconds) before allowing user to confirm backup
 - **A-009**: Dashboard includes a "restore wallet" feature separate from regular unlock to decrypt and view mnemonic
 - **A-010**: Export functionality uses existing generate-all command, providing GUI trigger and file location selection

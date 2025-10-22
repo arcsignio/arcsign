@@ -33,7 +33,7 @@
         "removeFile": true,
         "renameFile": true,
         "exists": true,
-        "scope": ["$RESOURCE/**", "$APP/**", "$HOME/**"]
+        "scope": ["$RESOURCE/**", "$APP/**", "$HOME/**", "/Volumes/**", "/media/**", "/mnt/**"]
       },
       "path": {
         "all": true

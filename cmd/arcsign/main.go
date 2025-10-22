@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
+	"github.com/yourusername/arcsign/internal/cli"
 	"github.com/yourusername/arcsign/internal/models"
 	"github.com/yourusername/arcsign/internal/services/address"
 	"github.com/yourusername/arcsign/internal/services/bip39service"
@@ -28,6 +29,20 @@ const (
 )
 
 func main() {
+	// Detect mode based on ARCSIGN_MODE environment variable
+	mode := cli.DetectMode()
+
+	// Dashboard (non-interactive) mode: JSON output to stdout, logs to stderr
+	if mode == cli.ModeDashboard {
+		// T020: Dashboard mode flow
+		// - All input from environment variables
+		// - All output as JSON to stdout (using cli.WriteJSON)
+		// - All logs to stderr (using cli.WriteLog)
+		handleDashboardMode()
+		return
+	}
+
+	// Interactive mode: original CLI behavior
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(1)
@@ -55,6 +70,77 @@ func main() {
 	}
 }
 
+// handleDashboardMode processes commands in non-interactive mode
+// All input comes from environment variables, output is JSON to stdout
+func handleDashboardMode() {
+	// Log mode for debugging (goes to stderr)
+	cli.WriteLog(fmt.Sprintf("ArcSign v%s - Dashboard mode", Version))
+
+	// Determine command from CLI_COMMAND environment variable
+	command := os.Getenv("CLI_COMMAND")
+	if command == "" {
+		// For backwards compatibility, check if old env vars are set
+		if os.Getenv("WALLET_PASSWORD") != "" {
+			command = "create"
+		} else {
+			// No command specified
+			errorResponse := cli.CliResponse{
+				Success:    false,
+				Error:      cli.NewCliError(cli.ErrInvalidSchema, "CLI_COMMAND environment variable not set"),
+				RequestID:  generateRequestID(),
+				CliVersion: Version,
+				DurationMs: 0,
+			}
+			cli.WriteJSON(errorResponse)
+			os.Exit(1)
+		}
+	}
+
+	cli.WriteLog(fmt.Sprintf("Executing command: %s", command))
+
+	// Route to appropriate non-interactive handler
+	switch command {
+	case "create":
+		// Existing non-interactive create handler
+		envPassword := os.Getenv("WALLET_PASSWORD")
+		envUSBPath := os.Getenv("USB_PATH")
+		envMnemonicLength := os.Getenv("MNEMONIC_LENGTH")
+		envWalletName := os.Getenv("WALLET_NAME")
+		envPassphrase := os.Getenv("BIP39_PASSPHRASE")
+
+		if envPassword == "" || envUSBPath == "" || envMnemonicLength == "" {
+			errorResponse := cli.CliResponse{
+				Success:    false,
+				Error:      cli.NewCliError(cli.ErrInvalidSchema, "Missing required environment variables: WALLET_PASSWORD, USB_PATH, MNEMONIC_LENGTH"),
+				RequestID:  generateRequestID(),
+				CliVersion: Version,
+				DurationMs: 0,
+			}
+			cli.WriteJSON(errorResponse)
+			os.Exit(1)
+		}
+
+		handleCreateWalletNonInteractive(envPassword, envUSBPath, envMnemonicLength, envWalletName, envPassphrase)
+
+	default:
+		errorResponse := cli.CliResponse{
+			Success:    false,
+			Error:      cli.NewCliError(cli.ErrInvalidSchema, fmt.Sprintf("Unknown command: %s", command)),
+			RequestID:  generateRequestID(),
+			CliVersion: Version,
+			DurationMs: 0,
+		}
+		cli.WriteJSON(errorResponse)
+		os.Exit(1)
+	}
+}
+
+// generateRequestID creates a unique identifier for the CLI request
+// In production, this should generate a proper UUID v4
+func generateRequestID() string {
+	return fmt.Sprintf("req-%d", time.Now().UnixNano())
+}
+
 func printUsage() {
 	fmt.Println("ArcSign - Secure HD Wallet with USB-only storage")
 	fmt.Println()
@@ -70,6 +156,22 @@ func printUsage() {
 }
 
 func handleCreateWallet() {
+	// Check for non-interactive mode (all environment variables set)
+	envPassword := os.Getenv("WALLET_PASSWORD")
+	envUSBPath := os.Getenv("USB_PATH")
+	envMnemonicLength := os.Getenv("MNEMONIC_LENGTH")
+	envWalletName := os.Getenv("WALLET_NAME")
+	envPassphrase := os.Getenv("BIP39_PASSPHRASE")
+
+	isNonInteractive := envPassword != "" && envUSBPath != "" && envMnemonicLength != ""
+
+	if isNonInteractive {
+		// Non-interactive mode: use environment variables
+		handleCreateWalletNonInteractive(envPassword, envUSBPath, envMnemonicLength, envWalletName, envPassphrase)
+		return
+	}
+
+	// Interactive mode: prompt user for inputs
 	fmt.Println("=== ArcSign Wallet Creation ===")
 	fmt.Println()
 
@@ -1008,4 +1110,65 @@ func deriveAddressByFormatter(addressService *address.AddressService, key *hdkey
 	default:
 		return "", fmt.Errorf("unsupported formatter: %s", formatterID)
 	}
+}
+
+// handleCreateWalletNonInteractive creates a wallet using environment variables (no stdin prompts)
+// This is used by the Dashboard/GUI to avoid interactive prompts
+func handleCreateWalletNonInteractive(password, usbPath, mnemonicLengthStr, walletName, bip39Passphrase string) {
+	// Parse mnemonic length
+	wordCount, err := strconv.Atoi(mnemonicLengthStr)
+	if err != nil || (wordCount != 12 && wordCount != 24) {
+		// Output JSON error for dashboard to parse
+		errorOutput := map[string]string{
+			"error": fmt.Sprintf("Invalid mnemonic length: %s (must be 12 or 24)", mnemonicLengthStr),
+		}
+		jsonBytes, _ := json.Marshal(errorOutput)
+		fmt.Println(string(jsonBytes))
+		os.Exit(1)
+	}
+
+	// Check if USB path exists
+	if _, err := os.Stat(usbPath); os.IsNotExist(err) {
+		errorOutput := map[string]string{
+			"error": fmt.Sprintf("USB path does not exist: %s", usbPath),
+		}
+		jsonBytes, _ := json.Marshal(errorOutput)
+		fmt.Println(string(jsonBytes))
+		os.Exit(1)
+	}
+
+	// Determine if passphrase is used
+	usesPassphrase := bip39Passphrase != ""
+
+	// Create wallet
+	walletService := wallet.NewWalletService(usbPath)
+	walletData, mnemonic, err := walletService.CreateWallet(walletName, password, wordCount, usesPassphrase, bip39Passphrase)
+	if err != nil {
+		errorOutput := map[string]string{
+			"error": fmt.Sprintf("Wallet creation failed: %v", err),
+		}
+		jsonBytes, _ := json.Marshal(errorOutput)
+		fmt.Println(string(jsonBytes))
+		os.Exit(1)
+	}
+
+	// Output JSON response for dashboard to parse
+	response := map[string]interface{}{
+		"wallet_id":  walletData.ID,
+		"mnemonic":   mnemonic,
+		"created_at": walletData.CreatedAt.Format(time.RFC3339),
+	}
+
+	jsonBytes, err := json.Marshal(response)
+	if err != nil {
+		errorOutput := map[string]string{
+			"error": fmt.Sprintf("Failed to encode response: %v", err),
+		}
+		jsonBytes, _ := json.Marshal(errorOutput)
+		fmt.Println(string(jsonBytes))
+		os.Exit(1)
+	}
+
+	// Output success JSON to stdout
+	fmt.Println(string(jsonBytes))
 }

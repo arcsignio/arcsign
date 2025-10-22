@@ -3,14 +3,17 @@
  * Feature: User Dashboard for Wallet Management
  * Tasks: T034, T035, T042 - WalletCreate component with form validation and error handling
  * Generated: 2025-10-17
+ * Updated: Force reload to use snake_case API parameters
  */
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { invoke } from '@tauri-apps/api';
 import { walletCreateSchema, type WalletCreateFormData } from '@/validation/password';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import tauriApi, { type UsbDevice, type AppError } from '@/services/tauri-api';
+import type { WalletCreateResponse } from '@/types/wallet';
 import { MnemonicDisplay } from './MnemonicDisplay';
 import { ConfirmationDialog } from './ConfirmationDialog';
 
@@ -36,6 +39,7 @@ export function WalletCreate({ onCancel }: WalletCreateProps = {}) {
     handleSubmit,
     formState: { errors, isValid, isDirty },
     watch,
+    setValue,
   } = useForm<WalletCreateFormData>({
     resolver: zodResolver(walletCreateSchema),
     mode: 'onChange',
@@ -47,6 +51,11 @@ export function WalletCreate({ onCancel }: WalletCreateProps = {}) {
       try {
         const devices = await tauriApi.detectUsb();
         setUsbDevices(devices);
+
+        // Auto-select if only one USB device
+        if (devices.length === 1) {
+          setValue('usbPath', devices[0].path, { shouldValidate: true });
+        }
       } catch (err) {
         const error = err as AppError;
         setError(error.message || 'Failed to detect USB devices');
@@ -56,20 +65,31 @@ export function WalletCreate({ onCancel }: WalletCreateProps = {}) {
     };
 
     loadUsbDevices();
-  }, []);
+  }, [setValue]);
 
   const onSubmit = async (data: WalletCreateFormData) => {
     setIsCreating(true);
     setError(null);
 
     try {
-      const response = await tauriApi.createWallet({
-        password: data.password,
-        usb_path: data.usbPath,
-        name: data.walletName,
-        passphrase: data.passphrase || undefined,
-        mnemonic_length: data.mnemonicLength,
+      console.log('Creating wallet with params:', {
+        password: '***',
+        usbPath: data.usbPath,
+        name: data.walletName || undefined,
+        passphrase: data.passphrase ? '***' : undefined,
+        mnemonicLength: data.mnemonicLength,
       });
+
+      // Direct invoke call - using camelCase to match Rust function parameters
+      const response = await invoke<WalletCreateResponse>('create_wallet', {
+        password: data.password,
+        usbPath: data.usbPath,
+        name: data.walletName || undefined,
+        passphrase: data.passphrase || undefined,
+        mnemonicLength: data.mnemonicLength,
+      });
+
+      console.log('Wallet created successfully:', response.wallet.id);
 
       // Set created wallet for mnemonic display
       setCreatedWallet(response);
@@ -77,8 +97,15 @@ export function WalletCreate({ onCancel }: WalletCreateProps = {}) {
       // Add to dashboard store
       addWallet(response.wallet);
     } catch (err) {
+      console.error('Error creating wallet:', err);
+      console.error('Error type:', typeof err);
+      console.error('Error details:', JSON.stringify(err, null, 2));
+
       const error = err as AppError;
-      setError(error.message || 'Failed to create wallet');
+      const errorMessage = error.message || (typeof err === 'string' ? err : 'Failed to create wallet');
+      console.error('Display error message:', errorMessage);
+
+      setError(errorMessage);
       setIsCreating(false);
     }
   };
@@ -212,6 +239,28 @@ export function WalletCreate({ onCancel }: WalletCreateProps = {}) {
             <option value={24}>24 words (Recommended)</option>
             <option value={12}>12 words</option>
           </select>
+        </div>
+
+        {/* Debug Info - Remove after fixing */}
+        <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f0f0f0', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace' }}>
+          <strong>Debug Info:</strong>
+          <div>isValid: {isValid ? '✅ true' : '❌ false'}</div>
+          <div>isDirty: {isDirty ? '✅ true' : '❌ false'}</div>
+          <div>isCreating: {isCreating ? '❌ true' : '✅ false'}</div>
+          <div>usbDevices.length: {usbDevices.length}</div>
+          <div>Form Values:</div>
+          <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+            usbPath: {watch('usbPath') || '(empty)'}
+            password: {watch('password') ? '***' + watch('password').substring(watch('password').length - 3) : '(empty)'}
+            confirmPassword: {watch('confirmPassword') ? '***' + watch('confirmPassword').substring(watch('confirmPassword').length - 3) : '(empty)'}
+            walletName: {watch('walletName') || '(empty)'}
+            passphrase: {watch('passphrase') ? '***' : '(empty)'}
+            mnemonicLength: {watch('mnemonicLength')}
+          </pre>
+          <div>Has Errors: {Object.keys(errors).length > 0 ? '❌ YES' : '✅ NO'}</div>
+          {Object.keys(errors).length > 0 && (
+            <div>Error Fields: {Object.keys(errors).join(', ')}</div>
+          )}
         </div>
 
         {/* Action Buttons (T093, FR-032) */}

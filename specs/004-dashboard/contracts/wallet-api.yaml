@@ -1,0 +1,626 @@
+openapi: 3.0.3
+info:
+  title: ArcSign CLI Non-Interactive API
+  description: |
+    JSON API for wallet operations via environment variables and stdout/stderr.
+
+    This specification defines the contract between Tauri Rust backend and Go CLI
+    for non-interactive wallet operations. The CLI supports dual modes:
+    - **Non-interactive**: Environment variables + JSON stdout (used by Dashboard)
+    - **Interactive**: stdin prompts (direct terminal use)
+
+    **Communication Model**:
+    - Input: Environment variables (WALLET_PASSWORD, USB_PATH, etc.)
+    - Output: Single-line JSON to stdout (machine-readable)
+    - Logging: Human-readable logs to stderr
+
+    **Security**:
+    - Passwords/mnemonics passed via environment variables (not CLI args)
+    - Mnemonic excluded from responses by default (RETURN_MNEMONIC=true required)
+    - No sensitive data in stderr logs
+
+    **Error Handling**:
+    - 30-second timeout for all operations
+    - Structured error codes (INVALID_PASSWORD, USB_NOT_FOUND, etc.)
+    - Exit code 0 for success, non-zero for failures
+
+    **Versioning**:
+    - Forward-compatible: add fields only, never remove/rename
+    - Schema version tracking in addresses.json
+  version: 1.0.0
+  contact:
+    name: ArcSign Development Team
+    url: https://github.com/arcsign/arcsign
+
+servers: []
+
+tags:
+  - name: wallet
+    description: Wallet creation and import operations
+  - name: address
+    description: Address file operations (Dashboard reads directly)
+
+paths:
+  /cli/operations:
+    description: |
+      Note: This is a CLI tool, not an HTTP API. Paths are used for documentation
+      purposes only. Operations are invoked as CLI commands with environment variables.
+
+      Example invocation:
+      ```bash
+      WALLET_PASSWORD=secret123 USB_PATH=/mnt/usb arcsign create
+      ```
+
+components:
+  schemas:
+    # ============================================================================
+    # Request Schemas (Environment Variables)
+    # ============================================================================
+
+    CreateWalletRequest:
+      type: object
+      description: Environment variables for wallet creation (arcsign create)
+      required:
+        - WALLET_PASSWORD
+        - USB_PATH
+      properties:
+        WALLET_PASSWORD:
+          type: string
+          description: Encryption password (12+ chars, complexity validated)
+          minLength: 12
+          example: MySecurePass123!
+        USB_PATH:
+          type: string
+          description: USB mount point (absolute path)
+          pattern: '^/.*'
+          example: /Volumes/ARCSIGN_WALLET
+        WALLET_NAME:
+          type: string
+          description: Optional wallet name (default auto-generated with timestamp)
+          minLength: 1
+          maxLength: 50
+          pattern: '^[a-zA-Z0-9 ]+$'
+          example: My Personal Wallet
+        BIP39_PASSPHRASE:
+          type: string
+          description: Optional BIP39 passphrase (25th word)
+          example: extra-secret-word
+        MNEMONIC_LENGTH:
+          type: string
+          description: Mnemonic word count (default "24")
+          enum: ["12", "24"]
+          default: "24"
+          example: "24"
+        RETURN_MNEMONIC:
+          type: string
+          description: Whether to include mnemonic in response (default "false")
+          enum: ["true", "false"]
+          default: "false"
+          example: "true"
+
+    ImportWalletRequest:
+      type: object
+      description: Environment variables for wallet import (arcsign restore)
+      required:
+        - MNEMONIC
+        - WALLET_PASSWORD
+        - USB_PATH
+      properties:
+        MNEMONIC:
+          type: string
+          description: BIP39 mnemonic phrase (12 or 24 words, space-separated, whitespace normalized)
+          pattern: '^([a-z]+\s){11,23}[a-z]+$'
+          example: abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about
+        WALLET_PASSWORD:
+          type: string
+          description: Encryption password (12+ chars, complexity validated)
+          minLength: 12
+          example: MySecurePass123!
+        USB_PATH:
+          type: string
+          description: USB mount point (absolute path)
+          pattern: '^/.*'
+          example: /Volumes/ARCSIGN_WALLET
+        WALLET_NAME:
+          type: string
+          description: Optional wallet name (default auto-generated)
+          minLength: 1
+          maxLength: 50
+          pattern: '^[a-zA-Z0-9 ]+$'
+          example: Imported Wallet
+        BIP39_PASSPHRASE:
+          type: string
+          description: Optional BIP39 passphrase (25th word)
+          example: extra-secret-word
+        RETURN_MNEMONIC:
+          type: string
+          description: Whether to include mnemonic in response (default "false")
+          enum: ["true", "false"]
+          default: "false"
+          example: "false"
+
+    ListWalletsRequest:
+      type: object
+      description: Environment variables for listing wallets (arcsign list)
+      required:
+        - USB_PATH
+      properties:
+        USB_PATH:
+          type: string
+          description: USB mount point (absolute path)
+          pattern: '^/.*'
+          example: /Volumes/ARCSIGN_WALLET
+
+    # ============================================================================
+    # Response Schemas (stdout JSON)
+    # ============================================================================
+
+    CreateWalletResponse:
+      type: object
+      description: Success response for wallet creation (stdout single-line JSON)
+      required:
+        - success
+        - wallet
+        - request_id
+        - cli_version
+        - duration_ms
+      properties:
+        success:
+          type: boolean
+          description: Operation success flag (always true for this response)
+          enum: [true]
+          example: true
+        wallet:
+          $ref: '#/components/schemas/Wallet'
+        mnemonic:
+          type: string
+          description: BIP39 mnemonic phrase (only present if RETURN_MNEMONIC=true)
+          pattern: '^([a-z]+\s){11,23}[a-z]+$'
+          example: abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about
+        request_id:
+          type: string
+          format: uuid
+          description: Unique request identifier (UUID v4 for tracing)
+          example: a7f3e8d2-4c1b-45f6-9e2a-3d8b7c4e1f9a
+        cli_version:
+          type: string
+          description: CLI version (semver)
+          pattern: '^\d+\.\d+\.\d+$'
+          example: 1.0.0
+        duration_ms:
+          type: integer
+          description: Operation duration in milliseconds
+          minimum: 0
+          example: 2543
+        warnings:
+          type: array
+          description: Non-fatal warnings (empty array if none)
+          items:
+            type: string
+          example: []
+
+    ImportWalletResponse:
+      type: object
+      description: Success response for wallet import (stdout single-line JSON)
+      required:
+        - success
+        - wallet
+        - request_id
+        - cli_version
+        - duration_ms
+      properties:
+        success:
+          type: boolean
+          description: Operation success flag (always true for this response)
+          enum: [true]
+          example: true
+        wallet:
+          $ref: '#/components/schemas/Wallet'
+        mnemonic:
+          type: string
+          description: BIP39 mnemonic phrase (only present if RETURN_MNEMONIC=true)
+          pattern: '^([a-z]+\s){11,23}[a-z]+$'
+          example: abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about
+        request_id:
+          type: string
+          format: uuid
+          description: Unique request identifier (UUID v4 for tracing)
+          example: b9e2f7c3-5d8a-4e7b-8f1c-2a6d9e3b5c8f
+        cli_version:
+          type: string
+          description: CLI version (semver)
+          pattern: '^\d+\.\d+\.\d+$'
+          example: 1.0.0
+        duration_ms:
+          type: integer
+          description: Operation duration in milliseconds
+          minimum: 0
+          example: 1876
+        warnings:
+          type: array
+          description: Non-fatal warnings (e.g., duplicate wallet detected)
+          items:
+            type: string
+          example: ["Wallet with same seed already exists (created 2025-10-15). Importing with different name."]
+
+    ListWalletsResponse:
+      type: object
+      description: Success response for wallet listing (stdout single-line JSON)
+      required:
+        - success
+        - wallets
+        - request_id
+        - cli_version
+        - duration_ms
+      properties:
+        success:
+          type: boolean
+          description: Operation success flag (always true for this response)
+          enum: [true]
+          example: true
+        wallets:
+          type: array
+          description: Array of wallet metadata (empty if no wallets found)
+          items:
+            $ref: '#/components/schemas/Wallet'
+          example:
+            - id: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+              name: My Personal Wallet
+              created_at: "2025-10-17T14:30:25+08:00"
+              uses_passphrase: false
+              addresses_file: wallets/3c3e0aba-91e1-44d4-8b29-ec066d5acf0b/addresses.json
+            - id: 7a2b4f8e-3d9c-4e6b-9f1a-8c5d2e7b4a9c
+              name: Business Wallet
+              created_at: "2025-10-20T09:15:42+08:00"
+              uses_passphrase: true
+              addresses_file: wallets/7a2b4f8e-3d9c-4e6b-9f1a-8c5d2e7b4a9c/addresses.json
+        request_id:
+          type: string
+          format: uuid
+          description: Unique request identifier (UUID v4 for tracing)
+          example: c5d8a9f2-6e3b-4c7d-9a1e-5f8b3c2d7e4a
+        cli_version:
+          type: string
+          description: CLI version (semver)
+          pattern: '^\d+\.\d+\.\d+$'
+          example: 1.0.0
+        duration_ms:
+          type: integer
+          description: Operation duration in milliseconds
+          minimum: 0
+          example: 156
+        warnings:
+          type: array
+          description: Non-fatal warnings (empty array if none)
+          items:
+            type: string
+          example: []
+
+    CliErrorResponse:
+      type: object
+      description: Error response for any failed operation (stdout single-line JSON)
+      required:
+        - success
+        - error
+        - request_id
+        - cli_version
+        - duration_ms
+      properties:
+        success:
+          type: boolean
+          description: Operation success flag (always false for error response)
+          enum: [false]
+          example: false
+        error:
+          type: object
+          description: Error details
+          required:
+            - code
+            - message
+          properties:
+            code:
+              $ref: '#/components/schemas/ErrorCode'
+            message:
+              type: string
+              description: Human-readable error message (no sensitive data)
+              example: Password must be at least 12 characters long
+        request_id:
+          type: string
+          format: uuid
+          description: Unique request identifier (UUID v4 for tracing)
+          example: d8f3a2e5-7b4c-4e9d-8a2f-6c3d9e5b7a4c
+        cli_version:
+          type: string
+          description: CLI version (semver)
+          pattern: '^\d+\.\d+\.\d+$'
+          example: 1.0.0
+        duration_ms:
+          type: integer
+          description: Operation duration in milliseconds (time until error)
+          minimum: 0
+          example: 45
+
+    # ============================================================================
+    # Entity Schemas
+    # ============================================================================
+
+    Wallet:
+      type: object
+      description: Wallet metadata (no sensitive cryptographic material)
+      required:
+        - id
+        - name
+        - created_at
+        - uses_passphrase
+        - addresses_file
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Wallet unique identifier (UUID v4, derived from mnemonic SHA-256)
+          example: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+        name:
+          type: string
+          description: Wallet display name
+          minLength: 1
+          maxLength: 50
+          example: My Personal Wallet
+        created_at:
+          type: string
+          format: date-time
+          description: Wallet creation timestamp (ISO 8601 with timezone)
+          example: "2025-10-17T14:30:25+08:00"
+        uses_passphrase:
+          type: boolean
+          description: True if BIP39 passphrase (25th word) was used during creation
+          example: false
+        addresses_file:
+          type: string
+          description: Relative path to addresses.json (Dashboard prepends USB_PATH)
+          pattern: '^wallets/[a-f0-9-]+/addresses\.json$'
+          example: wallets/3c3e0aba-91e1-44d4-8b29-ec066d5acf0b/addresses.json
+
+    Address:
+      type: object
+      description: Cryptocurrency address derived from wallet using BIP44 path
+      required:
+        - blockchain
+        - symbol
+        - coin_type
+        - account
+        - change
+        - index
+        - address
+        - path
+        - category
+      properties:
+        blockchain:
+          type: string
+          description: Full blockchain name
+          minLength: 1
+          maxLength: 100
+          example: Bitcoin
+        symbol:
+          type: string
+          description: Blockchain symbol (uppercase)
+          minLength: 2
+          maxLength: 10
+          pattern: '^[A-Z]+$'
+          example: BTC
+        coin_type:
+          type: integer
+          description: SLIP-44 coin type (BIP44 second hardened level)
+          minimum: 0
+          maximum: 2147483647
+          example: 0
+        account:
+          type: integer
+          description: BIP44 account index (third hardened level, typically 0)
+          minimum: 0
+          example: 0
+        change:
+          type: integer
+          description: BIP44 change index (external=0, internal=1)
+          minimum: 0
+          maximum: 1
+          example: 0
+        index:
+          type: integer
+          description: BIP44 address index (fifth level, typically 0)
+          minimum: 0
+          example: 0
+        address:
+          type: string
+          description: Derived cryptocurrency address (format varies by blockchain)
+          minLength: 20
+          maxLength: 100
+          example: 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+        path:
+          type: string
+          description: Full BIP44 derivation path
+          pattern: "^m/44'/\\d+'/\\d+'/\\d+/\\d+$"
+          example: m/44'/0'/0'/0/0
+        category:
+          $ref: '#/components/schemas/Category'
+
+    AddressesFile:
+      type: object
+      description: |
+        JSON file stored at {USB_PATH}/wallets/{id}/addresses.json.
+        Dashboard reads this file directly (not via CLI command).
+        CLI auto-generates this file during wallet creation/import.
+      required:
+        - schema_version
+        - wallet_id
+        - generated_at
+        - total_count
+        - checksum
+        - addresses
+      properties:
+        schema_version:
+          type: string
+          description: Address file schema version (semver)
+          pattern: '^\d+\.\d+$'
+          enum: ["1.0"]
+          example: "1.0"
+        wallet_id:
+          type: string
+          format: uuid
+          description: Parent wallet identifier
+          example: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+        generated_at:
+          type: string
+          format: date-time
+          description: Address generation timestamp (ISO 8601)
+          example: "2025-10-17T14:30:30+08:00"
+        total_count:
+          type: integer
+          description: Total number of addresses (always 54 in v1.0)
+          enum: [54]
+          example: 54
+        checksum:
+          type: string
+          description: SHA-256 checksum of addresses array (hex string, tamper detection)
+          pattern: '^[a-f0-9]{64}$'
+          example: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        addresses:
+          type: array
+          description: Array of all derived addresses (54 blockchains)
+          minItems: 54
+          maxItems: 54
+          items:
+            $ref: '#/components/schemas/Address'
+
+    # ============================================================================
+    # Enums
+    # ============================================================================
+
+    ErrorCode:
+      type: string
+      description: Enumerated error codes for structured error handling
+      enum:
+        - INVALID_PASSWORD
+        - USB_NOT_FOUND
+        - WALLET_EXISTS
+        - INVALID_MNEMONIC
+        - CRYPTO_ERROR
+        - IO_ERROR
+        - TIMEOUT
+        - INVALID_SCHEMA
+        - INVALID_CHECKSUM
+      example: INVALID_PASSWORD
+
+    Category:
+      type: string
+      description: Blockchain category for filtering and organization
+      enum:
+        - Base Chains
+        - Layer 2
+        - Regional
+        - Cosmos
+        - Alternative EVM
+        - Specialized
+      example: Base Chains
+
+  # ==============================================================================
+  # Example Responses
+  # ==============================================================================
+
+  examples:
+    CreateWalletSuccess:
+      summary: Successful wallet creation with mnemonic
+      value:
+        success: true
+        wallet:
+          id: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+          name: My Personal Wallet
+          created_at: "2025-10-17T14:30:25+08:00"
+          uses_passphrase: false
+          addresses_file: wallets/3c3e0aba-91e1-44d4-8b29-ec066d5acf0b/addresses.json
+        mnemonic: abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about
+        request_id: a7f3e8d2-4c1b-45f6-9e2a-3d8b7c4e1f9a
+        cli_version: 1.0.0
+        duration_ms: 2543
+        warnings: []
+
+    ImportWalletDuplicate:
+      summary: Wallet import with duplicate warning
+      value:
+        success: true
+        wallet:
+          id: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+          name: Imported Wallet 2
+          created_at: "2025-10-22T10:15:30+08:00"
+          uses_passphrase: false
+          addresses_file: wallets/3c3e0aba-91e1-44d4-8b29-ec066d5acf0b/addresses.json
+        request_id: b9e2f7c3-5d8a-4e7b-8f1c-2a6d9e3b5c8f
+        cli_version: 1.0.0
+        duration_ms: 1876
+        warnings:
+          - "Wallet with same seed already exists (created 2025-10-15). Importing with different name."
+
+    InvalidPasswordError:
+      summary: Password validation error
+      value:
+        success: false
+        error:
+          code: INVALID_PASSWORD
+          message: Password must be at least 12 characters long
+        request_id: d8f3a2e5-7b4c-4e9d-8a2f-6c3d9e5b7a4c
+        cli_version: 1.0.0
+        duration_ms: 45
+
+    USBNotFoundError:
+      summary: USB device not detected
+      value:
+        success: false
+        error:
+          code: USB_NOT_FOUND
+          message: USB device not found at /Volumes/ARCSIGN_WALLET
+        request_id: f2e8d7c3-9a4b-4e6d-8f1c-5d3b7a2e9c4f
+        cli_version: 1.0.0
+        duration_ms: 102
+
+    InvalidMnemonicError:
+      summary: Invalid mnemonic checksum
+      value:
+        success: false
+        error:
+          code: INVALID_MNEMONIC
+          message: Invalid mnemonic checksum verification failed
+        request_id: c9d7e4f2-8b3a-4e5c-9d1f-6a2b8e3c7d4f
+        cli_version: 1.0.0
+        duration_ms: 67
+
+    AddressesFileExample:
+      summary: Complete addresses.json file structure
+      value:
+        schema_version: "1.0"
+        wallet_id: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+        generated_at: "2025-10-17T14:30:30+08:00"
+        total_count: 54
+        checksum: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        addresses:
+          - blockchain: Bitcoin
+            symbol: BTC
+            coin_type: 0
+            account: 0
+            change: 0
+            index: 0
+            address: 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+            path: m/44'/0'/0'/0/0
+            category: Base Chains
+          - blockchain: Ethereum
+            symbol: ETH
+            coin_type: 60
+            account: 0
+            change: 0
+            index: 0
+            address: "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+            path: m/44'/60'/0'/0/0
+            category: Base Chains
+          # ... 52 more addresses
+
+externalDocs:
+  description: ArcSign Feature Specification (004-dashboard)
+  url: file://../spec.md

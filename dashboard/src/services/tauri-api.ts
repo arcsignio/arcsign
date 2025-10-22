@@ -85,9 +85,16 @@ export async function detectUsb(): Promise<UsbDevice[]> {
  * Wallet Management
  */
 
+// Force reload - using snake_case parameters
 export async function createWallet(params: WalletCreateParams): Promise<WalletCreateResponse> {
   try {
-    return await invoke<WalletCreateResponse>('create_wallet', params);
+    return await invoke<WalletCreateResponse>('create_wallet', {
+      password: params.password,
+      usb_path: params.usb_path,
+      name: params.name,
+      passphrase: params.passphrase,
+      mnemonic_length: params.mnemonic_length,
+    });
   } catch (error) {
     throw parseError(error);
   }

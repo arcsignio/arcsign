@@ -56,19 +56,22 @@ fn validate_password(password: &str) -> AppResult<()> {
 }
 
 /// Create new HD wallet
+/// Note: Using camelCase parameter names to match JavaScript/TypeScript convention
 #[tauri::command]
 pub async fn create_wallet(
     password: String,
-    usb_path: String,
+    #[allow(non_snake_case)]
+    usbPath: String,
     name: Option<String>,
     passphrase: Option<String>,
-    mnemonic_length: Option<usize>,
+    #[allow(non_snake_case)]
+    mnemonicLength: Option<usize>,
 ) -> Result<WalletCreateResponse, String> {
     // Validate password
     validate_password(&password).map_err(String::from)?;
 
     // Validate mnemonic length
-    let length = mnemonic_length.unwrap_or(24);
+    let length = mnemonicLength.unwrap_or(24);
     if length != 12 && length != 24 {
         return Err(AppError::new(
             ErrorCode::InvalidMnemonicLength,
@@ -97,7 +100,7 @@ pub async fn create_wallet(
     // Execute create wallet command
     let cmd = CliCommand::CreateWallet {
         password,
-        usb_path,
+        usb_path: usbPath,
         name,
         passphrase,
         mnemonic_length: length,
@@ -335,45 +338,143 @@ pub async fn load_addresses(
 }
 
 /// List all wallets on USB
+/// Directly scans USB directory for wallet folders (CLI list command not yet implemented)
 #[tauri::command]
 pub async fn list_wallets(usb_path: String) -> Result<Vec<Wallet>, String> {
-    let cli = CliWrapper::new("./arcsign");
+    use std::fs;
+    use std::path::Path;
 
-    let cmd = CliCommand::ListWallets {
-        usb_path,
-    };
+    let usb_dir = Path::new(&usb_path);
 
-    let output = cli.execute(cmd).await.map_err(|e| {
+    // Check if USB path exists
+    if !usb_dir.exists() {
+        return Err(AppError::new(
+            ErrorCode::UsbNotFound,
+            "USB path does not exist",
+        ).into());
+    }
+
+    let mut wallets = Vec::new();
+
+    // Read all directories in USB path
+    let entries = fs::read_dir(usb_dir).map_err(|e| {
         AppError::with_details(
             ErrorCode::CliExecutionFailed,
-            "Failed to list wallets",
-            e,
+            "Failed to read USB directory",
+            e.to_string(),
         )
     })?;
 
-    // Parse CLI response
-    let cli_response: WalletListResponse = cli.parse_json(&output).map_err(|e| {
-        AppError::with_details(
-            ErrorCode::DeserializationError,
-            "Failed to parse wallet list response",
-            e,
-        )
-    })?;
+    for entry in entries {
+        let entry = entry.map_err(|e| {
+            AppError::with_details(
+                ErrorCode::CliExecutionFailed,
+                "Failed to read directory entry",
+                e.to_string(),
+            )
+        })?;
 
-    // Convert to domain model
-    let wallets: Vec<Wallet> = cli_response
-        .wallets
-        .into_iter()
-        .map(|info| Wallet {
-            id: info.id,
-            name: info.name,
-            created_at: info.created_at,
-            updated_at: info.updated_at,
-            has_passphrase: info.has_passphrase,
-            address_count: info.address_count,
-        })
-        .collect();
+        let path = entry.path();
 
+        // Skip if not a directory
+        if !path.is_dir() {
+            continue;
+        }
+
+        // Skip system directories
+        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            if name.starts_with('.') || name == "System Volume Information" {
+                continue;
+            }
+        }
+
+        // Check if wallet.json exists in this directory
+        let wallet_json_path = path.join("wallet.json");
+        if wallet_json_path.exists() {
+            // Read and parse wallet.json
+            let wallet_json = fs::read_to_string(&wallet_json_path).map_err(|e| {
+                tracing::warn!("Failed to read wallet.json at {:?}: {}", wallet_json_path, e);
+                AppError::with_details(
+                    ErrorCode::DeserializationError,
+                    "Failed to read wallet.json",
+                    e.to_string(),
+                )
+            })?;
+
+            // Parse wallet metadata
+            let wallet_meta: serde_json::Value = serde_json::from_str(&wallet_json).map_err(|e| {
+                tracing::warn!("Failed to parse wallet.json: {}", e);
+                AppError::with_details(
+                    ErrorCode::DeserializationError,
+                    "Failed to parse wallet.json",
+                    e.to_string(),
+                )
+            })?;
+
+            // Extract wallet information
+            let wallet_id = wallet_meta.get("id")
+                .and_then(|v| v.as_str())
+                .or_else(|| path.file_name().and_then(|n| n.to_str()))
+                .unwrap_or("unknown")
+                .to_string();
+
+            // Use wallet_id as name if no name field exists
+            let name = wallet_meta.get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or(&wallet_id)
+                .to_string();
+
+            // Support both camelCase (actual format) and snake_case
+            let created_at = wallet_meta.get("createdAt")
+                .or_else(|| wallet_meta.get("created_at"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string();
+
+            let updated_at = wallet_meta.get("lastAccessedAt")
+                .or_else(|| wallet_meta.get("updated_at"))
+                .and_then(|v| v.as_str())
+                .unwrap_or(&created_at)
+                .to_string();
+
+            let has_passphrase = wallet_meta.get("usesPassphrase")
+                .or_else(|| wallet_meta.get("has_passphrase"))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+
+            // Count addresses if addresses file exists
+            let addresses_file = path.join("addresses.json");
+            let address_count = if addresses_file.exists() {
+                if let Ok(addresses_json) = fs::read_to_string(&addresses_file) {
+                    if let Ok(addresses_data) = serde_json::from_str::<serde_json::Value>(&addresses_json) {
+                        addresses_data.get("addresses")
+                            .and_then(|v| v.as_array())
+                            .map(|arr| arr.len() as u32)
+                            .unwrap_or(0)
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                }
+            } else {
+                0
+            };
+
+            wallets.push(Wallet {
+                id: wallet_id,
+                name,
+                created_at,
+                updated_at,
+                has_passphrase,
+                address_count,
+            });
+
+            tracing::info!("Found wallet: {} at {:?}", wallets.last().unwrap().name, path);
+        }
+    }
+
+    tracing::info!("Found {} wallet(s) on USB", wallets.len());
     Ok(wallets)
 }
 

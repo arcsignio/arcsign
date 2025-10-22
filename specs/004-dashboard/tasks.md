@@ -1,488 +1,527 @@
-# Implementation Tasks: User Dashboard for Wallet Management
+# Tasks: User Dashboard for Wallet Management
 
-**Feature**: User Dashboard for Wallet Management
-**Branch**: `004-dashboard`
-**Created**: 2025-10-17
-**Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md)
+**Feature Branch**: `004-dashboard`
+**Input**: Design documents from `/Users/jnr350/Desktop/Yansiang/arcSignv2/specs/004-dashboard/`
+**Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/wallet-api.yaml
 
-## Overview
+**Tests**: Following TDD approach per constitution principle II (tests before implementation for security-critical applications)
 
-This document provides a detailed, sequential task breakdown for implementing the ArcSign dashboard application. Tasks are organized by user story to enable independent implementation and testing. All tasks follow Test-Driven Development (TDD) principles as mandated by the project constitution.
+**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
-**Total Tasks**: 95
-**Estimated Effort**: 3-4 weeks (1 developer)
+## Format: `[ID] [P?] [Story] Description with /absolute/path/to/file.ext`
+- **[P]**: Can run in parallel (different files, no dependencies)
+- **[Story]**: Which user story this task belongs to (e.g., US1, US2)
+- All paths are absolute from repository root
+
+## Path Conventions
+- **Go CLI**: `/Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/`, `/Users/jnr350/Desktop/Yansiang/arcSignv2/internal/`
+- **Tauri Backend**: `/Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/`
+- **React Frontend**: `/Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/`
+- **Tests**: `/Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/`
+
+---
+
+## Phase 1: Setup (~10 tasks)
+
+**Purpose**: Project initialization and basic structure
+
+- [ ] T001 Create Tauri project structure in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/ using tauri init
+- [ ] T002 Configure tauri.conf.json with permissions (fs-all, dialog-all, path-all, clipboard-all, shell-sidecar) at /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/tauri.conf.json
+- [ ] T003 [P] Initialize React 18 + TypeScript + Vite project in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/
+- [ ] T004 [P] Add Rust dependencies (serde, tokio, semver, sha2, hex) to /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/Cargo.toml
+- [ ] T005 [P] Add React dependencies (zustand, react-hook-form, zod) to /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/package.json
+- [ ] T006 [P] Add macOS screenshot protection dependencies (cocoa, objc) to /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/Cargo.toml
+- [ ] T007 [P] Add Windows screenshot protection dependencies (windows crate with Win32 features) to /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/Cargo.toml
+- [ ] T008 [P] Configure ESLint and Prettier in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/.eslintrc.js
+- [ ] T009 [P] Setup Vitest for React component testing in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/vite.config.ts
+- [ ] T010 [P] Create directory structure (components, pages, stores, services, types, validation) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/
+
+---
+
+## Phase 2: Foundational (~25 tasks)
+
+**Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
+
+**⚠️ CRITICAL**: No user story work can begin until this phase is complete
+
+### CLI Dual-Mode Refactoring (Go)
+
+- [X] T011 [P] Write test for CLI mode detection with ARCSIGN_MODE=dashboard in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/mode_detection_test.go
+- [X] T012 Create DetectMode() function that checks ARCSIGN_MODE environment variable in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/cli/mode.go
+- [X] T013 [P] Write test for single-line JSON stdout output in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/json_output_test.go
+- [X] T014 Create WriteJSON() function that outputs single-line JSON to stdout in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/cli/output.go
+- [X] T015 [P] Write test for stderr logging (human-readable) in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/stderr_logging_test.go
+- [X] T016 Create WriteLog() function that outputs to stderr in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/cli/output.go
+- [X] T017 Define CliResponse struct with success, data, error, request_id, cli_version, duration_ms, warnings in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/cli/types.go
+- [X] T018 Define CliError struct with error code and message in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/cli/types.go
+- [X] T019 Define error code constants (INVALID_PASSWORD, USB_NOT_FOUND, etc.) in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/cli/errors.go
+- [X] T020 Refactor main.go to detect mode and branch between interactive/non-interactive flows in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/main.go
+- [ ] T020a [P] Write test for derive_address command with MNEMONIC, DERIVATION_PATH env vars in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/derive_address_test.go
+- [ ] T020b [P] Write test for derive_address with optional BIP39_PASSPHRASE in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/derive_address_passphrase_test.go
+- [ ] T020c Implement handleDeriveAddressNonInteractive() that derives single address without creating wallet files in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+
+### Address File Generation (Go CLI)
+
+- [ ] T021 [P] Write test for addresses.json generation with schema_version "1.0" in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/wallet/addresses_file_test.go
+- [ ] T022 Create generateAddressesFile() function that derives all 54 addresses and writes to addresses.json in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/wallet/addresses.go
+- [ ] T023 [P] Write test for SHA-256 checksum computation of addresses array in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/wallet/checksum_test.go
+- [ ] T024 Implement computeAddressesChecksum() function in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/wallet/checksum.go
+- [ ] T025 Add AddressesFile struct with schema_version, wallet_id, generated_at, total_count, checksum, addresses in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/wallet/types.go
+- [ ] T026 Update Address struct to include account, change, index fields (BIP44 components) in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/wallet/types.go
+
+### Tauri CLI Wrapper (Rust)
+
+- [ ] T027 [P] Write test for CliWrapper subprocess spawning with environment variables in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/cli_wrapper_test.rs
+- [ ] T028 Create CliWrapper struct with cli_path field in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
+- [ ] T029 [P] Write test for 30-second subprocess timeout in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/cli_timeout_test.rs
+- [ ] T030 Implement spawn_cli_with_timeout() method with tokio::time::timeout in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
+- [ ] T031 [P] Write test for JSON response parsing from stdout in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/cli_response_parsing_test.rs
+- [ ] T032 Implement parse_cli_response() method with serde_json deserialization in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
+- [ ] T033 Create Rust types matching CLI JSON responses (CliResponse, Wallet, Address, ErrorObject) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/types.rs
+- [ ] T034 [P] Write test for error parsing priority (JSON stdout → JSON stderr → raw stderr → exit code) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/cli_error_parsing_test.rs
+- [ ] T035 Implement parse_cli_error() method with fallback chain in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
+
+**Checkpoint**: Foundation ready - user story implementation can now begin in parallel
+
+---
+
+## Phase 3: User Story 1 - Generate New Wallet (Priority: P1) 🎯 MVP
+
+**Goal**: Users can create new wallets with password-encrypted storage on USB, receive BIP39 mnemonic with security protections
+
+**Independent Test**: Launch dashboard → click "Create New Wallet" → enter password → confirm mnemonic displayed with screenshot protection → verify wallet appears in list
+
+### Tests for User Story 1 (TDD - Write First)
+
+- [ ] T036 [P] [US1] Contract test for create_wallet JSON output matching OpenAPI spec in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/create_wallet_json_test.go
+- [ ] T037 [P] [US1] Integration test for CLI create_wallet with WALLET_PASSWORD env var in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/create_wallet_integration_test.go
+- [ ] T038 [P] [US1] Test for wallet file creation on USB with correct permissions (0600) in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/wallet_file_permissions_test.go
+- [ ] T039 [P] [US1] Test for addresses.json generation with 54 addresses in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/addresses_json_generation_test.go
+- [ ] T040 [P] [US1] Rust test for create_wallet Tauri command in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/create_wallet_command_test.rs
+- [ ] T041 [P] [US1] React component test for WalletCreate form validation in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/frontend/components/WalletCreate.test.tsx
+- [ ] T042 [P] [US1] React integration test for wallet creation flow in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/frontend/integration/wallet-creation-flow.test.tsx
+
+### CLI Implementation for User Story 1 (Go)
+
+- [ ] T043 [P] [US1] Implement handleCreateWalletNonInteractive() that reads WALLET_PASSWORD, USB_PATH, WALLET_NAME env vars in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T044 [US1] Call existing wallet.Create() function with parameters from environment variables in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T045 [US1] Generate BIP39 mnemonic using existing mnemonic service in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T046 [US1] Call generateAddressesFile() to create addresses.json with checksum (uses T022) in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T047 [US1] Build CliResponse with wallet metadata, mnemonic (if RETURN_MNEMONIC=true), request_id in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T048 [US1] Call WriteJSON() to output response to stdout (uses T014) in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T049 [P] [US1] Add error handling for USB_NOT_FOUND, INVALID_PASSWORD, IO_ERROR cases in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+
+### Tauri Backend for User Story 1 (Rust)
+
+- [ ] T050 [P] [US1] Implement create_wallet Tauri command with password, usb_path, name parameters in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+- [ ] T051 [US1] Call CliWrapper.create_wallet() with environment variables (ARCSIGN_MODE, WALLET_PASSWORD, USB_PATH, RETURN_MNEMONIC=true) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+- [ ] T052 [US1] Parse CLI JSON response and extract wallet metadata + mnemonic in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+- [ ] T053 [US1] Return wallet and mnemonic to frontend via Tauri IPC in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+- [ ] T054 [P] [US1] Add error handling with user-friendly messages (map error codes to messages) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+- [ ] T055 [P] [US1] Log full error details (exit code, stdout, stderr) to debug logs in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+
+### React Frontend for User Story 1 (TypeScript)
+
+- [ ] T056 [P] [US1] Create TypeScript types (Wallet, CreateWalletResponse) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/types/wallet.ts
+- [ ] T057 [P] [US1] Create Zod password validation schema (min 12 chars, uppercase, lowercase, number) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/validation/password.ts
+- [ ] T058 [P] [US1] Create Zod wallet name validation schema (1-50 chars, alphanumeric + spaces + dashes) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/validation/walletName.ts
+- [ ] T059 [US1] Create WalletCreate component with React Hook Form + Zod in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletCreate.tsx
+- [ ] T060 [US1] Implement password input field with strength indicator in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletCreate.tsx
+- [ ] T061 [US1] Implement wallet name input field with inline validation in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletCreate.tsx
+- [ ] T062 [US1] Implement BIP39 passphrase input (optional, advanced) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletCreate.tsx
+- [ ] T063 [US1] Implement mnemonic length selector (12 or 24 words) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletCreate.tsx
+- [ ] T064 [US1] Create createWallet() Tauri API wrapper with invoke('create_wallet') in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/services/tauri-api.ts
+- [ ] T065 [US1] Call createWallet() on form submit with loading state in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletCreate.tsx
+- [ ] T066 [US1] Create MnemonicDisplay component with 30-second countdown timer in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/MnemonicDisplay.tsx
+- [ ] T067 [US1] Display mnemonic words in 3-column grid layout in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/MnemonicDisplay.tsx
+- [ ] T068 [US1] Add "I have backed up my mnemonic" checkbox with countdown disable in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/MnemonicDisplay.tsx
+- [ ] T069 [US1] Clear mnemonic from state after user confirmation in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/MnemonicDisplay.tsx
+
+### Screenshot Protection for User Story 1 (Rust)
+
+- [ ] T070 [P] [US1] Implement macOS screenshot protection using NSWindow.sharingType in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/security/macos.rs
+- [ ] T071 [P] [US1] Implement Windows screenshot protection using SetWindowDisplayAffinity in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/security/windows.rs
+- [ ] T072 [P] [US1] Implement Linux watermark overlay trigger via event emission in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/security/linux.rs
+- [ ] T073 [US1] Create enable_screenshot_protection Tauri command in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/security.rs
+- [ ] T074 [US1] Create disable_screenshot_protection Tauri command in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/security.rs
+- [ ] T075 [P] [US1] Create WatermarkOverlay React component for Linux in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WatermarkOverlay.tsx
+- [ ] T076 [US1] Call enable_screenshot_protection when MnemonicDisplay mounts in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/MnemonicDisplay.tsx
+- [ ] T077 [US1] Call disable_screenshot_protection when MnemonicDisplay unmounts in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/MnemonicDisplay.tsx
+
+**Checkpoint**: At this point, User Story 1 should be fully functional - users can create wallets and see mnemonics securely
+
+---
+
+## Phase 4: User Story 2 - Import Existing Wallet (Priority: P2)
+
+**Goal**: Users can import wallets using BIP39 mnemonic phrases with duplicate detection and validation
+
+**Independent Test**: Launch dashboard → click "Import Wallet" → enter valid 12/24-word mnemonic → verify duplicate detection works → confirm wallet imported with addresses
+
+### Tests for User Story 2 (TDD - Write First)
+
+- [ ] T078 [P] [US2] Test for mnemonic whitespace normalization (trim, collapse spaces) in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/mnemonic_normalization_test.go
+- [ ] T079 [P] [US2] Test for BIP39 word validation against wordlist in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/bip39_validation_test.go
+- [ ] T080 [P] [US2] Test for BIP39 checksum verification in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/bip39_checksum_test.go
+- [ ] T081 [P] [US2] Test for duplicate wallet detection via Bitcoin address derivation in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/duplicate_detection_test.rs
+- [ ] T082 [P] [US2] React test for MnemonicInput component validation in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/frontend/components/MnemonicInput.test.tsx
+
+### CLI Implementation for User Story 2 (Go)
+
+- [ ] T083 [P] [US2] Implement handleImportWalletNonInteractive() that reads MNEMONIC, WALLET_PASSWORD, USB_PATH env vars in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T084 [US2] Normalize mnemonic whitespace (trim, collapse spaces) in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T085 [US2] Validate mnemonic word count (12 or 24) in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T086 [US2] Validate BIP39 words against wordlist using existing mnemonic service in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T087 [US2] Verify BIP39 checksum using existing mnemonic service in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T088 [US2] Call existing wallet.Restore() function with mnemonic and password in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T089 [US2] Call generateAddressesFile() to create addresses.json (reuses T022) in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T090 [US2] Build CliResponse with wallet metadata (no mnemonic by default) in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T091 [P] [US2] Add error handling for INVALID_MNEMONIC, WALLET_EXISTS errors in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+
+### Tauri Backend for User Story 2 (Rust)
+
+- [ ] T092 [P] [US2] Implement check_duplicate_wallet() function that calls CLI derive_address command (uses T020c) with mnemonic and m/44'/0'/0'/0/0 path in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+- [ ] T093 [US2] Read all addresses.json files from USB and extract Bitcoin addresses for comparison in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+- [ ] T094 [US2] Compare derived Bitcoin address with existing addresses, return duplicate wallet info (wallet_id, name, created_at) if match found in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+- [ ] T095 [US2] Implement import_wallet Tauri command with mnemonic, password, usb_path parameters in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+- [ ] T096 [US2] Call check_duplicate_wallet() before CLI invocation in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+- [ ] T097 [US2] Call CliWrapper.import_wallet() with environment variables (ARCSIGN_MODE, MNEMONIC, WALLET_PASSWORD, USB_PATH) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+- [ ] T098 [US2] Parse CLI JSON response and extract wallet metadata in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+
+### React Frontend for User Story 2 (TypeScript)
+
+- [ ] T099 [P] [US2] Create Zod mnemonic validation schema (12 or 24 words, BIP39 wordlist check) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/validation/mnemonic.ts
+- [ ] T100 [US2] Create WalletImport component with React Hook Form + Zod in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletImport.tsx
+- [ ] T101 [US2] Implement MnemonicInput component with textarea (12 or 24 words) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/MnemonicInput.tsx
+- [ ] T102 [US2] Add inline validation errors (invalid word, wrong length, checksum failure) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/MnemonicInput.tsx
+- [ ] T103 [US2] Implement word count indicator (e.g., "12/12 words") in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/MnemonicInput.tsx
+- [ ] T104 [US2] Implement BIP39 passphrase input (optional, advanced) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletImport.tsx
+- [ ] T105 [US2] Create importWallet() Tauri API wrapper with invoke('import_wallet') in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/services/tauri-api.ts
+- [ ] T106 [US2] Call importWallet() on form submit with loading state in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletImport.tsx
+- [ ] T107 [US2] Create DuplicateWalletDialog component with "Cancel" and "Import Anyway" options in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/DuplicateWalletDialog.tsx
+- [ ] T108 [US2] Show DuplicateWalletDialog if check_duplicate_wallet returns match in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletImport.tsx
+- [ ] T109 [US2] Allow user to proceed with different wallet name if "Import Anyway" clicked in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletImport.tsx
+
+**Checkpoint**: At this point, User Stories 1 AND 2 should both work independently - users can create or import wallets
+
+---
+
+## Phase 5: User Story 3 - View All Wallet Addresses (Priority: P1) 🎯 MVP
+
+**Goal**: Users can view all 54 blockchain addresses with search, filter, and copy-to-clipboard functionality
+
+**Independent Test**: Create wallet → click "View Addresses" → verify 54 addresses displayed → test search, filter, and copy functions
+
+### Tests for User Story 3 (TDD - Write First)
+
+- [ ] T110 [P] [US3] Test for addresses.json parsing with schema_version validation in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/addresses_file_parsing_test.rs
+- [ ] T111 [P] [US3] Test for SHA-256 checksum validation of addresses array in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/addresses_checksum_test.rs
+- [ ] T112 [P] [US3] Test for INVALID_CHECKSUM error handling in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/checksum_error_test.rs
+- [ ] T113 [P] [US3] React test for AddressDisplay component rendering in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/frontend/components/AddressDisplay.test.tsx
+- [ ] T114 [P] [US3] React test for address search functionality in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/frontend/components/AddressDisplay.test.tsx
+
+### Tauri Backend for User Story 3 (Rust)
+
+- [ ] T115 [P] [US3] Implement read_addresses_file() function that reads addresses.json from USB in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/address.rs
+- [ ] T116 [US3] Parse JSON with serde_json into AddressesFile struct in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/address.rs
+- [ ] T117 [US3] Validate schema_version matches "1.0" in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/address.rs
+- [ ] T118 [US3] Compute SHA-256 checksum of addresses array and compare with file.checksum in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/address.rs
+- [ ] T119 [US3] Return INVALID_CHECKSUM error if mismatch detected in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/address.rs
+- [ ] T120 [US3] Implement get_addresses Tauri command with wallet_id, usb_path parameters in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/address.rs
+- [ ] T121 [US3] Construct absolute path to addresses.json using wallet.addresses_file_path in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/address.rs
+- [ ] T122 [US3] Return addresses array to frontend via Tauri IPC in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/address.rs
+
+### React Frontend for User Story 3 (TypeScript)
+
+- [ ] T123 [P] [US3] Create TypeScript Address type with all fields (blockchain, symbol, coin_type, account, change, index, address, path, category) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/types/address.ts
+- [ ] T124 [P] [US3] Create AddressCategory enum (BASE_CHAINS, LAYER_2, REGIONAL, COSMOS, ALTERNATIVE_EVM, SPECIALIZED) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/types/address.ts
+- [ ] T125 [US3] Create getAddresses() Tauri API wrapper with invoke('get_addresses') in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/services/tauri-api.ts
+- [ ] T126 [US3] Add addresses, searchQuery, filter to Zustand store in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/stores/dashboardStore.ts
+- [ ] T127 [US3] Create AddressDisplay component with search, filter, and list rendering in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/AddressDisplay.tsx
+- [ ] T128 [US3] Implement search input with debounced onChange (300ms) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/AddressDisplay.tsx
+- [ ] T129 [US3] Filter addresses by searchQuery (match blockchain name or symbol, case-insensitive) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/AddressDisplay.tsx
+- [ ] T130 [US3] Implement category filter dropdown (All, Base Chains, Layer 2, etc.) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/AddressDisplay.tsx
+- [ ] T131 [US3] Filter addresses by selected category in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/AddressDisplay.tsx
+- [ ] T132 [US3] Create AddressCard component displaying blockchain, symbol, address, path in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/AddressCard.tsx
+- [ ] T133 [US3] Implement copy-to-clipboard button using Tauri clipboard API in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/AddressCard.tsx
+- [ ] T134 [US3] Show toast notification on successful copy ("Address copied to clipboard") in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/AddressCard.tsx
+- [ ] T135 [US3] Implement clipboard auto-clear after 30 seconds in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/AddressCard.tsx
+- [ ] T136 [US3] Call getAddresses() when wallet is selected in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/pages/Dashboard.tsx
+- [ ] T137 [US3] Show loading spinner while addresses are loading in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/AddressDisplay.tsx
+- [ ] T138 [US3] Show error message if checksum validation fails ("Wallet data corrupted. Please restore from backup.") in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/AddressDisplay.tsx
+
+**Checkpoint**: MVP complete! Users can create wallets (US1) and view addresses (US3). Dashboard is functionally usable.
+
+---
+
+## Phase 6: User Story 4 - Manage Multiple Wallets (Priority: P2)
+
+**Goal**: Users can create/import multiple wallets, switch between them, and see wallet metadata
+
+**Independent Test**: Create 2 wallets → verify both appear in wallet list → click each wallet → confirm addresses switch correctly
+
+### Tests for User Story 4 (TDD - Write First)
+
+- [ ] T139 [P] [US4] Test for list_wallets CLI command JSON output in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/list_wallets_json_test.go
+- [ ] T140 [P] [US4] Test for wallet metadata extraction from wallet files in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/wallet_metadata_test.go
+- [ ] T141 [P] [US4] React test for WalletList component rendering in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/frontend/components/WalletList.test.tsx
+- [ ] T142 [P] [US4] React test for wallet switching in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/frontend/integration/wallet-switching.test.tsx
+
+### CLI Implementation for User Story 4 (Go)
+
+- [ ] T143 [P] [US4] Implement handleListWalletsNonInteractive() that reads USB_PATH env var in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T144 [US4] Scan {USB_PATH}/wallets/ directory for wallet subdirectories in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T145 [US4] Read wallet metadata from each wallet directory (id, name, created_at, uses_passphrase) in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T146 [US4] Build array of Wallet structs with addresses_file_path in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T147 [US4] Build CliResponse with wallets array in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [ ] T148 [US4] Call WriteJSON() to output response to stdout in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+
+### Tauri Backend for User Story 4 (Rust)
+
+- [ ] T149 [P] [US4] Implement list_wallets Tauri command with usb_path parameter in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+- [ ] T150 [US4] Call CliWrapper.list_wallets() with environment variables (ARCSIGN_MODE, USB_PATH) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+- [ ] T151 [US4] Parse CLI JSON response and extract wallets array in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+- [ ] T152 [US4] Return wallets array to frontend via Tauri IPC in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/wallet.rs
+
+### React Frontend for User Story 4 (TypeScript)
+
+- [ ] T153 [P] [US4] Add wallets, selectedWalletId to Zustand store in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/stores/dashboardStore.ts
+- [ ] T154 [P] [US4] Add setWallets, selectWallet actions to Zustand store in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/stores/dashboardStore.ts
+- [ ] T155 [US4] Create listWallets() Tauri API wrapper with invoke('list_wallets') in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/services/tauri-api.ts
+- [ ] T156 [US4] Create WalletList component displaying all wallets in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletList.tsx
+- [ ] T157 [US4] Create WalletCard component showing wallet name, created_at, address_count in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletCard.tsx
+- [ ] T158 [US4] Implement wallet selection on card click in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletCard.tsx
+- [ ] T159 [US4] Highlight selected wallet card with visual indicator in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletCard.tsx
+- [ ] T160 [US4] Call listWallets() on dashboard mount and store in Zustand in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/pages/Dashboard.tsx
+- [ ] T161 [US4] Call getAddresses() when selectedWalletId changes in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/pages/Dashboard.tsx
+- [ ] T162 [US4] Show "No wallets found" message if wallets array is empty in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletList.tsx
+
+**Checkpoint**: Users can manage multiple wallets and switch between them seamlessly
+
+---
+
+## Phase 7: User Story 5 - Export Address List (Priority: P3)
+
+**Goal**: Users can export addresses to CSV or JSON files for record-keeping and portfolio tracking
+
+**Independent Test**: Select wallet → click "Export Addresses" → choose CSV format → verify file contains all 54 addresses with metadata
+
+### Tests for User Story 5 (TDD - Write First)
+
+- [ ] T163 [P] [US5] Test for CSV export format with headers and all fields in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/export_csv_test.rs
+- [ ] T164 [P] [US5] Test for JSON export format matching addresses.json schema in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/export_json_test.rs
+- [ ] T165 [P] [US5] React test for ExportDialog component in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/frontend/components/ExportDialog.test.tsx
+
+### Tauri Backend for User Story 5 (Rust)
+
+- [ ] T166 [P] [US5] Implement export_addresses_csv() function that formats addresses as CSV in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/address.rs
+- [ ] T167 [P] [US5] Implement export_addresses_json() function that formats addresses as JSON in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/address.rs
+- [ ] T168 [US5] Implement export_addresses Tauri command with wallet_id, format, file_path parameters in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/address.rs
+- [ ] T169 [US5] Read addresses from addresses.json using read_addresses_file() (reuses T115) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/address.rs
+- [ ] T170 [US5] Format addresses based on format parameter (csv or json) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/address.rs
+- [ ] T171 [US5] Write formatted data to file_path using Tauri fs API in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/address.rs
+- [ ] T172 [US5] Return success response with exported file path in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/address.rs
+
+### React Frontend for User Story 5 (TypeScript)
+
+- [ ] T173 [P] [US5] Create exportAddresses() Tauri API wrapper with invoke('export_addresses') in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/services/tauri-api.ts
+- [ ] T174 [US5] Create ExportDialog component with format selection (CSV or JSON) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/ExportDialog.tsx
+- [ ] T175 [US5] Implement format radio buttons (CSV / JSON) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/ExportDialog.tsx
+- [ ] T176 [US5] Use Tauri dialog.save() to prompt user for save location in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/ExportDialog.tsx
+- [ ] T177 [US5] Call exportAddresses() with selected format and file path in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/ExportDialog.tsx
+- [ ] T178 [US5] Show success toast notification with file path on export complete in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/ExportDialog.tsx
+- [ ] T179 [US5] Add "Export Addresses" button to AddressDisplay component in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/AddressDisplay.tsx
+- [ ] T180 [US5] Show ExportDialog when "Export Addresses" button clicked in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/AddressDisplay.tsx
+
+**Checkpoint**: All user stories complete - full dashboard functionality delivered
+
+---
+
+## Phase 8: Security & Polish (~15 tasks)
+
+**Purpose**: Cross-cutting security enhancements and UX polish
+
+### USB Detection
+
+- [ ] T181 [P] Implement detect_usb_macos() that scans /Volumes/ in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/usb.rs
+- [ ] T182 [P] Implement detect_usb_linux() that scans /media/ and /mnt/ in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/usb.rs
+- [ ] T183 [P] Implement detect_usb_windows() using WMIC to query removable drives in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/usb.rs
+- [ ] T184 Implement detect_usb Tauri command that calls platform-specific function in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/commands/usb.rs
+- [ ] T185 Create useUsbDetection() React hook with 3-second polling in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/hooks/useUsbDetection.ts
+- [ ] T186 Add usbPath, usbDetected to Zustand store in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/stores/dashboardStore.ts
+- [ ] T187 Call useUsbDetection() in Dashboard component in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/pages/Dashboard.tsx
+- [ ] T188 Show "USB not detected" message when usbPath is null in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/pages/Dashboard.tsx
+
+### Advanced Mnemonic Display Security
+
+- [ ] T189 Create "View Mnemonic Phrase (Advanced)" button with warning dialog in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/WalletCard.tsx
+- [ ] T190 Implement password re-entry dialog before showing mnemonic in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/ViewMnemonicDialog.tsx
+- [ ] T191 Show security warning about screenshot risks before displaying mnemonic in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/ViewMnemonicDialog.tsx
+- [ ] T192 Implement blur on window focus loss when mnemonic is displayed in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/MnemonicDisplay.tsx
+- [ ] T193 Disable text selection and copy-paste on mnemonic display in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/components/MnemonicDisplay.tsx
+
+### Error Handling & Logging
+
+- [ ] T194 Implement sanitized error message mapping for all error codes in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src/services/errorMessages.ts
+- [ ] T195 Add debug logging for full error details (exit code, stdout, stderr) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
+
+---
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Setup (Phase 1)**: No dependencies - can start immediately
+- **Foundational (Phase 2)**: Depends on Setup completion - BLOCKS all user stories
+- **User Stories (Phases 3-7)**: All depend on Foundational phase completion
+  - US1 (P1): Can start after Foundational - No dependencies on other stories
+  - US2 (P2): Can start after Foundational - No dependencies on other stories
+  - US3 (P1): Can start after Foundational - No dependencies on other stories (MVP with US1)
+  - US4 (P2): Can start after Foundational - No dependencies on other stories
+  - US5 (P3): Depends on US3 (needs addresses to export)
+- **Security & Polish (Phase 8)**: Depends on all desired user stories being complete
+
+### User Story Dependencies
+
+- **User Story 1 (P1)**: Can start after Foundational (Phase 2) - No dependencies on other stories
+- **User Story 2 (P2)**: Can start after Foundational (Phase 2) - Independent (uses shared CLI foundation)
+- **User Story 3 (P1)**: Can start after Foundational (Phase 2) - Independent (reads addresses.json generated by US1/US2)
+- **User Story 4 (P2)**: Can start after Foundational (Phase 2) - Independent (uses shared wallet management)
+- **User Story 5 (P3)**: Depends on User Story 3 (exports addresses that US3 displays)
+
+### Within Each User Story
+
+- Tests MUST be written and FAIL before implementation (TDD)
+- Models before services
+- Services before endpoints
+- Core implementation before integration
+- Story complete before moving to next priority
+
+### Parallel Opportunities
+
+- All Setup tasks marked [P] can run in parallel (T003-T010)
+- All Foundational tasks marked [P] can run in parallel within subtasks (e.g., T011, T013, T015 parallel within CLI)
+- Once Foundational phase completes:
+  - US1, US2, US3, US4 can start in parallel (US5 must wait for US3)
+  - Tests within each story marked [P] can run in parallel
+  - Models within a story marked [P] can run in parallel
+  - Different user stories can be worked on by different team members
+
+---
+
+## Parallel Example: User Story 1
+
+```bash
+# Launch all tests for User Story 1 together:
+Task T036: "Contract test for create_wallet JSON output"
+Task T037: "Integration test for CLI create_wallet"
+Task T038: "Test for wallet file creation with permissions"
+Task T039: "Test for addresses.json generation"
+Task T040: "Rust test for create_wallet Tauri command"
+Task T041: "React test for WalletCreate form"
+Task T042: "React integration test for wallet creation flow"
+
+# Launch parallel CLI tasks:
+Task T043: "Implement handleCreateWalletNonInteractive()"
+Task T049: "Add error handling for USB_NOT_FOUND, INVALID_PASSWORD"
+
+# Launch parallel Tauri backend tasks:
+Task T050: "Implement create_wallet Tauri command"
+Task T054: "Add error handling with user-friendly messages"
+Task T055: "Log full error details to debug logs"
+
+# Launch parallel React frontend tasks:
+Task T056: "Create TypeScript types (Wallet, CreateWalletResponse)"
+Task T057: "Create Zod password validation schema"
+Task T058: "Create Zod wallet name validation schema"
+
+# Launch parallel screenshot protection tasks:
+Task T070: "Implement macOS screenshot protection"
+Task T071: "Implement Windows screenshot protection"
+Task T072: "Implement Linux watermark overlay"
+Task T075: "Create WatermarkOverlay React component"
+```
 
 ---
 
 ## Implementation Strategy
 
-### MVP Scope (Minimum Viable Product)
-- **User Story 1 (P1)**: Generate New Wallet - Core value, entry point for all users
-- **User Story 3 (P1)**: View All Wallet Addresses - Primary value delivery
+### MVP First (User Story 1 + User Story 3 Only)
 
-**Rationale**: These two stories deliver a functional wallet application. Users can create wallets and view addresses to receive payments. Import, multi-wallet, and export are enhancements.
+1. Complete Phase 1: Setup
+2. Complete Phase 2: Foundational (CRITICAL - blocks all stories)
+3. Complete Phase 3: User Story 1 (Generate New Wallet)
+4. Complete Phase 5: User Story 3 (View All Wallet Addresses)
+5. **STOP and VALIDATE**: Test wallet creation and address display independently
+6. Deploy/demo if ready
+
+**Rationale**: US1 + US3 provide core value (create wallet → see addresses). US2 (import), US4 (multi-wallet), US5 (export) are enhancements.
 
 ### Incremental Delivery
-1. **Week 1**: Setup + Foundational + User Story 1 (wallet creation)
-2. **Week 2**: User Story 3 (address display) - MVP complete
-3. **Week 3**: User Story 2 (import) + User Story 4 (multi-wallet)
-4. **Week 4**: User Story 5 (export) + Polish
 
----
-
-## Phase 1: Setup & Project Initialization (T001-T012)
-
-**Goal**: Initialize Tauri project structure and configure development environment.
-
-### Tasks
-
-- [X] T001 Create dashboard directory structure at repo root
-- [ ] T002 Initialize Tauri project with React + TypeScript template in dashboard/ <!-- Jason Chen好帅拜托我之后再做: 需要手动运行 `cd dashboard && npm create tauri-app@latest . -- --template react-ts` -->
-- [ ] T003 Install frontend dependencies (react-hook-form, zod, zustand, react-window) in dashboard/ <!-- Jason Chen好帅拜托我之后再做: 依赖T002完成后执行 `npm install react-hook-form zod zustand react-window` -->
-- [ ] T004 Install Rust dependencies (tauri-plugin-clipboard, tokio, serde) in dashboard/src-tauri/Cargo.toml <!-- Jason Chen好帅拜托我之后再做: 依赖T002完成后添加到Cargo.toml -->
-- [ ] T005 Configure Tauri allowlist and security settings in dashboard/src-tauri/tauri.conf.json <!-- Jason Chen好帅拜托我之后再做: 依赖T002完成后编辑tauri.conf.json -->
-- [X] T006 Create TypeScript type definitions in dashboard/src/types/wallet.ts
-- [X] T007 [P] Create TypeScript type definitions in dashboard/src/types/address.ts
-- [X] T008 [P] Set up Vitest configuration for frontend tests in dashboard/vitest.config.ts
-- [X] T009 [P] Set up cargo test configuration for Rust tests in dashboard/src-tauri/
-- [X] T010 Create Zustand store for dashboard state in dashboard/src/stores/dashboardStore.ts
-- [X] T011 Verify Go CLI builds successfully (go build -o arcsign ./cmd/arcsign)
-- [X] T012 Copy arcsign binary to dashboard/src-tauri/ for subprocess access
-
-**Completion Criteria**:
-- ✅ Dashboard directory exists with Tauri project structure
-- ✅ `npm run dev` starts frontend dev server
-- ✅ `npm run tauri dev` opens Tauri window
-- ✅ All dependencies installed without errors
-- ✅ Go CLI binary accessible from Tauri
-
----
-
-## Phase 2: Foundational Components (T013-T022)
-
-**Goal**: Build shared infrastructure required by all user stories.
-
-### Tasks
-
-- [X] T013 [P] Test: USB detection returns available mount paths (dashboard/tests/rust/usb_test.rs)
-- [X] T014 Implement USB detection command in dashboard/src-tauri/src/commands/usb.rs
-- [X] T015 [P] Test: CLI wrapper executes subprocess and parses JSON output (dashboard/tests/rust/cli_wrapper_test.rs)
-- [X] T016 Implement CLI wrapper subprocess executor in dashboard/src-tauri/src/cli/wrapper.rs
-- [X] T017 [P] Test: Error types serialize correctly for Tauri IPC (dashboard/tests/rust/error_test.rs)
-- [X] T018 Create error handling types in dashboard/src-tauri/src/error.rs
-- [X] T019 [P] Test: Screenshot protection enables OS-level security (dashboard/tests/rust/security_test.rs)
-- [X] T020 Implement screenshot protection commands in dashboard/src-tauri/src/commands/security.rs
-- [X] T021 Create Tauri API service wrapper in dashboard/src/services/tauri-api.ts
-- [X] T022 Register all Tauri commands in dashboard/src-tauri/src/main.rs
-
-**Completion Criteria**:
-- ✅ USB detection works on macOS, Windows, Linux
-- ✅ CLI subprocess wrapper can execute arcsign commands
-- ✅ Error messages follow security guidelines (SEC-008)
-- ✅ Screenshot protection functions on supported platforms
-- ✅ Frontend can invoke Tauri commands via IPC
-
-**Blocking**: Must complete before any user story implementation
-
----
-
-## Phase 3: User Story 1 - Generate New Wallet (P1) (T023-T044)
-
-**Story Goal**: Enable users to create their first cryptocurrency wallet and receive a secure mnemonic phrase for backup.
-
-**Independent Test**: Launch dashboard, click "Create New Wallet", complete setup flow, verify wallet created with displayed mnemonic phrase.
-
-### Tests (T023-T030)
-
-- [X] T023 [P] [US1] Test: create_wallet command with valid password returns wallet + mnemonic (dashboard/tests/rust/wallet_create_test.rs)
-- [X] T024 [P] [US1] Test: create_wallet rejects weak passwords (<12 chars) (dashboard/tests/rust/wallet_create_test.rs)
-- [X] T025 [P] [US1] Test: WalletCreate component renders form correctly (dashboard/tests/frontend/WalletCreate.test.tsx)
-- [X] T026 [P] [US1] Test: WalletCreate validates password strength client-side (dashboard/tests/frontend/WalletCreate.test.tsx)
-- [X] T027 [P] [US1] Test: MnemonicDisplay shows countdown and requires confirmation (dashboard/tests/frontend/MnemonicDisplay.test.tsx)
-- [X] T028 [P] [US1] Test: MnemonicDisplay clears mnemonic on confirmation (dashboard/tests/frontend/MnemonicDisplay.test.tsx)
-- [X] T029 [P] [US1] Test: Password validation schema enforces complexity (dashboard/tests/frontend/validation.test.ts)
-- [X] T030 [P] [US1] Test: End-to-end wallet creation flow (dashboard/tests/integration/wallet_creation_test.rs)
-
-### Implementation (T031-T044)
-
-- [X] T031 [US1] Create Wallet model in dashboard/src-tauri/src/models/wallet.rs
-- [X] T032 [US1] Implement create_wallet Tauri command in dashboard/src-tauri/src/commands/wallet.rs
-- [X] T033 [P] [US1] Create password validation schema with Zod in dashboard/src/validation/password.ts
-- [X] T034 [US1] Create WalletCreate React component in dashboard/src/components/WalletCreate.tsx
-- [X] T035 [US1] Integrate React Hook Form for password input in WalletCreate component
-- [X] T036 [US1] Create MnemonicDisplay secure component in dashboard/src/components/MnemonicDisplay.tsx
-- [X] T037 [US1] Implement 30-second countdown timer in MnemonicDisplay component
-- [X] T038 [US1] Add screenshot protection enable/disable in MnemonicDisplay lifecycle
-- [X] T039 [US1] Create Dashboard home page in dashboard/src/pages/Dashboard.tsx
-- [X] T040 [US1] Add wallet creation button and routing in Dashboard page
-- [X] T041 [US1] Implement memory clearing on mnemonic confirmation in MnemonicDisplay
-- [X] T042 [US1] Add loading states and error handling in WalletCreate component
-- [X] T043 [US1] Update dashboardStore to persist selected wallet after creation
-- [X] T044 [US1] Add wallet to list after successful creation in Dashboard page
-
-**Completion Criteria**:
-- ✅ User can create new wallet with password
-- ✅ Mnemonic displayed for 30 seconds with countdown
-- ✅ Screenshot protection prevents mnemonic capture
-- ✅ User must confirm backup before proceeding
-- ✅ Wallet appears in wallet list after creation
-- ✅ All US1 tests pass (8 tests)
-
----
-
-## Phase 4: User Story 3 - View All Wallet Addresses (P1) (T045-T061)
-
-**Story Goal**: Display all 54 blockchain addresses for a wallet, organized by category, with search and filter capabilities.
-
-**Independent Test**: Create or import a wallet, navigate to address display, verify all 54 addresses shown properly categorized.
-
-### Tests (T045-T050)
-
-- [X] T045 [P] [US3] Test: load_addresses command returns 54 addresses (dashboard/tests/rust/address_test.rs)
-- [X] T046 [P] [US3] Test: load_addresses caches results in Tauri State (dashboard/tests/rust/address_test.rs)
-- [X] T047 [P] [US3] Test: AddressList renders virtualized list of 54 addresses (dashboard/tests/frontend/AddressList.test.tsx)
-- [X] T048 [P] [US3] Test: AddressList filter by category works correctly (dashboard/tests/frontend/AddressList.test.tsx)
-- [X] T049 [P] [US3] Test: AddressList search by symbol/name works (dashboard/tests/frontend/AddressList.test.tsx)
-- [X] T050 [P] [US3] Test: Clipboard auto-clears after 30 seconds (dashboard/tests/frontend/clipboard.test.ts)
-
-### Implementation (T051-T061)
-
-- [X] T051 [US3] Create Address model in dashboard/src-tauri/src/models/address.rs
-- [X] T052 [US3] Implement load_addresses Tauri command in dashboard/src-tauri/src/commands/wallet.rs
-- [X] T053 [US3] Add Tauri State for address caching in dashboard/src-tauri/src/main.rs
-- [X] T054 [P] [US3] Create AddressRow subcomponent in dashboard/src/components/AddressRow.tsx
-- [X] T055 [US3] Create AddressList component with react-window in dashboard/src/components/AddressList.tsx
-- [X] T056 [US3] Implement category filter dropdown in AddressList component
-- [X] T057 [US3] Implement search input with debouncing in AddressList component
-- [X] T058 [US3] Create clipboard service with 30s auto-clear in dashboard/src/services/clipboard.ts
-- [X] T059 [US3] Add copy-to-clipboard button in AddressRow component
-- [X] T060 [US3] Add loading state and error handling for address loading
-- [X] T061 [US3] Update Dashboard page to display AddressList for selected wallet
-
-**Completion Criteria**:
-- ✅ All 54 addresses displayed within 15 seconds (SC-003)
-- ✅ Addresses organized by 6 categories
-- ✅ Filter by category shows correct subset
-- ✅ Search by symbol/name highlights matches
-- ✅ Copy button works with 30s auto-clear (SEC-005)
-- ✅ Virtual list handles 54 addresses smoothly
-- ✅ All US3 tests pass (6 tests)
-
----
-
-## Phase 5: User Story 2 - Import Existing Wallet from Mnemonic (P2) (T062-T075)
-
-**Story Goal**: Allow users to import existing BIP39 wallets using mnemonic phrases with proper validation.
-
-**Independent Test**: Select "Import Wallet", enter valid test mnemonic, verify wallet restored with correct addresses.
-
-### Tests (T062-T066)
-
-- [ ] T062 [P] [US2] Test: import_wallet validates mnemonic checksum (dashboard/tests/rust/wallet_import_test.rs)
-- [ ] T063 [P] [US2] Test: import_wallet normalizes whitespace in mnemonic (dashboard/tests/rust/wallet_import_test.rs)
-- [ ] T064 [P] [US2] Test: import_wallet detects duplicate wallet IDs (dashboard/tests/rust/wallet_import_test.rs)
-- [ ] T065 [P] [US2] Test: WalletImport component validates mnemonic client-side (dashboard/tests/frontend/WalletImport.test.tsx)
-- [ ] T066 [P] [US2] Test: WalletImport shows duplicate wallet warning dialog (dashboard/tests/frontend/WalletImport.test.tsx)
-
-### Implementation (T067-T075)
-
-- [ ] T067 [US2] Implement import_wallet Tauri command in dashboard/src-tauri/src/commands/wallet.rs
-- [ ] T068 [US2] Add mnemonic normalization in CLI wrapper (dashboard/src-tauri/src/cli/wrapper.rs)
-- [ ] T069 [P] [US2] Create mnemonic validation schema with Zod in dashboard/src/validation/mnemonic.ts
-- [ ] T070 [US2] Create WalletImport React component in dashboard/src/components/WalletImport.tsx
-- [ ] T071 [US2] Implement mnemonic input with word autocomplete in WalletImport
-- [ ] T072 [US2] Add inline validation errors for mnemonic (FR-029) in WalletImport
-- [ ] T073 [US2] Create duplicate wallet warning dialog in WalletImport component
-- [ ] T074 [US2] Add optional BIP39 passphrase field in WalletImport component
-- [ ] T075 [US2] Add import wallet button and routing in Dashboard page
-
-**Completion Criteria**:
-- ✅ 12-word and 24-word mnemonics validated
-- ✅ Invalid checksum shows inline error (FR-029)
-- ✅ Whitespace automatically normalized (FR-030)
-- ✅ Duplicate wallet detection shows warning (FR-031)
-- ✅ Optional BIP39 passphrase supported (FR-007)
-- ✅ Imported wallet appears in wallet list
-- ✅ All US2 tests pass (5 tests)
-
----
-
-## Phase 6: User Story 4 - Manage Multiple Wallets (P2) (T076-T084)
-
-**Story Goal**: Enable users to create/import multiple wallets and switch between them.
-
-**Independent Test**: Create two wallets, verify both appear in list, switch between them, confirm each displays unique addresses.
-
-### Tests (T077-T080)
-
-- [ ] T077 [P] [US4] Test: list_wallets returns all wallets on USB (dashboard/tests/rust/wallet_list_test.rs)
-- [ ] T078 [P] [US4] Test: rename_wallet updates wallet metadata (dashboard/tests/rust/wallet_rename_test.rs)
-- [ ] T079 [P] [US4] Test: WalletSelector renders wallet list correctly (dashboard/tests/frontend/WalletSelector.test.tsx)
-- [ ] T080 [P] [US4] Test: Switching wallets updates dashboardStore (dashboard/tests/frontend/walletSwitch.test.ts)
-
-### Implementation (T081-T084)
-
-- [ ] T081 [US4] Implement list_wallets Tauri command in dashboard/src-tauri/src/commands/wallet.rs
-- [ ] T082 [US4] Implement rename_wallet Tauri command in dashboard/src-tauri/src/commands/wallet.rs
-- [ ] T083 [US4] Create WalletSelector component in dashboard/src/components/WalletSelector.tsx
-- [ ] T084 [US4] Add wallet switching logic in dashboardStore (update selected_wallet_id)
-
-**Completion Criteria**:
-- ✅ Wallet list displays up to 10 wallets (FR-016, A-005)
-- ✅ Each wallet shows name, creation date, address count (FR-018)
-- ✅ Clicking wallet switches to it and loads addresses
-- ✅ Wallet rename updates metadata (FR-019)
-- ✅ Address list refreshes in <2 seconds on switch (SC-012)
-- ✅ All US4 tests pass (4 tests)
-
----
-
-## Phase 7: User Story 5 - Export Address List (P3) (T085-T091)
-
-**Story Goal**: Allow users to export addresses to CSV or JSON files for record-keeping.
-
-**Independent Test**: Select wallet, click "Export Addresses", choose format, verify file contains all addresses with metadata.
-
-### Tests (T085-T087)
-
-- [ ] T085 [P] [US5] Test: export_addresses generates JSON with correct schema (dashboard/tests/rust/export_test.rs)
-- [ ] T086 [P] [US5] Test: export_addresses generates CSV with all columns (dashboard/tests/rust/export_test.rs)
-- [ ] T087 [P] [US5] Test: ExportDialog component allows format selection (dashboard/tests/frontend/ExportDialog.test.tsx)
-
-### Implementation (T088-T091)
-
-- [ ] T088 [US5] Implement export_addresses Tauri command in dashboard/src-tauri/src/commands/export.rs
-- [ ] T089 [US5] Add JSON and CSV formatting logic in export command
-- [ ] T090 [US5] Create ExportDialog component in dashboard/src/components/ExportDialog.tsx
-- [ ] T091 [US5] Add export button in Dashboard page with format selection
-
-**Completion Criteria**:
-- ✅ Export to JSON includes full metadata (FR-021)
-- ✅ Export to CSV includes all columns (Rank, Symbol, Name, Category, Coin Type, Key Type, Path, Address, Error)
-- ✅ File saved to USB: {wallet_id}/addresses/addresses-{timestamp}.{ext}
-- ✅ Export completes in <5 seconds (SC-008)
-- ✅ File permissions set to 0600 (TC-010)
-- ✅ All US5 tests pass (3 tests)
-
----
-
-## Phase 8: Polish & Cross-Cutting Concerns (T092-T095)
-
-**Goal**: Add production-ready features and ensure security requirements are met.
-
-### Tasks
-
-- [ ] T092 [P] Implement auto-logout after 15 minutes of inactivity (SEC-006) in dashboard/src/App.tsx
-- [ ] T093 [P] Add cancellation confirmation dialog in WalletCreate and WalletImport (FR-032)
-- [ ] T094 Add loading spinners and skeleton screens for async operations across all components
-- [ ] T095 Update SYSTEM_SPECIFICATION.md with dashboard implementation details
-
-**Completion Criteria**:
-- ✅ Auto-logout works after 15 minutes inactivity
-- ✅ Cancellation dialog prevents accidental data loss
-- ✅ All UI interactions show loading states
-- ✅ Documentation updated
+1. Complete Setup + Foundational → Foundation ready
+2. Add User Story 1 → Test independently → Deploy/Demo
+3. Add User Story 3 → Test independently → Deploy/Demo (MVP!)
+4. Add User Story 2 → Test independently → Deploy/Demo
+5. Add User Story 4 → Test independently → Deploy/Demo
+6. Add User Story 5 → Test independently → Deploy/Demo
+7. Add Security & Polish → Final release
+
+Each story adds value without breaking previous stories.
+
+### Parallel Team Strategy
+
+With multiple developers:
+
+1. Team completes Setup + Foundational together
+2. Once Foundational is done:
+   - Developer A: User Story 1 (T036-T077)
+   - Developer B: User Story 2 (T078-T109)
+   - Developer C: User Story 3 (T110-T138)
+   - Developer D: User Story 4 (T139-T162)
+3. Developer C completes User Story 5 after User Story 3 (dependency)
+4. Team completes Security & Polish together
 
 ---
 
 ## Dependency Graph
 
-### User Story Completion Order
-
 ```
-Setup Phase (T001-T012)
-         ↓
-Foundational Phase (T013-T022)
-         ↓
-      ┌──┴───┐
-      ↓      ↓
-   US1 (P1) US3 (P1) ← MVP Complete
-   T023-T044 T045-T061
-      ↓      ↑
-      └──┬───┘
-         ↓
-   US2 (P2) ← Depends on US1 (wallet creation UI patterns)
-   T062-T075
-         ↓
-   US4 (P2) ← Depends on US1+US2 (wallet management)
-   T076-T084
-         ↓
-   US5 (P3) ← Depends on US3 (address loading)
-   T085-T091
-         ↓
-   Polish Phase (T092-T095)
+Phase 1: Setup (T001-T010)
+    ↓
+Phase 2: Foundational (T011-T035)
+    ├──────────────┬──────────────┬──────────────┬──────────────┐
+    ↓              ↓              ↓              ↓              ↓
+Phase 3: US1   Phase 4: US2   Phase 5: US3   Phase 6: US4   [WAIT]
+(T036-T077)    (T078-T109)    (T110-T138)    (T139-T162)
+P1 🎯 MVP      P2             P1 🎯 MVP      P2
+    ↓              ↓              ↓              ↓              ↓
+                                                              Phase 7: US5
+                                                              (T163-T180)
+                                                              P3
+                                                              (depends on US3)
+    └──────────────┴──────────────┴──────────────┴──────────────┘
+                                    ↓
+                            Phase 8: Security & Polish
+                            (T181-T195)
 ```
-
-**Critical Path**: Setup → Foundational → US1 → US3 (MVP)
-
-**User Story Dependencies**:
-- **US1 (Wallet Creation)**: No dependencies (can start after Foundational)
-- **US3 (Address Display)**: No dependencies (can start after Foundational)
-- **US2 (Wallet Import)**: Depends on US1 UI patterns (but can run in parallel for testing)
-- **US4 (Multi-Wallet)**: Depends on US1+US2 (wallet CRUD operations)
-- **US5 (Export)**: Depends on US3 (address loading mechanism)
-
----
-
-## Parallel Execution Opportunities
-
-### Setup Phase (12 tasks)
-**Parallelizable**: T006-T009 (type definitions and test configs)
-- T006 (wallet types) + T007 (address types) + T008 (vitest) + T009 (cargo test)
-- **Speedup**: 4 tasks → 1 time unit
-
-### Foundational Phase (10 tasks)
-**Parallelizable**: T013-T020 (test + impl pairs for different modules)
-- Pair 1: T013 (USB test) + T014 (USB impl)
-- Pair 2: T015 (CLI wrapper test) + T016 (CLI wrapper impl)
-- Pair 3: T017 (error test) + T018 (error impl)
-- Pair 4: T019 (security test) + T020 (security impl)
-- **Speedup**: 8 tasks → 4 time units (50% reduction)
-
-### User Story 1 Tests (8 tasks)
-**Parallelizable**: T023-T029 (all test files independent)
-- All 7 test tasks can run simultaneously
-- **Speedup**: 7 tasks → 1 time unit
-
-### User Story 1 Implementation (14 tasks)
-**Parallelizable**: T033-T034 (validation schema + component)
-- After T031-T032 (models + command), T033-T044 have some parallelism
-- **Speedup**: ~30% (dependent on UI composition)
-
-### User Story 3 Tests (6 tasks)
-**Parallelizable**: T045-T050 (all test files independent)
-- All 6 test tasks can run simultaneously
-- **Speedup**: 6 tasks → 1 time unit
-
-### User Story 3 Implementation (11 tasks)
-**Parallelizable**: T054 (AddressRow) can be built while T055-T057 (AddressList logic) developed
-- **Speedup**: ~20%
-
-### Overall Parallelism Potential
-- **Sequential Execution**: 95 tasks × 2 hours/task = 190 hours
-- **With Parallelism**: ~130-140 hours (30% reduction)
-- **With 2 Developers**: 65-70 hours per developer (1.5-2 weeks)
-
----
-
-## Test Summary
-
-**TDD Approach**: All tests written before implementation per Constitution Check (Principle II).
-
-| Phase | Test Tasks | Implementation Tasks | Test Files |
-|-------|------------|----------------------|------------|
-| Setup | 0 | 12 | N/A (infrastructure) |
-| Foundational | 5 | 5 | 5 test files |
-| US1 (P1) | 8 | 14 | 6 test files |
-| US3 (P1) | 6 | 11 | 4 test files |
-| US2 (P2) | 5 | 9 | 4 test files |
-| US4 (P2) | 4 | 4 | 4 test files |
-| US5 (P3) | 3 | 4 | 3 test files |
-| Polish | 0 | 4 | N/A |
-| **TOTAL** | **31** | **63** | **26 test files** |
-
-**Test Coverage Targets**:
-- Rust backend: >80% code coverage
-- React components: >70% coverage
-- Integration tests: All critical paths (wallet creation, import, address display)
-
----
-
-## Success Metrics
-
-### Phase Completion Checklist
-
-**Phase 1 (Setup)**:
-- [ ] Tauri app opens without errors
-- [ ] Frontend dev server runs (`npm run dev`)
-- [ ] All dependencies installed
-- [ ] Go CLI accessible from Tauri
-
-**Phase 2 (Foundational)**:
-- [ ] USB detection works on test platform
-- [ ] CLI subprocess wrapper executes commands
-- [ ] Error handling tested
-- [ ] Screenshot protection functional
-- [ ] All foundational tests pass (5 tests)
-
-**Phase 3 (US1 - Wallet Creation)**:
-- [ ] User can create wallet with password
-- [ ] Mnemonic displayed securely (30s countdown)
-- [ ] Screenshot protection active during mnemonic display
-- [ ] Wallet appears in list after creation
-- [ ] All US1 tests pass (8 tests)
-
-**Phase 4 (US3 - Address Display)** ← **MVP Complete**:
-- [ ] 54 addresses displayed within 15 seconds
-- [ ] Category filter works correctly
-- [ ] Search by symbol/name works
-- [ ] Copy-to-clipboard with 30s auto-clear
-- [ ] All US3 tests pass (6 tests)
-
-**Phase 5 (US2 - Wallet Import)**:
-- [ ] Import validates mnemonic checksum
-- [ ] Duplicate wallet detection works
-- [ ] Imported wallet appears in list
-- [ ] All US2 tests pass (5 tests)
-
-**Phase 6 (US4 - Multi-Wallet)**:
-- [ ] Multiple wallets displayed in list
-- [ ] Switching wallets loads correct addresses
-- [ ] Wallet rename works
-- [ ] All US4 tests pass (4 tests)
-
-**Phase 7 (US5 - Export)**:
-- [ ] Export to JSON works with metadata
-- [ ] Export to CSV works with all columns
-- [ ] Files saved to USB
-- [ ] All US5 tests pass (3 tests)
-
-**Phase 8 (Polish)**:
-- [ ] Auto-logout after 15 minutes
-- [ ] Cancellation dialogs prevent data loss
-- [ ] All UI shows loading states
-- [ ] Documentation updated
-
-**Final Validation**:
-- [ ] All 31 tests pass (100%)
-- [ ] All 12 success criteria met (SC-001 through SC-012)
-- [ ] All security requirements validated (SEC-001 through SEC-010)
-- [ ] Cross-platform testing (macOS + Windows or Linux)
 
 ---
 
 ## Notes
 
-**File Path Conventions**:
-- Rust backend: `dashboard/src-tauri/src/...`
-- React frontend: `dashboard/src/...`
-- Rust tests: `dashboard/tests/rust/...`
-- Frontend tests: `dashboard/tests/frontend/...`
-- Integration tests: `dashboard/tests/integration/...`
+- [P] tasks = different files, no dependencies, can run in parallel
+- [Story] label maps task to specific user story for traceability
+- Each user story should be independently completable and testable
+- Verify tests fail before implementing (TDD approach)
+- Commit after each task or logical group
+- Stop at any checkpoint to validate story independently
+- MVP = US1 + US3 (create wallet + view addresses)
+- Total tasks: 195 (Setup: 10, Foundational: 25, US1: 42, US2: 32, US3: 29, US4: 24, US5: 18, Polish: 15)
+- Estimated effort: 3-4 weeks with 2 developers (MVP in 1-2 weeks)
 
-**TDD Workflow**:
-1. Write test (RED)
-2. Run test (should fail)
-3. Implement minimal code (GREEN)
-4. Run test (should pass)
-5. Refactor if needed
-6. Commit
-
-**Security Reminders**:
-- Mnemonic never in React state (only Rust transient memory)
-- Passwords via environment variables (not CLI args)
-- Error messages follow SEC-008 (no sensitive info)
-- Screenshot protection during mnemonic display
-- Clipboard auto-clear after 30 seconds
-
-**Performance Targets**:
-- Wallet creation: <3 minutes (SC-001)
-- Address display: <15 seconds (SC-003)
-- UI interactions: <200ms (SC-010)
-- Export generation: <5 seconds (SC-008)
-
----
-
-**Generated**: 2025-10-17
-**Version**: 1.0.0
-**Status**: Ready for Implementation
+**Avoid**:
+- Vague tasks without file paths
+- Multiple tasks editing same file (causes merge conflicts)
+- Cross-story dependencies that break independence
+- Implementing before tests exist (violates TDD)

@@ -26,14 +26,9 @@ export const walletCreateSchema = z
   .object({
     password: passwordSchema,
     confirmPassword: z.string(),
-    walletName: z
-      .string()
-      .trim()
-      .min(1, 'Wallet name is required')
-      .max(50, 'Wallet name must be 50 characters or less')
-      .optional(),
+    walletName: z.string().optional(),
     passphrase: z.string().optional(),
-    mnemonicLength: z.union([z.literal(12), z.literal(24)]).default(24),
+    mnemonicLength: z.coerce.number().int().default(24),
     usbPath: z.string().min(1, 'USB drive is required'),
   })
   .refine((data) => data.password === data.confirmPassword, {
