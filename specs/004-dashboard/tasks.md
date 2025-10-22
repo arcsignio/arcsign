@@ -56,9 +56,9 @@
 - [X] T018 Define CliError struct with error code and message in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/cli/types.go
 - [X] T019 Define error code constants (INVALID_PASSWORD, USB_NOT_FOUND, etc.) in /Users/jnr350/Desktop/Yansiang/arcSignv2/internal/cli/errors.go
 - [X] T020 Refactor main.go to detect mode and branch between interactive/non-interactive flows in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/main.go
-- [ ] T020a [P] Write test for derive_address command with MNEMONIC, DERIVATION_PATH env vars in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/derive_address_test.go
-- [ ] T020b [P] Write test for derive_address with optional BIP39_PASSPHRASE in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/derive_address_passphrase_test.go
-- [ ] T020c Implement handleDeriveAddressNonInteractive() that derives single address without creating wallet files in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
+- [X] T020a [P] Write test for derive_address command with MNEMONIC, DERIVATION_PATH env vars in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/derive_address_test.go
+- [X] T020b [P] Write test for derive_address with optional BIP39_PASSPHRASE in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/derive_address_passphrase_test.go
+- [X] T020c Implement handleDeriveAddressNonInteractive() that derives single address without creating wallet files in /Users/jnr350/Desktop/Yansiang/arcSignv2/cmd/arcsign/handlers.go
 
 ### Address File Generation (Go CLI)
 

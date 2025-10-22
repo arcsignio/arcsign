@@ -77,7 +77,8 @@
       "Bash(pkill:*)",
       "Bash(lsof:*)",
       "Bash(xargs kill:*)",
-      "Bash(WALLET_PASSWORD=\"usbg0zIn7hour!3\" USB_PATH=\"/Volumes/NO NAME\" MNEMONIC_LENGTH=\"24\" ./arcsign create)"
+      "Bash(WALLET_PASSWORD=\"usbg0zIn7hour!3\" USB_PATH=\"/Volumes/NO NAME\" MNEMONIC_LENGTH=\"24\" ./arcsign create)",
+      "Bash(ARCSIGN_MODE=dashboard CLI_COMMAND=derive_address MNEMONIC=\"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about\" DERIVATION_PATH=\"m/44'/0'/0'/0/0\" ./arcsign:*)"
     ],
     "deny": [],
     "ask": []

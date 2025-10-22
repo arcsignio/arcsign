@@ -122,6 +122,10 @@ func handleDashboardMode() {
 
 		handleCreateWalletNonInteractive(envPassword, envUSBPath, envMnemonicLength, envWalletName, envPassphrase)
 
+	case "derive_address":
+		// T020c: Derive single address without creating wallet files
+		handleDeriveAddressNonInteractive()
+
 	default:
 		errorResponse := cli.CliResponse{
 			Success:    false,
