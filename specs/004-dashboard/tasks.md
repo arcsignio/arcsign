@@ -93,13 +93,13 @@
 
 ### Tests for User Story 1 (TDD - Write First)
 
-- [ ] T036 [P] [US1] Contract test for create_wallet JSON output matching OpenAPI spec in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/create_wallet_json_test.go
-- [ ] T037 [P] [US1] Integration test for CLI create_wallet with WALLET_PASSWORD env var in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/create_wallet_integration_test.go
-- [ ] T038 [P] [US1] Test for wallet file creation on USB with correct permissions (0600) in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/wallet_file_permissions_test.go
-- [ ] T039 [P] [US1] Test for addresses.json generation with 54 addresses in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/addresses_json_generation_test.go
-- [ ] T040 [P] [US1] Rust test for create_wallet Tauri command in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/create_wallet_command_test.rs
-- [ ] T041 [P] [US1] React component test for WalletCreate form validation in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/frontend/components/WalletCreate.test.tsx
-- [ ] T042 [P] [US1] React integration test for wallet creation flow in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/frontend/integration/wallet-creation-flow.test.tsx
+- [X] T036 [P] [US1] Contract test for create_wallet JSON output matching OpenAPI spec in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/create_wallet_json_test.go
+- [X] T037 [P] [US1] Integration test for CLI create_wallet with WALLET_PASSWORD env var in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/create_wallet_integration_test.go
+- [X] T038 [P] [US1] Test for wallet file creation on USB with correct permissions (0600) in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/wallet_file_permissions_test.go
+- [X] T039 [P] [US1] Test for addresses.json generation with 54 addresses in /Users/jnr350/Desktop/Yansiang/arcSignv2/tests/cli/addresses_json_generation_test.go
+- [X] T040 [P] [US1] Rust test for create_wallet Tauri command in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/create_wallet_command_test.rs
+- [X] T041 [P] [US1] React component test for WalletCreate form validation in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/frontend/components/WalletCreate.test.tsx
+- [X] T042 [P] [US1] React integration test for wallet creation flow in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/frontend/integration/wallet-creation-flow.test.tsx
 
 ### CLI Implementation for User Story 1 (Go)
 
