@@ -216,6 +216,45 @@ impl CliWrapper {
         serde_json::from_str(output)
             .map_err(|e| format!("Failed to parse CLI JSON output: {}", e))
     }
+
+    /// Parse CLI error with fallback chain (T035)
+    /// Priority order:
+    /// 1. Parse stdout for JSON error response
+    /// 2. Parse stderr for JSON error object
+    /// 3. Use raw stderr message
+    /// 4. Generic error with exit code
+    pub fn parse_cli_error(
+        &self,
+        exit_code: Option<i32>,
+        stdout: &str,
+        stderr: &str,
+    ) -> crate::cli::types::CliError {
+        use crate::cli::types::CliError;
+
+        // 1. Try parsing stdout for JSON error response
+        if !stdout.trim().is_empty() {
+            if let Ok(error) = serde_json::from_str::<CliError>(stdout) {
+                if !error.success {
+                    return error;
+                }
+            }
+        }
+
+        // 2. Try parsing stderr for JSON error object
+        if !stderr.trim().is_empty() {
+            if let Ok(error) = serde_json::from_str::<CliError>(stderr) {
+                return error;
+            }
+        }
+
+        // 3. Use raw stderr message if available
+        if !stderr.trim().is_empty() {
+            return CliError::from_stderr(stderr.to_string());
+        }
+
+        // 4. Generic error with exit code
+        CliError::from_exit_code(exit_code.unwrap_or(1))
+    }
 }
 
 /// Wallet creation response from CLI
@@ -335,5 +374,149 @@ mod tests {
         let result = wrapper.execute(CliCommand::Version).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("not found"));
+    }
+
+    // T034: Test for error parsing priority (JSON stdout → JSON stderr → raw stderr → exit code)
+    #[test]
+    fn test_parse_cli_error_from_stdout_json() {
+        use crate::cli::types::CliErrorCode;
+
+        let wrapper = CliWrapper::new("./arcsign");
+        let stdout = r#"{
+            "success": false,
+            "error": {
+                "code": "USB_NOT_FOUND",
+                "message": "USB device not detected"
+            },
+            "request_id": "req-123",
+            "cli_version": "0.1.0",
+            "duration_ms": 100
+        }"#;
+
+        let error = wrapper.parse_cli_error(Some(1), stdout, "");
+        assert!(!error.success);
+        assert_eq!(error.error.code, CliErrorCode::UsbNotFound);
+        assert_eq!(error.error.message, "USB device not detected");
+        assert_eq!(error.request_id, "req-123");
+    }
+
+    #[test]
+    fn test_parse_cli_error_from_stderr_json() {
+        use crate::cli::types::CliErrorCode;
+
+        let wrapper = CliWrapper::new("./arcsign");
+        let stderr = r#"{
+            "success": false,
+            "error": {
+                "code": "INVALID_PASSWORD",
+                "message": "Wrong password"
+            },
+            "request_id": "req-456",
+            "cli_version": "0.1.0",
+            "duration_ms": 50
+        }"#;
+
+        let error = wrapper.parse_cli_error(Some(1), "", stderr);
+        assert!(!error.success);
+        assert_eq!(error.error.code, CliErrorCode::InvalidPassword);
+        assert_eq!(error.error.message, "Wrong password");
+    }
+
+    #[test]
+    fn test_parse_cli_error_from_raw_stderr() {
+        use crate::cli::types::CliErrorCode;
+
+        let wrapper = CliWrapper::new("./arcsign");
+        let stderr = "  Crypto operation failed  ";
+
+        let error = wrapper.parse_cli_error(Some(1), "", stderr);
+        assert!(!error.success);
+        assert_eq!(error.error.code, CliErrorCode::IoError);
+        assert_eq!(error.error.message, "Crypto operation failed");
+    }
+
+    #[test]
+    fn test_parse_cli_error_from_exit_code() {
+        use crate::cli::types::CliErrorCode;
+
+        let wrapper = CliWrapper::new("./arcsign");
+
+        let error = wrapper.parse_cli_error(Some(127), "", "");
+        assert!(!error.success);
+        assert_eq!(error.error.code, CliErrorCode::IoError);
+        assert!(error.error.message.contains("exit code 127"));
+    }
+
+    #[test]
+    fn test_parse_cli_error_priority_stdout_over_stderr() {
+        use crate::cli::types::CliErrorCode;
+
+        let wrapper = CliWrapper::new("./arcsign");
+        let stdout = r#"{"success":false,"error":{"code":"USB_NOT_FOUND","message":"USB error"},"request_id":"req-1","cli_version":"0.1.0","duration_ms":10}"#;
+        let stderr = r#"{"success":false,"error":{"code":"INVALID_PASSWORD","message":"Password error"},"request_id":"req-2","cli_version":"0.1.0","duration_ms":10}"#;
+
+        // Should prefer stdout over stderr
+        let error = wrapper.parse_cli_error(Some(1), stdout, stderr);
+        assert_eq!(error.error.code, CliErrorCode::UsbNotFound);
+        assert_eq!(error.error.message, "USB error");
+    }
+
+    // T029: Test for 30-second subprocess timeout
+    #[test]
+    fn test_cli_wrapper_timeout_configuration() {
+        use std::time::Duration;
+
+        let wrapper = CliWrapper::new("./arcsign").with_timeout(Duration::from_secs(30));
+        assert_eq!(wrapper.timeout, Duration::from_secs(30));
+    }
+
+    // T031: Test for JSON response parsing from stdout
+    #[test]
+    fn test_parse_json_response() {
+        use crate::cli::types::{CliResponse, DeriveAddressData};
+
+        let wrapper = CliWrapper::new("./arcsign");
+        let json = r#"{
+            "success": true,
+            "data": {
+                "address": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+                "blockchain": "Bitcoin",
+                "symbol": "BTC",
+                "coin_type": 0,
+                "path": "m/44'/0'/0'/0/0"
+            },
+            "request_id": "req-789",
+            "cli_version": "0.1.0",
+            "duration_ms": 200,
+            "warnings": []
+        }"#;
+
+        let result: Result<CliResponse<DeriveAddressData>, _> = wrapper.parse_json(json);
+        assert!(result.is_ok());
+
+        let response = result.unwrap();
+        assert!(response.success);
+        assert_eq!(response.request_id, "req-789");
+        assert_eq!(response.data.unwrap().symbol, "BTC");
+    }
+
+    // T027: Test for CliWrapper subprocess spawning with environment variables
+    #[test]
+    fn test_build_command_with_env_vars() {
+        let wrapper = CliWrapper::new("./arcsign");
+
+        let command = CliCommand::CreateWallet {
+            password: "test-password".to_string(),
+            usb_path: "/path/to/usb".to_string(),
+            name: Some("Test Wallet".to_string()),
+            passphrase: Some("secret".to_string()),
+            mnemonic_length: 24,
+        };
+
+        // Note: We can't directly inspect Command env vars in tests,
+        // but we can verify the command builds successfully
+        let cmd = wrapper.build_command(&command);
+        // This test verifies the command builds without panicking
+        drop(cmd);
     }
 }

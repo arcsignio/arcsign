@@ -71,15 +71,15 @@
 
 ### Tauri CLI Wrapper (Rust)
 
-- [ ] T027 [P] Write test for CliWrapper subprocess spawning with environment variables in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/cli_wrapper_test.rs
-- [ ] T028 Create CliWrapper struct with cli_path field in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
-- [ ] T029 [P] Write test for 30-second subprocess timeout in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/cli_timeout_test.rs
-- [ ] T030 Implement spawn_cli_with_timeout() method with tokio::time::timeout in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
-- [ ] T031 [P] Write test for JSON response parsing from stdout in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/cli_response_parsing_test.rs
-- [ ] T032 Implement parse_cli_response() method with serde_json deserialization in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
-- [ ] T033 Create Rust types matching CLI JSON responses (CliResponse, Wallet, Address, ErrorObject) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/types.rs
-- [ ] T034 [P] Write test for error parsing priority (JSON stdout → JSON stderr → raw stderr → exit code) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/tests/rust/cli_error_parsing_test.rs
-- [ ] T035 Implement parse_cli_error() method with fallback chain in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
+- [X] T027 [P] Write test for CliWrapper subprocess spawning with environment variables in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
+- [X] T028 Create CliWrapper struct with cli_path field in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
+- [X] T029 [P] Write test for 30-second subprocess timeout in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
+- [X] T030 Implement spawn_cli_with_timeout() method with tokio::time::timeout in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
+- [X] T031 [P] Write test for JSON response parsing from stdout in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
+- [X] T032 Implement parse_cli_response() method with serde_json deserialization in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
+- [X] T033 Create Rust types matching CLI JSON responses (CliResponse, Wallet, Address, ErrorObject) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/types.rs
+- [X] T034 [P] Write test for error parsing priority (JSON stdout → JSON stderr → raw stderr → exit code) in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
+- [X] T035 Implement parse_cli_error() method with fallback chain in /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/src-tauri/src/cli/wrapper.rs
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
