@@ -16,9 +16,7 @@ import type {
   RenameWalletParams,
 } from '@/types/wallet';
 import type {
-  Address,
   AddressListResponse,
-  ExportAddressesParams,
   ExportResponse,
   ExportFormat,
 } from '@/types/address';

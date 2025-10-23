@@ -50,7 +50,7 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({
         selectedFormat
       );
 
-      setExportSuccess(`Successfully exported ${response.address_count} addresses to ${selectedFormat.toUpperCase()}`);
+      setExportSuccess(`Successfully exported ${response.exported_count} addresses to ${selectedFormat.toUpperCase()}`);
 
       // Call success callback if provided
       if (onSuccess) {

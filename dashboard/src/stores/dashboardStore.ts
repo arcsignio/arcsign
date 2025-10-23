@@ -7,7 +7,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Wallet } from '@/types/wallet';
-import type { Address, AddressFilter, Category, KeyType } from '@/types/address';
+import type { Address, AddressFilter } from '@/types/address';
+import { Category } from '@/types/address';
 
 /**
  * Dashboard application state

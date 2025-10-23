@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { walletImportSchema, type WalletImportFormData, getMnemonicValidationError, normalizeMnemonic } from '@/validation/mnemonic';
+import { walletImportSchema, type WalletImportFormData, normalizeMnemonic } from '@/validation/mnemonic';
 import tauriApi, { type AppError } from '@/services/tauri-api';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { ConfirmationDialog } from './ConfirmationDialog';

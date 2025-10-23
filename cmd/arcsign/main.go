@@ -1177,3 +1177,20 @@ func handleCreateWalletNonInteractive(password, usbPath, mnemonicLengthStr, wall
 	// Output success JSON to stdout
 	fmt.Println(string(jsonBytes))
 }
+
+// handleDeriveAddressNonInteractive - Stub for derive_address command
+// TODO: Implement single address derivation without wallet file creation
+func handleDeriveAddressNonInteractive() {
+	errorResponse := cli.CliResponse{
+		Success:    false,
+		Error:      cli.NewCliError(cli.ErrInvalidSchema, "derive_address command not yet implemented"),
+		RequestID:  generateRequestID(),
+		CliVersion: Version,
+		DurationMs: 0,
+	}
+	cli.WriteJSON(errorResponse)
+	os.Exit(1)
+}
+
+// Suppress unused import warning for internalwallet (will be used when T046 is fully implemented)
+var _ = internalwallet.GenerateAddressesFile

@@ -32,7 +32,7 @@ function validateMnemonicLength(mnemonic: string): boolean {
  * BIP39 wordlist (first 10 words for validation demonstration)
  * In production, use complete BIP39 wordlist from 'bip39' package
  */
-const BIP39_SAMPLE_WORDS = [
+export const BIP39_SAMPLE_WORDS = [
   'abandon', 'ability', 'able', 'about', 'above',
   'absent', 'absorb', 'abstract', 'absurd', 'abuse',
   // ... (complete list would have 2048 words)

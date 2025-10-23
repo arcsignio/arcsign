@@ -28,6 +28,7 @@ objc = "0.2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.51", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+winapi = { version = "0.3", features = ["fileapi", "winbase"] }
 
 [features]
 # This feature is used for production builds or when `devPath` points to the filesystem
