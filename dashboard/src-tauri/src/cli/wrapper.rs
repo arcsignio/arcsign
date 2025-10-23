@@ -135,11 +135,14 @@ impl CliWrapper {
                 passphrase,
                 mnemonic_length,
             } => {
-                cmd.arg("create");
+                // T050-T055: Use dashboard mode with environment variables
+                cmd.env("ARCSIGN_MODE", "dashboard");
+                cmd.env("CLI_COMMAND", "create");
 
                 // SECURITY: Pass sensitive data via environment variables, not CLI args
                 cmd.env("WALLET_PASSWORD", password);
                 cmd.env("USB_PATH", usb_path);
+                cmd.env("MNEMONIC_LENGTH", mnemonic_length.to_string());
 
                 if let Some(n) = name {
                     cmd.env("WALLET_NAME", n);
@@ -149,7 +152,8 @@ impl CliWrapper {
                     cmd.env("BIP39_PASSPHRASE", p);
                 }
 
-                cmd.env("MNEMONIC_LENGTH", mnemonic_length.to_string());
+                // Request mnemonic to be returned in JSON response
+                cmd.env("RETURN_MNEMONIC", "true");
             }
 
             CliCommand::RestoreWallet {
@@ -159,7 +163,9 @@ impl CliWrapper {
                 passphrase,
                 name,
             } => {
-                cmd.arg("restore");
+                // T092-T098: Use dashboard mode with environment variables
+                cmd.env("ARCSIGN_MODE", "dashboard");
+                cmd.env("CLI_COMMAND", "import");
 
                 // SECURITY: Pass sensitive data via environment variables
                 cmd.env("MNEMONIC", mnemonic);
