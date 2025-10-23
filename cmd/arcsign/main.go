@@ -21,6 +21,7 @@ import (
 	"github.com/yourusername/arcsign/internal/services/hdkey"
 	"github.com/yourusername/arcsign/internal/services/storage"
 	"github.com/yourusername/arcsign/internal/services/wallet"
+	internalwallet "github.com/yourusername/arcsign/internal/wallet"
 	"golang.org/x/term"
 )
 
