@@ -1,8 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find:*)",
-      "Bash(cargo test:*)"
+      "Bash(cargo check:*)",
+      "Bash(set CGO_ENABLED=1:*)",
+      "Bash(if [ -f \"dashboard/src-tauri/libarcsign.dll\" ])",
+      "Bash(then echo \"Library exists\")",
+      "Bash(else echo \"Library not found\")",
+      "Bash(cargo rustc:*)",
+      "Bash(gcc --version:*)",
+      "Bash(cargo clean:*)",
+      "Bash(go env:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

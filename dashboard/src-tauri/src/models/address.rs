@@ -15,6 +15,7 @@ pub enum Category {
     Layer2,
     Regional,
     Cosmos,
+    #[serde(rename = "alt_evm")]
     AltEvm,
     Specialized,
 }

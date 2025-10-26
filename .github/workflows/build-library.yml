@@ -1,0 +1,125 @@
+name: Build FFI Shared Library
+
+on:
+  push:
+    branches: [ 005-go-cli-shared, main ]
+    paths:
+      - 'internal/lib/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'internal/lib/**'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build Windows DLL
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install MinGW (CGO requirement)
+        run: choco install mingw
+
+      - name: Build Windows DLL
+        run: make build-lib-windows
+
+      - name: Verify DLL exists
+        run: Test-Path dashboard/src-tauri/libarcsign.dll
+        shell: powershell
+
+      - name: Upload Windows DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: arcsign-windows-dll
+          path: dashboard/src-tauri/libarcsign.dll
+          retention-days: 7
+
+  build-macos:
+    name: Build macOS dylib
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build macOS dylib
+        run: |
+          CGO_ENABLED=1 GOOS=darwin GOARCH=${{ matrix.arch }} \
+            go build -buildmode=c-shared \
+            -o dashboard/src-tauri/libarcsign-${{ matrix.arch }}.dylib \
+            internal/lib/*.go
+
+      - name: Verify dylib exists
+        run: test -f dashboard/src-tauri/libarcsign-${{ matrix.arch }}.dylib
+
+      - name: Upload macOS dylib
+        uses: actions/upload-artifact@v4
+        with:
+          name: arcsign-macos-${{ matrix.arch }}-dylib
+          path: dashboard/src-tauri/libarcsign-${{ matrix.arch }}.dylib
+          retention-days: 7
+
+  build-linux:
+    name: Build Linux SO
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install build essentials
+        run: sudo apt-get update && sudo apt-get install -y build-essential
+
+      - name: Build Linux SO
+        run: make build-lib-linux
+
+      - name: Verify SO exists
+        run: test -f dashboard/src-tauri/libarcsign.so
+
+      - name: Upload Linux SO
+        uses: actions/upload-artifact@v4
+        with:
+          name: arcsign-linux-so
+          path: dashboard/src-tauri/libarcsign.so
+          retention-days: 7
+
+  test-integration:
+    name: Integration Tests
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: List downloaded artifacts (debug)
+        run: ls -R
+
+      - name: Run Go FFI tests
+        run: make test

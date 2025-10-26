@@ -68,7 +68,8 @@
         "providerShortName": null,
         "signingIdentity": null
       },
-      "resources": [],
+      "resources": [
+      ],
       "shortDescription": "ArcSign HD Wallet Dashboard",
       "targets": "all",
       "windows": {

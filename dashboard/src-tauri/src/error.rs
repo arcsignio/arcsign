@@ -2,11 +2,12 @@
  * Error types for Tauri application
  * Feature: User Dashboard for Wallet Management
  * Task: T018 - Create error handling types
- * Generated: 2025-10-17
+ * Updated: 2025-10-25 - T053-T054: Added FFI error code mapping
  */
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::time::Instant; // T056: Error latency tracking
 
 /// Application error types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,9 +21,13 @@ pub struct AppError {
     /// Optional details (only for development/logging)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<String>,
+
+    /// T056: Optional timestamp for error latency tracking
+    #[serde(skip)]
+    pub created_at: Option<Instant>,
 }
 
-/// Error code enumeration
+/// T053: Error code enumeration (enhanced with FFI error codes)
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
@@ -50,7 +55,7 @@ pub enum ErrorCode {
     AddressGenerationFailed,
     AddressNotFound,
 
-    // CLI errors
+    // CLI errors (deprecated, kept for backward compatibility)
     CliExecutionFailed,
     CliTimeout,
     CliNotFound,
@@ -63,6 +68,13 @@ pub enum ErrorCode {
     ScreenshotProtectionFailed,
     MemoryClearFailed,
 
+    // T053: FFI error codes (matching Go error codes)
+    FfiInvalidInput,      // INVALID_INPUT from Go
+    FfiInvalidBlockchain, // INVALID_BLOCKCHAIN from Go
+    FfiStorageError,      // STORAGE_ERROR from Go
+    FfiEncryptionError,   // ENCRYPTION_ERROR from Go
+    FfiLibraryPanic,      // LIBRARY_PANIC from Go
+
     // Internal errors
     InternalError,
     SerializationError,
@@ -71,15 +83,18 @@ pub enum ErrorCode {
 
 impl AppError {
     /// Create new error with code and message
+    /// T056: Includes timestamp for latency tracking
     pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
         Self {
             code,
             message: Self::sanitize_message(message.into()),
             details: None,
+            created_at: Some(Instant::now()), // T056: Track error creation time
         }
     }
 
     /// Create error with additional details (for logging)
+    /// T056: Includes timestamp for latency tracking
     pub fn with_details(
         code: ErrorCode,
         message: impl Into<String>,
@@ -89,6 +104,41 @@ impl AppError {
             code,
             message: Self::sanitize_message(message.into()),
             details: Some(details.into()),
+            created_at: Some(Instant::now()), // T056: Track error creation time
+        }
+    }
+
+    /// T056: Get error age (time since error was created)
+    pub fn age(&self) -> Option<std::time::Duration> {
+        self.created_at.map(|t| t.elapsed())
+    }
+
+    /// T056: Log error with latency information
+    pub fn log_with_latency(&self, operation: &str) {
+        if let Some(age) = self.age() {
+            tracing::error!(
+                "Error in {}: {} (code: {:?}, latency: {:?})",
+                operation,
+                self.message,
+                self.code,
+                age
+            );
+
+            // T056: Warn if error took too long to surface (>100ms per FR)
+            if age.as_millis() > 100 {
+                tracing::warn!(
+                    "Error latency exceeded 100ms: {:?} for operation: {}",
+                    age,
+                    operation
+                );
+            }
+        } else {
+            tracing::error!(
+                "Error in {}: {} (code: {:?})",
+                operation,
+                self.message,
+                self.code
+            );
         }
     }
 
@@ -147,9 +197,60 @@ impl AppError {
             ErrorCode::ScreenshotProtectionFailed => "Failed to enable screenshot protection.",
             ErrorCode::MemoryClearFailed => "Failed to clear sensitive data from memory.",
 
+            // T053: FFI error code messages (user-friendly)
+            ErrorCode::FfiInvalidInput => "Invalid input provided. Please check your data and try again.",
+            ErrorCode::FfiInvalidBlockchain => "Unsupported blockchain. Please select a supported cryptocurrency.",
+            ErrorCode::FfiStorageError => "Storage device not accessible. Please ensure your USB drive is properly connected.",
+            ErrorCode::FfiEncryptionError => "Encryption operation failed. Your data is secure, but the operation could not complete.",
+            ErrorCode::FfiLibraryPanic => "An unexpected error occurred in the wallet library. Please restart the application.",
+
             ErrorCode::InternalError => "An internal error occurred. Please contact support.",
             ErrorCode::SerializationError => "Data serialization error.",
             ErrorCode::DeserializationError => "Data parsing error.",
+        }
+    }
+
+    /// T054: Map FFI error code string to ErrorCode enum
+    pub fn from_ffi_error_code(ffi_code: &str) -> ErrorCode {
+        match ffi_code {
+            // Input validation errors
+            "INVALID_INPUT" => ErrorCode::FfiInvalidInput,
+            "INVALID_MNEMONIC" => ErrorCode::InvalidMnemonic,
+            "INVALID_PASSWORD" => ErrorCode::InvalidPassword,
+            "INVALID_BLOCKCHAIN" => ErrorCode::FfiInvalidBlockchain,
+
+            // Resource errors
+            "WALLET_NOT_FOUND" => ErrorCode::WalletNotFound,
+            "WALLET_ALREADY_EXISTS" => ErrorCode::WalletAlreadyExists,
+
+            // System errors
+            "STORAGE_ERROR" => ErrorCode::FfiStorageError,
+            "ENCRYPTION_ERROR" => ErrorCode::FfiEncryptionError,
+            "LIBRARY_PANIC" => ErrorCode::FfiLibraryPanic,
+
+            // Default to internal error for unknown codes
+            _ => {
+                tracing::warn!("Unknown FFI error code: {}", ffi_code);
+                ErrorCode::InternalError
+            }
+        }
+    }
+
+    /// T054: Create AppError from FFI error response
+    pub fn from_ffi_error(ffi_code: &str, message: String, context: Option<serde_json::Value>) -> Self {
+        let code = Self::from_ffi_error_code(ffi_code);
+
+        // Extract hint from context if available
+        let details = context.and_then(|ctx| {
+            ctx.get("hint")
+                .and_then(|h| h.as_str())
+                .map(|s| s.to_string())
+        });
+
+        if let Some(details_str) = details {
+            Self::with_details(code, message, details_str)
+        } else {
+            Self::new(code, message)
         }
     }
 }

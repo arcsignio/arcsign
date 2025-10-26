@@ -1,149 +1,219 @@
-package lib
+// Package main provides FFI error code mappings and helper functions
+// for converting Go errors to structured JSON responses.
+//
+// Error codes are designed to match across the FFI boundary:
+// - Go exports return these codes in JSON {"error": {"code": "...", "message": "..."}}
+// - Rust parses and maps to corresponding error enums
+//
+// Feature: 005-go-cli-shared
+// Created: 2025-10-25
+package main
 
-import (
-	"errors"
-	"fmt"
-	"time"
+import "strings"
+
+// ErrorCode represents machine-readable error identifiers for FFI responses
+type ErrorCode string
+
+const (
+	// Input validation errors (400-style)
+	ErrInvalidInput     ErrorCode = "INVALID_INPUT"      // Malformed input parameters
+	ErrInvalidMnemonic  ErrorCode = "INVALID_MNEMONIC"   // BIP39 validation failed
+	ErrInvalidPassword  ErrorCode = "INVALID_PASSWORD"   // Authentication failed
+	ErrInvalidBlockchain ErrorCode = "INVALID_BLOCKCHAIN" // Unknown blockchain identifier
+
+	// Resource errors (404/409-style)
+	ErrWalletNotFound       ErrorCode = "WALLET_NOT_FOUND"        // Wallet does not exist
+	ErrWalletAlreadyExists  ErrorCode = "WALLET_ALREADY_EXISTS"   // Wallet name collision
+
+	// System errors (500-style)
+	ErrStorageError     ErrorCode = "STORAGE_ERROR"     // USB I/O failure
+	ErrEncryptionError  ErrorCode = "ENCRYPTION_ERROR"  // Cryptographic operation failed
+	ErrLibraryPanic     ErrorCode = "LIBRARY_PANIC"     // Unrecoverable Go panic
 )
 
-// T101: Comprehensive error messages with suggestions for all error cases
-
-// Address generation errors
-var (
-	ErrCoinNotSupported = errors.New("cryptocurrency not supported")
-	ErrFormatterFailed  = errors.New("address formatter failed")
-	ErrInvalidKey       = errors.New("invalid extended key")
-	ErrInvalidPath      = errors.New("invalid derivation path")
-)
-
-// AddressGenerationError provides detailed error information with suggestions
-type AddressGenerationError struct {
-	CoinSymbol string
-	CoinName   string
-	Reason     string
-	Suggestion string
+// FFIError represents a structured error response for FFI functions
+// T050: Enhanced with context field for detailed error information
+type FFIError struct {
+	Code    ErrorCode              `json:"code"`
+	Message string                 `json:"message"`
+	Context map[string]interface{} `json:"context,omitempty"` // T051: Additional error context
 }
 
-func (e *AddressGenerationError) Error() string {
-	return fmt.Sprintf("failed to generate %s (%s) address: %s. %s",
-		e.CoinName, e.CoinSymbol, e.Reason, e.Suggestion)
+// FFIResponse is the standard response envelope for all FFI functions
+type FFIResponse struct {
+	Success bool        `json:"success"`
+	Data    interface{} `json:"data,omitempty"`
+	Error   *FFIError   `json:"error,omitempty"`
 }
 
-// NewAddressGenerationError creates a detailed address generation error with suggestions
-func NewAddressGenerationError(symbol, name, reason string) *AddressGenerationError {
-	suggestion := getSuggestionForError(symbol, reason)
-	return &AddressGenerationError{
-		CoinSymbol: symbol,
-		CoinName:   name,
-		Reason:     reason,
-		Suggestion: suggestion,
+// NewErrorResponse creates a standard error response with the given code and message
+func NewErrorResponse(code ErrorCode, message string) FFIResponse {
+	return FFIResponse{
+		Success: false,
+		Error: &FFIError{
+			Code:    code,
+			Message: message,
+		},
 	}
 }
 
-// getSuggestionForError provides user-friendly suggestions based on error type
-func getSuggestionForError(symbol, reason string) string {
-	switch {
-	case reason == "unsupported formatter":
-		return fmt.Sprintf("The %s formatter is not yet implemented. You can derive %s addresses manually using the 'arcsign derive' command with the appropriate coin type.", symbol, symbol)
+// T051: NewErrorResponseWithContext creates an error response with additional context
+func NewErrorResponseWithContext(code ErrorCode, message string, context map[string]interface{}) FFIResponse {
+	return FFIResponse{
+		Success: false,
+		Error: &FFIError{
+			Code:    code,
+			Message: message,
+			Context: context,
+		},
+	}
+}
 
-	case reason == "key derivation failed":
-		return "Please check that your mnemonic and passphrase are correct. Try restoring your wallet if the problem persists."
+// NewSuccessResponse creates a standard success response with the given data
+func NewSuccessResponse(data interface{}) FFIResponse {
+	return FFIResponse{
+		Success: true,
+		Data:    data,
+	}
+}
 
-	case reason == "invalid public key":
-		return "The derived key appears to be invalid. This may indicate a problem with the seed or derivation path."
-
+// T052: GetUserFriendlyMessage returns a user-friendly error message for each error code
+func GetUserFriendlyMessage(code ErrorCode) string {
+	switch code {
+	case ErrInvalidInput:
+		return "Invalid input provided. Please check your data and try again."
+	case ErrInvalidMnemonic:
+		return "Invalid recovery phrase. Please ensure you've entered all words correctly (12 or 24 words)."
+	case ErrInvalidPassword:
+		return "Incorrect password. Please try again."
+	case ErrInvalidBlockchain:
+		return "Unsupported blockchain. Please select a supported cryptocurrency."
+	case ErrWalletNotFound:
+		return "Wallet not found. Please ensure the USB drive is connected and contains your wallet."
+	case ErrWalletAlreadyExists:
+		return "A wallet with this recovery phrase already exists on the USB drive."
+	case ErrStorageError:
+		return "Storage device not accessible. Please ensure your USB drive is properly connected."
+	case ErrEncryptionError:
+		return "Encryption operation failed. Your data is secure, but the operation could not complete."
+	case ErrLibraryPanic:
+		return "An unexpected error occurred. Please restart the application."
 	default:
-		return "Please check the audit log for more details. You can still derive this address manually."
+		return "An error occurred. Please try again."
 	}
 }
 
-// WalletError provides detailed wallet-related errors
-type WalletError struct {
-	Operation  string
-	WalletID   string
-	Reason     string
-	Suggestion string
-}
-
-func (e *WalletError) Error() string {
-	return fmt.Sprintf("%s failed for wallet %s: %s. %s",
-		e.Operation, e.WalletID, e.Reason, e.Suggestion)
-}
-
-// NewWalletError creates a detailed wallet error with suggestions
-func NewWalletError(operation, walletID, reason string) *WalletError {
-	return &WalletError{
-		Operation:  operation,
-		WalletID:   walletID,
-		Reason:     reason,
-		Suggestion: getWalletErrorSuggestion(operation, reason),
-	}
-}
-
-func getWalletErrorSuggestion(operation, reason string) string {
-	switch operation {
-	case "ADDRESS_GENERATION":
-		return "Wallet was created successfully, but some addresses could not be generated. Check the audit log for details. You can derive addresses manually using 'arcsign derive'."
-
-	case "WALLET_LOAD":
-		return "Ensure you're using the correct wallet ID and USB drive. Use 'arcsign list' to see available wallets."
-
-	case "WALLET_CREATE":
-		return "Ensure your USB drive has enough space (at least 10 MB) and is writable."
-
-	default:
-		return "Check the audit log for more details."
-	}
-}
-
-// FormatErrorWithContext formats an error with additional context
-func FormatErrorWithContext(err error, context string) error {
+// T049: MapWalletError converts internal wallet service errors to FFI error codes
+// Enhanced mapping with comprehensive error pattern recognition
+func MapWalletError(err error) ErrorCode {
 	if err == nil {
-		return nil
-	}
-	return fmt.Errorf("%s: %w", context, err)
-}
-
-// IsRecoverableError determines if an error is recoverable
-func IsRecoverableError(err error) bool {
-	if err == nil {
-		return true
+		return ""
 	}
 
-	// Check for specific recoverable errors
+	errMsg := strings.ToLower(err.Error())
+
+	// Priority-ordered pattern matching (most specific first)
 	switch {
-	case errors.Is(err, ErrCoinNotSupported):
-		return true // Can continue with other coins
-	case errors.Is(err, ErrFormatterFailed):
-		return true // Can continue with other coins
+	// Mnemonic validation errors
+	case strings.Contains(errMsg, "invalid mnemonic"),
+		strings.Contains(errMsg, "bip39"),
+		strings.Contains(errMsg, "word count"),
+		strings.Contains(errMsg, "invalid phrase"):
+		return ErrInvalidMnemonic
+
+	// Password/authentication errors
+	case strings.Contains(errMsg, "wrong password"),
+		strings.Contains(errMsg, "incorrect password"),
+		strings.Contains(errMsg, "authentication failed"),
+		strings.Contains(errMsg, "invalid password"),
+		strings.Contains(errMsg, "password mismatch"):
+		return ErrInvalidPassword
+
+	// Wallet existence errors
+	case strings.Contains(errMsg, "wallet not found"),
+		strings.Contains(errMsg, "does not exist"),
+		strings.Contains(errMsg, "no such wallet"):
+		return ErrWalletNotFound
+
+	case strings.Contains(errMsg, "already exists"),
+		strings.Contains(errMsg, "duplicate wallet"),
+		strings.Contains(errMsg, "wallet exists"):
+		return ErrWalletAlreadyExists
+
+	// Storage/USB errors
+	case strings.Contains(errMsg, "usb"),
+		strings.Contains(errMsg, "storage"),
+		strings.Contains(errMsg, "device not found"),
+		strings.Contains(errMsg, "no such file"),
+		strings.Contains(errMsg, "permission denied"),
+		strings.Contains(errMsg, "i/o error"),
+		strings.Contains(errMsg, "read error"),
+		strings.Contains(errMsg, "write error"):
+		return ErrStorageError
+
+	// Encryption/decryption errors
+	case strings.Contains(errMsg, "encryption"),
+		strings.Contains(errMsg, "decryption"),
+		strings.Contains(errMsg, "cipher"),
+		strings.Contains(errMsg, "argon2"),
+		strings.Contains(errMsg, "gcm"):
+		return ErrEncryptionError
+
+	// Blockchain validation errors
+	case strings.Contains(errMsg, "invalid blockchain"),
+		strings.Contains(errMsg, "unsupported chain"),
+		strings.Contains(errMsg, "unknown coin"):
+		return ErrInvalidBlockchain
+
+	// Invalid input (catch-all for validation errors)
+	case strings.Contains(errMsg, "invalid"),
+		strings.Contains(errMsg, "malformed"),
+		strings.Contains(errMsg, "parse error"):
+		return ErrInvalidInput
+
+	// Default to invalid input for unknown errors
 	default:
-		return false
+		return ErrInvalidInput
 	}
 }
 
-// ChainMetric tracks generation metrics for a single blockchain (v0.3.0+)
-type ChainMetric struct {
-	Symbol       string        `json:"symbol"`       // Chain symbol (e.g., "ARB", "KSM")
-	Success      bool          `json:"success"`      // Whether address generation succeeded
-	Duration     time.Duration `json:"duration"`     // Time taken to generate address
-	Attempts     int           `json:"attempts"`     // Number of attempts (1 = first try, 2 = retry)
-	ErrorMessage string        `json:"errorMessage"` // Error message if failed
-}
-
-// GenerationMetrics tracks overall multi-chain address generation metrics (v0.3.0+)
-type GenerationMetrics struct {
-	TotalChains     int                    `json:"totalChains"`     // Total number of chains attempted
-	SuccessCount    int                    `json:"successCount"`    // Number of successful generations
-	FailureCount    int                    `json:"failureCount"`    // Number of failed generations
-	RetryCount      int                    `json:"retryCount"`      // Total number of retries across all chains
-	TotalDuration   time.Duration          `json:"totalDuration"`   // Total time for all generations
-	PerChainMetrics map[string]ChainMetric `json:"perChainMetrics"` // Detailed metrics per chain (keyed by symbol)
-}
-
-// SuccessRate calculates the percentage of successful address generations
-func (g *GenerationMetrics) SuccessRate() float64 {
-	if g.TotalChains == 0 {
-		return 0.0
+// T049: MapWalletErrorWithContext converts errors and extracts context information
+func MapWalletErrorWithContext(err error) (ErrorCode, map[string]interface{}) {
+	if err == nil {
+		return "", nil
 	}
-	return float64(g.SuccessCount) / float64(g.TotalChains) * 100.0
+
+	code := MapWalletError(err)
+	context := make(map[string]interface{})
+
+	// T051: Extract additional context based on error type
+	errMsg := err.Error()
+
+	switch code {
+	case ErrInvalidMnemonic:
+		// Try to extract word count if available
+		if strings.Contains(errMsg, "expected") {
+			context["hint"] = "Recovery phrase must be 12 or 24 words"
+		}
+
+	case ErrInvalidPassword:
+		context["hint"] = "Passwords are case-sensitive"
+
+	case ErrStorageError:
+		context["hint"] = "Check USB connection and try again"
+		if strings.Contains(errMsg, "permission") {
+			context["cause"] = "insufficient_permissions"
+		}
+
+	case ErrWalletAlreadyExists:
+		context["hint"] = "Use import to access existing wallet"
+
+	case ErrEncryptionError:
+		context["hint"] = "Your wallet data is still secure"
+	}
+
+	// Always include the original error message in context
+	context["originalError"] = errMsg
+
+	return code, context
 }
