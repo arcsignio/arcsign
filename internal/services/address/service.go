@@ -10,7 +10,6 @@ import (
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/yourusername/arcsign/internal/lib"
 	"github.com/yourusername/arcsign/internal/models"
 	"github.com/yourusername/arcsign/internal/services/coinregistry"
 	"golang.org/x/crypto/ripemd160"
@@ -108,18 +107,18 @@ func retryOnce(fn func() (string, error)) (string, int, error) {
 // T050: GenerateMultiCoinAddresses generates addresses for all coins in the registry
 // T052: Implements graceful failure handling - continues with remaining coins if one fails
 // v0.3.0+: Now includes retry-once logic and generation metrics tracking
-func (s *AddressService) GenerateMultiCoinAddresses(masterKey *hdkeychain.ExtendedKey, registry *coinregistry.Registry) (*models.AddressBook, *lib.GenerationMetrics, error) {
+func (s *AddressService) GenerateMultiCoinAddresses(masterKey *hdkeychain.ExtendedKey, registry *coinregistry.Registry) (*models.AddressBook, *models.GenerationMetrics, error) {
 	startTime := time.Now()
 	coins := registry.GetAllCoinsSortedByMarketCap()
 	addresses := make([]models.DerivedAddress, 0, len(coins))
 
 	// Initialize metrics
-	metrics := &lib.GenerationMetrics{
+	metrics := &models.GenerationMetrics{
 		TotalChains:     len(coins),
 		SuccessCount:    0,
 		FailureCount:    0,
 		RetryCount:      0,
-		PerChainMetrics: make(map[string]lib.ChainMetric),
+		PerChainMetrics: make(map[string]models.ChainMetric),
 	}
 
 	// Generate address for each coin
@@ -160,7 +159,7 @@ func (s *AddressService) GenerateMultiCoinAddresses(masterKey *hdkeychain.Extend
 		chainDuration := time.Since(chainStart)
 
 		// Track metrics for this chain
-		chainMetric := lib.ChainMetric{
+		chainMetric := models.ChainMetric{
 			Symbol:   coin.Symbol,
 			Duration: chainDuration,
 			Attempts: attempts,

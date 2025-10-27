@@ -16,6 +16,9 @@
 // Created: 2025-10-25
 package main
 
+/*
+#include <stdlib.h>
+*/
 import "C"
 import (
 	"encoding/json"
