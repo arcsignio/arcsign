@@ -13,8 +13,8 @@
 
 // T068: Feature flag for FFI vs CLI fallback
 // Set to false to revert to CLI subprocess behavior
-// TEMPORARY: Disabled until Go shared library is built
-const USE_FFI: bool = false;
+// Go shared library is now built and ready (libarcsign.dylib)
+const USE_FFI: bool = true;
 
 // Module declarations
 mod cli;
