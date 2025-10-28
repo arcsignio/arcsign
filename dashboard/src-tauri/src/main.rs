@@ -33,6 +33,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant; // T045: Startup time logging
 use ffi::{WalletLibrary, WalletQueue};  // T017: Import FFI types
+use tauri::Manager;  // For app.manage() in setup hook
 
 fn main() {
     // T045: Start startup timer
@@ -149,38 +150,47 @@ fn main() {
         None
     };
 
-    // T018: Initialize WalletQueue and store in Tauri state
-    // T042: Symbol caching is already implemented in WalletLibrary::load()
-    // T068: Only create queue if library loaded successfully
-    let queue = library.as_ref().map(|lib| WalletQueue::new(Arc::clone(lib)));
-
-    // T045: Log total startup time
-    let startup_duration = startup_start.elapsed();
+    // T045: Log library load time
+    let library_load_duration = startup_start.elapsed();
     tracing::info!(
-        "=== arcSign Dashboard Ready (total startup: {:?}) ===",
-        startup_duration
+        "=== Library loaded (took {:?}) ===",
+        library_load_duration
     );
 
-    // T045: Warn if startup took longer than 3 seconds (FR requirement)
-    if startup_duration.as_secs() >= 3 {
-        tracing::warn!(
-            "Startup took longer than 3 seconds: {:?}",
-            startup_duration
-        );
-    }
+    // Clone library for use in setup closure
+    let library_for_setup = library.clone();
 
-    let mut builder = tauri::Builder::default()
-        .manage(AddressCache(Mutex::new(HashMap::new())));
+    tauri::Builder::default()
+        .manage(AddressCache(Mutex::new(HashMap::new())))
+        .setup(move |app| {
+            // T018: Initialize WalletQueue in setup hook (Tokio runtime is ready here)
+            // T042: Symbol caching is already implemented in WalletLibrary::load()
+            // T068: Only create queue if library loaded successfully
+            if let Some(lib) = library_for_setup {
+                let queue = WalletQueue::new(lib);
+                app.manage(queue);
+                tracing::info!("✓ FFI queue initialized in setup hook");
+            } else {
+                tracing::warn!("⚠ FFI queue not available - commands will use CLI fallback");
+            }
 
-    // T068: Only manage WalletQueue if FFI is enabled
-    if let Some(q) = queue {
-        builder = builder.manage(q);  // T018: Add WalletQueue to Tauri state
-        tracing::info!("✓ FFI queue registered with Tauri");
-    } else {
-        tracing::warn!("⚠ FFI queue not available - commands will use CLI fallback");
-    }
+            // T045: Log total startup time
+            let startup_duration = startup_start.elapsed();
+            tracing::info!(
+                "=== arcSign Dashboard Ready (total startup: {:?}) ===",
+                startup_duration
+            );
 
-    builder
+            // T045: Warn if startup took longer than 3 seconds (FR requirement)
+            if startup_duration.as_secs() >= 3 {
+                tracing::warn!(
+                    "Startup took longer than 3 seconds: {:?}",
+                    startup_duration
+                );
+            }
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             // USB commands
             detect_usb,

@@ -183,7 +183,7 @@ impl WalletQueue {
 
     /// Create a new wallet queue with the given library.
     ///
-    /// Spawns a background worker task that processes commands sequentially.
+    /// Spawns a background worker thread with its own Tokio runtime that processes commands sequentially.
     ///
     /// Parameters:
     /// - `library`: The loaded WalletLibrary instance
@@ -195,9 +195,20 @@ impl WalletQueue {
         let (sender, receiver) = mpsc::channel::<WalletCommand>(Self::MAX_QUEUE_DEPTH);
 
         let metrics = QueueMetrics::new();
+        let metrics_clone = metrics.clone();
 
-        // Spawn worker task with metrics
-        tokio::spawn(Self::worker_task(library, receiver, metrics.clone()));
+        // Spawn dedicated worker thread with its own Tokio runtime
+        // This avoids dependency on external Tokio runtime being available
+        std::thread::spawn(move || {
+            // Create a single-threaded Tokio runtime for this worker
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("Failed to create Tokio runtime for wallet queue");
+
+            // Run the worker task on this runtime
+            rt.block_on(Self::worker_task(library, receiver, metrics_clone));
+        });
 
         WalletQueue { sender, metrics }
     }
