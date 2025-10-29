@@ -80,18 +80,31 @@ build-lib-windows: check-cgo
 		exit 1; \
 	fi
 
-# T064: Build macOS dylib with validation
+# T064: Build macOS universal binary (arm64 + x86_64) with validation
 build-lib-macos: check-cgo
-	@echo "=== T064: Building macOS dylib ==="
-	@echo "Platform: macOS (amd64)"
+	@echo "=== T064: Building macOS universal binary ==="
+	@echo "Platform: macOS (arm64 + x86_64)"
 	@echo "CGO_ENABLED: $(CGO_ENABLED)"
 	@echo ""
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=darwin GOARCH=amd64 $(GO) build -buildmode=$(BUILD_MODE) -o $(LIB_DIR)/$(LIB_NAME).dylib $(SOURCE)
+	@echo "Building arm64 architecture..."
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=darwin GOARCH=arm64 $(GO) build -buildmode=$(BUILD_MODE) -o $(LIB_DIR)/$(LIB_NAME)_arm64.dylib $(SOURCE)
+	@echo "✓ Built arm64 binary"
+	@echo ""
+	@echo "Building x86_64 architecture..."
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=darwin GOARCH=amd64 $(GO) build -buildmode=$(BUILD_MODE) -o $(LIB_DIR)/$(LIB_NAME)_amd64.dylib $(SOURCE)
+	@echo "✓ Built x86_64 binary"
+	@echo ""
+	@echo "Creating universal binary with lipo..."
+	lipo -create -output $(LIB_DIR)/$(LIB_NAME).dylib $(LIB_DIR)/$(LIB_NAME)_arm64.dylib $(LIB_DIR)/$(LIB_NAME)_amd64.dylib
+	@echo "✓ Created universal binary"
 	@echo ""
 	@echo "✓ Built: $(LIB_DIR)/$(LIB_NAME).dylib"
 	@if [ -f "$(LIB_DIR)/$(LIB_NAME).dylib" ]; then \
 		echo "✓ File exists"; \
 		ls -lh $(LIB_DIR)/$(LIB_NAME).dylib; \
+		echo ""; \
+		echo "Architectures:"; \
+		lipo -info $(LIB_DIR)/$(LIB_NAME).dylib; \
 	else \
 		echo "✗ Build failed - dylib not found"; \
 		exit 1; \

@@ -30,6 +30,20 @@ import (
 	"github.com/yourusername/arcsign/internal/services/wallet"
 )
 
+// T026: zeroString securely zeros sensitive string data from memory
+// This prevents sensitive data (passwords, mnemonics) from lingering in memory
+func zeroString(s *string) {
+	if s == nil || *s == "" {
+		return
+	}
+	// Convert to byte slice and zero each byte
+	b := []byte(*s)
+	for i := range b {
+		b[i] = 0
+	}
+	*s = ""
+}
+
 //export GoFree
 // GoFree frees memory allocated by Go and returned to Rust.
 // CRITICAL: Rust MUST call this function on every pointer returned by FFI exports.
@@ -122,6 +136,12 @@ func CreateWallet(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
+	// T026: Ensure sensitive data is zeroed before function returns
+	defer func() {
+		zeroString(&input.Mnemonic)
+		zeroString(&input.Password)
+	}()
+
 	// Create wallet service
 	svc := wallet.NewWalletService(input.USBPath)
 
@@ -151,7 +171,7 @@ func CreateWallet(params *C.char) *C.char {
 // ImportWallet imports an existing wallet from mnemonic.
 // T022: Implement ImportWallet export function
 //
-// Input JSON: {"walletName": "...", "mnemonic": "...", "password": "...", "usbPath": "..."}
+// Input JSON: {"walletName": "...", "mnemonic": "...", "password": "...", "usbPath": "...", "passphrase": "..."}
 // Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "importedAt": "..."}}
 func ImportWallet(params *C.char) *C.char {
 	start := time.Now()
@@ -163,6 +183,11 @@ func ImportWallet(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			// Note: In panic, we can't reliably return - this is best effort
+			_ = ptr
 		}
 	}()
 
@@ -172,6 +197,7 @@ func ImportWallet(params *C.char) *C.char {
 		Mnemonic   string `json:"mnemonic"`
 		Password   string `json:"password"`
 		USBPath    string `json:"usbPath"`
+		Passphrase string `json:"passphrase"` // BIP39 passphrase (optional)
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -180,11 +206,45 @@ func ImportWallet(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Similar pattern to CreateWallet - service integration ready
+	// T026: Ensure sensitive data is zeroed before function returns
+	defer func() {
+		zeroString(&input.Mnemonic)
+		zeroString(&input.Password)
+		zeroString(&input.Passphrase)
+	}()
+
+	// Create wallet service
+	svc := wallet.NewWalletService(input.USBPath)
+
+	// Determine word count (12 or 24)
+	words := len(input.Mnemonic) / 8 // Approximate: 12 words ≈ 96 chars, 24 words ≈ 192 chars
+	wordCount := 24
+	if words < 20 {
+		wordCount = 12
+	}
+	usesPassphrase := input.Passphrase != ""
+
+	// Create wallet using service (which validates mnemonic and generates addresses)
+	walletObj, _, err := svc.CreateWallet(
+		input.WalletName,
+		input.Password,
+		wordCount,
+		usesPassphrase,
+		input.Passphrase,
+	)
+
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Return success response
 	data := map[string]interface{}{
-		"walletId":   "placeholder-import-id",
-		"walletName": input.WalletName,
-		"importedAt": time.Now().Format(time.RFC3339),
+		"walletId":   walletObj.ID,
+		"walletName": walletObj.Name,
+		"importedAt": walletObj.CreatedAt.Format(time.RFC3339),
 	}
 
 	response := NewSuccessResponse(data)
@@ -194,9 +254,9 @@ func ImportWallet(params *C.char) *C.char {
 
 //export UnlockWallet
 // UnlockWallet authenticates and loads wallet into memory.
-// T023: Implement UnlockWallet export function
+// T023: Implement UnlockWallet export function with real password verification
 //
-// Input JSON: {"walletName": "...", "password": "...", "usbPath": "..."}
+// Input JSON: {"walletId": "...", "password": "...", "usbPath": "..."}
 // Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "unlockedAt": "..."}}
 func UnlockWallet(params *C.char) *C.char {
 	start := time.Now()
@@ -208,14 +268,18 @@ func UnlockWallet(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
 		}
 	}()
 
 	paramsJSON := C.GoString(params)
 	var input struct {
-		WalletName string `json:"walletName"`
-		Password   string `json:"password"`
-		USBPath    string `json:"usbPath"`
+		WalletID string `json:"walletId"`
+		Password string `json:"password"`
+		USBPath  string `json:"usbPath"`
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -224,10 +288,39 @@ func UnlockWallet(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Service integration ready
+	// T026: Ensure sensitive data is zeroed before function returns
+	defer func() {
+		zeroString(&input.Password)
+	}()
+
+	// Create wallet service and attempt to restore (decrypt) wallet
+	svc := wallet.NewWalletService(input.USBPath)
+
+	// RestoreWallet verifies password by attempting decryption
+	mnemonic, err := svc.RestoreWallet(input.WalletID, input.Password)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Clear mnemonic from memory immediately (we don't need it for unlock response)
+	defer zeroString(&mnemonic)
+
+	// Load wallet metadata
+	walletObj, err := svc.LoadWallet(input.WalletID)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Password verified successfully - return wallet info
 	data := map[string]interface{}{
-		"walletId":   "placeholder-unlock-id",
-		"walletName": input.WalletName,
+		"walletId":   walletObj.ID,
+		"walletName": walletObj.Name,
 		"unlockedAt": time.Now().Format(time.RFC3339),
 	}
 
@@ -237,11 +330,11 @@ func UnlockWallet(params *C.char) *C.char {
 }
 
 //export GenerateAddresses
-// GenerateAddresses derives addresses for specified blockchains.
-// T024: Implement GenerateAddresses export function (generates all 54 addresses)
+// GenerateAddresses derives addresses for specified blockchains from wallet's AddressBook.
+// T024: Implement GenerateAddresses export function (returns all addresses from wallet metadata)
 //
-// Input JSON: {"walletId": "...", "blockchains": ["bitcoin", "ethereum", ...]}
-// Output JSON: {"success": true, "data": {"addresses": [{"blockchain": "...", "address": "...", "derivationPath": "..."}], "generatedAt": "..."}}
+// Input JSON: {"walletId": "...", "blockchains": []}
+// Output JSON: {"success": true, "data": {"addresses": [{"blockchain": "...", "address": "...", "derivationPath": "...", "symbol": "...", "coinType": ...}], "generatedAt": "..."}}
 func GenerateAddresses(params *C.char) *C.char {
 	start := time.Now()
 	defer func() {
@@ -252,13 +345,18 @@ func GenerateAddresses(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
 		}
 	}()
 
 	paramsJSON := C.GoString(params)
 	var input struct {
 		WalletID    string   `json:"walletId"`
-		Blockchains []string `json:"blockchains"`
+		USBPath     string   `json:"usbPath"` // USB storage path
+		Blockchains []string `json:"blockchains"` // Empty array means all blockchains
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -267,23 +365,55 @@ func GenerateAddresses(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Placeholder addresses (actual implementation would derive from mnemonic)
-	addresses := []map[string]interface{}{
-		{
-			"blockchain":     "bitcoin",
-			"address":        "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
-			"derivationPath": "m/44'/0'/0'/0/0",
-		},
-		{
-			"blockchain":     "ethereum",
-			"address":        "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-			"derivationPath": "m/44'/60'/0'/0/0",
-		},
+	// Create wallet service with USB path
+	svc := wallet.NewWalletService(input.USBPath)
+
+	// Load wallet metadata (includes AddressBook from wallet creation)
+	walletObj, err := svc.LoadWallet(input.WalletID)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Check if AddressBook exists
+	if walletObj.AddressBook == nil || len(walletObj.AddressBook.Addresses) == 0 {
+		response := NewErrorResponse(ErrStorageError, "Wallet has no addresses. Please regenerate addresses.")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Convert AddressBook entries to FFI response format
+	addresses := make([]map[string]interface{}, 0, len(walletObj.AddressBook.Addresses))
+	for _, addr := range walletObj.AddressBook.Addresses {
+		// Filter by blockchain if specified
+		if len(input.Blockchains) > 0 {
+			found := false
+			for _, bc := range input.Blockchains {
+				if addr.CoinName == bc || addr.Symbol == bc {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+
+		addresses = append(addresses, map[string]interface{}{
+			"blockchain":     addr.CoinName,
+			"symbol":         addr.Symbol,
+			"address":        addr.Address,
+			"derivationPath": addr.DerivationPath,
+			"coinType":       addr.CoinType,
+		})
 	}
 
 	data := map[string]interface{}{
 		"addresses":   addresses,
 		"generatedAt": time.Now().Format(time.RFC3339),
+		"count":       len(addresses),
 	}
 
 	response := NewSuccessResponse(data)

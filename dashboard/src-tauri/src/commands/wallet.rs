@@ -508,10 +508,55 @@ pub async fn load_addresses(
         }
     }
 
-    // T033: Build JSON params for FFI call (generate_addresses)
-    // For now, we'll generate all 54 addresses
+    // STEP 1: Unlock wallet with password (verify password and decrypt wallet)
+    tracing::info!("Unlocking wallet {} with password", wallet_id);
+    let unlock_params = json!({
+        "walletId": wallet_id,
+        "password": password,
+        "usbPath": usb_path,
+    });
+
+    let unlock_params_json = serde_json::to_string(&unlock_params)
+        .map_err(|e| format!("Failed to serialize unlock params: {}", e))?;
+
+    let unlock_response = queue
+        .unlock_wallet(unlock_params_json)
+        .await
+        .map_err(|e| {
+            if e.contains("INVALID_PASSWORD") || e.contains("DECRYPTION_ERROR") {
+                AppError::new(
+                    ErrorCode::PasswordTooWeak,
+                    "Invalid password",
+                )
+            } else if e.contains("WALLET_NOT_FOUND") {
+                AppError::new(
+                    ErrorCode::WalletNotFound,
+                    "Wallet not found on USB",
+                )
+            } else if e.contains("USB_NOT_FOUND") || e.contains("STORAGE_ERROR") {
+                AppError::new(
+                    ErrorCode::UsbNotFound,
+                    "USB device not found",
+                )
+            } else {
+                AppError::with_details(
+                    ErrorCode::CliExecutionFailed,
+                    "Failed to unlock wallet",
+                    e,
+                )
+            }
+        })?;
+
+    tracing::info!("Wallet unlocked successfully: {:?}", unlock_response);
+
+    // T037: Zero sensitive data from memory immediately after unlock
+    password.zeroize();
+
+    // STEP 2: Generate addresses (wallet is now unlocked in memory)
+    tracing::info!("Generating addresses for wallet {}", wallet_id);
     let params = json!({
         "walletId": wallet_id,
+        "usbPath": usb_path, // Pass USB path so Go can load wallet metadata
         "blockchains": [], // Empty array means generate all supported blockchains
     });
 
@@ -523,10 +568,10 @@ pub async fn load_addresses(
         .generate_addresses(params_json)
         .await
         .map_err(|e| {
-            if e.contains("WALLET_NOT_FOUND") {
+            if e.contains("WALLET_NOT_FOUND") || e.contains("WALLET_NOT_UNLOCKED") {
                 AppError::new(
                     ErrorCode::WalletNotFound,
-                    "Wallet not found on USB",
+                    "Wallet not found or not unlocked",
                 )
             } else if e.contains("USB_NOT_FOUND") || e.contains("STORAGE_ERROR") {
                 AppError::new(
@@ -541,9 +586,6 @@ pub async fn load_addresses(
                 )
             }
         })?;
-
-    // T037: Zero sensitive data from memory
-    password.zeroize();
 
     tracing::info!("Generate addresses FFI response: {:?}", ffi_response);
 

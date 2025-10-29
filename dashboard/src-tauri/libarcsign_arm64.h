@@ -116,22 +116,22 @@ extern char* CreateWallet(char* params);
 // ImportWallet imports an existing wallet from mnemonic.
 // T022: Implement ImportWallet export function
 //
-// Input JSON: {"walletName": "...", "mnemonic": "...", "password": "...", "usbPath": "..."}
+// Input JSON: {"walletName": "...", "mnemonic": "...", "password": "...", "usbPath": "...", "passphrase": "..."}
 // Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "importedAt": "..."}}
 extern char* ImportWallet(char* params);
 
 // UnlockWallet authenticates and loads wallet into memory.
-// T023: Implement UnlockWallet export function
+// T023: Implement UnlockWallet export function with real password verification
 //
-// Input JSON: {"walletName": "...", "password": "...", "usbPath": "..."}
+// Input JSON: {"walletId": "...", "password": "...", "usbPath": "..."}
 // Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "unlockedAt": "..."}}
 extern char* UnlockWallet(char* params);
 
-// GenerateAddresses derives addresses for specified blockchains.
-// T024: Implement GenerateAddresses export function (generates all 54 addresses)
+// GenerateAddresses derives addresses for specified blockchains from wallet's AddressBook.
+// T024: Implement GenerateAddresses export function (returns all addresses from wallet metadata)
 //
-// Input JSON: {"walletId": "...", "blockchains": ["bitcoin", "ethereum", ...]}
-// Output JSON: {"success": true, "data": {"addresses": [{"blockchain": "...", "address": "...", "derivationPath": "..."}], "generatedAt": "..."}}
+// Input JSON: {"walletId": "...", "blockchains": []}
+// Output JSON: {"success": true, "data": {"addresses": [{"blockchain": "...", "address": "...", "derivationPath": "...", "symbol": "...", "coinType": ...}], "generatedAt": "..."}}
 extern char* GenerateAddresses(char* params);
 
 // ExportWallet exports wallet metadata without private keys.

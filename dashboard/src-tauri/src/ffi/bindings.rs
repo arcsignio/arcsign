@@ -84,12 +84,17 @@ impl WalletLibrary {
     /// - macOS: libarcsign.dylib
     /// - Linux: libarcsign.so
     ///
+    /// Search Paths (T047, T048):
+    /// - Windows: Current directory, %APPDATA%\arcSign, Program Files\arcSign
+    /// - macOS: Current directory, ~/Library/Application Support/arcSign, /Applications/arcSign.app/Contents/Resources
+    /// - Linux: Current directory, ~/.local/lib/arcsign, /usr/local/lib/arcsign
+    ///
     /// Returns:
     /// - Ok(WalletLibrary) if library loaded and symbols cached successfully
     /// - Err(String) if library not found or symbols missing
     pub fn load() -> Result<Self, String> {
         unsafe {
-            // Determine library path based on platform
+            // Determine library name based on platform
             #[cfg(target_os = "windows")]
             let lib_name = "libarcsign.dll";
 
@@ -99,9 +104,31 @@ impl WalletLibrary {
             #[cfg(target_os = "linux")]
             let lib_name = "libarcsign.so";
 
-            // Load library
-            let lib = Library::new(lib_name)
-                .map_err(|e| format!("Failed to load {}: {}", lib_name, e))?;
+            // T047, T048: Platform-specific search paths
+            let search_paths = Self::get_search_paths(lib_name);
+
+            // Try loading from each search path in order
+            let mut last_error = String::new();
+            let lib = 'search: {
+                for path in &search_paths {
+                    match Library::new(path) {
+                        Ok(lib) => {
+                            tracing::info!("Loaded wallet library from: {}", path);
+                            break 'search lib;
+                        }
+                        Err(e) => {
+                            tracing::debug!("Failed to load from {}: {}", path, e);
+                            last_error = format!("{}: {}", path, e);
+                        }
+                    }
+                }
+
+                // If we get here, all paths failed
+                return Err(format!(
+                    "Failed to load {} from any search path. Last error: {}",
+                    lib_name, last_error
+                ));
+            };
 
             // Cache function symbols (T016 - avoid repeated unsafe operations)
             let go_free: Symbol<GoFreeFn> = lib
@@ -165,6 +192,78 @@ impl WalletLibrary {
                 list_wallets,
             })
         }
+    }
+
+    /// Get platform-specific search paths for the wallet library (T047, T048).
+    ///
+    /// Search order (highest priority first):
+    /// 1. Current directory (development builds)
+    /// 2. User-specific application directory
+    /// 3. System-wide application directory
+    ///
+    /// Returns: Vec<String> of absolute paths to try
+    fn get_search_paths(lib_name: &str) -> Vec<String> {
+        let mut paths = Vec::new();
+
+        // Priority 1: Current directory (for development and bundled apps)
+        paths.push(lib_name.to_string());
+
+        // Priority 1.5: src-tauri directory (for development builds)
+        paths.push(format!("dashboard/src-tauri/{}", lib_name));
+        paths.push(format!("src-tauri/{}", lib_name));
+
+        // Priority 2 & 3: Platform-specific directories
+        #[cfg(target_os = "windows")]
+        {
+            // T047: Windows search paths
+            // User AppData: C:\Users\<username>\AppData\Roaming\arcSign
+            if let Ok(appdata) = std::env::var("APPDATA") {
+                paths.push(format!("{}\\arcSign\\{}", appdata, lib_name));
+            }
+
+            // Program Files: C:\Program Files\arcSign
+            if let Ok(program_files) = std::env::var("ProgramFiles") {
+                paths.push(format!("{}\\arcSign\\{}", program_files, lib_name));
+            }
+
+            // Also check ProgramFiles(x86) for 32-bit apps on 64-bit Windows
+            if let Ok(program_files_x86) = std::env::var("ProgramFiles(x86)") {
+                paths.push(format!("{}\\arcSign\\{}", program_files_x86, lib_name));
+            }
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            // T048: macOS search paths
+            // User Library: ~/Library/Application Support/arcSign
+            if let Ok(home) = std::env::var("HOME") {
+                paths.push(format!("{}/Library/Application Support/arcSign/{}", home, lib_name));
+            }
+
+            // Bundled app: /Applications/arcSign.app/Contents/Resources
+            paths.push(format!("/Applications/arcSign.app/Contents/Resources/{}", lib_name));
+
+            // System-wide: /usr/local/lib/arcsign
+            paths.push(format!("/usr/local/lib/arcsign/{}", lib_name));
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            // T048: Linux search paths
+            // User-specific: ~/.local/lib/arcsign
+            if let Ok(home) = std::env::var("HOME") {
+                paths.push(format!("{}/.local/lib/arcsign/{}", home, lib_name));
+            }
+
+            // System-wide: /usr/local/lib/arcsign
+            paths.push(format!("/usr/local/lib/arcsign/{}", lib_name));
+
+            // Alternative system location: /opt/arcsign/lib
+            paths.push(format!("/opt/arcsign/lib/{}", lib_name));
+        }
+
+        tracing::info!("Library search paths: {:?}", paths);
+        paths
     }
 
     /// Call GetVersion FFI function and return parsed response.
