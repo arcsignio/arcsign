@@ -109,15 +109,18 @@ pub async fn create_wallet(
     });
 
     // T032.1: Build JSON params for FFI call
-    // Note: The FFI layer expects walletName, mnemonic, password, usbPath
-    // Since we're creating a NEW wallet, we need to generate a mnemonic first
-    // For now, we'll use a placeholder approach (actual implementation would generate mnemonic in Go)
-    let params = json!({
+    // Go will generate the mnemonic based on wordCount
+    let mut params = json!({
         "walletName": wallet_name,
-        "mnemonic": "", // TODO: Generate mnemonic in Go layer
         "password": password,
         "usbPath": usbPath,
+        "wordCount": length,
     });
+
+    // Add passphrase if provided
+    if let Some(ref pp) = passphrase {
+        params["passphrase"] = json!(pp);
+    }
 
     let params_json = serde_json::to_string(&params)
         .map_err(|e| format!("Failed to serialize params: {}", e))?;
@@ -177,8 +180,15 @@ pub async fn create_wallet(
         .unwrap_or("unknown")
         .to_string();
 
-    // TODO: Extract mnemonic from FFI response once Go layer generates it
-    let mnemonic = "TODO: mnemonic generation in Go layer".to_string();
+    // Extract mnemonic from FFI response (Go generates it)
+    let mnemonic = ffi_response
+        .get("mnemonic")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| AppError::new(
+            ErrorCode::DeserializationError,
+            "Missing mnemonic in FFI response",
+        ))?
+        .to_string();
 
     // T053: Convert to domain model and return via Tauri IPC
     let wallet = Wallet {
