@@ -23,6 +23,7 @@ export function Dashboard() {
   const [currentView, setCurrentView] = useState<View>('list');
   const [isLoadingWallets, setIsLoadingWallets] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Address view state (T061)
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -94,7 +95,12 @@ export function Dashboard() {
     };
 
     loadWallets();
-  }, []);
+  }, [refreshTrigger]); // Re-run when refreshTrigger changes
+
+  // Manual reload function
+  const handleReload = () => {
+    setRefreshTrigger((prev) => prev + 1);
+  };
 
   const handleCreateWallet = () => {
     setCurrentView('create');
@@ -180,7 +186,13 @@ export function Dashboard() {
   if (currentView === 'create') {
     return (
       <div className="dashboard">
-        <WalletCreate onCancel={handleBackToList} />
+        <WalletCreate
+          onCancel={handleBackToList}
+          onSuccess={() => {
+            handleReload(); // Reload wallets after creation
+            handleBackToList();
+          }}
+        />
       </div>
     );
   }
@@ -195,7 +207,10 @@ export function Dashboard() {
         {usbPath ? (
           <WalletImport
             usbPath={usbPath}
-            onSuccess={handleBackToList}
+            onSuccess={() => {
+              handleReload(); // Reload wallets after import
+              handleBackToList();
+            }}
             onCancel={handleBackToList}
           />
         ) : (
@@ -256,6 +271,14 @@ export function Dashboard() {
       <header className="dashboard-header">
         <h1>ArcSign Dashboard</h1>
         <div className="header-actions">
+          <button
+            onClick={handleReload}
+            disabled={isLoadingWallets}
+            className="secondary-button"
+            title="Reload USB and wallets"
+          >
+            {isLoadingWallets ? '↻ Reloading...' : '↻ Reload'}
+          </button>
           <button onClick={handleCreateWallet} className="primary-button">
             + Create New Wallet
           </button>

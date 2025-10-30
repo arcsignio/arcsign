@@ -163,13 +163,18 @@ fn main() {
     tauri::Builder::default()
         .manage(AddressCache(Mutex::new(HashMap::new())))
         .setup(move |app| {
-            // T018: Initialize WalletQueue in setup hook (Tokio runtime is ready here)
+            // T018: Initialize WalletQueue in async context
             // T042: Symbol caching is already implemented in WalletLibrary::load()
             // T068: Only create queue if library loaded successfully
             if let Some(lib) = library_for_setup {
-                let queue = WalletQueue::new(lib);
-                app.manage(queue);
-                tracing::info!("✓ FFI queue initialized in setup hook");
+                // Create queue in async context by spawning a task
+                let app_handle = app.handle();
+                tokio::spawn(async move {
+                    let queue = WalletQueue::new(lib);
+                    app_handle.manage(queue);
+                    tracing::info!("✓ FFI queue initialized asynchronously");
+                });
+                tracing::info!("✓ FFI queue initialization started");
             } else {
                 tracing::warn!("⚠ FFI queue not available - commands will use CLI fallback");
             }

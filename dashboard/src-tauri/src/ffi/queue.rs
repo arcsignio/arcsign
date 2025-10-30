@@ -12,7 +12,7 @@
 //! Created: 2025-10-25
 //! Updated: 2025-10-25 - T057-T059: Added metrics, cancellation, backpressure
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, oneshot};
@@ -183,7 +183,8 @@ impl WalletQueue {
 
     /// Create a new wallet queue with the given library.
     ///
-    /// Spawns a background worker thread that processes commands sequentially.
+    /// Spawns a background worker task on the current Tokio runtime.
+    /// IMPORTANT: This must be called from within an async context (Tokio runtime).
     ///
     /// Parameters:
     /// - `library`: The loaded WalletLibrary instance
@@ -197,19 +198,9 @@ impl WalletQueue {
         let metrics = QueueMetrics::new();
         let metrics_clone = metrics.clone();
 
-        // Spawn dedicated worker thread with isolated runtime
-        // Using spawn instead of spawn_named to avoid macOS thread naming API issues
-        std::thread::spawn(move || {
-            // Create a minimal single-threaded runtime in this isolated thread
-            // Using new_current_thread() with only essential features enabled
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_io()
-                .enable_time()
-                .build()
-                .expect("Failed to create worker runtime");
-
-            rt.block_on(Self::worker_task(library, receiver, metrics_clone));
-        });
+        // Spawn worker task on the current Tokio runtime
+        // This requires being called from an async context
+        tokio::spawn(Self::worker_task(library, receiver, metrics_clone));
 
         WalletQueue { sender, metrics }
     }

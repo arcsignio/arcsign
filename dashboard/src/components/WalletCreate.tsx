@@ -19,9 +19,10 @@ import { ConfirmationDialog } from './ConfirmationDialog';
 
 interface WalletCreateProps {
   onCancel?: () => void;
+  onSuccess?: () => void;
 }
 
-export function WalletCreate({ onCancel }: WalletCreateProps = {}) {
+export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
   const [usbDevices, setUsbDevices] = useState<UsbDevice[]>([]);
   const [isLoadingUsb, setIsLoadingUsb] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -114,6 +115,14 @@ export function WalletCreate({ onCancel }: WalletCreateProps = {}) {
     // Navigate back to dashboard or wallet list
     setCreatedWallet(null);
     setIsCreating(false);
+
+    // Call onSuccess callback if provided
+    if (onSuccess) {
+      onSuccess();
+    } else if (onCancel) {
+      // Fallback to onCancel if onSuccess not provided
+      onCancel();
+    }
   };
 
   // Handle cancel button click (T093, FR-032)

@@ -13,3 +13,4 @@ export { AddressRow } from './AddressRow';
 export { InactivityWarningDialog } from './InactivityWarningDialog';
 export { ConfirmationDialog } from './ConfirmationDialog';
 export { LoadingSpinner } from './LoadingSpinner';
+export { LibraryCrashDialog } from './LibraryCrashDialog';
