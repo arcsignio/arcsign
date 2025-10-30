@@ -451,13 +451,27 @@ code {
 /* Mnemonic Words Grid */
 .mnemonic-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
   margin: 2rem 0;
   padding: 1.5rem;
   background: #f9fafb;
   border-radius: 0.75rem;
   border: 2px solid #e5e7eb;
+}
+
+/* Responsive: 3 columns on tablets */
+@media (max-width: 900px) {
+  .mnemonic-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Responsive: 2 columns on mobile */
+@media (max-width: 600px) {
+  .mnemonic-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .mnemonic-word {
