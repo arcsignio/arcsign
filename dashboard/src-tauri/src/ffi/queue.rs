@@ -183,7 +183,7 @@ impl WalletQueue {
 
     /// Create a new wallet queue with the given library.
     ///
-    /// Spawns a background worker task that processes commands sequentially.
+    /// Spawns a background worker thread that processes commands sequentially.
     ///
     /// Parameters:
     /// - `library`: The loaded WalletLibrary instance
@@ -191,15 +191,25 @@ impl WalletQueue {
     /// Returns:
     /// A WalletQueue handle that can be cloned and shared across threads.
     pub fn new(library: Arc<WalletLibrary>) -> Self {
-        // T059: Bounded channel for backpressure (prevents unbounded growth)
+        // T059: Bounded channel for backpressure
         let (sender, receiver) = mpsc::channel::<WalletCommand>(Self::MAX_QUEUE_DEPTH);
 
         let metrics = QueueMetrics::new();
         let metrics_clone = metrics.clone();
 
-        // Spawn worker task on the existing Tokio runtime
-        // This avoids creating a new runtime which causes thread safety issues on macOS
-        tokio::spawn(Self::worker_task(library, receiver, metrics_clone));
+        // Spawn dedicated worker thread with isolated runtime
+        // Using spawn instead of spawn_named to avoid macOS thread naming API issues
+        std::thread::spawn(move || {
+            // Create a minimal single-threaded runtime in this isolated thread
+            // Using new_current_thread() with only essential features enabled
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_io()
+                .enable_time()
+                .build()
+                .expect("Failed to create worker runtime");
+
+            rt.block_on(Self::worker_task(library, receiver, metrics_clone));
+        });
 
         WalletQueue { sender, metrics }
     }
