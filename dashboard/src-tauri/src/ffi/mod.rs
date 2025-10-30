@@ -27,5 +27,5 @@ pub mod queue;
 
 // Re-export main types for convenience
 pub use bindings::WalletLibrary;
-pub use queue::WalletQueue;
+pub use queue::{WalletQueue, LazyWalletQueue};
 pub use types::{FFIResponse, FFIError, ErrorCode};

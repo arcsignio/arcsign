@@ -32,7 +32,7 @@ use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresse
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant; // T045: Startup time logging
-use ffi::{WalletLibrary, WalletQueue};  // T017: Import FFI types
+use ffi::{WalletLibrary, LazyWalletQueue};  // T017: Import FFI types (use LazyWalletQueue)
 use tauri::Manager;  // For app.manage() in setup hook
 
 fn main() {
@@ -163,18 +163,14 @@ fn main() {
     tauri::Builder::default()
         .manage(AddressCache(Mutex::new(HashMap::new())))
         .setup(move |app| {
-            // T018: Initialize WalletQueue in async context
+            // T018: Initialize LazyWalletQueue (defers actual initialization until first use)
             // T042: Symbol caching is already implemented in WalletLibrary::load()
             // T068: Only create queue if library loaded successfully
             if let Some(lib) = library_for_setup {
-                // Create queue in async context by spawning a task
-                let app_handle = app.handle();
-                tokio::spawn(async move {
-                    let queue = WalletQueue::new(lib);
-                    app_handle.manage(queue);
-                    tracing::info!("✓ FFI queue initialized asynchronously");
-                });
-                tracing::info!("✓ FFI queue initialization started");
+                // Create lazy queue - actual WalletQueue will be initialized on first use from async context
+                let queue = LazyWalletQueue::new(lib);
+                app.manage(queue);
+                tracing::info!("✓ Lazy queue registered (will initialize on first use from async context)");
             } else {
                 tracing::warn!("⚠ FFI queue not available - commands will use CLI fallback");
             }

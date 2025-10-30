@@ -11,7 +11,7 @@ use crate::cli::wrapper::{
     WalletInfo, WalletListResponse,
 };
 use crate::error::{AppError, AppResult, ErrorCode};
-use crate::ffi::WalletQueue; // T032: Add FFI queue import
+use crate::ffi::LazyWalletQueue; // T032: Add FFI queue import (using LazyWalletQueue for deferred initialization)
 use crate::models::address::{Address, AddressListResponse, Category, KeyType};
 use crate::models::wallet::{Wallet, WalletCreateResponse, WalletImportResponse};
 use serde_json::json;
@@ -64,7 +64,7 @@ fn validate_password(password: &str) -> AppResult<()> {
 /// Note: Using camelCase parameter names to match JavaScript/TypeScript convention
 #[tauri::command]
 pub async fn create_wallet(
-    queue: State<'_, WalletQueue>, // T032.1: Accept WalletQueue from Tauri state
+    queue: State<'_, LazyWalletQueue>, // T032.1: Accept LazyWalletQueue from Tauri state
     mut password: String, // T037: Make mutable for zeroize
     #[allow(non_snake_case)]
     usbPath: String,
@@ -313,7 +313,7 @@ async fn check_duplicate_wallet(
 /// Requirements: FR-006 (BIP39 import), FR-029 (validation), FR-031 (duplicate detection)
 #[tauri::command]
 pub async fn import_wallet(
-    queue: State<'_, WalletQueue>, // T032.2: Accept WalletQueue from Tauri state
+    queue: State<'_, LazyWalletQueue>, // T032.2: Accept LazyWalletQueue from Tauri state
     mut mnemonic: String, // T037: Make mutable for zeroize
     mut password: String, // T037: Make mutable for zeroize
     usb_path: String,
@@ -483,7 +483,7 @@ pub struct AddressCache(pub Mutex<HashMap<String, Vec<Address>>>);
 /// Caches results in Tauri State to avoid re-loading (T046)
 #[tauri::command]
 pub async fn load_addresses(
-    queue: State<'_, WalletQueue>, // T033: Accept WalletQueue from Tauri state
+    queue: State<'_, LazyWalletQueue>, // T033: Accept LazyWalletQueue from Tauri state
     wallet_id: String,
     mut password: String, // T037: Make mutable for zeroize
     usb_path: String,
@@ -658,7 +658,7 @@ pub async fn load_addresses(
 /// Directly scans USB directory for wallet folders (CLI list command not yet implemented)
 #[tauri::command]
 pub async fn list_wallets(
-    queue: State<'_, WalletQueue>, // T035: Accept WalletQueue from Tauri state
+    queue: State<'_, LazyWalletQueue>, // T035: Accept LazyWalletQueue from Tauri state
     usb_path: String,
 ) -> Result<Vec<Wallet>, String> {
     // T038: Start performance timer
@@ -757,7 +757,7 @@ pub async fn list_wallets(
 /// Requirements: FR-019 (Wallet rename functionality)
 #[tauri::command]
 pub async fn rename_wallet(
-    queue: State<'_, WalletQueue>, // T036: Accept WalletQueue from Tauri state
+    queue: State<'_, LazyWalletQueue>, // T036: Accept LazyWalletQueue from Tauri state
     wallet_id: String,
     new_name: String,
     usb_path: String,

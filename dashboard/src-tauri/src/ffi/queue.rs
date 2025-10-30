@@ -1,24 +1,25 @@
 //! Single-threaded operation queue for wallet FFI calls.
 //!
-//! Serializes all wallet operations through a Tokio channel to ensure
+//! Serializes all wallet operations through a standard thread to ensure
 //! thread-safe access to the Go shared library.
 //!
 //! Architecture:
 //! - All Tauri commands send requests to the queue
-//! - Single worker task processes requests sequentially using spawn_blocking
+//! - Single worker thread processes requests sequentially
 //! - Responses sent back via oneshot channels
+//! - Uses std::sync primitives ONLY (no Tokio)
 //!
 //! Feature: 005-go-cli-shared
 //! Created: 2025-10-25
-//! Updated: 2025-10-25 - T057-T059: Added metrics, cancellation, backpressure
+//! Updated: 2025-10-30 - Complete rewrite using std::sync only
 
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock, mpsc};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
-use tokio::sync::{mpsc, oneshot};
+use std::thread;
 use super::bindings::WalletLibrary;
 
-/// T057: Queue metrics for monitoring performance
+/// Queue metrics for monitoring performance
 #[derive(Debug, Clone)]
 pub struct QueueMetrics {
     /// Total operations processed
@@ -41,7 +42,7 @@ impl QueueMetrics {
         }
     }
 
-    /// T057: Record operation start (enqueued)
+    /// Record operation start (enqueued)
     fn record_enqueue(&self) {
         let depth = self.current_depth.fetch_add(1, Ordering::SeqCst) + 1;
 
@@ -60,14 +61,14 @@ impl QueueMetrics {
         }
     }
 
-    /// T057: Record operation completion (dequeued)
+    /// Record operation completion (dequeued)
     fn record_dequeue(&self, wait_time: Duration) {
         self.current_depth.fetch_sub(1, Ordering::SeqCst);
         self.total_operations.fetch_add(1, Ordering::SeqCst);
         self.total_wait_time_ms.fetch_add(wait_time.as_millis() as u64, Ordering::SeqCst);
     }
 
-    /// T057: Get average wait time
+    /// Get average wait time
     pub fn average_wait_time_ms(&self) -> f64 {
         let total_ops = self.total_operations.load(Ordering::SeqCst);
         if total_ops == 0 {
@@ -77,7 +78,7 @@ impl QueueMetrics {
         total_wait as f64 / total_ops as f64
     }
 
-    /// T057: Log metrics
+    /// Log metrics
     pub fn log_metrics(&self) {
         let total_ops = self.total_operations.load(Ordering::SeqCst);
         let current_depth = self.current_depth.load(Ordering::SeqCst);
@@ -92,7 +93,7 @@ impl QueueMetrics {
             avg_wait
         );
 
-        // T057: Warn if performance degrading
+        // Warn if performance degrading
         if avg_wait > 10.0 {
             tracing::warn!(
                 "Queue wait time elevated: {:.2}ms (target <10ms)",
@@ -109,421 +110,377 @@ impl QueueMetrics {
     }
 }
 
-/// Command types for wallet operations.
-/// Each variant represents a wallet operation that can be queued.
-/// T030: Add all wallet operation command variants
+/// Oneshot channel for sending a single response
+type OneshotSender<T> = std::sync::mpsc::Sender<T>;
+type OneshotReceiver<T> = std::sync::mpsc::Receiver<T>;
+
+fn oneshot<T>() -> (OneshotSender<T>, OneshotReceiver<T>) {
+    mpsc::channel()
+}
+
+/// Command types for wallet operations
 #[derive(Debug)]
 pub enum WalletCommand {
     /// Get library version (for testing/health checks)
     GetVersion {
         /// Response channel
-        respond_to: oneshot::Sender<Result<serde_json::Value, String>>,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
     /// Create a new HD wallet from mnemonic
     CreateWallet {
         params_json: String,
-        respond_to: oneshot::Sender<Result<serde_json::Value, String>>,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
     /// Import an existing wallet from mnemonic
     ImportWallet {
         params_json: String,
-        respond_to: oneshot::Sender<Result<serde_json::Value, String>>,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
     /// Authenticate and load wallet into memory
     UnlockWallet {
         params_json: String,
-        respond_to: oneshot::Sender<Result<serde_json::Value, String>>,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
     /// Derive addresses for specified blockchains
     GenerateAddresses {
         params_json: String,
-        respond_to: oneshot::Sender<Result<serde_json::Value, String>>,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
     /// Export wallet metadata without private keys
     ExportWallet {
         params_json: String,
-        respond_to: oneshot::Sender<Result<serde_json::Value, String>>,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
     /// Change wallet display name
     RenameWallet {
         params_json: String,
-        respond_to: oneshot::Sender<Result<serde_json::Value, String>>,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
     /// Enumerate all wallets on USB
     ListWallets {
         params_json: String,
-        respond_to: oneshot::Sender<Result<serde_json::Value, String>>,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
 }
 
 /// WalletQueue serializes all wallet operations through a single-threaded queue.
 ///
-/// Design:
-/// - Prevents concurrent FFI calls (Go library may not be thread-safe)
-/// - Uses spawn_blocking to avoid blocking Tokio runtime
-/// - Provides async interface for Tauri commands
-/// - T057: Tracks operation metrics (queue depth, wait time)
-/// - T059: Implements backpressure (bounded channel)
-///
-/// Example:
-/// ```ignore
-/// let queue = WalletQueue::new(library);
-/// let version = queue.get_version().await?;
-/// queue.metrics().log_metrics(); // T057
-/// ```
+/// Uses ONLY std::sync primitives (no Tokio) to avoid macOS thread restrictions.
 #[derive(Clone)]
 pub struct WalletQueue {
     sender: mpsc::Sender<WalletCommand>,
-    metrics: QueueMetrics, // T057: Performance metrics
+    metrics: QueueMetrics,
 }
 
 impl WalletQueue {
-    /// T059: Maximum queue depth (backpressure limit)
-    const MAX_QUEUE_DEPTH: usize = 100;
-
     /// Create a new wallet queue with the given library.
     ///
-    /// Spawns a background worker task on the current Tokio runtime.
-    /// IMPORTANT: This must be called from within an async context (Tokio runtime).
-    ///
-    /// Parameters:
-    /// - `library`: The loaded WalletLibrary instance
-    ///
-    /// Returns:
-    /// A WalletQueue handle that can be cloned and shared across threads.
+    /// Spawns a background worker thread using std::thread.
+    /// This is safe to call from any context (no Tokio required).
     pub fn new(library: Arc<WalletLibrary>) -> Self {
-        // T059: Bounded channel for backpressure
-        let (sender, receiver) = mpsc::channel::<WalletCommand>(Self::MAX_QUEUE_DEPTH);
+        let (sender, receiver) = mpsc::channel::<WalletCommand>();
 
         let metrics = QueueMetrics::new();
         let metrics_clone = metrics.clone();
 
-        // Spawn worker task on the current Tokio runtime
-        // This requires being called from an async context
-        tokio::spawn(Self::worker_task(library, receiver, metrics_clone));
+        // Spawn worker thread using std::thread (NOT tokio::spawn)
+        thread::Builder::new()
+            .name("wallet-queue-worker".to_string())
+            .spawn(move || {
+                Self::worker_task(library, receiver, metrics_clone);
+            })
+            .expect("Failed to spawn wallet queue worker thread");
+
+        tracing::info!("✓ Wallet queue worker thread started");
 
         WalletQueue { sender, metrics }
     }
 
-    /// T057: Get queue metrics for monitoring
+    /// Get queue metrics for monitoring
     pub fn metrics(&self) -> &QueueMetrics {
         &self.metrics
     }
 
-    /// T058: Check if queue has capacity (for cancellation/rejection logic)
-    pub fn has_capacity(&self) -> bool {
-        self.metrics.current_depth.load(Ordering::SeqCst) < Self::MAX_QUEUE_DEPTH
-    }
-
-    /// T059: Try to send command with backpressure handling
-    async fn try_send_command(&self, cmd: WalletCommand) -> Result<(), String> {
-        // T057: Record enqueue
-        self.metrics.record_enqueue();
-
-        // T059: Use try_send for immediate backpressure feedback
-        match self.sender.try_send(cmd) {
-            Ok(_) => Ok(()),
-            Err(mpsc::error::TrySendError::Full(_)) => {
-                // T059: Queue full, apply backpressure
-                self.metrics.current_depth.fetch_sub(1, Ordering::SeqCst);
-                tracing::warn!(
-                    "Queue at capacity ({}), rejecting operation",
-                    Self::MAX_QUEUE_DEPTH
-                );
-                Err(format!(
-                    "Operation queue full ({} operations pending). Please try again.",
-                    Self::MAX_QUEUE_DEPTH
-                ))
-            }
-            Err(mpsc::error::TrySendError::Closed(_)) => {
-                self.metrics.current_depth.fetch_sub(1, Ordering::SeqCst);
-                Err("Queue is closed".to_string())
-            }
-        }
-    }
-
     /// Background worker task that processes wallet commands sequentially.
     ///
-    /// This task runs for the lifetime of the application.
-    /// It uses spawn_blocking to execute FFI calls without blocking the async runtime.
-    ///
-    /// Architecture:
-    /// 1. Receive command from channel
-    /// 2. T057: Track wait time from enqueue to dequeue
-    /// 3. Execute FFI call in spawn_blocking
-    /// 4. T057: Record metrics
-    /// 5. Send response back via oneshot channel
-    /// 6. Repeat
-    ///
-    /// T057: Enhanced with metrics tracking
-    async fn worker_task(
+    /// This runs in a dedicated std::thread for the lifetime of the application.
+    fn worker_task(
         library: Arc<WalletLibrary>,
-        mut receiver: mpsc::Receiver<WalletCommand>,
+        receiver: mpsc::Receiver<WalletCommand>,
         metrics: QueueMetrics,
     ) {
+        tracing::info!("Wallet queue worker thread running");
         let mut operations_count = 0u64;
 
-        while let Some(cmd) = receiver.recv().await {
-            // T057: Record operation start time (for wait time calculation)
+        // Block on receiving commands (this is a blocking thread, not async)
+        while let Ok(cmd) = receiver.recv() {
             let operation_start = Instant::now();
 
             match cmd {
                 WalletCommand::GetVersion { respond_to } => {
-                    let lib = Arc::clone(&library);
-
-                    // Execute FFI call in blocking context
-                    let result = tokio::task::spawn_blocking(move || {
-                        lib.get_version()
-                    }).await;
-
-                    // Handle task join errors
-                    let response = match result {
-                        Ok(ffi_result) => ffi_result,
-                        Err(join_err) => Err(format!("Worker task panicked: {}", join_err)),
-                    };
-
-                    // Send response (ignore if receiver dropped)
-                    let _ = respond_to.send(response);
-
-                    // T057: Record metrics
+                    let result = library.get_version();
+                    let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
-                // T030.1: Add CreateWallet command handler
                 WalletCommand::CreateWallet { params_json, respond_to } => {
-                    let lib = Arc::clone(&library);
-                    let result = tokio::task::spawn_blocking(move || {
-                        lib.create_wallet(&params_json)
-                    }).await;
-                    let response = match result {
-                        Ok(ffi_result) => ffi_result,
-                        Err(join_err) => Err(format!("Worker task panicked: {}", join_err)),
-                    };
-                    let _ = respond_to.send(response);
-
-                    // T057: Record metrics
+                    let result = library.create_wallet(&params_json);
+                    let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
-                // T030.2: Add ImportWallet command handler
                 WalletCommand::ImportWallet { params_json, respond_to } => {
-                    let lib = Arc::clone(&library);
-                    let result = tokio::task::spawn_blocking(move || {
-                        lib.import_wallet(&params_json)
-                    }).await;
-                    let response = match result {
-                        Ok(ffi_result) => ffi_result,
-                        Err(join_err) => Err(format!("Worker task panicked: {}", join_err)),
-                    };
-                    let _ = respond_to.send(response);
-
-                    // T057: Record metrics
+                    let result = library.import_wallet(&params_json);
+                    let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
-                // T030.3: Add UnlockWallet command handler
                 WalletCommand::UnlockWallet { params_json, respond_to } => {
-                    let lib = Arc::clone(&library);
-                    let result = tokio::task::spawn_blocking(move || {
-                        lib.unlock_wallet(&params_json)
-                    }).await;
-                    let response = match result {
-                        Ok(ffi_result) => ffi_result,
-                        Err(join_err) => Err(format!("Worker task panicked: {}", join_err)),
-                    };
-                    let _ = respond_to.send(response);
-
-                    // T057: Record metrics
+                    let result = library.unlock_wallet(&params_json);
+                    let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
-                // T030.4: Add GenerateAddresses command handler
                 WalletCommand::GenerateAddresses { params_json, respond_to } => {
-                    let lib = Arc::clone(&library);
-                    let result = tokio::task::spawn_blocking(move || {
-                        lib.generate_addresses(&params_json)
-                    }).await;
-                    let response = match result {
-                        Ok(ffi_result) => ffi_result,
-                        Err(join_err) => Err(format!("Worker task panicked: {}", join_err)),
-                    };
-                    let _ = respond_to.send(response);
-
-                    // T057: Record metrics
+                    let result = library.generate_addresses(&params_json);
+                    let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
-                // T030.5: Add ExportWallet command handler
                 WalletCommand::ExportWallet { params_json, respond_to } => {
-                    let lib = Arc::clone(&library);
-                    let result = tokio::task::spawn_blocking(move || {
-                        lib.export_wallet(&params_json)
-                    }).await;
-                    let response = match result {
-                        Ok(ffi_result) => ffi_result,
-                        Err(join_err) => Err(format!("Worker task panicked: {}", join_err)),
-                    };
-                    let _ = respond_to.send(response);
-
-                    // T057: Record metrics
+                    let result = library.export_wallet(&params_json);
+                    let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
-                // T030.6: Add RenameWallet command handler
                 WalletCommand::RenameWallet { params_json, respond_to } => {
-                    let lib = Arc::clone(&library);
-                    let result = tokio::task::spawn_blocking(move || {
-                        lib.rename_wallet(&params_json)
-                    }).await;
-                    let response = match result {
-                        Ok(ffi_result) => ffi_result,
-                        Err(join_err) => Err(format!("Worker task panicked: {}", join_err)),
-                    };
-                    let _ = respond_to.send(response);
-
-                    // T057: Record metrics
+                    let result = library.rename_wallet(&params_json);
+                    let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
-                // T030.7: Add ListWallets command handler
                 WalletCommand::ListWallets { params_json, respond_to } => {
-                    let lib = Arc::clone(&library);
-                    let result = tokio::task::spawn_blocking(move || {
-                        lib.list_wallets(&params_json)
-                    }).await;
-                    let response = match result {
-                        Ok(ffi_result) => ffi_result,
-                        Err(join_err) => Err(format!("Worker task panicked: {}", join_err)),
-                    };
-                    let _ = respond_to.send(response);
-
-                    // T057: Record metrics
+                    let result = library.list_wallets(&params_json);
+                    let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
             }
+
+            operations_count += 1;
+
+            // Log metrics every 100 operations
+            if operations_count % 100 == 0 {
+                metrics.log_metrics();
+            }
         }
+
+        tracing::info!("Wallet queue worker thread exiting");
     }
 
-    /// Get library version (async wrapper).
-    ///
-    /// This method demonstrates the pattern for all wallet operations:
-    /// 1. Create oneshot channel for response
-    /// 2. Send command to queue (with backpressure handling)
-    /// 3. Await response
-    ///
-    /// Example:
-    /// ```ignore
-    /// let version_data = queue.get_version().await?;
-    /// println!("Version: {}", version_data["version"]);
-    /// ```
+    /// Get library version (blocking wrapper for async context).
     pub async fn get_version(&self) -> Result<serde_json::Value, String> {
-        let (sender, receiver) = oneshot::channel();
+        let (sender, receiver) = oneshot();
 
-        // T059: Use try_send_command for backpressure handling
-        self.try_send_command(WalletCommand::GetVersion { respond_to: sender }).await?;
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::GetVersion { respond_to: sender })
+            .map_err(|_| "Queue channel closed".to_string())?;
 
-        receiver
-            .await
-            .map_err(|_| "Response channel closed".to_string())?
+        // Use tokio::task::spawn_blocking to await the sync channel
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
     }
-
-    // ========================================================================
-    // T031: Public async methods for wallet operations
-    // ========================================================================
 
     /// Create a new HD wallet from provided mnemonic.
     pub async fn create_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
-        let (sender, receiver) = oneshot::channel();
-        // T059: Use try_send_command for backpressure handling
-        self.try_send_command(WalletCommand::CreateWallet {
-            params_json,
-            respond_to: sender,
-        }).await?;
-        receiver
-            .await
-            .map_err(|_| "Response channel closed".to_string())?
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::CreateWallet {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
     }
 
     /// Import an existing wallet from mnemonic.
     pub async fn import_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
-        let (sender, receiver) = oneshot::channel();
-        // T059: Use try_send_command for backpressure handling
-        self.try_send_command(WalletCommand::ImportWallet {
-            params_json,
-            respond_to: sender,
-        }).await?;
-        receiver
-            .await
-            .map_err(|_| "Response channel closed".to_string())?
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::ImportWallet {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
     }
 
     /// Authenticate and load wallet into memory.
     pub async fn unlock_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
-        let (sender, receiver) = oneshot::channel();
-        // T059: Use try_send_command for backpressure handling
-        self.try_send_command(WalletCommand::UnlockWallet {
-            params_json,
-            respond_to: sender,
-        }).await?;
-        receiver
-            .await
-            .map_err(|_| "Response channel closed".to_string())?
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::UnlockWallet {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
     }
 
     /// Derive addresses for specified blockchains.
     pub async fn generate_addresses(&self, params_json: String) -> Result<serde_json::Value, String> {
-        let (sender, receiver) = oneshot::channel();
-        // T059: Use try_send_command for backpressure handling
-        self.try_send_command(WalletCommand::GenerateAddresses {
-            params_json,
-            respond_to: sender,
-        }).await?;
-        receiver
-            .await
-            .map_err(|_| "Response channel closed".to_string())?
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::GenerateAddresses {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
     }
 
     /// Export wallet metadata without private keys.
     pub async fn export_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
-        let (sender, receiver) = oneshot::channel();
-        // T059: Use try_send_command for backpressure handling
-        self.try_send_command(WalletCommand::ExportWallet {
-            params_json,
-            respond_to: sender,
-        }).await?;
-        receiver
-            .await
-            .map_err(|_| "Response channel closed".to_string())?
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::ExportWallet {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
     }
 
     /// Change wallet display name.
     pub async fn rename_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
-        let (sender, receiver) = oneshot::channel();
-        // T059: Use try_send_command for backpressure handling
-        self.try_send_command(WalletCommand::RenameWallet {
-            params_json,
-            respond_to: sender,
-        }).await?;
-        receiver
-            .await
-            .map_err(|_| "Response channel closed".to_string())?
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::RenameWallet {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
     }
 
     /// Enumerate all wallets on USB.
     pub async fn list_wallets(&self, params_json: String) -> Result<serde_json::Value, String> {
-        let (sender, receiver) = oneshot::channel();
-        // T059: Use try_send_command for backpressure handling
-        self.try_send_command(WalletCommand::ListWallets {
-            params_json,
-            respond_to: sender,
-        }).await?;
-        receiver
-            .await
-            .map_err(|_| "Response channel closed".to_string())?
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::ListWallets {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
     }
 }
 
-impl Default for WalletQueue {
-    fn default() -> Self {
-        // Create a dummy queue for testing/development
-        // In production, use WalletQueue::new(library) instead
-        let (sender, _receiver) = mpsc::channel(1);
-        WalletQueue {
-            sender,
-            metrics: QueueMetrics::new(), // T057: Include metrics in default
+/// Lazy-initialized WalletQueue wrapper
+/// Initializes the queue on first use
+pub struct LazyWalletQueue {
+    library: Arc<WalletLibrary>,
+    queue: OnceLock<WalletQueue>,
+}
+
+impl LazyWalletQueue {
+    /// Create a new lazy wallet queue
+    pub fn new(library: Arc<WalletLibrary>) -> Self {
+        Self {
+            library,
+            queue: OnceLock::new(),
         }
+    }
+
+    /// Get or initialize the queue
+    fn get_or_init(&self) -> &WalletQueue {
+        self.queue.get_or_init(|| {
+            WalletQueue::new(self.library.clone())
+        })
+    }
+
+    /// Create a new HD wallet from provided mnemonic
+    pub async fn create_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().create_wallet(params_json).await
+    }
+
+    /// Import an existing wallet from mnemonic
+    pub async fn import_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().import_wallet(params_json).await
+    }
+
+    /// Authenticate and load wallet into memory
+    pub async fn unlock_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().unlock_wallet(params_json).await
+    }
+
+    /// Derive addresses for specified blockchains
+    pub async fn generate_addresses(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().generate_addresses(params_json).await
+    }
+
+    /// Export wallet metadata without private keys
+    pub async fn export_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().export_wallet(params_json).await
+    }
+
+    /// Change wallet display name
+    pub async fn rename_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().rename_wallet(params_json).await
+    }
+
+    /// Enumerate all wallets on USB
+    pub async fn list_wallets(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().list_wallets(params_json).await
+    }
+
+    /// Get library version
+    pub async fn get_version(&self) -> Result<serde_json::Value, String> {
+        self.get_or_init().get_version().await
     }
 }

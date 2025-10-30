@@ -67,41 +67,79 @@ pub async fn clear_sensitive_memory() -> Result<(), String> {
 }
 
 /// macOS screenshot protection using NSWindow sharing type
+/// IMPORTANT: NSWindow operations MUST run on main thread (macOS requirement)
 #[cfg(target_os = "macos")]
 async fn enable_screenshot_protection_macos(window: Window) -> Result<(), String> {
-    use cocoa::base::{id, nil};
+    use cocoa::base::id;
     use objc::{msg_send, sel, sel_impl};
+    use std::sync::mpsc;
 
-    if let Ok(ns_window) = window.ns_window() {
-        unsafe {
-            let ns_window = ns_window as id;
-            // NSWindowSharingNone = 0 (no screen sharing/capture)
-            let _: () = msg_send![ns_window, setSharingType: 0u64];
-        }
-        tracing::info!("Screenshot protection enabled (macOS)");
-        Ok(())
-    } else {
-        Err("Failed to get NSWindow".to_string())
-    }
+    // Create oneshot channel for result
+    let (tx, rx) = mpsc::channel();
+
+    // Clone window for move into closure
+    let window_clone = window.clone();
+
+    // Dispatch to main thread using Tauri's dispatch mechanism
+    window.run_on_main_thread(move || {
+        let result = if let Ok(ns_window) = window_clone.ns_window() {
+            unsafe {
+                let ns_window = ns_window as id;
+                // NSWindowSharingNone = 0 (no screen sharing/capture)
+                let _: () = msg_send![ns_window, setSharingType: 0u64];
+            }
+            tracing::info!("Screenshot protection enabled (macOS)");
+            Ok(())
+        } else {
+            Err("Failed to get NSWindow".to_string())
+        };
+        let _ = tx.send(result);
+    }).map_err(|e| format!("Failed to dispatch to main thread: {}", e))?;
+
+    // Wait for result from main thread (use spawn_blocking to avoid blocking async runtime)
+    tokio::task::spawn_blocking(move || {
+        rx.recv().map_err(|_| "Main thread dispatch failed".to_string())?
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
 }
 
 /// macOS screenshot protection disable
+/// IMPORTANT: NSWindow operations MUST run on main thread (macOS requirement)
 #[cfg(target_os = "macos")]
 async fn disable_screenshot_protection_macos(window: Window) -> Result<(), String> {
-    use cocoa::base::{id, nil};
+    use cocoa::base::id;
     use objc::{msg_send, sel, sel_impl};
+    use std::sync::mpsc;
 
-    if let Ok(ns_window) = window.ns_window() {
-        unsafe {
-            let ns_window = ns_window as id;
-            // NSWindowSharingReadOnly = 1 (allow screen sharing)
-            let _: () = msg_send![ns_window, setSharingType: 1u64];
-        }
-        tracing::info!("Screenshot protection disabled (macOS)");
-        Ok(())
-    } else {
-        Err("Failed to get NSWindow".to_string())
-    }
+    // Create oneshot channel for result
+    let (tx, rx) = mpsc::channel();
+
+    // Clone window for move into closure
+    let window_clone = window.clone();
+
+    // Dispatch to main thread using Tauri's dispatch mechanism
+    window.run_on_main_thread(move || {
+        let result = if let Ok(ns_window) = window_clone.ns_window() {
+            unsafe {
+                let ns_window = ns_window as id;
+                // NSWindowSharingReadOnly = 1 (allow screen sharing)
+                let _: () = msg_send![ns_window, setSharingType: 1u64];
+            }
+            tracing::info!("Screenshot protection disabled (macOS)");
+            Ok(())
+        } else {
+            Err("Failed to get NSWindow".to_string())
+        };
+        let _ = tx.send(result);
+    }).map_err(|e| format!("Failed to dispatch to main thread: {}", e))?;
+
+    // Wait for result from main thread (use spawn_blocking to avoid blocking async runtime)
+    tokio::task::spawn_blocking(move || {
+        rx.recv().map_err(|_| "Main thread dispatch failed".to_string())?
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
 }
 
 /// Windows screenshot protection using SetWindowDisplayAffinity

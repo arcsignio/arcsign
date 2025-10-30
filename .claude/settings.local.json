@@ -32,7 +32,16 @@
       "Read(//Users/jnr350/Library/Logs/DiagnosticReports/**)",
       "Bash(source \"$HOME/.cargo/env\")",
       "Bash(~/.cargo/bin/cargo build:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(~/.cargo/bin/cargo tauri:*)",
+      "Bash(python3:*)",
+      "Bash(~/.cargo/bin/cargo clean:*)",
+      "Bash(test:*)",
+      "Bash(open:*)",
+      "Bash(~/.cargo/bin/cargo metadata --format-version=1)",
+      "Bash(/dev/null)",
+      "Bash(~/.cargo/bin/cargo check)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []
