@@ -340,3 +340,42 @@ func (s *WalletService) generateMultiCoinAddresses(mnemonic string, passphrase s
 	// 6. Return generated address book
 	return addressBook, nil
 }
+
+// ListWallets enumerates all wallets in the storage path
+// Returns a slice of wallet metadata for all valid wallets found
+func (s *WalletService) ListWallets() ([]*models.Wallet, error) {
+	// 1. Read storage directory
+	entries, err := os.ReadDir(s.storagePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Storage path doesn't exist - return empty list
+			return []*models.Wallet{}, nil
+		}
+		return nil, fmt.Errorf("failed to read storage directory: %w", err)
+	}
+
+	wallets := make([]*models.Wallet, 0)
+
+	// 2. Iterate through each entry
+	for _, entry := range entries {
+		// Skip files, only process directories
+		if !entry.IsDir() {
+			continue
+		}
+
+		// Each directory name should be a wallet ID
+		walletID := entry.Name()
+
+		// 3. Try to load wallet metadata
+		wallet, err := s.LoadWallet(walletID)
+		if err != nil {
+			// Skip invalid wallets (missing or corrupted wallet.json)
+			fmt.Printf("Warning: skipping invalid wallet directory %s: %v\n", walletID, err)
+			continue
+		}
+
+		wallets = append(wallets, wallet)
+	}
+
+	return wallets, nil
+}

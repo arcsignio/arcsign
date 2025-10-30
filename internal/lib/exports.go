@@ -560,18 +560,33 @@ func ListWallets(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// FR-003: List all wallets on USB
-	wallets := []map[string]interface{}{
-		{
-			"walletId":   "placeholder-wallet-1",
-			"walletName": "My Wallet 1",
-			"createdAt":  time.Now().Add(-24 * time.Hour).Format(time.RFC3339),
-		},
-		{
-			"walletId":   "placeholder-wallet-2",
-			"walletName": "My Wallet 2",
-			"createdAt":  time.Now().Format(time.RFC3339),
-		},
+	// Create wallet service with USB path
+	svc := wallet.NewWalletService(input.USBPath)
+
+	// List all wallets from storage
+	walletObjs, err := svc.ListWallets()
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Convert wallet objects to FFI response format
+	wallets := make([]map[string]interface{}, 0, len(walletObjs))
+	for _, w := range walletObjs {
+		addressCount := 0
+		if w.AddressBook != nil {
+			addressCount = len(w.AddressBook.Addresses)
+		}
+
+		wallets = append(wallets, map[string]interface{}{
+			"walletId":      w.ID,
+			"walletName":    w.Name,
+			"createdAt":     w.CreatedAt.Format(time.RFC3339),
+			"addressCount":  addressCount,
+			"hasPassphrase": w.UsesPassphrase,
+		})
 	}
 
 	data := map[string]interface{}{
