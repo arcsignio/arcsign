@@ -99,35 +99,37 @@ func GetVersion() *C.char {
 }
 
 //export CreateWallet
-// CreateWallet creates a new HD wallet from provided mnemonic.
+// CreateWallet creates a new HD wallet with auto-generated mnemonic.
 // T021: Implement CreateWallet export function calling existing wallet.CreateWallet service
 //
-// Input JSON: {"walletName": "...", "mnemonic": "...", "password": "...", "usbPath": "..."}
-// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "createdAt": "..."}}
+// Input JSON: {"walletName": "...", "password": "...", "usbPath": "...", "wordCount": 12|24, "passphrase": "..."}
+// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "mnemonic": "...", "createdAt": "..."}}
 //
 // Caller MUST call GoFree() on the returned pointer.
 func CreateWallet(params *C.char) *C.char {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
-		// FR-014: Log entry/exit with timing (production would use proper logger)
 		_ = elapsed
 	}()
 
-	// Panic recovery
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
 		}
 	}()
 
-	// Parse input JSON
 	paramsJSON := C.GoString(params)
 	var input struct {
 		WalletName string `json:"walletName"`
-		Mnemonic   string `json:"mnemonic"`
 		Password   string `json:"password"`
 		USBPath    string `json:"usbPath"`
+		WordCount  int    `json:"wordCount"`  // 12 or 24
+		Passphrase string `json:"passphrase"` // BIP39 passphrase (optional)
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -136,31 +138,48 @@ func CreateWallet(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
+	// Default to 24 words if not specified
+	if input.WordCount != 12 && input.WordCount != 24 {
+		input.WordCount = 24
+	}
+
 	// T026: Ensure sensitive data is zeroed before function returns
 	defer func() {
-		zeroString(&input.Mnemonic)
 		zeroString(&input.Password)
+		zeroString(&input.Passphrase)
 	}()
 
 	// Create wallet service
 	svc := wallet.NewWalletService(input.USBPath)
 
-	// Note: The existing CreateWallet generates its own mnemonic
-	// For FFI, we need to import from provided mnemonic instead
-	// So we'll use a hybrid approach: validate mnemonic, then save it
-	// This is a simplified implementation for Phase 3
+	usesPassphrase := input.Passphrase != ""
 
-	// For now, return a placeholder that indicates the service exists
-	// Full implementation would validate mnemonic and save encrypted wallet
-	data := map[string]interface{}{
-		"walletId":   "placeholder-id", // Would be generated via utils.GenerateSecureUUID()
-		"walletName": input.WalletName,
-		"createdAt":  time.Now().Format(time.RFC3339),
-		"note":       "Full implementation pending - service integration ready",
+	// Create wallet using service (generates mnemonic and addresses)
+	walletObj, mnemonic, err := svc.CreateWallet(
+		input.WalletName,
+		input.Password,
+		input.WordCount,
+		usesPassphrase,
+		input.Passphrase,
+	)
+
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
 	}
 
-	// Suppress unused variable warning temporarily
-	_ = svc
+	// Ensure mnemonic is cleared from memory after return
+	defer zeroString(&mnemonic)
+
+	// Return success response with mnemonic (caller must display and secure it)
+	data := map[string]interface{}{
+		"walletId":   walletObj.ID,
+		"walletName": walletObj.Name,
+		"mnemonic":   mnemonic, // IMPORTANT: Caller must display this once and clear it
+		"createdAt":  walletObj.CreatedAt.Format(time.RFC3339),
+	}
 
 	response := NewSuccessResponse(data)
 	jsonBytes, _ := json.Marshal(response)

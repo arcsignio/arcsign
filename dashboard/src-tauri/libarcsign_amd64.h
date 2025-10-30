@@ -104,11 +104,11 @@ extern void GoFree(char* ptr);
 // Caller MUST call GoFree() on the returned pointer.
 extern char* GetVersion(void);
 
-// CreateWallet creates a new HD wallet from provided mnemonic.
+// CreateWallet creates a new HD wallet with auto-generated mnemonic.
 // T021: Implement CreateWallet export function calling existing wallet.CreateWallet service
 //
-// Input JSON: {"walletName": "...", "mnemonic": "...", "password": "...", "usbPath": "..."}
-// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "createdAt": "..."}}
+// Input JSON: {"walletName": "...", "password": "...", "usbPath": "...", "wordCount": 12|24, "passphrase": "..."}
+// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "mnemonic": "...", "createdAt": "..."}}
 //
 // Caller MUST call GoFree() on the returned pointer.
 extern char* CreateWallet(char* params);
