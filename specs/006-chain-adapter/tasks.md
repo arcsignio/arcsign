@@ -93,9 +93,9 @@ ChainAdapter provides a unified interface for cross-chain transactions (build/es
 
 - [X] T030 [P] [US1] Implement EthereumAdapter stub in src/chainadapter/ethereum/adapter.go (ChainID, Capabilities methods)
 - [X] T031 [P] [US1] Implement Ethereum transaction builder in src/chainadapter/ethereum/builder.go (nonce query, EIP-1559 tx creation)
-- [ ] T032 [P] [US1] Unit test Ethereum builder with mock RPC in tests/unit/ethereum_test.go
-- [ ] T033 [US1] Implement Ethereum Build() method in src/chainadapter/ethereum/adapter.go
-- [ ] T034 [US1] Unit test Ethereum Build() with various inputs in tests/unit/ethereum_test.go
+- [X] T032 [P] [US1] Unit test Ethereum builder with mock RPC in tests/unit/ethereum_test.go
+- [X] T033 [US1] Implement Ethereum Build() method in src/chainadapter/ethereum/adapter.go
+- [X] T034 [US1] Unit test Ethereum Build() with various inputs in tests/unit/ethereum_test.go
 
 ### US1 Integration Tests
 

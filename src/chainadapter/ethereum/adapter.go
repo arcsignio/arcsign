@@ -3,6 +3,7 @@ package ethereum
 
 import (
 	"context"
+	"math/big"
 
 	"github.com/arcsign/chainadapter"
 	"github.com/arcsign/chainadapter/rpc"
@@ -15,6 +16,8 @@ type EthereumAdapter struct {
 	txStore   storage.TransactionStateStore
 	chainID   string   // "ethereum", "ethereum-goerli", "ethereum-sepolia"
 	networkID int64    // Network ID (1 for mainnet, 5 for goerli, etc.)
+	builder   *TransactionBuilder
+	rpcHelper *RPCHelper
 }
 
 // NewEthereumAdapter creates a new Ethereum ChainAdapter.
@@ -31,11 +34,16 @@ func NewEthereumAdapter(rpcClient rpc.RPCClient, txStore storage.TransactionStat
 		chainID = "ethereum-sepolia"
 	}
 
+	// Create transaction builder
+	builder := NewTransactionBuilder(networkID)
+
 	return &EthereumAdapter{
 		rpcClient: rpcClient,
 		txStore:   txStore,
 		chainID:   chainID,
 		networkID: networkID,
+		builder:   builder,
+		rpcHelper: NewRPCHelper(rpcClient),
 	}, nil
 }
 
@@ -69,12 +77,80 @@ func (e *EthereumAdapter) Capabilities() *chainadapter.Capabilities {
 // - MUST be deterministic (same request → same unsigned tx)
 // - MUST query current nonce and estimate gas
 func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.TransactionRequest) (*chainadapter.UnsignedTransaction, error) {
-	// TODO: Implement in T033
-	return nil, chainadapter.NewNonRetryableError(
-		"ERR_NOT_IMPLEMENTED",
-		"Ethereum Build() not yet implemented",
-		nil,
+	// Step 1: Get nonce for the from address
+	nonce, err := e.rpcHelper.GetTransactionCount(ctx, req.From)
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Estimate gas for the transaction
+	var data []byte
+	if req.Memo != "" {
+		data = []byte(req.Memo)
+	}
+
+	gasLimit, err := e.rpcHelper.EstimateGas(ctx, req.From, req.To, req.Amount, data)
+	if err != nil {
+		// Use default gas limit if estimation fails
+		gasLimit = 21000 // Standard ETH transfer
+	}
+
+	// Add 10% buffer to gas estimate
+	gasLimit = gasLimit * 110 / 100
+
+	// Step 3: Get EIP-1559 fee parameters
+	baseFee, err := e.rpcHelper.GetBaseFee(ctx)
+	if err != nil {
+		// Fallback to default base fee
+		baseFee = big.NewInt(30e9) // 30 Gwei
+	}
+
+	priorityFee, err := e.rpcHelper.GetFeeHistory(ctx, 10)
+	if err != nil {
+		// Fallback to default priority fee
+		priorityFee = big.NewInt(2e9) // 2 Gwei
+	}
+
+	// Calculate maxFeePerGas based on FeeSpeed
+	var multiplier int64
+	switch req.FeeSpeed {
+	case chainadapter.FeeSpeedFast:
+		multiplier = 3 // 3x base fee
+	case chainadapter.FeeSpeedNormal:
+		multiplier = 2 // 2x base fee
+	case chainadapter.FeeSpeedSlow:
+		multiplier = 1 // 1x base fee + buffer
+	default:
+		multiplier = 2
+	}
+
+	maxFeePerGas := new(big.Int).Mul(baseFee, big.NewInt(multiplier))
+	maxFeePerGas.Add(maxFeePerGas, priorityFee)
+
+	maxPriorityFeePerGas := priorityFee
+
+	// Adjust priority fee based on speed
+	if req.FeeSpeed == chainadapter.FeeSpeedFast {
+		maxPriorityFeePerGas = new(big.Int).Mul(priorityFee, big.NewInt(2))
+	}
+
+	// Step 4: Build the unsigned transaction
+	unsigned, err := e.builder.Build(
+		ctx,
+		req,
+		nonce,
+		gasLimit,
+		maxFeePerGas,
+		maxPriorityFeePerGas,
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 5: Set the correct chainID
+	unsigned.ChainID = e.chainID
+
+	return unsigned, nil
 }
 
 // Estimate calculates fee estimates with confidence bounds for Ethereum.
