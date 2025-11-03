@@ -38,8 +38,8 @@ go.work
 *~
 .DS_Store
 
-# Claude Code local settings
-.claude/settings.local.json
+# Claude Code directory
+.claude/
 
 # Temporary files
 *.tmp
