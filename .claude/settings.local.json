@@ -41,7 +41,17 @@
       "Bash(~/.cargo/bin/cargo metadata --format-version=1)",
       "Bash(/dev/null)",
       "Bash(~/.cargo/bin/cargo check)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Read(//Users/jnr350/Desktop/**)",
+      "Bash(paste:*)",
+      "Bash(awk:*)",
+      "Read(///**)",
+      "Bash(for formatter in \"bitcoin\" \"solana\" \"ripple\" \"dogecoin\" \"cardano\" \"tron\" \"polkadot\" \"litecoin\" \"bitcoincash\" \"stellar\" \"cosmos\" \"monero\" \"filecoin\" \"hedera\" \"aptos\" \"algorand\" \"near\" \"zcash\" \"dash\" \"starknet\" \"harmony\" \"osmosis\" \"juno\" \"evmos\" \"secret\" \"kusama\" \"icon\" \"tezos\" \"zilliqa\")",
+      "Bash(do echo \"=== $formatter ===\" grep -A 2 \"FormatterID:.*\"\"$formatter\"\"\" internal/services/coinregistry/registry.go)",
+      "Bash(for chain in \"tron\" \"cardano\" \"polkadot\" \"cosmos\")",
+      "Bash(do echo \"$chain:\")",
+      "Bash(done)",
+      "Bash(xargs:*)"
     ],
     "deny": [],
     "ask": []
