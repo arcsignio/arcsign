@@ -11,12 +11,14 @@ require (
 	blockwatch.cc/tzgo v1.18.4
 	github.com/Zilliqa/gozilliqa-sdk v1.2.0
 	github.com/anyproto/go-slip10 v1.0.0
+	github.com/arcsign/chainadapter v0.0.0-00010101000000-000000000000
 	github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcutil v1.1.1
 	github.com/ethereum/go-ethereum v1.16.4
 	github.com/gagliardetto/solana-go v1.14.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/stellar/go v0.0.0-20251014044201-dd6ce8e5f01d
+	github.com/stretchr/testify v1.10.0
 	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/vedhavyas/go-subkey v1.0.4
 	golang.org/x/sys v0.37.0
@@ -58,3 +60,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 )
+
+// Local module replacement for chainadapter
+replace github.com/arcsign/chainadapter => ./src/chainadapter

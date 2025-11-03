@@ -12,12 +12,13 @@ import (
 
 // BitcoinAdapter implements ChainAdapter for Bitcoin blockchain.
 type BitcoinAdapter struct {
-	rpcClient rpc.RPCClient
-	txStore   storage.TransactionStateStore
-	chainID   string // "bitcoin", "bitcoin-testnet", "bitcoin-regtest"
-	network   string // "mainnet", "testnet3", "regtest"
-	builder   *TransactionBuilder
-	rpcHelper *RPCHelper
+	rpcClient    rpc.RPCClient
+	txStore      storage.TransactionStateStore
+	chainID      string // "bitcoin", "bitcoin-testnet", "bitcoin-regtest"
+	network      string // "mainnet", "testnet3", "regtest"
+	builder      *TransactionBuilder
+	rpcHelper    *RPCHelper
+	feeEstimator *FeeEstimator
 }
 
 // NewBitcoinAdapter creates a new Bitcoin ChainAdapter.
@@ -40,13 +41,17 @@ func NewBitcoinAdapter(rpcClient rpc.RPCClient, txStore storage.TransactionState
 		return nil, fmt.Errorf("failed to create transaction builder: %w", err)
 	}
 
+	// Create RPC helper
+	rpcHelper := NewRPCHelper(rpcClient)
+
 	return &BitcoinAdapter{
-		rpcClient: rpcClient,
-		txStore:   txStore,
-		chainID:   chainID,
-		network:   network,
-		builder:   builder,
-		rpcHelper: NewRPCHelper(rpcClient),
+		rpcClient:    rpcClient,
+		txStore:      txStore,
+		chainID:      chainID,
+		network:      network,
+		builder:      builder,
+		rpcHelper:    rpcHelper,
+		feeEstimator: NewFeeEstimator(rpcHelper, network),
 	}, nil
 }
 
@@ -134,12 +139,16 @@ func (b *BitcoinAdapter) Build(ctx context.Context, req *chainadapter.Transactio
 // - SHOULD complete within 2 seconds
 // - MUST use estimatesmartfee + mempool analysis
 func (b *BitcoinAdapter) Estimate(ctx context.Context, req *chainadapter.TransactionRequest) (*chainadapter.FeeEstimate, error) {
-	// TODO: Implement in T042
-	return nil, chainadapter.NewNonRetryableError(
-		"ERR_NOT_IMPLEMENTED",
-		"Bitcoin Estimate() not yet implemented",
-		nil,
-	)
+	// Call fee estimator
+	estimate, err := b.feeEstimator.Estimate(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set correct chainID
+	estimate.ChainID = b.chainID
+
+	return estimate, nil
 }
 
 // Sign signs an unsigned Bitcoin transaction using the provided signer.
