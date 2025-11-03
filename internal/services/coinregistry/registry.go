@@ -81,13 +81,14 @@ func NewRegistry() *Registry {
 	})
 
 	// Rank 9: Cardano
-	r.addCoin(CoinMetadata{
-		Symbol:        "ADA",
-		Name:          "Cardano",
-		CoinType:      1815,
-		FormatterID:   "cardano",
-		MarketCapRank: 9,
-	})
+	// Commented out: Simplified implementation (uses hex instead of proper Bech32 encoding)
+	// r.addCoin(CoinMetadata{
+	// 	Symbol:        "ADA",
+	// 	Name:          "Cardano",
+	// 	CoinType:      1815,
+	// 	FormatterID:   "cardano",
+	// 	MarketCapRank: 9,
+	// })
 
 	// Rank 10: TRON
 	r.addCoin(CoinMetadata{
@@ -108,13 +109,14 @@ func NewRegistry() *Registry {
 	})
 
 	// Rank 13: Polkadot
-	r.addCoin(CoinMetadata{
-		Symbol:        "DOT",
-		Name:          "Polkadot",
-		CoinType:      354,
-		FormatterID:   "polkadot",
-		MarketCapRank: 13,
-	})
+	// Commented out: Simplified implementation (uses hex instead of proper SS58 encoding)
+	// r.addCoin(CoinMetadata{
+	// 	Symbol:        "DOT",
+	// 	Name:          "Polkadot",
+	// 	CoinType:      354,
+	// 	FormatterID:   "polkadot",
+	// 	MarketCapRank: 13,
+	// })
 
 	// Rank 15: Polygon
 	r.addCoin(CoinMetadata{
@@ -171,40 +173,44 @@ func NewRegistry() *Registry {
 	})
 
 	// Rank 22: Monero
-	r.addCoin(CoinMetadata{
-		Symbol:        "XMR",
-		Name:          "Monero",
-		CoinType:      128,
-		FormatterID:   "monero",
-		MarketCapRank: 22,
-	})
+	// Commented out: Simplified implementation (uses hex instead of proper Monero address format)
+	// r.addCoin(CoinMetadata{
+	// 	Symbol:        "XMR",
+	// 	Name:          "Monero",
+	// 	CoinType:      128,
+	// 	FormatterID:   "monero",
+	// 	MarketCapRank: 22,
+	// })
 
 	// Rank 23: Filecoin
-	r.addCoin(CoinMetadata{
-		Symbol:        "FIL",
-		Name:          "Filecoin",
-		CoinType:      461,
-		FormatterID:   "filecoin",
-		MarketCapRank: 23,
-	})
+	// Commented out: Simplified implementation (uses hex instead of proper Base32 encoding)
+	// r.addCoin(CoinMetadata{
+	// 	Symbol:        "FIL",
+	// 	Name:          "Filecoin",
+	// 	CoinType:      461,
+	// 	FormatterID:   "filecoin",
+	// 	MarketCapRank: 23,
+	// })
 
 	// Rank 24: Hedera
-	r.addCoin(CoinMetadata{
-		Symbol:        "HBAR",
-		Name:          "Hedera",
-		CoinType:      3030,
-		FormatterID:   "hedera",
-		MarketCapRank: 24,
-	})
+	// Commented out: Simplified implementation (account ID generation simplified)
+	// r.addCoin(CoinMetadata{
+	// 	Symbol:        "HBAR",
+	// 	Name:          "Hedera",
+	// 	CoinType:      3030,
+	// 	FormatterID:   "hedera",
+	// 	MarketCapRank: 24,
+	// })
 
 	// Rank 25: Aptos
-	r.addCoin(CoinMetadata{
-		Symbol:        "APT",
-		Name:          "Aptos",
-		CoinType:      637,
-		FormatterID:   "aptos",
-		MarketCapRank: 25,
-	})
+	// Commented out: Simplified implementation (uses hex instead of proper Aptos address format)
+	// r.addCoin(CoinMetadata{
+	// 	Symbol:        "APT",
+	// 	Name:          "Aptos",
+	// 	CoinType:      637,
+	// 	FormatterID:   "aptos",
+	// 	MarketCapRank: 25,
+	// })
 
 	// Rank 26: VeChain
 	r.addCoin(CoinMetadata{
@@ -216,22 +222,24 @@ func NewRegistry() *Registry {
 	})
 
 	// Rank 27: Algorand
-	r.addCoin(CoinMetadata{
-		Symbol:        "ALGO",
-		Name:          "Algorand",
-		CoinType:      283,
-		FormatterID:   "algorand",
-		MarketCapRank: 27,
-	})
+	// Commented out: Simplified implementation (uses hex instead of proper Base32 encoding)
+	// r.addCoin(CoinMetadata{
+	// 	Symbol:        "ALGO",
+	// 	Name:          "Algorand",
+	// 	CoinType:      283,
+	// 	FormatterID:   "algorand",
+	// 	MarketCapRank: 27,
+	// })
 
 	// Rank 28: Near Protocol
-	r.addCoin(CoinMetadata{
-		Symbol:        "NEAR",
-		Name:          "NEAR Protocol",
-		CoinType:      397,
-		FormatterID:   "near",
-		MarketCapRank: 28,
-	})
+	// Commented out: Simplified implementation (uses hex instead of proper implicit account format)
+	// r.addCoin(CoinMetadata{
+	// 	Symbol:        "NEAR",
+	// 	Name:          "NEAR Protocol",
+	// 	CoinType:      397,
+	// 	FormatterID:   "near",
+	// 	MarketCapRank: 28,
+	// })
 
 	// Rank 29: Zcash
 	r.addCoin(CoinMetadata{
