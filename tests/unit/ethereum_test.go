@@ -352,3 +352,263 @@ func TestEthereumBuilder_HumanReadable(t *testing.T) {
 	assert.Contains(t, unsigned.HumanReadable, "gas_limit")
 	assert.Contains(t, unsigned.HumanReadable, req.Memo)
 }
+
+// TestEthereumAdapter_Estimate tests the Estimate() method
+func TestEthereumAdapter_Estimate(t *testing.T) {
+	// Create mocks
+	mockRPC := new(MockRPCClient)
+	mockTxStore := storage.NewMemoryTxStore()
+
+	// Create adapter
+	adapter, err := ethereum.NewEthereumAdapter(mockRPC, mockTxStore, 1) // Mainnet
+	require.NoError(t, err)
+
+	// Mock eth_getBlockByNumber response (base fee)
+	mockBlockJSON := []byte(`{"baseFeePerGas": "0x6fc23ac00"}`) // 30 Gwei
+	mockRPC.On("Call", mock.Anything, "eth_getBlockByNumber", mock.Anything).
+		Return(json.RawMessage(mockBlockJSON), nil)
+
+	// Mock eth_feeHistory response (priority fee)
+	mockFeeHistoryJSON := []byte(`{
+		"reward": [
+			["0x77359400"],
+			["0x77359400"]
+		]
+	}`) // 2 Gwei
+	mockRPC.On("Call", mock.Anything, "eth_feeHistory", mock.Anything).
+		Return(json.RawMessage(mockFeeHistoryJSON), nil)
+
+	t.Run("Valid Estimate - Normal Speed", func(t *testing.T) {
+		req := &chainadapter.TransactionRequest{
+			From:     "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+			To:       "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+			Amount:   big.NewInt(1e18), // 1 ETH
+			Asset:    "ETH",
+			FeeSpeed: chainadapter.FeeSpeedNormal,
+		}
+
+		estimate, err := adapter.Estimate(context.Background(), req)
+
+		require.NoError(t, err)
+		require.NotNil(t, estimate)
+
+		// Verify fee bounds (MinFee <= Recommended <= MaxFee)
+		assert.True(t, estimate.MinFee.Cmp(estimate.Recommended) <= 0,
+			"MinFee (%s) must be <= Recommended (%s)",
+			estimate.MinFee.String(), estimate.Recommended.String())
+		assert.True(t, estimate.Recommended.Cmp(estimate.MaxFee) <= 0,
+			"Recommended (%s) must be <= MaxFee (%s)",
+			estimate.Recommended.String(), estimate.MaxFee.String())
+
+		// Verify all fees are positive
+		assert.True(t, estimate.MinFee.Cmp(big.NewInt(0)) > 0, "MinFee must be positive")
+		assert.True(t, estimate.Recommended.Cmp(big.NewInt(0)) > 0, "Recommended must be positive")
+		assert.True(t, estimate.MaxFee.Cmp(big.NewInt(0)) > 0, "MaxFee must be positive")
+
+		// Verify confidence is in valid range
+		assert.GreaterOrEqual(t, estimate.Confidence, 0, "Confidence must be >= 0")
+		assert.LessOrEqual(t, estimate.Confidence, 100, "Confidence must be <= 100")
+
+		// Verify chain ID matches
+		assert.Equal(t, "ethereum", estimate.ChainID)
+
+		// Verify estimated blocks
+		assert.Equal(t, 3, estimate.EstimatedBlocks, "Normal speed should target 3 blocks")
+
+		// Verify reason is provided
+		assert.NotEmpty(t, estimate.Reason, "Reason should explain confidence level")
+
+		// Ethereum has base fee (EIP-1559)
+		assert.NotNil(t, estimate.BaseFee, "Ethereum should have base fee")
+		assert.True(t, estimate.BaseFee.Cmp(big.NewInt(0)) > 0, "Base fee should be positive")
+	})
+
+	t.Run("Fee Speed Variations", func(t *testing.T) {
+		speeds := []struct {
+			speed          chainadapter.FeeSpeed
+			expectedBlocks int
+		}{
+			{chainadapter.FeeSpeedFast, 1},
+			{chainadapter.FeeSpeedNormal, 3},
+			{chainadapter.FeeSpeedSlow, 6},
+		}
+
+		for _, tc := range speeds {
+			t.Run(string(tc.speed), func(t *testing.T) {
+				req := &chainadapter.TransactionRequest{
+					From:     "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+					To:       "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+					Amount:   big.NewInt(1e18),
+					Asset:    "ETH",
+					FeeSpeed: tc.speed,
+				}
+
+				estimate, err := adapter.Estimate(context.Background(), req)
+				require.NoError(t, err)
+				require.NotNil(t, estimate)
+
+				assert.Equal(t, tc.expectedBlocks, estimate.EstimatedBlocks,
+					"Expected %d blocks for %s speed", tc.expectedBlocks, tc.speed)
+			})
+		}
+	})
+
+	t.Run("RPC Failure - Fallback Estimate", func(t *testing.T) {
+		// Create a separate mock that returns errors
+		mockFailRPC := new(MockRPCClient)
+		failAdapter, err := ethereum.NewEthereumAdapter(mockFailRPC, mockTxStore, 1)
+		require.NoError(t, err)
+
+		// Mock RPC to return error
+		mockFailRPC.On("Call", mock.Anything, "eth_getBlockByNumber", mock.Anything).
+			Return(json.RawMessage(nil), chainadapter.NewRetryableError(
+				"ERR_RPC_CONNECTION",
+				"RPC connection failed",
+				nil,
+			))
+
+		req := &chainadapter.TransactionRequest{
+			From:     "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+			To:       "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+			Amount:   big.NewInt(1e18),
+			Asset:    "ETH",
+			FeeSpeed: chainadapter.FeeSpeedNormal,
+		}
+
+		estimate, err := failAdapter.Estimate(context.Background(), req)
+
+		// Should succeed with fallback estimates
+		require.NoError(t, err)
+		require.NotNil(t, estimate)
+
+		// Verify fee bounds are still valid
+		assert.True(t, estimate.MinFee.Cmp(estimate.Recommended) <= 0)
+		assert.True(t, estimate.Recommended.Cmp(estimate.MaxFee) <= 0)
+
+		// Fallback should have lower confidence (50%)
+		assert.Equal(t, 50, estimate.Confidence, "Fallback estimates should have 50%% confidence")
+
+		// Reason should indicate fallback
+		assert.Contains(t, estimate.Reason, "fallback", "Reason should mention fallback")
+
+		mockFailRPC.AssertExpectations(t)
+	})
+
+	t.Run("Estimate Idempotency", func(t *testing.T) {
+		req := &chainadapter.TransactionRequest{
+			From:     "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+			To:       "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+			Amount:   big.NewInt(1e18),
+			Asset:    "ETH",
+			FeeSpeed: chainadapter.FeeSpeedNormal,
+		}
+
+		// Call Estimate twice
+		estimate1, err1 := adapter.Estimate(context.Background(), req)
+		estimate2, err2 := adapter.Estimate(context.Background(), req)
+
+		require.NoError(t, err1)
+		require.NoError(t, err2)
+		require.NotNil(t, estimate1)
+		require.NotNil(t, estimate2)
+
+		// Estimates should be very similar (within 10%)
+		diff := new(big.Int).Sub(estimate1.Recommended, estimate2.Recommended)
+		diff.Abs(diff)
+
+		threshold := new(big.Int).Div(estimate1.Recommended, big.NewInt(10))
+
+		assert.True(t, diff.Cmp(threshold) <= 0,
+			"Consecutive estimates should be within 10%%, got diff=%s, threshold=%s",
+			diff.String(), threshold.String())
+	})
+
+	t.Run("High Base Fee - Lower Confidence", func(t *testing.T) {
+		// Create separate mock with high base fee
+		mockHighFeeRPC := new(MockRPCClient)
+		highFeeAdapter, err := ethereum.NewEthereumAdapter(mockHighFeeRPC, mockTxStore, 1)
+		require.NoError(t, err)
+
+		// Mock high base fee (150 Gwei = congested network)
+		mockHighBlockJSON := []byte(`{"baseFeePerGas": "0x22ecb25c00"}`) // 150 Gwei
+		mockHighFeeRPC.On("Call", mock.Anything, "eth_getBlockByNumber", mock.Anything).
+			Return(json.RawMessage(mockHighBlockJSON), nil)
+
+		// Mock normal priority fee
+		mockHighFeeRPC.On("Call", mock.Anything, "eth_feeHistory", mock.Anything).
+			Return(json.RawMessage(mockFeeHistoryJSON), nil)
+
+		req := &chainadapter.TransactionRequest{
+			From:     "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+			To:       "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+			Amount:   big.NewInt(1e18),
+			Asset:    "ETH",
+			FeeSpeed: chainadapter.FeeSpeedNormal,
+		}
+
+		estimate, err := highFeeAdapter.Estimate(context.Background(), req)
+		require.NoError(t, err)
+		require.NotNil(t, estimate)
+
+		// High base fee should result in lower confidence
+		assert.LessOrEqual(t, estimate.Confidence, 70,
+			"High base fee should result in confidence <= 70%%")
+
+		mockHighFeeRPC.AssertExpectations(t)
+	})
+
+	mockRPC.AssertExpectations(t)
+}
+
+// TestEthereumAdapter_EstimateWithDifferentNetworks tests estimation across networks
+func TestEthereumAdapter_EstimateWithDifferentNetworks(t *testing.T) {
+	networks := []struct {
+		networkID       int64
+		expectedChainID string
+	}{
+		{1, "ethereum"},
+		{5, "ethereum-goerli"},
+		{11155111, "ethereum-sepolia"},
+	}
+
+	for _, tc := range networks {
+		t.Run(tc.expectedChainID, func(t *testing.T) {
+			mockRPC := new(MockRPCClient)
+			mockTxStore := storage.NewMemoryTxStore()
+
+			adapter, err := ethereum.NewEthereumAdapter(mockRPC, mockTxStore, tc.networkID)
+			require.NoError(t, err)
+
+			// Mock RPC responses
+			mockBlockJSON := []byte(`{"baseFeePerGas": "0x6fc23ac00"}`) // 30 Gwei
+			mockRPC.On("Call", mock.Anything, "eth_getBlockByNumber", mock.Anything).
+				Return(json.RawMessage(mockBlockJSON), nil)
+
+			mockFeeHistoryJSON := []byte(`{
+				"reward": [
+					["0x77359400"],
+					["0x77359400"]
+				]
+			}`) // 2 Gwei
+			mockRPC.On("Call", mock.Anything, "eth_feeHistory", mock.Anything).
+				Return(json.RawMessage(mockFeeHistoryJSON), nil)
+
+			req := &chainadapter.TransactionRequest{
+				From:     "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+				To:       "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+				Amount:   big.NewInt(1e18),
+				Asset:    "ETH",
+				FeeSpeed: chainadapter.FeeSpeedNormal,
+			}
+
+			estimate, err := adapter.Estimate(context.Background(), req)
+			require.NoError(t, err)
+			require.NotNil(t, estimate)
+
+			assert.Equal(t, tc.expectedChainID, estimate.ChainID,
+				"ChainID should match network")
+
+			mockRPC.AssertExpectations(t)
+		})
+	}
+}

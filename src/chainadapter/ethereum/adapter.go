@@ -12,12 +12,13 @@ import (
 
 // EthereumAdapter implements ChainAdapter for Ethereum blockchain.
 type EthereumAdapter struct {
-	rpcClient rpc.RPCClient
-	txStore   storage.TransactionStateStore
-	chainID   string   // "ethereum", "ethereum-goerli", "ethereum-sepolia"
-	networkID int64    // Network ID (1 for mainnet, 5 for goerli, etc.)
-	builder   *TransactionBuilder
-	rpcHelper *RPCHelper
+	rpcClient    rpc.RPCClient
+	txStore      storage.TransactionStateStore
+	chainID      string   // "ethereum", "ethereum-goerli", "ethereum-sepolia"
+	networkID    int64    // Network ID (1 for mainnet, 5 for goerli, etc.)
+	builder      *TransactionBuilder
+	rpcHelper    *RPCHelper
+	feeEstimator *FeeEstimator
 }
 
 // NewEthereumAdapter creates a new Ethereum ChainAdapter.
@@ -37,13 +38,17 @@ func NewEthereumAdapter(rpcClient rpc.RPCClient, txStore storage.TransactionStat
 	// Create transaction builder
 	builder := NewTransactionBuilder(networkID)
 
+	// Create RPC helper
+	rpcHelper := NewRPCHelper(rpcClient)
+
 	return &EthereumAdapter{
-		rpcClient: rpcClient,
-		txStore:   txStore,
-		chainID:   chainID,
-		networkID: networkID,
-		builder:   builder,
-		rpcHelper: NewRPCHelper(rpcClient),
+		rpcClient:    rpcClient,
+		txStore:      txStore,
+		chainID:      chainID,
+		networkID:    networkID,
+		builder:      builder,
+		rpcHelper:    rpcHelper,
+		feeEstimator: NewFeeEstimator(rpcHelper, uint64(networkID)),
 	}, nil
 }
 
@@ -162,12 +167,16 @@ func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.Transacti
 // - SHOULD complete within 2 seconds
 // - MUST use EIP-1559 baseFee + eth_feeHistory
 func (e *EthereumAdapter) Estimate(ctx context.Context, req *chainadapter.TransactionRequest) (*chainadapter.FeeEstimate, error) {
-	// TODO: Implement in T046
-	return nil, chainadapter.NewNonRetryableError(
-		"ERR_NOT_IMPLEMENTED",
-		"Ethereum Estimate() not yet implemented",
-		nil,
-	)
+	// Call fee estimator
+	estimate, err := e.feeEstimator.Estimate(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set correct chainID
+	estimate.ChainID = e.chainID
+
+	return estimate, nil
 }
 
 // Sign signs an unsigned Ethereum transaction using the provided signer.
