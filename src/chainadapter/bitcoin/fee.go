@@ -24,6 +24,79 @@ func NewFeeEstimator(rpcHelper *RPCHelper, network string) *FeeEstimator {
 	}
 }
 
+// SubscribeFeeUpdates provides real-time fee estimate updates by polling for new blocks.
+//
+// Note: Bitcoin Core doesn't have native WebSocket support for subscriptions.
+// This implementation uses polling with the provided interval.
+// For production, consider using Bitcoin Core ZMQ for real-time block notifications.
+//
+// Parameters:
+// - ctx: Context for cancellation
+// - req: Transaction request (used for fee speed calculation)
+// - pollInterval: How often to check for new blocks (e.g., 30 seconds)
+//
+// Returns:
+// - Channel receiving fee estimate updates
+// - Error if subscription setup fails
+func (f *FeeEstimator) SubscribeFeeUpdates(ctx context.Context, req *chainadapter.TransactionRequest, pollInterval time.Duration) (<-chan *chainadapter.FeeEstimate, error) {
+	estimateChan := make(chan *chainadapter.FeeEstimate, 10)
+
+	go func() {
+		defer close(estimateChan)
+
+		// Track last block height to detect new blocks
+		var lastBlockHeight int64
+		ticker := time.NewTicker(pollInterval)
+		defer ticker.Stop()
+
+		// Send initial estimate immediately
+		if estimate, err := f.Estimate(ctx, req); err == nil {
+			select {
+			case estimateChan <- estimate:
+			case <-ctx.Done():
+				return
+			}
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				// Check current block height
+				blockHeight, err := f.rpcHelper.GetBlockCount(ctx)
+				if err != nil {
+					// RPC error, skip this iteration
+					continue
+				}
+
+				// New block detected
+				if blockHeight > lastBlockHeight {
+					lastBlockHeight = blockHeight
+
+					// Re-estimate fees
+					estimate, err := f.Estimate(ctx, req)
+					if err != nil {
+						// Estimation failed, skip
+						continue
+					}
+
+					// Send updated estimate
+					select {
+					case estimateChan <- estimate:
+					case <-ctx.Done():
+						return
+					default:
+						// Channel full, drop old estimate
+					}
+				}
+			}
+		}
+	}()
+
+	return estimateChan, nil
+}
+
 // Estimate calculates fee estimates with confidence bounds.
 //
 // Strategy:

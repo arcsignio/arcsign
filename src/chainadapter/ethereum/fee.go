@@ -24,6 +24,78 @@ func NewFeeEstimator(rpcHelper *RPCHelper, chainID uint64) *FeeEstimator {
 	}
 }
 
+// SubscribeFeeUpdates provides real-time fee estimate updates by polling for new blocks.
+//
+// Note: This implementation uses polling. For production with WebSocket support,
+// use eth_subscribe("newHeads") for real-time block notifications.
+//
+// Parameters:
+// - ctx: Context for cancellation
+// - req: Transaction request (used for fee speed calculation)
+// - pollInterval: How often to check for new blocks (e.g., 12 seconds for Ethereum)
+//
+// Returns:
+// - Channel receiving fee estimate updates
+// - Error if subscription setup fails
+func (f *FeeEstimator) SubscribeFeeUpdates(ctx context.Context, req *chainadapter.TransactionRequest, pollInterval time.Duration) (<-chan *chainadapter.FeeEstimate, error) {
+	estimateChan := make(chan *chainadapter.FeeEstimate, 10)
+
+	go func() {
+		defer close(estimateChan)
+
+		// Track last block number to detect new blocks
+		var lastBlockNumber uint64
+		ticker := time.NewTicker(pollInterval)
+		defer ticker.Stop()
+
+		// Send initial estimate immediately
+		if estimate, err := f.Estimate(ctx, req); err == nil {
+			select {
+			case estimateChan <- estimate:
+			case <-ctx.Done():
+				return
+			}
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				// Check current block number
+				blockNumber, err := f.rpcHelper.GetBlockNumber(ctx)
+				if err != nil {
+					// RPC error, skip this iteration
+					continue
+				}
+
+				// New block detected
+				if blockNumber > lastBlockNumber {
+					lastBlockNumber = blockNumber
+
+					// Re-estimate fees
+					estimate, err := f.Estimate(ctx, req)
+					if err != nil {
+						// Estimation failed, skip
+						continue
+					}
+
+					// Send updated estimate
+					select {
+					case estimateChan <- estimate:
+					case <-ctx.Done():
+						return
+					default:
+						// Channel full, drop old estimate
+					}
+				}
+			}
+		}
+	}()
+
+	return estimateChan, nil
+}
+
 // Estimate calculates fee estimates with confidence bounds for Ethereum EIP-1559.
 //
 // Strategy:
