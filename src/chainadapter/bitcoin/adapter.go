@@ -354,13 +354,69 @@ func (b *BitcoinAdapter) Derive(ctx context.Context, keySource chainadapter.KeyS
 }
 
 // QueryStatus retrieves the current status of a Bitcoin transaction by hash.
+//
+// Contract:
+// - MUST return TransactionStatus with current confirmations
+// - MUST use HTTP RPC (not WebSocket)
+// - MUST use getrawtransaction verbose=true
+//
+// Returns:
+// - TransactionStatus with confirmation count and block info
+// - Error if transaction not found or RPC fails
 func (b *BitcoinAdapter) QueryStatus(ctx context.Context, txHash string) (*chainadapter.TransactionStatus, error) {
-	// TODO: Implement in T066
-	return nil, chainadapter.NewNonRetryableError(
-		"ERR_NOT_IMPLEMENTED",
-		"Bitcoin QueryStatus() not yet implemented",
-		nil,
-	)
+	// Step 1: Get raw transaction details
+	txResult, err := b.rpcHelper.GetRawTransaction(ctx, txHash, true)
+	if err != nil {
+		// Check if transaction not found
+		if errMsg := err.Error(); contains(errMsg, "not found") || contains(errMsg, "No such") {
+			return nil, chainadapter.NewNonRetryableError(
+				chainadapter.ErrCodeTxNotFound,
+				fmt.Sprintf("transaction not found: %s", txHash),
+				err,
+			)
+		}
+		return nil, err
+	}
+
+	// Step 2: Determine transaction status
+	var status chainadapter.TxStatus
+	var blockNumber *uint64
+	var blockHash *string
+
+	if txResult.Confirmations == 0 {
+		// Transaction is pending (in mempool)
+		status = chainadapter.TxStatusPending
+	} else if txResult.Confirmations >= b.Capabilities().MinConfirmations {
+		// Transaction is finalized (6+ confirmations for Bitcoin)
+		status = chainadapter.TxStatusFinalized
+	} else {
+		// Transaction is confirmed but not finalized yet
+		status = chainadapter.TxStatusConfirmed
+	}
+
+	// Step 3: Get block information if transaction is confirmed
+	if txResult.BlockHash != "" {
+		blockHash = &txResult.BlockHash
+
+		// Get block details to obtain block height
+		blockResult, err := b.rpcHelper.GetBlock(ctx, txResult.BlockHash, 1)
+		if err == nil {
+			blockHeight := uint64(blockResult.Height)
+			blockNumber = &blockHeight
+		}
+		// If block fetch fails, we still return status with what we have
+	}
+
+	// Step 4: Return transaction status
+	return &chainadapter.TransactionStatus{
+		TxHash:        txHash,
+		Status:        status,
+		Confirmations: txResult.Confirmations,
+		BlockNumber:   blockNumber,
+		BlockHash:     blockHash,
+		UpdatedAt:     time.Now(),
+		Error:         nil,
+	}, nil
 }
 
 // SubscribeStatus returns a channel that streams real-time Bitcoin transaction status updates.

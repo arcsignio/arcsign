@@ -300,3 +300,109 @@ func (r *RPCHelper) SendRawTransaction(ctx context.Context, txHex string) (strin
 
 	return txHash, nil
 }
+
+// GetTransactionByHash retrieves transaction details by hash.
+//
+// Parameters:
+// - ctx: Context for cancellation
+// - txHash: Transaction hash (0x-prefixed)
+//
+// Returns:
+// - Transaction details
+// - Error if RPC call fails
+func (r *RPCHelper) GetTransactionByHash(ctx context.Context, txHash string) (*TransactionResult, error) {
+	result, err := r.client.Call(ctx, "eth_getTransactionByHash", []interface{}{txHash})
+	if err != nil {
+		return nil, chainadapter.NewRetryableError(
+			chainadapter.ErrCodeRPCUnavailable,
+			fmt.Sprintf("eth_getTransactionByHash RPC failed: %s", err.Error()),
+			nil,
+			err,
+		)
+	}
+
+	// Check if result is null (transaction not found)
+	if string(result) == "null" {
+		return nil, nil
+	}
+
+	var txResult TransactionResult
+	if err := json.Unmarshal(result, &txResult); err != nil {
+		return nil, chainadapter.NewNonRetryableError(
+			"ERR_RPC_PARSE",
+			fmt.Sprintf("failed to parse transaction: %s", err.Error()),
+			err,
+		)
+	}
+
+	return &txResult, nil
+}
+
+// GetTransactionReceipt retrieves transaction receipt by hash.
+//
+// Parameters:
+// - ctx: Context for cancellation
+// - txHash: Transaction hash (0x-prefixed)
+//
+// Returns:
+// - Transaction receipt
+// - Error if RPC call fails
+func (r *RPCHelper) GetTransactionReceipt(ctx context.Context, txHash string) (*TransactionReceipt, error) {
+	result, err := r.client.Call(ctx, "eth_getTransactionReceipt", []interface{}{txHash})
+	if err != nil {
+		return nil, chainadapter.NewRetryableError(
+			chainadapter.ErrCodeRPCUnavailable,
+			fmt.Sprintf("eth_getTransactionReceipt RPC failed: %s", err.Error()),
+			nil,
+			err,
+		)
+	}
+
+	// Check if result is null (receipt not available yet)
+	if string(result) == "null" {
+		return nil, nil
+	}
+
+	var receipt TransactionReceipt
+	if err := json.Unmarshal(result, &receipt); err != nil {
+		return nil, chainadapter.NewNonRetryableError(
+			"ERR_RPC_PARSE",
+			fmt.Sprintf("failed to parse receipt: %s", err.Error()),
+			err,
+		)
+	}
+
+	return &receipt, nil
+}
+
+// TransactionResult represents the result of eth_getTransactionByHash
+type TransactionResult struct {
+	BlockHash        string `json:"blockHash"`
+	BlockNumber      string `json:"blockNumber"`
+	From             string `json:"from"`
+	Gas              string `json:"gas"`
+	GasPrice         string `json:"gasPrice"`
+	Hash             string `json:"hash"`
+	Input            string `json:"input"`
+	Nonce            string `json:"nonce"`
+	To               string `json:"to"`
+	TransactionIndex string `json:"transactionIndex"`
+	Value            string `json:"value"`
+	V                string `json:"v"`
+	R                string `json:"r"`
+	S                string `json:"s"`
+}
+
+// TransactionReceipt represents the result of eth_getTransactionReceipt
+type TransactionReceipt struct {
+	TransactionHash   string `json:"transactionHash"`
+	TransactionIndex  string `json:"transactionIndex"`
+	BlockHash         string `json:"blockHash"`
+	BlockNumber       string `json:"blockNumber"`
+	From              string `json:"from"`
+	To                string `json:"to"`
+	CumulativeGasUsed string `json:"cumulativeGasUsed"`
+	GasUsed           string `json:"gasUsed"`
+	ContractAddress   string `json:"contractAddress,omitempty"`
+	Status            string `json:"status"` // "0x1" for success, "0x0" for failure
+}

@@ -161,6 +161,106 @@ func (r *RPCHelper) GetBlockCount(ctx context.Context) (int64, error) {
 	return blockCount, nil
 }
 
+// GetRawTransaction retrieves detailed information about a transaction.
+//
+// Parameters:
+// - ctx: Context for cancellation
+// - txHash: Transaction hash
+// - verbose: If true, returns decoded transaction; if false, returns hex
+//
+// Returns:
+// - Transaction details
+// - Error if RPC call fails
+func (r *RPCHelper) GetRawTransaction(ctx context.Context, txHash string, verbose bool) (*RawTransactionResult, error) {
+	result, err := r.client.Call(ctx, "getrawtransaction", []interface{}{txHash, verbose})
+	if err != nil {
+		return nil, chainadapter.NewRetryableError(
+			chainadapter.ErrCodeRPCUnavailable,
+			fmt.Sprintf("getrawtransaction RPC failed: %s", err.Error()),
+			nil,
+			err,
+		)
+	}
+
+	var txResult RawTransactionResult
+	if err := json.Unmarshal(result, &txResult); err != nil {
+		return nil, chainadapter.NewNonRetryableError(
+			"ERR_RPC_PARSE",
+			fmt.Sprintf("failed to parse getrawtransaction result: %s", err.Error()),
+			err,
+		)
+	}
+
+	return &txResult, nil
+}
+
+// RawTransactionResult represents the result of getrawtransaction with verbose=true
+type RawTransactionResult struct {
+	TxID          string `json:"txid"`
+	Hash          string `json:"hash"`
+	Size          int    `json:"size"`
+	VSize         int    `json:"vsize"`
+	Version       int    `json:"version"`
+	LockTime      int    `json:"locktime"`
+	BlockHash     string `json:"blockhash,omitempty"`
+	Confirmations int    `json:"confirmations,omitempty"`
+	Time          int64  `json:"time,omitempty"`
+	BlockTime     int64  `json:"blocktime,omitempty"`
+}
+
+// GetBlock retrieves block information by hash.
+//
+// Parameters:
+// - ctx: Context for cancellation
+// - blockHash: Block hash
+// - verbosity: 0=hex, 1=json without tx details, 2=json with tx details
+//
+// Returns:
+// - Block information
+// - Error if RPC call fails
+func (r *RPCHelper) GetBlock(ctx context.Context, blockHash string, verbosity int) (*BlockResult, error) {
+	result, err := r.client.Call(ctx, "getblock", []interface{}{blockHash, verbosity})
+	if err != nil {
+		return nil, chainadapter.NewRetryableError(
+			chainadapter.ErrCodeRPCUnavailable,
+			fmt.Sprintf("getblock RPC failed: %s", err.Error()),
+			nil,
+			err,
+		)
+	}
+
+	var blockResult BlockResult
+	if err := json.Unmarshal(result, &blockResult); err != nil {
+		return nil, chainadapter.NewNonRetryableError(
+			"ERR_RPC_PARSE",
+			fmt.Sprintf("failed to parse getblock result: %s", err.Error()),
+			err,
+		)
+	}
+
+	return &blockResult, nil
+}
+
+// BlockResult represents the result of getblock RPC call
+type BlockResult struct {
+	Hash              string   `json:"hash"`
+	Confirmations     int      `json:"confirmations"`
+	Height            int64    `json:"height"`
+	Version           int      `json:"version"`
+	VersionHex        string   `json:"versionHex"`
+	MerkleRoot        string   `json:"merkleroot"`
+	Time              int64    `json:"time"`
+	MedianTime        int64    `json:"mediantime"`
+	Nonce             int64    `json:"nonce"`
+	Bits              string   `json:"bits"`
+	Difficulty        float64  `json:"difficulty"`
+	ChainWork         string   `json:"chainwork"`
+	NTx               int      `json:"nTx"`
+	PreviousBlockHash string   `json:"previousblockhash,omitempty"`
+	NextBlockHash     string   `json:"nextblockhash,omitempty"`
+	Tx                []string `json:"tx,omitempty"`
+}
+
 // SendRawTransaction broadcasts a signed transaction to the Bitcoin network.
 //
 // Parameters:

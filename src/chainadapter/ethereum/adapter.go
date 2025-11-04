@@ -10,6 +10,7 @@ import (
 	"github.com/arcsign/chainadapter"
 	"github.com/arcsign/chainadapter/rpc"
 	"github.com/arcsign/chainadapter/storage"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // EthereumAdapter implements ChainAdapter for Ethereum blockchain.
@@ -341,13 +342,96 @@ func (e *EthereumAdapter) Derive(ctx context.Context, keySource chainadapter.Key
 }
 
 // QueryStatus retrieves the current status of an Ethereum transaction by hash.
+//
+// Contract:
+// - MUST return TransactionStatus with current confirmations
+// - MUST use HTTP RPC (not WebSocket)
+// - MUST use eth_getTransactionByHash + eth_getTransactionReceipt
+//
+// Returns:
+// - TransactionStatus with confirmation count and block info
+// - Error if transaction not found or RPC fails
 func (e *EthereumAdapter) QueryStatus(ctx context.Context, txHash string) (*chainadapter.TransactionStatus, error) {
-	// TODO: Implement in T068
-	return nil, chainadapter.NewNonRetryableError(
-		"ERR_NOT_IMPLEMENTED",
-		"Ethereum QueryStatus() not yet implemented",
-		nil,
-	)
+	// Step 1: Get transaction details
+	tx, err := e.rpcHelper.GetTransactionByHash(ctx, txHash)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if transaction was found
+	if tx == nil {
+		return nil, chainadapter.NewNonRetryableError(
+			chainadapter.ErrCodeTxNotFound,
+			fmt.Sprintf("transaction not found: %s", txHash),
+			nil,
+		)
+	}
+
+	// Step 2: Get transaction receipt
+	receipt, err := e.rpcHelper.GetTransactionReceipt(ctx, txHash)
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 3: Determine transaction status
+	var status chainadapter.TxStatus
+	var confirmations int
+	var blockNumber *uint64
+	var blockHash *string
+	var txError *chainadapter.ChainError
+
+	if receipt == nil {
+		// Transaction is pending (no receipt yet)
+		status = chainadapter.TxStatusPending
+		confirmations = 0
+	} else {
+		// Transaction is mined, check if it succeeded or failed
+		if receipt.Status == "0x0" {
+			status = chainadapter.TxStatusFailed
+			txError = &chainadapter.ChainError{
+				Code:    "ERR_TX_REVERTED",
+				Message: "Transaction reverted",
+			}
+		} else {
+			// Get current block number to calculate confirmations
+			currentBlock, err := e.rpcHelper.GetBlockNumber(ctx)
+			if err == nil {
+				// Parse receipt block number
+				receiptBlockNum, err := hexutil.DecodeUint64(receipt.BlockNumber)
+				if err == nil {
+					confirmations = int(currentBlock - receiptBlockNum)
+
+					// Determine if transaction is confirmed or finalized
+					if confirmations >= e.Capabilities().MinConfirmations {
+						status = chainadapter.TxStatusFinalized
+					} else {
+						status = chainadapter.TxStatusConfirmed
+					}
+
+					blockNumber = &receiptBlockNum
+				}
+			}
+
+			// If we couldn't get confirmations, still mark as confirmed
+			if status == "" {
+				status = chainadapter.TxStatusConfirmed
+				confirmations = 1
+			}
+		}
+
+		blockHash = &receipt.BlockHash
+	}
+
+	// Step 4: Return transaction status
+	return &chainadapter.TransactionStatus{
+		TxHash:        txHash,
+		Status:        status,
+		Confirmations: confirmations,
+		BlockNumber:   blockNumber,
+		BlockHash:     blockHash,
+		UpdatedAt:     time.Now(),
+		Error:         txError,
+	}, nil
 }
 
 // SubscribeStatus returns a channel that streams real-time Ethereum transaction status updates.
