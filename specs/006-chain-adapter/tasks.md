@@ -119,8 +119,8 @@ ChainAdapter provides a unified interface for cross-chain transactions (build/es
 
 ### US2 Contract Tests
 
-- [ ] T038 [P] [US2] Write contract test TC-004 (Fee Bounds Validation) in tests/contract/fee_bounds_test.go
-- [ ] T039 [P] [US2] Write contract test TC-005 (Estimate Idempotency) in tests/contract/fee_bounds_test.go
+- [X] T038 [P] [US2] Write contract test TC-004 (Fee Bounds Validation) in tests/contract/fee_bounds_test.go
+- [X] T039 [P] [US2] Write contract test TC-005 (Estimate Idempotency) in tests/contract/fee_bounds_test.go
 
 ### US2 Bitcoin Fee Estimation
 
@@ -163,8 +163,8 @@ ChainAdapter provides a unified interface for cross-chain transactions (build/es
 
 ### US3 Contract Tests
 
-- [ ] T054 [P] [US3] Write contract test TC-002 (Broadcast Idempotency) in tests/contract/idempotency_test.go
-- [ ] T055 [P] [US3] Write contract test TC-014 (Transaction Hash Lookup) in tests/contract/state_storage_test.go
+- [X] T054 [P] [US3] Write contract test TC-002 (Broadcast Idempotency) in tests/contract/broadcast_idempotency_test.go
+- [X] T055 [P] [US3] Write contract test TC-014 (Transaction Hash Lookup) in tests/contract/state_storage_test.go
 
 ### US3 Signing Implementation
 
