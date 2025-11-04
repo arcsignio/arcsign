@@ -249,3 +249,54 @@ func (r *RPCHelper) GetBlockNumber(ctx context.Context) (uint64, error) {
 
 	return blockNumber, nil
 }
+
+// SendRawTransaction broadcasts a signed transaction to the Ethereum network.
+//
+// Parameters:
+// - ctx: Context for cancellation
+// - txHex: Hex-encoded signed transaction (with 0x prefix)
+//
+// Returns:
+// - Transaction hash (hex string with 0x prefix)
+// - Error if broadcast fails
+func (r *RPCHelper) SendRawTransaction(ctx context.Context, txHex string) (string, error) {
+	result, err := r.client.Call(ctx, "eth_sendRawTransaction", []interface{}{txHex})
+	if err != nil {
+		// Check if error is due to duplicate transaction
+		if errMsg := err.Error(); errMsg != "" {
+			// Ethereum returns specific errors for already-broadcast txs
+			if contains(errMsg, "already known") || contains(errMsg, "known transaction") || contains(errMsg, "replacement transaction underpriced") {
+				// Transaction already broadcast
+				// Try to extract hash from error or return retryable error
+				var txHash string
+				if unmarshalErr := json.Unmarshal(result, &txHash); unmarshalErr == nil && txHash != "" {
+					return txHash, nil
+				}
+				return "", chainadapter.NewRetryableError(
+					"ERR_TX_ALREADY_BROADCAST",
+					"transaction already broadcast",
+					nil,
+					err,
+				)
+			}
+		}
+
+		return "", chainadapter.NewRetryableError(
+			"ERR_BROADCAST_FAILED",
+			fmt.Sprintf("eth_sendRawTransaction RPC failed: %s", err.Error()),
+			nil,
+			err,
+		)
+	}
+
+	var txHash string
+	if err := json.Unmarshal(result, &txHash); err != nil {
+		return "", chainadapter.NewNonRetryableError(
+			"ERR_RPC_PARSE",
+			"failed to parse sendRawTransaction result",
+			err,
+		)
+	}
+
+	return txHash, nil
+}
