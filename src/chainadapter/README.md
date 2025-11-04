@@ -697,9 +697,102 @@ unsigned, _ := adapter.Build(ctx, req)
 
 ## 🎯 核心功能
 
-### 1. ChainAdapter 介面
+### 1. ChainAdapter 核心方法
 
-所有區塊鏈實現都遵循統一的 `ChainAdapter` 介面：
+Adapter 提供完整的交易生命週期管理，從構建、簽名、廣播到狀態監控：
+
+#### 基本資訊方法
+
+```go
+// ChainID() - 返回鏈標識符
+// Bitcoin: "bitcoin-mainnet", "bitcoin-testnet"
+// Ethereum: "ethereum", "sepolia"
+chainID := adapter.ChainID()
+
+// Capabilities() - 返回鏈支援的功能
+// 用於動態UI顯示（EIP-1559、RBF、Memo等）
+caps := adapter.Capabilities()
+if caps.SupportsEIP1559 {
+    // 顯示EIP-1559費用選項
+}
+```
+
+#### 交易生命週期方法
+
+```go
+// 1. Build() - 構建未簽名交易
+// 輸入：TransactionRequest（from, to, amount, feeSpeed）
+// 輸出：UnsignedTransaction（包含簽名payload和人類可讀描述）
+// 功能：
+//   - Bitcoin: 自動選擇UTXOs、計算找零、估算費用
+//   - Ethereum: 查詢nonce、估算gas、計算EIP-1559費用
+unsigned, err := adapter.Build(ctx, &TransactionRequest{
+    From:     "地址A",
+    To:       "地址B",
+    Amount:   big.NewInt(100000),
+    FeeSpeed: FeeSpeedNormal,
+})
+
+// 2. Estimate() - 估算交易費用（帶信心區間）
+// 輸出：FeeEstimate（min/max/recommended費用 + 信心指標）
+estimate, err := adapter.Estimate(ctx, req)
+fmt.Printf("推薦費用: %s, 信心: %d%%\n", estimate.Recommended, estimate.Confidence)
+
+// 3. Sign() - 簽名交易
+// 輸入：UnsignedTransaction + Signer（私鑰或硬體錢包）
+// 輸出：SignedTransaction（包含簽名、txHash、序列化交易）
+// 功能：驗證簽名地址匹配、生成鏈特定簽名格式
+signed, err := adapter.Sign(ctx, unsigned, signer)
+
+// 4. Broadcast() - 廣播交易到網絡（冪等）
+// 輸入：SignedTransaction
+// 輸出：BroadcastReceipt（txHash、提交狀態）
+// 功能：
+//   - 檢查交易是否已廣播（冪等性）
+//   - 記錄重試次數和時間戳
+//   - 返回一致的txHash（即使重複廣播）
+receipt, err := adapter.Broadcast(ctx, signed)
+fmt.Printf("交易已廣播: %s\n", receipt.TxHash)
+```
+
+#### 地址生成方法
+
+```go
+// Derive() - 從金鑰來源生成地址
+// 輸入：KeySource（助記詞/xpub/硬體錢包）+ BIP44路徑
+// 輸出：Address（地址字串、公鑰、格式）
+// 功能：
+//   - Bitcoin: 生成P2WPKH地址（bc1q...）
+//   - Ethereum: 生成EIP-55 checksummed地址（0x...）
+address, err := adapter.Derive(ctx, keySource, "m/44'/0'/0'/0/0")
+```
+
+#### 狀態查詢方法
+
+```go
+// QueryStatus() - 查詢交易狀態（單次查詢）
+// 輸入：txHash
+// 輸出：TransactionStatus（pending/confirmed/finalized/failed + 確認數）
+status, err := adapter.QueryStatus(ctx, txHash)
+fmt.Printf("狀態: %s, 確認數: %d\n", status.Status, status.Confirmations)
+
+// SubscribeStatus() - 訂閱交易狀態更新（持續監控）
+// 輸入：txHash
+// 輸出：channel接收狀態更新（直到finalized或failed）
+// 功能：
+//   - 自動輪詢RPC（Bitcoin 10s, Ethereum 12s）
+//   - 支援context取消
+//   - 指數退避處理RPC錯誤
+statusChan, err := adapter.SubscribeStatus(ctx, txHash)
+for status := range statusChan {
+    fmt.Printf("更新: %s (%d確認)\n", status.Status, status.Confirmations)
+    if status.Status == TxStatusFinalized {
+        break // Bitcoin: 6+確認, Ethereum: 12+確認
+    }
+}
+```
+
+### ChainAdapter 完整介面定義
 
 ```go
 type ChainAdapter interface {
@@ -721,6 +814,12 @@ type ChainAdapter interface {
     SubscribeStatus(ctx context.Context, txHash string) (<-chan *TransactionStatus, error)
 }
 ```
+
+**Phase 9 新增：可選的Metrics整合**
+- 在創建adapter時傳入`metrics.NewPrometheusMetrics()`
+- 自動記錄所有RPC呼叫、Build/Sign/Broadcast操作的時間和成功率
+- 提供健康狀態檢查（成功率<90%、延遲>5s、5分鐘無成功呼叫）
+- 導出Prometheus格式指標
 
 ### 2. Bitcoin 特性
 
