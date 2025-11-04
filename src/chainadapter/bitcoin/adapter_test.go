@@ -97,7 +97,7 @@ func TestBitcoinAdapter_Build(t *testing.T) {
 	})
 
 	// Create Bitcoin adapter
-	adapter, err := NewBitcoinAdapter(mockRPC, nil, "mainnet")
+	adapter, err := NewBitcoinAdapter(mockRPC, nil, "mainnet", nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}
@@ -146,7 +146,7 @@ func TestBitcoinAdapter_Build_InsufficientFunds(t *testing.T) {
 	mockRPC := NewMockRPCClient()
 	mockRPC.SetResponse("listunspent", []ListUnspentResult{})
 
-	adapter, err := NewBitcoinAdapter(mockRPC, nil, "mainnet")
+	adapter, err := NewBitcoinAdapter(mockRPC, nil, "mainnet", nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestBitcoinAdapter_Derive(t *testing.T) {
 
 	// Create adapter
 	mockRPC := NewMockRPCClient()
-	adapter, err := NewBitcoinAdapter(mockRPC, nil, "mainnet")
+	adapter, err := NewBitcoinAdapter(mockRPC, nil, "mainnet", nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}
@@ -257,7 +257,7 @@ func TestBitcoinAdapter_Derive_Testnet(t *testing.T) {
 	ctx := context.Background()
 
 	mockRPC := NewMockRPCClient()
-	adapter, err := NewBitcoinAdapter(mockRPC, nil, "testnet3")
+	adapter, err := NewBitcoinAdapter(mockRPC, nil, "testnet3", nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}
@@ -290,7 +290,7 @@ func TestBitcoinAdapter_QueryStatus(t *testing.T) {
 	ctx := context.Background()
 
 	mockRPC := NewMockRPCClient()
-	adapter, err := NewBitcoinAdapter(mockRPC, nil, "mainnet")
+	adapter, err := NewBitcoinAdapter(mockRPC, nil, "mainnet", nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}
@@ -353,7 +353,7 @@ func TestBitcoinAdapter_QueryStatus(t *testing.T) {
 // TestBitcoinAdapter_Capabilities tests the Capabilities() method
 func TestBitcoinAdapter_Capabilities(t *testing.T) {
 	mockRPC := NewMockRPCClient()
-	adapter, err := NewBitcoinAdapter(mockRPC, nil, "mainnet")
+	adapter, err := NewBitcoinAdapter(mockRPC, nil, "mainnet", nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}
@@ -391,7 +391,7 @@ func TestBitcoinAdapter_SubscribeStatus(t *testing.T) {
 	defer cancel()
 
 	mockRPC := NewMockRPCClient()
-	adapter, err := NewBitcoinAdapter(mockRPC, nil, "mainnet")
+	adapter, err := NewBitcoinAdapter(mockRPC, nil, "mainnet", nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}
@@ -439,7 +439,7 @@ func TestBitcoinAdapter_Broadcast(t *testing.T) {
 
 	mockRPC := NewMockRPCClient()
 	txStore := storage.NewMemoryTxStore()
-	adapter, err := NewBitcoinAdapter(mockRPC, txStore, "mainnet")
+	adapter, err := NewBitcoinAdapter(mockRPC, txStore, "mainnet", nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}

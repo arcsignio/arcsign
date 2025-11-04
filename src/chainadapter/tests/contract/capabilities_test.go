@@ -24,7 +24,7 @@ func TestTC015_CapabilitiesAccuracy_Bitcoin(t *testing.T) {
 	// Create Bitcoin adapter (testnet)
 	mockRPC := mocks.NewMockRPCClient()
 	stateStore := storage.NewMemoryTxStore()
-	adapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3")
+	adapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3", nil)
 	if err != nil {
 		t.Fatalf("Failed to create Bitcoin adapter: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestTC015_CapabilitiesAccuracy_Ethereum(t *testing.T) {
 	// Create Ethereum adapter (mainnet)
 	mockRPC := mocks.NewMockRPCClient()
 	stateStore := storage.NewMemoryTxStore()
-	adapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 1)
+	adapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 1, nil)
 	if err != nil {
 		t.Fatalf("Failed to create Ethereum adapter: %v", err)
 	}
@@ -176,7 +176,7 @@ func TestTC015_CapabilitiesAccuracy_Consistency(t *testing.T) {
 	// Create Bitcoin adapter
 	mockRPC := mocks.NewMockRPCClient()
 	stateStore := storage.NewMemoryTxStore()
-	btcAdapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3")
+	btcAdapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3", nil)
 	if err != nil {
 		t.Fatalf("Failed to create Bitcoin adapter: %v", err)
 	}
@@ -216,13 +216,13 @@ func TestTC015_CapabilitiesAccuracy_DifferentNetworks(t *testing.T) {
 	stateStore := storage.NewMemoryTxStore()
 
 	// Create Bitcoin testnet adapter
-	testnetAdapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3")
+	testnetAdapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3", nil)
 	if err != nil {
 		t.Fatalf("Failed to create testnet adapter: %v", err)
 	}
 
 	// Create Bitcoin mainnet adapter
-	mainnetAdapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "mainnet")
+	mainnetAdapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "mainnet", nil)
 	if err != nil {
 		t.Fatalf("Failed to create mainnet adapter: %v", err)
 	}
@@ -257,13 +257,13 @@ func TestTC015_CapabilitiesAccuracy_CrossChain(t *testing.T) {
 	stateStore := storage.NewMemoryTxStore()
 
 	// Create Bitcoin adapter
-	btcAdapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "mainnet")
+	btcAdapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "mainnet", nil)
 	if err != nil {
 		t.Fatalf("Failed to create Bitcoin adapter: %v", err)
 	}
 
 	// Create Ethereum adapter
-	ethAdapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 1)
+	ethAdapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 1, nil)
 	if err != nil {
 		t.Fatalf("Failed to create Ethereum adapter: %v", err)
 	}
@@ -315,7 +315,7 @@ func TestTC015_CapabilitiesAccuracy_DynamicFeatureToggling(t *testing.T) {
 		{
 			name: "Bitcoin",
 			adapter: func() chainadapter.ChainAdapter {
-				a, _ := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "mainnet")
+				a, _ := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "mainnet", nil)
 				return a
 			}(),
 			expectRBF: true,
@@ -324,7 +324,7 @@ func TestTC015_CapabilitiesAccuracy_DynamicFeatureToggling(t *testing.T) {
 		{
 			name: "Ethereum",
 			adapter: func() chainadapter.ChainAdapter {
-				a, _ := ethereum.NewEthereumAdapter(mockRPC, stateStore, 1)
+				a, _ := ethereum.NewEthereumAdapter(mockRPC, stateStore, 1, nil)
 				return a
 			}(),
 			expectRBF: false,

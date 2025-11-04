@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/arcsign/chainadapter"
+	"github.com/arcsign/chainadapter/metrics"
 	"github.com/arcsign/chainadapter/rpc"
 	"github.com/arcsign/chainadapter/storage"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -22,6 +23,7 @@ type EthereumAdapter struct {
 	builder      *TransactionBuilder
 	rpcHelper    *RPCHelper
 	feeEstimator *FeeEstimator
+	metrics      metrics.ChainMetrics // Metrics recorder (optional)
 }
 
 // NewEthereumAdapter creates a new Ethereum ChainAdapter.
@@ -30,12 +32,18 @@ type EthereumAdapter struct {
 // - rpcClient: RPC client for communicating with Ethereum node
 // - txStore: Transaction state store for broadcast idempotency
 // - networkID: Ethereum network ID (1 for mainnet, 5 for goerli, 11155111 for sepolia)
-func NewEthereumAdapter(rpcClient rpc.RPCClient, txStore storage.TransactionStateStore, networkID int64) (*EthereumAdapter, error) {
+// - metricsRecorder: Optional metrics recorder (pass nil to disable metrics)
+func NewEthereumAdapter(rpcClient rpc.RPCClient, txStore storage.TransactionStateStore, networkID int64, metricsRecorder metrics.ChainMetrics) (*EthereumAdapter, error) {
 	chainID := "ethereum"
 	if networkID == 5 {
 		chainID = "ethereum-goerli"
 	} else if networkID == 11155111 {
 		chainID = "ethereum-sepolia"
+	}
+
+	// Wrap RPC client with metrics if recorder provided
+	if metricsRecorder != nil {
+		rpcClient = rpc.NewMetricsRPCClient(rpcClient, metricsRecorder)
 	}
 
 	// Create transaction builder
@@ -52,6 +60,7 @@ func NewEthereumAdapter(rpcClient rpc.RPCClient, txStore storage.TransactionStat
 		builder:      builder,
 		rpcHelper:    rpcHelper,
 		feeEstimator: NewFeeEstimator(rpcHelper, uint64(networkID)),
+		metrics:      metricsRecorder,
 	}, nil
 }
 
@@ -84,7 +93,17 @@ func (e *EthereumAdapter) Capabilities() *chainadapter.Capabilities {
 // - MUST populate UnsignedTransaction.SigningPayload for offline signing
 // - MUST be deterministic (same request → same unsigned tx)
 // - MUST query current nonce and estimate gas
-func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.TransactionRequest) (*chainadapter.UnsignedTransaction, error) {
+func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.TransactionRequest) (result *chainadapter.UnsignedTransaction, err error) {
+	// Record metrics
+	start := time.Now()
+	defer func() {
+		if e.metrics != nil {
+			duration := time.Since(start)
+			success := err == nil
+			e.metrics.RecordTransactionBuild(e.chainID, duration, success)
+		}
+	}()
+
 	// Step 1: Get nonce for the from address
 	nonce, err := e.rpcHelper.GetTransactionCount(ctx, req.From)
 	if err != nil {
@@ -190,7 +209,17 @@ func (e *EthereumAdapter) Estimate(ctx context.Context, req *chainadapter.Transa
 // - MUST preserve UnsignedTransaction for audit trail
 // - MUST NOT leak private key material
 // - MUST support offline signing (no RPC calls)
-func (e *EthereumAdapter) Sign(ctx context.Context, unsigned *chainadapter.UnsignedTransaction, signer chainadapter.Signer) (*chainadapter.SignedTransaction, error) {
+func (e *EthereumAdapter) Sign(ctx context.Context, unsigned *chainadapter.UnsignedTransaction, signer chainadapter.Signer) (result *chainadapter.SignedTransaction, err error) {
+	// Record metrics
+	start := time.Now()
+	defer func() {
+		if e.metrics != nil {
+			duration := time.Since(start)
+			success := err == nil
+			e.metrics.RecordTransactionSign(e.chainID, duration, success)
+		}
+	}()
+
 	// Step 1: Validate signer address matches transaction From address (case-insensitive)
 	signerAddress := normalizeHash(signer.GetAddress())
 	fromAddress := normalizeHash(unsigned.From)
@@ -261,7 +290,17 @@ func (e *EthereumAdapter) Sign(ctx context.Context, unsigned *chainadapter.Unsig
 // - MUST record FirstSeen and LastRetry timestamps
 // - MUST return existing BroadcastReceipt if transaction already broadcast
 // - MUST handle duplicate transaction errors gracefully
-func (e *EthereumAdapter) Broadcast(ctx context.Context, signed *chainadapter.SignedTransaction) (*chainadapter.BroadcastReceipt, error) {
+func (e *EthereumAdapter) Broadcast(ctx context.Context, signed *chainadapter.SignedTransaction) (result *chainadapter.BroadcastReceipt, err error) {
+	// Record metrics
+	start := time.Now()
+	defer func() {
+		if e.metrics != nil {
+			duration := time.Since(start)
+			success := err == nil
+			e.metrics.RecordTransactionBroadcast(e.chainID, duration, success)
+		}
+	}()
+
 	// Step 1: Validate inputs
 	if signed == nil {
 		return nil, chainadapter.NewNonRetryableError(

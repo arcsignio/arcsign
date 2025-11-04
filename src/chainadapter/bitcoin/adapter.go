@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/arcsign/chainadapter"
+	"github.com/arcsign/chainadapter/metrics"
 	"github.com/arcsign/chainadapter/rpc"
 	"github.com/arcsign/chainadapter/storage"
 )
@@ -20,6 +21,7 @@ type BitcoinAdapter struct {
 	builder      *TransactionBuilder
 	rpcHelper    *RPCHelper
 	feeEstimator *FeeEstimator
+	metrics      metrics.ChainMetrics // Metrics recorder (optional)
 }
 
 // NewBitcoinAdapter creates a new Bitcoin ChainAdapter.
@@ -28,12 +30,18 @@ type BitcoinAdapter struct {
 // - rpcClient: RPC client for communicating with Bitcoin node
 // - txStore: Transaction state store for broadcast idempotency
 // - network: Bitcoin network ("mainnet", "testnet3", "regtest")
-func NewBitcoinAdapter(rpcClient rpc.RPCClient, txStore storage.TransactionStateStore, network string) (*BitcoinAdapter, error) {
+// - metricsRecorder: Optional metrics recorder (pass nil to disable metrics)
+func NewBitcoinAdapter(rpcClient rpc.RPCClient, txStore storage.TransactionStateStore, network string, metricsRecorder metrics.ChainMetrics) (*BitcoinAdapter, error) {
 	chainID := "bitcoin"
 	if network == "testnet3" {
 		chainID = "bitcoin-testnet"
 	} else if network == "regtest" {
 		chainID = "bitcoin-regtest"
+	}
+
+	// Wrap RPC client with metrics if recorder provided
+	if metricsRecorder != nil {
+		rpcClient = rpc.NewMetricsRPCClient(rpcClient, metricsRecorder)
 	}
 
 	// Create transaction builder
@@ -53,6 +61,7 @@ func NewBitcoinAdapter(rpcClient rpc.RPCClient, txStore storage.TransactionState
 		builder:      builder,
 		rpcHelper:    rpcHelper,
 		feeEstimator: NewFeeEstimator(rpcHelper, network),
+		metrics:      metricsRecorder,
 	}, nil
 }
 
@@ -85,7 +94,17 @@ func (b *BitcoinAdapter) Capabilities() *chainadapter.Capabilities {
 // - MUST populate UnsignedTransaction.SigningPayload for offline signing
 // - MUST be deterministic (same request → same unsigned tx)
 // - MUST select UTXOs and create PSBT
-func (b *BitcoinAdapter) Build(ctx context.Context, req *chainadapter.TransactionRequest) (*chainadapter.UnsignedTransaction, error) {
+func (b *BitcoinAdapter) Build(ctx context.Context, req *chainadapter.TransactionRequest) (result *chainadapter.UnsignedTransaction, err error) {
+	// Record metrics
+	start := time.Now()
+	defer func() {
+		if b.metrics != nil {
+			duration := time.Since(start)
+			success := err == nil
+			b.metrics.RecordTransactionBuild(b.chainID, duration, success)
+		}
+	}()
+
 	// Step 1: Fetch UTXOs for the from address
 	utxos, err := b.rpcHelper.ListUnspent(ctx, req.From)
 	if err != nil {
@@ -160,7 +179,17 @@ func (b *BitcoinAdapter) Estimate(ctx context.Context, req *chainadapter.Transac
 // - MUST preserve UnsignedTransaction for audit trail
 // - MUST NOT leak private key material
 // - MUST support offline signing (no RPC calls)
-func (b *BitcoinAdapter) Sign(ctx context.Context, unsigned *chainadapter.UnsignedTransaction, signer chainadapter.Signer) (*chainadapter.SignedTransaction, error) {
+func (b *BitcoinAdapter) Sign(ctx context.Context, unsigned *chainadapter.UnsignedTransaction, signer chainadapter.Signer) (result *chainadapter.SignedTransaction, err error) {
+	// Record metrics
+	start := time.Now()
+	defer func() {
+		if b.metrics != nil {
+			duration := time.Since(start)
+			success := err == nil
+			b.metrics.RecordTransactionSign(b.chainID, duration, success)
+		}
+	}()
+
 	// Step 1: Validate signer address matches transaction From address
 	signerAddress := signer.GetAddress()
 	if signerAddress != unsigned.From {
@@ -230,7 +259,17 @@ func (b *BitcoinAdapter) Sign(ctx context.Context, unsigned *chainadapter.Unsign
 // - MUST record FirstBroadcast and LastBroadcast timestamps
 // - MUST return existing BroadcastReceipt if transaction already broadcast
 // - MUST handle duplicate transaction errors gracefully
-func (b *BitcoinAdapter) Broadcast(ctx context.Context, signed *chainadapter.SignedTransaction) (*chainadapter.BroadcastReceipt, error) {
+func (b *BitcoinAdapter) Broadcast(ctx context.Context, signed *chainadapter.SignedTransaction) (result *chainadapter.BroadcastReceipt, err error) {
+	// Record metrics
+	start := time.Now()
+	defer func() {
+		if b.metrics != nil {
+			duration := time.Since(start)
+			success := err == nil
+			b.metrics.RecordTransactionBroadcast(b.chainID, duration, success)
+		}
+	}()
+
 	// Step 1: Validate inputs
 	if signed == nil {
 		return nil, chainadapter.NewNonRetryableError(

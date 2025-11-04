@@ -76,7 +76,7 @@ func TestTC004_FeeBoundsValidation_Bitcoin(t *testing.T) {
 	mockRPC.SetResponse("getblockcount", 700000)
 
 	// Create Bitcoin adapter
-	adapter, err := bitcoin.NewBitcoinAdapter(mockRPC, nil, "testnet3")
+	adapter, err := bitcoin.NewBitcoinAdapter(mockRPC, nil, "testnet3", nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestTC004_FeeBoundsValidation_Ethereum(t *testing.T) {
 	})
 
 	// Create Ethereum adapter
-	adapter, err := ethereum.NewEthereumAdapter(mockRPC, nil, 11155111) // Sepolia
+	adapter, err := ethereum.NewEthereumAdapter(mockRPC, nil, 11155111, nil) // Sepolia
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}
@@ -314,7 +314,7 @@ func TestTC005_EstimateIdempotency_Bitcoin(t *testing.T) {
 	})
 	mockRPC.SetResponse("getblockcount", 700000)
 
-	adapter, err := bitcoin.NewBitcoinAdapter(mockRPC, nil, "testnet3")
+	adapter, err := bitcoin.NewBitcoinAdapter(mockRPC, nil, "testnet3", nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}
@@ -377,7 +377,7 @@ func TestTC005_EstimateIdempotency_Ethereum(t *testing.T) {
 		"reward": [][]string{{"0x77359400"}}, // 2 Gwei
 	})
 
-	adapter, err := ethereum.NewEthereumAdapter(mockRPC, nil, 11155111)
+	adapter, err := ethereum.NewEthereumAdapter(mockRPC, nil, 11155111, nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}

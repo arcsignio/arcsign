@@ -28,7 +28,7 @@ func TestBroadcastSuccess(t *testing.T) {
 	mockStore := storage.NewMockTxStore()
 
 	// Create adapter
-	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "testnet3")
+	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "testnet3", nil)
 	require.NoError(t, err)
 
 	// Create signed transaction
@@ -73,7 +73,7 @@ func TestBroadcastIdempotency(t *testing.T) {
 	mockRPC.SetResponse("sendrawtransaction", txHash)
 
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "mainnet")
+	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "mainnet", nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -133,7 +133,7 @@ func TestBroadcastRetryCountIncrement(t *testing.T) {
 	}
 	mockStore.Set(txHash, existingState)
 
-	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "mainnet")
+	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "mainnet", nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -161,7 +161,7 @@ func TestBroadcastNilInput(t *testing.T) {
 
 	mockRPC := rpc.NewMockRPCClient()
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "testnet3")
+	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "testnet3", nil)
 	require.NoError(t, err)
 
 	// Broadcast nil transaction
@@ -179,7 +179,7 @@ func TestBroadcastEmptySerializedTx(t *testing.T) {
 
 	mockRPC := rpc.NewMockRPCClient()
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "testnet3")
+	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "testnet3", nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -202,7 +202,7 @@ func TestBroadcastRPCError(t *testing.T) {
 	mockRPC.SetError("sendrawtransaction", fmt.Errorf("network error"))
 
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "testnet3")
+	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "testnet3", nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -228,7 +228,7 @@ func TestBroadcastAlreadyKnown(t *testing.T) {
 	mockRPC.SetError("sendrawtransaction", fmt.Errorf("txn-already-in-block-chain"))
 
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "mainnet")
+	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "mainnet", nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -258,7 +258,7 @@ func TestBroadcastWithoutStateStore(t *testing.T) {
 	mockRPC.SetResponse("sendrawtransaction", txHash)
 
 	// Create adapter WITHOUT state store
-	adapter, err := NewBitcoinAdapter(mockRPC, nil, "testnet3")
+	adapter, err := NewBitcoinAdapter(mockRPC, nil, "testnet3", nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -285,7 +285,7 @@ func TestBroadcastHashMismatch(t *testing.T) {
 	mockRPC.SetResponse("sendrawtransaction", actualHash)
 
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "mainnet")
+	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "mainnet", nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -311,7 +311,7 @@ func TestBroadcastTimestamps(t *testing.T) {
 	mockRPC.SetResponse("sendrawtransaction", txHash)
 
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "testnet3")
+	adapter, err := NewBitcoinAdapter(mockRPC, mockStore, "testnet3", nil)
 	require.NoError(t, err)
 
 	before := time.Now()

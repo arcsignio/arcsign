@@ -89,7 +89,7 @@ func TestTC002_BroadcastIdempotency_Bitcoin(t *testing.T) {
 	stateStore := storage.NewMemoryTxStore()
 
 	// Create Bitcoin adapter
-	adapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3")
+	adapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3", nil)
 	if err != nil {
 		t.Fatalf("Failed to create Bitcoin adapter: %v", err)
 	}
@@ -189,7 +189,7 @@ func TestTC002_BroadcastIdempotency_Ethereum(t *testing.T) {
 	stateStore := storage.NewMemoryTxStore()
 
 	// Create Ethereum adapter
-	adapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 1) // Mainnet chainID
+	adapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 1, nil) // Mainnet chainID
 	if err != nil {
 		t.Fatalf("Failed to create Ethereum adapter: %v", err)
 	}
@@ -309,7 +309,7 @@ func TestTC002_BroadcastIdempotency_MultipleRetries(t *testing.T) {
 					"txid":          tc.txHash,
 					"confirmations": 0,
 				})
-				adapter, err = bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3")
+				adapter, err = bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3", nil)
 				if err != nil {
 					t.Fatalf("Failed to create Bitcoin adapter: %v", err)
 				}
@@ -319,7 +319,7 @@ func TestTC002_BroadcastIdempotency_MultipleRetries(t *testing.T) {
 					"hash":        tc.txHash,
 					"blockNumber": nil,
 				})
-				adapter, err = ethereum.NewEthereumAdapter(mockRPC, stateStore, 1)
+				adapter, err = ethereum.NewEthereumAdapter(mockRPC, stateStore, 1, nil)
 				if err != nil {
 					t.Fatalf("Failed to create Ethereum adapter: %v", err)
 				}

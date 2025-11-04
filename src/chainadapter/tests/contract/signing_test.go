@@ -35,7 +35,7 @@ func TestTC010_SignatureVerification_Ethereum(t *testing.T) {
 	// Create Ethereum adapter (sepolia testnet, chain ID 11155111)
 	mockRPC := mocks.NewMockRPCClient()
 	stateStore := storage.NewMemoryTxStore()
-	adapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 11155111)
+	adapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 11155111, nil)
 	if err != nil {
 		t.Fatalf("Failed to create Ethereum adapter: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestTC011_AddressMismatchRejection_Bitcoin(t *testing.T) {
 	// Create Bitcoin adapter (testnet)
 	mockRPC := mocks.NewMockRPCClient()
 	stateStore := storage.NewMemoryTxStore()
-	adapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3")
+	adapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3", nil)
 	if err != nil {
 		t.Fatalf("Failed to create Bitcoin adapter: %v", err)
 	}
@@ -204,7 +204,7 @@ func TestTC011_AddressMismatchRejection_Ethereum(t *testing.T) {
 	// Create Ethereum adapter (sepolia testnet)
 	mockRPC := mocks.NewMockRPCClient()
 	stateStore := storage.NewMemoryTxStore()
-	adapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 11155111)
+	adapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 11155111, nil)
 	if err != nil {
 		t.Fatalf("Failed to create Ethereum adapter: %v", err)
 	}
@@ -278,7 +278,7 @@ func TestTC011_AuditTrailReconstruction(t *testing.T) {
 	// Test with Ethereum (simpler setup)
 	mockRPC := mocks.NewMockRPCClient()
 	stateStore := storage.NewMemoryTxStore()
-	adapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 11155111)
+	adapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 11155111, nil)
 	if err != nil {
 		t.Fatalf("Failed to create Ethereum adapter: %v", err)
 	}

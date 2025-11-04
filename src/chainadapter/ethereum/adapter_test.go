@@ -85,7 +85,7 @@ func TestEthereumAdapter_Build(t *testing.T) {
 	})
 
 	// Create Ethereum adapter
-	adapter, err := NewEthereumAdapter(mockRPC, nil, 1) // mainnet
+	adapter, err := NewEthereumAdapter(mockRPC, nil, 1, nil) // mainnet
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestEthereumAdapter_Derive(t *testing.T) {
 
 	// Create adapter
 	mockRPC := NewMockRPCClient()
-	adapter, err := NewEthereumAdapter(mockRPC, nil, 1)
+	adapter, err := NewEthereumAdapter(mockRPC, nil, 1, nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}
@@ -210,7 +210,7 @@ func TestEthereumAdapter_QueryStatus(t *testing.T) {
 	ctx := context.Background()
 
 	mockRPC := NewMockRPCClient()
-	adapter, err := NewEthereumAdapter(mockRPC, nil, 1)
+	adapter, err := NewEthereumAdapter(mockRPC, nil, 1, nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}
@@ -303,7 +303,7 @@ func TestEthereumAdapter_QueryStatus(t *testing.T) {
 // TestEthereumAdapter_Capabilities tests the Capabilities() method
 func TestEthereumAdapter_Capabilities(t *testing.T) {
 	mockRPC := NewMockRPCClient()
-	adapter, err := NewEthereumAdapter(mockRPC, nil, 1)
+	adapter, err := NewEthereumAdapter(mockRPC, nil, 1, nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}
@@ -337,7 +337,7 @@ func TestEthereumAdapter_SubscribeStatus(t *testing.T) {
 	defer cancel()
 
 	mockRPC := NewMockRPCClient()
-	adapter, err := NewEthereumAdapter(mockRPC, nil, 1)
+	adapter, err := NewEthereumAdapter(mockRPC, nil, 1, nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}
@@ -385,7 +385,7 @@ func TestEthereumAdapter_Broadcast(t *testing.T) {
 
 	mockRPC := NewMockRPCClient()
 	txStore := storage.NewMemoryTxStore()
-	adapter, err := NewEthereumAdapter(mockRPC, txStore, 1)
+	adapter, err := NewEthereumAdapter(mockRPC, txStore, 1, nil)
 	if err != nil {
 		t.Fatalf("failed to create adapter: %v", err)
 	}

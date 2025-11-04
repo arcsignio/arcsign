@@ -28,7 +28,7 @@ func TestBroadcastSuccess(t *testing.T) {
 	mockStore := storage.NewMockTxStore()
 
 	// Create adapter
-	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1) // Mainnet
+	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1, nil) // Mainnet
 	require.NoError(t, err)
 
 	// Create signed transaction
@@ -73,7 +73,7 @@ func TestBroadcastIdempotency(t *testing.T) {
 	mockRPC.SetResponse("eth_sendRawTransaction", txHash)
 
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1)
+	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1, nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -132,7 +132,7 @@ func TestBroadcastRetryCountIncrement(t *testing.T) {
 	}
 	mockStore.Set(txHash, existingState)
 
-	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1)
+	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1, nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -160,7 +160,7 @@ func TestBroadcastNilInput(t *testing.T) {
 
 	mockRPC := rpc.NewMockRPCClient()
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 5) // Goerli
+	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 5, nil) // Goerli
 	require.NoError(t, err)
 
 	// Broadcast nil transaction
@@ -178,7 +178,7 @@ func TestBroadcastEmptySerializedTx(t *testing.T) {
 
 	mockRPC := rpc.NewMockRPCClient()
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 5)
+	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 5, nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -201,7 +201,7 @@ func TestBroadcastRPCError(t *testing.T) {
 	mockRPC.SetError("eth_sendRawTransaction", fmt.Errorf("insufficient funds for gas * price + value"))
 
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1)
+	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1, nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -227,7 +227,7 @@ func TestBroadcastAlreadyKnown(t *testing.T) {
 	mockRPC.SetError("eth_sendRawTransaction", fmt.Errorf("already known"))
 
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1)
+	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1, nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -259,7 +259,7 @@ func TestBroadcastKnownTransaction(t *testing.T) {
 	mockRPC.SetError("eth_sendRawTransaction", fmt.Errorf("known transaction: 0xknown5678..."))
 
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1)
+	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1, nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -283,7 +283,7 @@ func TestBroadcastWithoutStateStore(t *testing.T) {
 	mockRPC.SetResponse("eth_sendRawTransaction", txHash)
 
 	// Create adapter WITHOUT state store
-	adapter, err := NewEthereumAdapter(mockRPC, nil, 1)
+	adapter, err := NewEthereumAdapter(mockRPC, nil, 1, nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -310,7 +310,7 @@ func TestBroadcastHashMismatch(t *testing.T) {
 	mockRPC.SetResponse("eth_sendRawTransaction", actualHash)
 
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1)
+	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1, nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -341,7 +341,7 @@ func TestBroadcastHashCaseInsensitive(t *testing.T) {
 	mockRPC.SetResponse("eth_sendRawTransaction", actualHash)
 
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1)
+	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1, nil)
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -366,7 +366,7 @@ func TestBroadcastTimestamps(t *testing.T) {
 	mockRPC.SetResponse("eth_sendRawTransaction", txHash)
 
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1)
+	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1, nil)
 	require.NoError(t, err)
 
 	before := time.Now()
@@ -402,7 +402,7 @@ func TestBroadcastSepoliaNetwork(t *testing.T) {
 	mockRPC.SetResponse("eth_sendRawTransaction", txHash)
 
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 11155111) // Sepolia
+	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 11155111, nil) // Sepolia
 	require.NoError(t, err)
 
 	signedTx := &chainadapter.SignedTransaction{
@@ -425,7 +425,7 @@ func TestBroadcastHexFormatting(t *testing.T) {
 	mockRPC.SetResponse("eth_sendRawTransaction", txHash)
 
 	mockStore := storage.NewMockTxStore()
-	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1)
+	adapter, err := NewEthereumAdapter(mockRPC, mockStore, 1, nil)
 	require.NoError(t, err)
 
 	// Raw transaction bytes (will be converted to 0x-prefixed hex)

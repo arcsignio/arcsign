@@ -36,7 +36,7 @@ func TestTC006_DerivationDeterminism_Bitcoin(t *testing.T) {
 	// Create Bitcoin adapter (testnet)
 	mockRPC := mocks.NewMockRPCClient()
 	stateStore := storage.NewMemoryTxStore()
-	adapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3")
+	adapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3", nil)
 	if err != nil {
 		t.Fatalf("Failed to create Bitcoin adapter: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestTC006_DerivationDeterminism_Ethereum(t *testing.T) {
 	// Create Ethereum adapter (mainnet chain ID 1)
 	mockRPC := mocks.NewMockRPCClient()
 	stateStore := storage.NewMemoryTxStore()
-	adapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 1)
+	adapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 1, nil)
 	if err != nil {
 		t.Fatalf("Failed to create Ethereum adapter: %v", err)
 	}
@@ -206,7 +206,7 @@ func TestTC007_CrossWalletCompatibility_Bitcoin(t *testing.T) {
 	// Create Bitcoin adapter (testnet)
 	mockRPC := mocks.NewMockRPCClient()
 	stateStore := storage.NewMemoryTxStore()
-	adapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3")
+	adapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3", nil)
 	if err != nil {
 		t.Fatalf("Failed to create Bitcoin adapter: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestTC007_CrossWalletCompatibility_Ethereum(t *testing.T) {
 	// Create Ethereum adapter (mainnet chain ID 1)
 	mockRPC := mocks.NewMockRPCClient()
 	stateStore := storage.NewMemoryTxStore()
-	adapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 1)
+	adapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 1, nil)
 	if err != nil {
 		t.Fatalf("Failed to create Ethereum adapter: %v", err)
 	}
@@ -328,7 +328,7 @@ func TestTC007_CrossWalletCompatibility_MultipleMnemonics(t *testing.T) {
 			}
 
 			// Test Bitcoin
-			btcAdapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3")
+			btcAdapter, err := bitcoin.NewBitcoinAdapter(mockRPC, stateStore, "testnet3", nil)
 			if err != nil {
 				t.Fatalf("Failed to create Bitcoin adapter: %v", err)
 			}
@@ -344,7 +344,7 @@ func TestTC007_CrossWalletCompatibility_MultipleMnemonics(t *testing.T) {
 			}
 
 			// Test Ethereum
-			ethAdapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 1)
+			ethAdapter, err := ethereum.NewEthereumAdapter(mockRPC, stateStore, 1, nil)
 			if err != nil {
 				t.Fatalf("Failed to create Ethereum adapter: %v", err)
 			}
