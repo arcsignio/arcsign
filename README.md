@@ -391,8 +391,96 @@ A: Yes! The architecture is extensible. See the `internal/services/address/` dir
 - **Encryption Password**: Protects the encrypted mnemonic file on USB
 - **BIP39 Passphrase**: Part of the seed generation process (creates different wallets)
 
+## ChainAdapter - 統一的跨鏈交易接口
+
+**Version**: 1.0.0 | **Status**: Phase 9 Complete ✅
+
+ChainAdapter 提供統一的介面來處理 Bitcoin 和 Ethereum 的交易操作，支援交易構建、簽名、廣播、狀態查詢和地址生成。
+
+### 核心功能
+
+#### 交易生命週期管理
+- **Build()** - 構建未簽名交易
+  - Bitcoin: 自動選擇UTXOs、計算找零、估算費用
+  - Ethereum: 查詢nonce、估算gas、計算EIP-1559費用
+- **Sign()** - 簽名交易（支援離線簽名）
+- **Broadcast()** - 廣播交易（冪等，支援安全重試）
+- **QueryStatus()** / **SubscribeStatus()** - 交易狀態監控
+
+#### 地址生成
+- **Derive()** - BIP44地址生成
+  - Bitcoin: P2WPKH地址 (bc1q...)
+  - Ethereum: EIP-55 checksummed地址 (0x...)
+
+#### Phase 9: 可觀測指標
+- **可選的Prometheus指標整合**
+  - RPC呼叫追蹤（方法、延遲、成功率）
+  - 交易操作指標（Build/Sign/Broadcast）
+  - 健康狀態檢查（成功率<90%、延遲>5s、5分鐘無成功呼叫）
+  - Prometheus格式導出
+
+### 快速使用
+
+```go
+import (
+    "github.com/arcsign/chainadapter/bitcoin"
+    "github.com/arcsign/chainadapter/ethereum"
+    "github.com/arcsign/chainadapter/metrics"
+)
+
+// 創建帶指標的Bitcoin adapter
+metricsRecorder := metrics.NewPrometheusMetrics()
+btcAdapter, _ := bitcoin.NewBitcoinAdapter(rpcClient, txStore, "mainnet", metricsRecorder)
+
+// 交易流程
+unsigned, _ := btcAdapter.Build(ctx, req)
+signed, _ := btcAdapter.Sign(ctx, unsigned, signer)
+receipt, _ := btcAdapter.Broadcast(ctx, signed)
+
+// 監控狀態
+statusChan, _ := btcAdapter.SubscribeStatus(ctx, receipt.TxHash)
+for status := range statusChan {
+    if status.Status == chainadapter.TxStatusFinalized {
+        break // Bitcoin: 6+確認
+    }
+}
+
+// 查詢健康狀態
+health := metricsRecorder.GetHealthStatus()
+if health.Status == "Degraded" {
+    log.Printf("警告: %s", health.Message)
+}
+```
+
+### 實現狀態
+
+**已完成功能**:
+- ✅ User Story 1: 統一的跨鏈交易構建 (Bitcoin UTXO + Ethereum EIP-1559)
+- ✅ User Story 3: 冪等的交易廣播（支援安全重試）
+- ✅ User Story 4: BIP44地址生成（Bitcoin coin 0, Ethereum coin 60）
+- ✅ User Story 5: 功能檢測（EIP-1559、RBF、Memo等動態功能查詢）
+- ✅ User Story 6: 離線簽名與審計追蹤
+- ✅ User Story 7: 可觀測指標與健康監控（Prometheus）
+
+**測試覆蓋率**: 72/72 tests passing
+- Bitcoin: 31/31 單元測試
+- Ethereum: 33/33 單元測試
+- Metrics: 8/8 單元測試
+- Contract Tests: 11 個合約測試
+
+詳細文檔請參考：`src/chainadapter/` 目錄
+
 ## Roadmap
 
+### Completed (v0.3.0)
+- [x] BIP39/BIP44 HD wallet implementation
+- [x] 54 blockchain address derivation
+- [x] USB-only storage with AES-256-GCM encryption
+- [x] ChainAdapter unified transaction interface
+- [x] Bitcoin & Ethereum transaction building/signing/broadcasting
+- [x] Observable metrics with Prometheus support
+
+### In Progress
 - [ ] Additional cryptocurrency support (Litecoin, Bitcoin Cash, etc.)
 - [ ] Multi-signature wallet support
 - [ ] Hardware wallet integration (Ledger, Trezor)
