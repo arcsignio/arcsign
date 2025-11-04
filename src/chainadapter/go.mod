@@ -13,6 +13,8 @@ require (
 )
 
 require (
+	github.com/FactomProject/basen v0.0.0-20150613233007-fe3947df716e // indirect
+	github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec // indirect
 	github.com/bits-and-blooms/bitset v1.20.0 // indirect
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f // indirect
 	github.com/consensys/gnark-crypto v0.18.0 // indirect
@@ -26,6 +28,8 @@ require (
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/supranational/blst v0.3.16-0.20250831170142-f48500c1fdbe // indirect
+	github.com/tyler-smith/go-bip32 v1.0.0 // indirect
+	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
