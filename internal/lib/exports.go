@@ -599,6 +599,362 @@ func ListWallets(params *C.char) *C.char {
 	return C.CString(string(jsonBytes))
 }
 
+//export BuildTransaction
+// BuildTransaction constructs an unsigned transaction ready for signing.
+// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+//
+// Input JSON: {
+//   "chainId": "bitcoin" | "ethereum",
+//   "from": "address",
+//   "to": "address",
+//   "asset": "BTC" | "ETH",
+//   "amount": "1000000",  // string representation of big.Int
+//   "feeSpeed": "slow" | "normal" | "fast",
+//   "memo": "optional"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "id": "unique-tx-id",
+//     "chainId": "bitcoin",
+//     "from": "address",
+//     "to": "address",
+//     "amount": "1000000",
+//     "fee": "5000",
+//     "signingPayload": "base64-encoded-bytes",
+//     "humanReadable": "JSON representation for audit"
+//   }
+// }
+func BuildTransaction(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		ChainID   string `json:"chainId"`
+		From      string `json:"from"`
+		To        string `json:"to"`
+		Asset     string `json:"asset"`
+		Amount    string `json:"amount"`    // string representation of big.Int
+		FeeSpeed  string `json:"feeSpeed"`  // "slow", "normal", "fast"
+		Memo      string `json:"memo"`      // optional
+		RPCConfig string `json:"rpcConfig"` // optional RPC endpoint
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// TODO: Implement actual ChainAdapter integration
+	// For now, return placeholder response
+	data := map[string]interface{}{
+		"id":              "tx-" + time.Now().Format("20060102150405"),
+		"chainId":         input.ChainID,
+		"from":            input.From,
+		"to":              input.To,
+		"amount":          input.Amount,
+		"fee":             "placeholder-fee",
+		"signingPayload":  "placeholder-signing-payload",
+		"humanReadable":   fmt.Sprintf("Transaction from %s to %s, amount: %s", input.From, input.To, input.Amount),
+		"buildTimestamp":  time.Now().Format(time.RFC3339),
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export SignTransaction
+// SignTransaction signs an unsigned transaction using provided private key.
+// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+//
+// Input JSON: {
+//   "chainId": "bitcoin" | "ethereum",
+//   "unsignedTx": {...},  // UnsignedTransaction from BuildTransaction
+//   "privateKey": "hex-encoded-private-key" | "wif-format"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "txHash": "0x...",
+//     "signature": "base64-encoded-signature",
+//     "serializedTx": "base64-encoded-serialized-tx",
+//     "signedBy": "address"
+//   }
+// }
+func SignTransaction(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		ChainID     string                 `json:"chainId"`
+		UnsignedTx  map[string]interface{} `json:"unsignedTx"`
+		PrivateKey  string                 `json:"privateKey"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Zero sensitive data after function returns
+	defer zeroString(&input.PrivateKey)
+
+	// TODO: Implement actual ChainAdapter signing
+	data := map[string]interface{}{
+		"txHash":         "0xplaceholder-tx-hash",
+		"signature":      "placeholder-signature",
+		"serializedTx":   "placeholder-serialized-tx",
+		"signedBy":       input.UnsignedTx["from"],
+		"signTimestamp":  time.Now().Format(time.RFC3339),
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export BroadcastTransaction
+// BroadcastTransaction submits a signed transaction to the blockchain network.
+// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+//
+// Input JSON: {
+//   "chainId": "bitcoin" | "ethereum",
+//   "signedTx": {...},  // SignedTransaction from SignTransaction
+//   "rpcConfig": "optional-rpc-endpoint"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "txHash": "0x...",
+//     "chainId": "bitcoin",
+//     "submittedAt": "2025-11-04T15:30:00Z",
+//     "status": "pending",
+//     "statusUrl": "https://blockexplorer.com/tx/..."
+//   }
+// }
+func BroadcastTransaction(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		ChainID    string                 `json:"chainId"`
+		SignedTx   map[string]interface{} `json:"signedTx"`
+		RPCConfig  string                 `json:"rpcConfig"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// TODO: Implement actual ChainAdapter broadcast
+	txHash := input.SignedTx["txHash"]
+	if txHash == nil {
+		txHash = "0xplaceholder-broadcast-hash"
+	}
+
+	data := map[string]interface{}{
+		"txHash":       txHash,
+		"chainId":      input.ChainID,
+		"submittedAt":  time.Now().Format(time.RFC3339),
+		"status":       "pending",
+		"statusUrl":    fmt.Sprintf("https://blockexplorer.com/tx/%v", txHash),
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export QueryTransactionStatus
+// QueryTransactionStatus retrieves the current status of a transaction.
+// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+//
+// Input JSON: {
+//   "chainId": "bitcoin" | "ethereum",
+//   "txHash": "0x..." | "bitcoin-tx-hash",
+//   "rpcConfig": "optional-rpc-endpoint"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "txHash": "0x...",
+//     "status": "pending" | "confirmed" | "finalized" | "failed",
+//     "confirmations": 3,
+//     "blockNumber": 12345,
+//     "blockHash": "0x...",
+//     "updatedAt": "2025-11-04T15:35:00Z"
+//   }
+// }
+func QueryTransactionStatus(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		ChainID   string `json:"chainId"`
+		TxHash    string `json:"txHash"`
+		RPCConfig string `json:"rpcConfig"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// TODO: Implement actual ChainAdapter status query
+	data := map[string]interface{}{
+		"txHash":        input.TxHash,
+		"status":        "pending",
+		"confirmations": 0,
+		"blockNumber":   nil,
+		"blockHash":     nil,
+		"updatedAt":     time.Now().Format(time.RFC3339),
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export EstimateFee
+// EstimateFee calculates fee estimates with confidence bounds.
+// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+//
+// Input JSON: {
+//   "chainId": "bitcoin" | "ethereum",
+//   "from": "address",
+//   "to": "address",
+//   "asset": "BTC" | "ETH",
+//   "amount": "1000000",
+//   "rpcConfig": "optional-rpc-endpoint"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "chainId": "bitcoin",
+//     "minFee": "1000",
+//     "recommendedFee": "5000",
+//     "maxFee": "10000",
+//     "confidence": 85,
+//     "estimatedBlocks": 6,
+//     "timestamp": "2025-11-04T15:40:00Z"
+//   }
+// }
+func EstimateFee(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		ChainID   string `json:"chainId"`
+		From      string `json:"from"`
+		To        string `json:"to"`
+		Asset     string `json:"asset"`
+		Amount    string `json:"amount"`
+		RPCConfig string `json:"rpcConfig"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// TODO: Implement actual ChainAdapter fee estimation
+	data := map[string]interface{}{
+		"chainId":         input.ChainID,
+		"minFee":          "1000",
+		"recommendedFee":  "5000",
+		"maxFee":          "10000",
+		"confidence":      85,
+		"estimatedBlocks": 6,
+		"timestamp":       time.Now().Format(time.RFC3339),
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
 // main is required for buildmode=c-shared but should remain empty.
 // All functionality is exposed through //export functions.
 func main() {
