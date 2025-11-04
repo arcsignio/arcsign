@@ -1,6 +1,6 @@
 # ChainAdapter - 統一的跨鏈交易接口
 
-**Version**: 1.0.0 | **Status**: Phase 3 Complete ✅ | **Feature Branch**: `006-chain-adapter`
+**Version**: 1.0.0 | **Status**: Phase 7 Complete ✅ | **Feature Branch**: `006-chain-adapter`
 
 ChainAdapter 提供了一個統一的介面來處理 Bitcoin 和 Ethereum 的交易操作，支援交易構建、簽名、廣播、狀態查詢和地址生成。本文檔是 ChainAdapter 的主要設計架構文件，包含完整的架構設計、數據模型、實現狀態和使用指南。
 
@@ -94,12 +94,34 @@ ChainAdapter 的核心目標是提供跨鏈一致的交易生命周期介面（b
 
 ### User Story 5 - 功能檢測與版本化 (P2)
 
-**場景**：作為 UI 開發者，我需要檢測各鏈支援的功能（EIP-1559、memo、multi-sig），動態顯示/隱藏相關 UI 元素。
+**場景**：作為 UI 開發者，我需要檢測各鏈支援的功能（EIP-1559、memo、multi-sig、RBF），動態顯示/隱藏相關 UI 元素。
 
 **接受標準**：
-- 查詢 Ethereum adapter 返回 {supportsEIP1559: true, supportsMemo: false}
-- 查詢 Bitcoin adapter 返回 {supportsEIP1559: false, supportsMemo: false}
+- 查詢 Ethereum adapter 返回 {supportsEIP1559: true, supportsMemo: true, supportsRBF: false}
+- 查詢 Bitcoin adapter 返回 {supportsEIP1559: false, supportsMemo: true, supportsRBF: true}
 - 查詢不支援的功能返回 false 且無錯誤
+
+**功能標誌範例**：
+
+```go
+// Bitcoin Capabilities
+caps := bitcoinAdapter.Capabilities()
+// SupportsEIP1559: false    // Bitcoin 不支援 EIP-1559
+// SupportsMemo: true         // 支援 OP_RETURN（最大 80 bytes）
+// SupportsRBF: true          // 支援 Replace-By-Fee (BIP 125)
+// SupportsMultiSig: true     // 支援多重簽名（P2SH/P2WSH）
+// MaxMemoLength: 80          // OP_RETURN 最大 80 bytes
+// MinConfirmations: 6        // 推薦最小確認數
+
+// Ethereum Capabilities
+caps := ethereumAdapter.Capabilities()
+// SupportsEIP1559: true      // 支援 EIP-1559 動態費用
+// SupportsMemo: true         // 支援 data 欄位
+// SupportsRBF: false         // 不支援 RBF（使用 nonce replacement）
+// SupportsFeeDelegation: true // 支援費用代付（EIP-2771）
+// MaxMemoLength: 0           // 無硬限制（受 gas 限制）
+// MinConfirmations: 12       // 推薦最小確認數
+```
 
 ### User Story 6 - 離線簽名與審計追蹤 (P2)
 
@@ -888,13 +910,14 @@ ChainAdapter
 | 支援壓縮/非壓縮公鑰 | ✅ | ✅ | 完成 |
 | 單元測試 | ✅ (5 tests) | ✅ (5 tests) | 完成 |
 
-**User Story 5**: 功能檢測 (P2)
+**User Story 5**: 功能檢測 (P2) - **Phase 7 完成** ✅
 
 | 功能 | Bitcoin | Ethereum | 狀態 |
 |------|---------|----------|------|
 | Capabilities() 方法 | ✅ | ✅ | 完成 |
 | 功能標誌（EIP-1559, Memo, RBF） | ✅ | ✅ | 完成 |
 | 單元測試 | ✅ | ✅ | 完成 |
+| Contract Test TC-015 | ✅ (6 sub-tests) | ✅ (6 sub-tests) | 完成 |
 
 **User Story 6**: 離線簽名 (P2)
 
@@ -918,8 +941,9 @@ ChainAdapter
 | 單元測試 | ✅ (5 tests) | ✅ (4 tests) | 完成 |
 
 **測試覆蓋率**:
-- ✅ Bitcoin: 31/31 測試通過
-- ✅ Ethereum: 33/33 測試通過
+- ✅ Bitcoin: 31/31 單元測試通過
+- ✅ Ethereum: 33/33 單元測試通過
+- ✅ Contract Tests: TC-001 ~ TC-007, TC-014 ~ TC-015（11 contract tests）
 - ✅ 使用範例：bitcoin_example.go, ethereum_example.go
 - ✅ 測試文檔：TESTING_GUIDE.md
 
@@ -1027,4 +1051,4 @@ MIT License
 
 **最後更新**: 2025-11-04
 **版本**: 1.0.0
-**狀態**: Phase 3 Complete ✅
+**狀態**: Phase 7 Complete ✅ (User Stories 1-5)
