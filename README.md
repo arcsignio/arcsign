@@ -1068,52 +1068,194 @@ func (m *MetricsRPCClient) Call(ctx context.Context, method string, params inter
 }
 ```
 
-### 數據流
+### 數據流 (ChainAdapter SDK)
 
-#### 創建錢包流程
+ChainAdapter 作為共享庫,以下數據流展示應用程序如何集成 SDK 進行交易操作:
 
-```
-用戶輸入
-    ↓
-CLI (handleCreateWallet)
-    ↓
-WalletService.CreateWallet()
-    ├─→ Validators.ValidatePassword()
-    ├─→ Validators.ValidateWalletName()
-    ├─→ BIP39Service.GenerateMnemonic()
-    ├─→ EncryptionService.Encrypt()
-    ├─→ StorageService.WriteFile() (wallet.json)
-    ├─→ StorageService.WriteFile() (mnemonic.enc)
-    └─→ AuditLogger.LogEvent()
-    ↓
-返回錢包數據 + 助記詞給用戶
-```
-
-#### 地址派生流程
+#### Bitcoin 交易流程
 
 ```
-用戶輸入 (錢包ID, 密碼, 幣種, 賬戶, 索引)
+應用程序
     ↓
-CLI (handleDeriveAddress)
+bitcoinAdapter.Build(ctx, TransactionRequest)
     ↓
-WalletService.LoadWallet()
+BitcoinAdapter (UTXO 選擇與交易構建)
+    ├─→ RPCClient.Call("listunspent", from_address)
+    │   └─→ Bitcoin Core RPC
+    │       └─→ 返回 UTXO 列表 [{txid, vout, amount}...]
+    │
+    ├─→ 選擇 UTXOs (貪心算法, 優先大額UTXO)
+    ├─→ 計算找零金額 (total_input - amount - fee)
+    ├─→ 構建交易輸入/輸出
+    ├─→ 生成簽名負載 (SigningPayload)
+    └─→ metrics.RecordTransactionBuild("bitcoin", duration, success)
     ↓
-WalletService.RestoreWallet()
-    ├─→ RateLimiter.AllowAttempt()
-    ├─→ StorageService.ReadFile()
-    ├─→ EncryptionService.Decrypt()
-    └─→ RateLimiter.ResetAttempts() (成功時)
+返回 UnsignedTransaction
+    ├─ SigningPayload: []byte (二進制簽名數據)
+    ├─ HumanReadable: string (可審計的JSON格式)
+    ├─ From/To/Amount/Fee
+    └─ ID: 唯一交易標識符
     ↓
-BIP39Service.MnemonicToSeed()
+bitcoinAdapter.Sign(ctx, unsigned, signer)
     ↓
-HDKeyService.NewMasterKey()
+BitcoinAdapter (離線簽名)
+    ├─→ 驗證 signer.GetAddress() == unsigned.From
+    ├─→ ECDSA 簽名 (secp256k1)
+    ├─→ 序列化簽名交易
+    └─→ metrics.RecordTransactionSign("bitcoin", duration, success)
     ↓
-HDKeyService.DerivePath()
+返回 SignedTransaction
+    ├─ Signature: []byte
+    ├─ SerializedTx: []byte (可廣播的原始交易)
+    ├─ TxHash: string
+    ├─ SignedBy: address
+    └─ UnsignedTx: *UnsignedTransaction (審計追蹤)
     ↓
-AddressService.DeriveAddress(formatterID)
+bitcoinAdapter.Broadcast(ctx, signed)
     ↓
-顯示地址給用戶
+BitcoinAdapter (冪等廣播)
+    ├─→ 檢查 TransactionStateStore.Get(txHash)
+    │   └─→ 如果已存在且狀態非失敗,返回現有收據
+    │
+    ├─→ RPCClient.Call("sendrawtransaction", serializedTx)
+    │   └─→ Bitcoin Core RPC
+    │       └─→ 廣播到網絡,返回 txHash
+    │
+    ├─→ TransactionStateStore.Set(txHash, TxState{
+    │       Status: "pending",
+    │       RetryCount: 1,
+    │       FirstSeen: now,
+    │   })
+    │
+    └─→ metrics.RecordTransactionBroadcast("bitcoin", duration, success)
+    ↓
+返回 BroadcastReceipt {TxHash, Status, BroadcastedAt}
+    ↓
+bitcoinAdapter.QueryStatus(ctx, txHash) 或 SubscribeStatus(ctx, txHash)
+    ↓
+BitcoinAdapter (狀態監控)
+    ├─→ RPCClient.Call("gettransaction", txHash)
+    │   └─→ 返回 {confirmations: N, blockhash: "...", ...}
+    │
+    ├─→ 確定狀態:
+    │   - confirmations = 0  → TxStatusPending
+    │   - confirmations 1-5  → TxStatusConfirmed
+    │   - confirmations >= 6 → TxStatusFinalized
+    │
+    └─→ TransactionStateStore.Set(txHash, updatedState)
+    ↓
+返回 TransactionStatus {
+    TxHash, Status, Confirmations,
+    BlockNumber, BlockHash, Timestamp
+}
 ```
+
+#### Ethereum 交易流程 (EIP-1559)
+
+```
+應用程序
+    ↓
+ethereumAdapter.Build(ctx, TransactionRequest)
+    ↓
+EthereumAdapter (Nonce 查詢與 Gas 估算)
+    ├─→ RPCClient.Call("eth_getTransactionCount", from, "latest")
+    │   └─→ Geth/Infura RPC → 返回 nonce: 5
+    │
+    ├─→ RPCClient.Call("eth_estimateGas", {from, to, value})
+    │   └─→ 返回 gasLimit: 21000
+    │
+    ├─→ RPCClient.Call("eth_getBlockByNumber", "latest", false)
+    │   └─→ 返回 baseFeePerGas: 50 Gwei
+    │
+    ├─→ RPCClient.Call("eth_maxPriorityFeePerGas")
+    │   └─→ 返回 priorityFee: 1.5 Gwei
+    │
+    ├─→ 計算 EIP-1559 費用:
+    │   - Fast:   priorityFee * 2.0 + baseFee
+    │   - Normal: priorityFee * 1.0 + baseFee  (默認)
+    │   - Slow:   priorityFee * 0.5 + baseFee
+    │
+    ├─→ 構建 EIP-1559 交易
+    │   {chainId, nonce, to, value, gasLimit,
+    │    maxFeePerGas, maxPriorityFeePerGas}
+    │
+    ├─→ 生成簽名負載 (RLP 編碼的交易哈希)
+    └─→ metrics.RecordTransactionBuild("ethereum", duration, success)
+    ↓
+返回 UnsignedTransaction
+    ├─ SigningPayload: []byte (Keccak256 哈希)
+    ├─ HumanReadable: JSON {from, to, amount, nonce, gas}
+    ├─ Nonce: *big.Int
+    ├─ GasLimit/MaxFeePerGas/MaxPriorityFeePerGas
+    └─ ID: 唯一交易標識符
+    ↓
+ethereumAdapter.Sign(ctx, unsigned, signer)
+    ↓
+EthereumAdapter (離線簽名)
+    ├─→ 驗證 signer.GetAddress() == unsigned.From (checksummed)
+    ├─→ ECDSA 簽名 (secp256k1, recoverable signature)
+    ├─→ RLP 編碼簽名交易 (type 2: EIP-1559)
+    └─→ metrics.RecordTransactionSign("ethereum", duration, success)
+    ↓
+返回 SignedTransaction
+    ├─ Signature: []byte (r, s, v)
+    ├─ SerializedTx: []byte (0x02 + RLP([chainId, nonce, ...]))
+    ├─ TxHash: 0x... (Keccak256 哈希)
+    ├─ SignedBy: 0x... (EIP-55 checksummed)
+    └─ UnsignedTx: *UnsignedTransaction (審計追蹤)
+    ↓
+ethereumAdapter.Broadcast(ctx, signed)
+    ↓
+EthereumAdapter (冪等廣播)
+    ├─→ 檢查 TransactionStateStore.Get(txHash)
+    │   └─→ 如果已存在且狀態非失敗,返回現有收據
+    │
+    ├─→ RPCClient.Call("eth_sendRawTransaction", hexSerializedTx)
+    │   └─→ Geth/Infura RPC
+    │       └─→ 廣播到 mempool,返回 txHash
+    │
+    ├─→ TransactionStateStore.Set(txHash, TxState{
+    │       Status: "pending",
+    │       RetryCount: 1,
+    │       FirstSeen: now,
+    │   })
+    │
+    └─→ metrics.RecordTransactionBroadcast("ethereum", duration, success)
+    ↓
+返回 BroadcastReceipt {TxHash, Status, BroadcastedAt}
+    ↓
+ethereumAdapter.QueryStatus(ctx, txHash) 或 SubscribeStatus(ctx, txHash)
+    ↓
+EthereumAdapter (狀態監控)
+    ├─→ RPCClient.Call("eth_getTransactionReceipt", txHash)
+    │   └─→ 返回 {blockNumber, status, gasUsed, ...} 或 null
+    │
+    ├─→ RPCClient.Call("eth_blockNumber")
+    │   └─→ 返回當前區塊高度
+    │
+    ├─→ 計算確認數 = currentBlock - txBlock
+    │
+    ├─→ 確定狀態:
+    │   - receipt == null      → TxStatusPending
+    │   - confirmations 1-11   → TxStatusConfirmed
+    │   - confirmations >= 12  → TxStatusFinalized
+    │
+    └─→ TransactionStateStore.Set(txHash, updatedState)
+    ↓
+返回 TransactionStatus {
+    TxHash, Status, Confirmations,
+    BlockNumber, GasUsed, Success
+}
+```
+
+**說明**:
+
+1. **Build()**: 應用程序調用 SDK 構建交易,SDK 通過 RPC 查詢鏈狀態 (UTXO/nonce/gas),返回未簽名交易
+2. **Sign()**: 離線簽名,無需網絡調用,驗證地址匹配後生成 ECDSA 簽名
+3. **Broadcast()**: 冪等廣播到區塊鏈,存儲交易狀態供後續查詢
+4. **QueryStatus()**: 實時查詢交易確認狀態,從 pending → confirmed → finalized
+
+所有 RPC 調用均通過 `MetricsRPCClient` 包裝,自動記錄延遲和成功率指標
 
 ---
 
