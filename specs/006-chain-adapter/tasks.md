@@ -211,26 +211,26 @@ ChainAdapter provides a unified interface for cross-chain transactions (build/es
 
 ### US4 Contract Tests
 
-- [ ] T074 [P] [US4] Write contract test TC-006 (Derivation Determinism) in tests/contract/address_derivation_test.go
-- [ ] T075 [P] [US4] Write contract test TC-007 (Cross-Wallet Compatibility) with BIP39 test vectors in tests/contract/address_derivation_test.go
+- [X] T074 [P] [US4] Write contract test TC-006 (Derivation Determinism) in tests/contract/address_derivation_test.go
+- [X] T075 [P] [US4] Write contract test TC-007 (Cross-Wallet Compatibility) with BIP39 test vectors in tests/contract/address_derivation_test.go
 
 ### US4 Key Source Implementations
 
-- [ ] T076 [P] [US4] Implement MnemonicKeySource with BIP39 in src/chainadapter/types.go
-- [ ] T077 [P] [US4] Implement XPubKeySource in src/chainadapter/types.go
-- [ ] T078 [P] [US4] Implement HardwareWalletKeySource stub in src/chainadapter/types.go
+- [X] T076 [P] [US4] Implement MnemonicKeySource with BIP39 in src/chainadapter/keysource_impl.go
+- [X] T077 [P] [US4] Implement XPubKeySource in src/chainadapter/keysource_impl.go
+- [X] T078 [P] [US4] Implement HardwareWalletKeySource stub in src/chainadapter/keysource_impl.go
 
 ### US4 Bitcoin Derivation
 
-- [ ] T079 [US4] Implement Bitcoin address derivation in src/chainadapter/bitcoin/derive.go (BIP44 path m/44'/0', P2WPKH encoding)
-- [ ] T080 [US4] Implement Bitcoin Derive() method in src/chainadapter/bitcoin/adapter.go
-- [ ] T081 [US4] Unit test Bitcoin Derive() with test mnemonic in tests/unit/bitcoin_test.go
+- [X] T079 [US4] Implement Bitcoin address derivation in src/chainadapter/bitcoin/derive.go (BIP44 path m/44'/0', P2WPKH encoding)
+- [X] T080 [US4] Implement Bitcoin Derive() method in src/chainadapter/bitcoin/adapter.go
+- [X] T081 [US4] Unit test Bitcoin Derive() with test mnemonic in tests/unit/bitcoin_test.go
 
 ### US4 Ethereum Derivation
 
-- [ ] T082 [P] [US4] Implement Ethereum address derivation in src/chainadapter/ethereum/derive.go (BIP44 path m/44'/60', EIP-55 checksum)
-- [ ] T083 [P] [US4] Implement Ethereum Derive() method in src/chainadapter/ethereum/adapter.go
-- [ ] T084 [P] [US4] Unit test Ethereum Derive() with test mnemonic in tests/unit/ethereum_test.go
+- [X] T082 [P] [US4] Implement Ethereum address derivation in src/chainadapter/ethereum/derive.go (BIP44 path m/44'/60', EIP-55 checksum)
+- [X] T083 [P] [US4] Implement Ethereum Derive() method in src/chainadapter/ethereum/adapter.go
+- [X] T084 [P] [US4] Unit test Ethereum Derive() with test mnemonic in tests/unit/ethereum_test.go
 
 ### US4 Integration Tests
 
