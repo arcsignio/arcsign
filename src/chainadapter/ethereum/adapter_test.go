@@ -50,23 +50,6 @@ func (m *MockRPCClient) SetResponse(method string, response interface{}) {
 	m.responses[method] = response
 }
 
-// MockKeySource implements chainadapter.KeySource for testing
-type MockKeySource struct {
-	pubKey []byte
-}
-
-func NewMockKeySource(pubKey []byte) *MockKeySource {
-	return &MockKeySource{pubKey: pubKey}
-}
-
-func (m *MockKeySource) Type() chainadapter.KeySourceType {
-	return chainadapter.KeySourceMnemonic
-}
-
-func (m *MockKeySource) GetPublicKey(path string) ([]byte, error) {
-	return m.pubKey, nil
-}
-
 // TestEthereumAdapter_Build tests the Build() method
 func TestEthereumAdapter_Build(t *testing.T) {
 	ctx := context.Background()
@@ -122,86 +105,6 @@ func TestEthereumAdapter_Build(t *testing.T) {
 
 	if unsigned.SigningPayload == nil {
 		t.Error("SigningPayload is nil")
-	}
-}
-
-// TestEthereumAdapter_Derive tests the Derive() method
-func TestEthereumAdapter_Derive(t *testing.T) {
-	ctx := context.Background()
-
-	// Create adapter
-	mockRPC := NewMockRPCClient()
-	adapter, err := NewEthereumAdapter(mockRPC, nil, 1, nil)
-	if err != nil {
-		t.Fatalf("failed to create adapter: %v", err)
-	}
-
-	// Test with a valid uncompressed public key
-	pubKey := []byte{
-		0x04, // Uncompressed prefix
-		0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62, 0x95, 0xce, 0x87, 0x0b, 0x07,
-		0x02, 0x9b, 0xfc, 0xdb, 0x2d, 0xce, 0x28, 0xd9, 0x59, 0xf2, 0x81, 0x5b, 0x16, 0xf8, 0x17, 0x98,
-		0x48, 0x3a, 0xda, 0x77, 0x26, 0xa3, 0xc4, 0x65, 0x5d, 0xa4, 0xfb, 0xfc, 0x0e, 0x11, 0x08, 0xa8,
-		0xfd, 0x17, 0xb4, 0x48, 0xa6, 0x85, 0x54, 0x19, 0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
-	}
-
-	keySource := NewMockKeySource(pubKey)
-
-	// Test valid path
-	testCases := []struct {
-		name        string
-		path        string
-		expectError bool
-	}{
-		{"valid path", "m/44'/60'/0'/0/0", false},
-		{"valid path with higher index", "m/44'/60'/0'/0/100", false},
-		{"invalid coin type", "m/44'/0'/0'/0/0", true},
-		{"invalid format", "m/44/60/0/0/0", true},
-		{"wrong purpose", "m/49'/60'/0'/0/0", true},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			address, err := adapter.Derive(ctx, keySource, tc.path)
-
-			if tc.expectError {
-				if err == nil {
-					t.Error("expected error but got none")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("Derive() failed: %v", err)
-			}
-
-			// Verify result
-			if address == nil {
-				t.Fatal("Derive() returned nil address")
-			}
-
-			if address.ChainID != "ethereum" {
-				t.Errorf("expected ChainID 'ethereum', got '%s'", address.ChainID)
-			}
-
-			if address.DerivationPath != tc.path {
-				t.Errorf("expected path '%s', got '%s'", tc.path, address.DerivationPath)
-			}
-
-			if address.Format != "checksummed" {
-				t.Errorf("expected format 'checksummed', got '%s'", address.Format)
-			}
-
-			// Verify address starts with 0x
-			if len(address.Address) < 2 || address.Address[:2] != "0x" {
-				t.Errorf("expected Ethereum address starting with '0x', got '%s'", address.Address)
-			}
-
-			// Verify address is 42 characters (0x + 40 hex chars)
-			if len(address.Address) != 42 {
-				t.Errorf("expected address length 42, got %d", len(address.Address))
-			}
-		})
 	}
 }
 

@@ -331,17 +331,6 @@ func (adapter *Adapter) SubscribeStatus(ctx context.Context, txHash string) (<-c
 - 實時狀態更新 (WebSocket/輪詢)
 - 狀態: Pending → Confirmed → Finalized
 
-#### 地址生成
-
-**Derive() - BIP44地址生成**
-
-```go
-func (adapter *Adapter) Derive(ctx context.Context, mnemonic string, path string) (string, error)
-```
-- Bitcoin: P2WPKH地址 (bc1q...)
-- Ethereum: EIP-55 checksummed地址 (0x...)
-- BIP44路徑: m/44'/coin'/account'/change/index
-
 #### Phase 9: 可觀測指標
 
 **可選的Prometheus指標整合**
@@ -490,7 +479,6 @@ fmt.Println(metricsRecorder.Export())
 **已完成功能**:
 - ✅ User Story 1: 統一的跨鏈交易構建 (Bitcoin UTXO + Ethereum EIP-1559)
 - ✅ User Story 3: 冪等的交易廣播（支援安全重試）
-- ✅ User Story 4: BIP44地址生成（Bitcoin coin 0, Ethereum coin 60）
 - ✅ User Story 5: 功能檢測（EIP-1559、RBF、Memo等動態功能查詢）
 - ✅ User Story 6: 離線簽名與審計追蹤
 - ✅ User Story 7: 可觀測指標與健康監控（Prometheus）
@@ -758,7 +746,6 @@ import "github.com/arcsign/chainadapter/ethereum"
 │  │  - Sign()       簽名交易 (支援離線)                    │  │
 │  │  - Broadcast()  廣播交易 (冪等)                       │  │
 │  │  - QueryStatus() / SubscribeStatus()  狀態監控        │  │
-│  │  - Derive()     BIP44地址生成                         │  │
 │  │  - Capabilities() 功能檢測                            │  │
 │  └───────────────────┬───────────────────────────────────┘  │
 │                      │                                       │

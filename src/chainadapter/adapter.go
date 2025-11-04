@@ -85,20 +85,6 @@ type ChainAdapter interface {
 	// - UserIntervention: Fee too low, replace-by-fee required
 	Broadcast(ctx context.Context, signed *SignedTransaction) (*BroadcastReceipt, error)
 
-	// Derive generates a blockchain address from a key source and derivation path.
-	//
-	// Contract:
-	// - MUST follow BIP44 derivation path standard (m/44'/cointype'/account'/change/index)
-	// - MUST return address in chain-specific format (P2WPKH for Bitcoin, checksummed for Ethereum)
-	// - MUST NOT expose private key material
-	// - MUST be deterministic (same KeySource + path → same address)
-	// - Bitcoin: cointype = 0, format = P2WPKH (bc1q...)
-	// - Ethereum: cointype = 60, format = checksummed (0x...)
-	//
-	// Errors:
-	// - NonRetryable: Invalid derivation path, unsupported key source type
-	Derive(ctx context.Context, keySource KeySource, path string) (*Address, error)
-
 	// QueryStatus retrieves the current status of a transaction by hash.
 	//
 	// Contract:
@@ -217,15 +203,6 @@ const (
 	TxStatusFinalized TxStatus = "finalized"
 	TxStatusFailed    TxStatus = "failed"
 )
-
-// Address represents a derived blockchain address
-type Address struct {
-	Address        string // Chain-specific encoding
-	ChainID        string
-	DerivationPath string // BIP44 path
-	PublicKey      []byte // Public key bytes
-	Format         string // "P2WPKH", "checksummed", etc.
-}
 
 // Capabilities defines supported features for a chain adapter
 type Capabilities struct {

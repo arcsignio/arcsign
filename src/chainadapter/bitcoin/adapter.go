@@ -382,62 +382,6 @@ func findSubstring(s, substr string) bool {
 	return false
 }
 
-// Derive generates a Bitcoin address from a key source and derivation path.
-//
-// Contract:
-// - MUST follow BIP44 derivation path standard (m/44'/0'/account'/change/index)
-// - MUST return P2WPKH address format (bc1q... for mainnet, tb1q... for testnet)
-// - MUST NOT expose private key material
-// - MUST be deterministic (same KeySource + path → same address)
-//
-// Parameters:
-// - ctx: Context for cancellation
-// - keySource: Source of key material (mnemonic, xpub, hardware wallet)
-// - path: BIP44 derivation path (e.g., "m/44'/0'/0'/0/0")
-//
-// Returns:
-// - Address with chain-specific encoding and metadata
-// - Error if path is invalid or derivation fails
-func (b *BitcoinAdapter) Derive(ctx context.Context, keySource chainadapter.KeySource, path string) (*chainadapter.Address, error) {
-	// Step 1: Validate BIP44 path format
-	if err := validateBIP44Path(path, 0); err != nil {
-		return nil, chainadapter.NewNonRetryableError(
-			"ERR_INVALID_PATH",
-			fmt.Sprintf("invalid BIP44 path: %s", err.Error()),
-			err,
-		)
-	}
-
-	// Step 2: Get public key from key source
-	pubKeyBytes, err := keySource.GetPublicKey(path)
-	if err != nil {
-		return nil, chainadapter.NewNonRetryableError(
-			"ERR_KEY_DERIVATION",
-			fmt.Sprintf("failed to derive public key: %s", err.Error()),
-			err,
-		)
-	}
-
-	// Step 3: Create P2WPKH address from public key
-	address, err := pubKeyToP2WPKHAddress(pubKeyBytes, b.network)
-	if err != nil {
-		return nil, chainadapter.NewNonRetryableError(
-			"ERR_ADDRESS_ENCODING",
-			fmt.Sprintf("failed to create P2WPKH address: %s", err.Error()),
-			err,
-		)
-	}
-
-	// Step 4: Return Address struct
-	return &chainadapter.Address{
-		Address:        address,
-		ChainID:        b.chainID,
-		DerivationPath: path,
-		PublicKey:      pubKeyBytes,
-		Format:         "P2WPKH",
-	}, nil
-}
-
 // QueryStatus retrieves the current status of a Bitcoin transaction by hash.
 //
 // Contract:

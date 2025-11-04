@@ -431,62 +431,6 @@ func toLower(s string) string {
 	return string(result)
 }
 
-// Derive generates an Ethereum address from a key source and derivation path.
-//
-// Contract:
-// - MUST follow BIP44 derivation path standard (m/44'/60'/account'/change/index)
-// - MUST return checksummed address format (EIP-55: 0x... with mixed case)
-// - MUST NOT expose private key material
-// - MUST be deterministic (same KeySource + path → same address)
-//
-// Parameters:
-// - ctx: Context for cancellation
-// - keySource: Source of key material (mnemonic, xpub, hardware wallet)
-// - path: BIP44 derivation path (e.g., "m/44'/60'/0'/0/0")
-//
-// Returns:
-// - Address with checksummed encoding and metadata
-// - Error if path is invalid or derivation fails
-func (e *EthereumAdapter) Derive(ctx context.Context, keySource chainadapter.KeySource, path string) (*chainadapter.Address, error) {
-	// Step 1: Validate BIP44 path format (coin type 60 for Ethereum)
-	if err := validateBIP44Path(path, 60); err != nil {
-		return nil, chainadapter.NewNonRetryableError(
-			"ERR_INVALID_PATH",
-			fmt.Sprintf("invalid BIP44 path: %s", err.Error()),
-			err,
-		)
-	}
-
-	// Step 2: Get public key from key source
-	pubKeyBytes, err := keySource.GetPublicKey(path)
-	if err != nil {
-		return nil, chainadapter.NewNonRetryableError(
-			"ERR_KEY_DERIVATION",
-			fmt.Sprintf("failed to derive public key: %s", err.Error()),
-			err,
-		)
-	}
-
-	// Step 3: Create checksummed Ethereum address from public key
-	address, err := pubKeyToChecksummedAddress(pubKeyBytes)
-	if err != nil {
-		return nil, chainadapter.NewNonRetryableError(
-			"ERR_ADDRESS_ENCODING",
-			fmt.Sprintf("failed to create Ethereum address: %s", err.Error()),
-			err,
-		)
-	}
-
-	// Step 4: Return Address struct
-	return &chainadapter.Address{
-		Address:        address,
-		ChainID:        e.chainID,
-		DerivationPath: path,
-		PublicKey:      pubKeyBytes,
-		Format:         "checksummed",
-	}, nil
-}
-
 // QueryStatus retrieves the current status of an Ethereum transaction by hash.
 //
 // Contract:
