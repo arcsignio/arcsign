@@ -617,12 +617,17 @@ import (
     "math/big"
     "github.com/arcsign/chainadapter"
     "github.com/arcsign/chainadapter/bitcoin"
+    "github.com/arcsign/chainadapter/storage"
 )
 
-// 1. 創建 adapter
+// 1. 創建 adapter（不使用 metrics）
 rpcClient := NewBitcoinRPCClient("http://localhost:18332")
 txStore := storage.NewMemoryTxStore()
-adapter, _ := bitcoin.NewBitcoinAdapter(rpcClient, txStore, "testnet3")
+adapter, _ := bitcoin.NewBitcoinAdapter(rpcClient, txStore, "testnet3", nil)
+
+// 或者創建帶 metrics 的 adapter
+// metricsRecorder := metrics.NewPrometheusMetrics()
+// adapter, _ := bitcoin.NewBitcoinAdapter(rpcClient, txStore, "testnet3", metricsRecorder)
 
 // 2. 生成地址
 ctx := context.Background()
@@ -661,11 +666,17 @@ for status := range statusChan {
 ```go
 import (
     "github.com/arcsign/chainadapter/ethereum"
+    "github.com/arcsign/chainadapter/storage"
 )
 
-// 1. 創建 adapter
+// 1. 創建 adapter（不使用 metrics）
 rpcClient := NewEthereumRPCClient("https://sepolia.infura.io/v3/YOUR_KEY")
-adapter, _ := ethereum.NewEthereumAdapter(rpcClient, txStore, 11155111) // Sepolia
+txStore := storage.NewMemoryTxStore()
+adapter, _ := ethereum.NewEthereumAdapter(rpcClient, txStore, 11155111, nil) // Sepolia
+
+// 或者創建帶 metrics 的 adapter
+// metricsRecorder := metrics.NewPrometheusMetrics()
+// adapter, _ := ethereum.NewEthereumAdapter(rpcClient, txStore, 11155111, metricsRecorder)
 
 // 2. 生成 EIP-55 地址
 address, _ := adapter.Derive(ctx, keySource, "m/44'/60'/0'/0/0")
@@ -819,6 +830,72 @@ go run examples/ethereum_example.go
 
 ## 📖 API 文檔
 
+### Adapter 構造函數
+
+#### Bitcoin Adapter
+
+```go
+func NewBitcoinAdapter(
+    rpcClient rpc.RPCClient,
+    txStore storage.TransactionStateStore,
+    network string,
+    metricsRecorder metrics.ChainMetrics,
+) (*BitcoinAdapter, error)
+```
+
+**參數**：
+- `rpcClient`: Bitcoin RPC 客戶端（實現 `rpc.RPCClient` 介面）
+- `txStore`: 交易狀態存儲（實現 `storage.TransactionStateStore` 介面）
+- `network`: 網絡類型（"mainnet", "testnet3", "regtest"）
+- `metricsRecorder`: 指標記錄器（可選，傳 `nil` 禁用指標追蹤）
+
+**範例**：
+```go
+// 不使用指標
+adapter, err := bitcoin.NewBitcoinAdapter(rpcClient, txStore, "mainnet", nil)
+
+// 使用 Prometheus 指標
+metricsRecorder := metrics.NewPrometheusMetrics()
+adapter, err := bitcoin.NewBitcoinAdapter(rpcClient, txStore, "mainnet", metricsRecorder)
+```
+
+#### Ethereum Adapter
+
+```go
+func NewEthereumAdapter(
+    rpcClient rpc.RPCClient,
+    txStore storage.TransactionStateStore,
+    chainID uint64,
+    metricsRecorder metrics.ChainMetrics,
+) (*EthereumAdapter, error)
+```
+
+**參數**：
+- `rpcClient`: Ethereum RPC 客戶端（實現 `rpc.RPCClient` 介面）
+- `txStore`: 交易狀態存儲（實現 `storage.TransactionStateStore` 介面）
+- `chainID`: 鏈 ID（1=mainnet, 11155111=sepolia, 5=goerli）
+- `metricsRecorder`: 指標記錄器（可選，傳 `nil` 禁用指標追蹤）
+
+**範例**：
+```go
+// 不使用指標
+adapter, err := ethereum.NewEthereumAdapter(rpcClient, txStore, 1, nil)
+
+// 使用 Prometheus 指標
+metricsRecorder := metrics.NewPrometheusMetrics()
+adapter, err := ethereum.NewEthereumAdapter(rpcClient, txStore, 1, metricsRecorder)
+
+// 查詢健康狀態
+health := metricsRecorder.GetHealthStatus()
+if health.Status != "OK" {
+    log.Printf("警告: 鏈適配器狀態=%s, 原因=%s", health.Status, health.Message)
+}
+
+// 導出 Prometheus 指標
+metricsText := metricsRecorder.Export()
+// 可發送到 Prometheus pushgateway 或通過 HTTP endpoint 暴露
+```
+
 ### TransactionRequest
 
 構建交易的請求參數：
@@ -885,6 +962,89 @@ type Address struct {
     PublicKey      []byte   // 公鑰 bytes
     Format         string   // 地址格式（P2WPKH 或 checksummed）
 }
+```
+
+### ChainMetrics（指標介面）
+
+指標記錄和查詢介面（Phase 9）：
+
+```go
+type ChainMetrics interface {
+    // 記錄操作指標
+    RecordRPCCall(method string, duration time.Duration, success bool)
+    RecordTransactionBuild(chainID string, duration time.Duration, success bool)
+    RecordTransactionSign(chainID string, duration time.Duration, success bool)
+    RecordTransactionBroadcast(chainID string, duration time.Duration, success bool)
+
+    // 查詢指標
+    GetMetrics() *AggregatedMetrics
+    GetRPCMetrics(method string) *MethodMetrics
+    GetHealthStatus() HealthStatus
+
+    // 導出與重置
+    Export() string  // Prometheus 格式
+    Reset()
+}
+
+// 健康狀態
+type HealthStatus struct {
+    Status            string    // "OK", "Degraded", "Down"
+    Message           string    // 狀態說明
+    CheckedAt         time.Time
+    LowSuccessRate    bool      // 成功率 < 90%
+    HighLatency       bool      // 平均延遲 > 5s
+    NoRecentSuccess   bool      // 超過 5 分鐘無成功呼叫
+}
+```
+
+**使用範例**：
+```go
+// 創建指標記錄器
+metrics := metrics.NewPrometheusMetrics()
+
+// 在 adapter 中自動記錄（透過 NewBitcoinAdapter/NewEthereumAdapter）
+adapter, _ := bitcoin.NewBitcoinAdapter(rpcClient, txStore, "mainnet", metrics)
+
+// 所有 RPC 呼叫和交易操作會自動記錄指標
+unsigned, _ := adapter.Build(ctx, req)      // 自動記錄 Build() 指標
+signed, _ := adapter.Sign(ctx, unsigned, signer)  // 自動記錄 Sign() 指標
+
+// 手動查詢指標
+allMetrics := metrics.GetMetrics()
+fmt.Printf("總 RPC 呼叫: %d, 成功: %d\n",
+    allMetrics.TotalCalls, allMetrics.SuccessfulCalls)
+
+// 檢查健康狀態
+health := metrics.GetHealthStatus()
+if health.Status == "Degraded" {
+    log.Printf("降級: %s (成功率低=%v, 高延遲=%v, 無近期成功=%v)",
+        health.Message,
+        health.LowSuccessRate,
+        health.HighLatency,
+        health.NoRecentSuccess)
+}
+
+// 導出 Prometheus 指標（可通過 HTTP endpoint 暴露）
+fmt.Println(metrics.Export())
+```
+
+**Prometheus 指標範例**：
+```
+# HELP chainadapter_rpc_calls_total Total number of RPC calls
+# TYPE chainadapter_rpc_calls_total counter
+chainadapter_rpc_calls_total{method="eth_getTransactionCount",status="success"} 42
+chainadapter_rpc_calls_total{method="eth_sendRawTransaction",status="success"} 10
+
+# HELP chainadapter_rpc_duration_seconds RPC call duration
+# TYPE chainadapter_rpc_duration_seconds summary
+chainadapter_rpc_duration_seconds{method="eth_getTransactionCount",quantile="0.5"} 0.123
+chainadapter_rpc_duration_seconds{method="eth_getTransactionCount",quantile="0.95"} 0.456
+
+# HELP chainadapter_tx_operations_total Transaction operations
+# TYPE chainadapter_tx_operations_total counter
+chainadapter_tx_operations_total{operation="build",status="success"} 15
+chainadapter_tx_operations_total{operation="sign",status="success"} 15
+chainadapter_tx_operations_total{operation="broadcast",status="success"} 12
 ```
 
 ## 🔧 架構設計
