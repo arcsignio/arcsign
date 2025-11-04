@@ -420,11 +420,90 @@ func (b *BitcoinAdapter) QueryStatus(ctx context.Context, txHash string) (*chain
 }
 
 // SubscribeStatus returns a channel that streams real-time Bitcoin transaction status updates.
+//
+// Contract:
+// - MUST use HTTP polling (WebSocket not available for Bitcoin Core by default)
+// - MUST send initial status immediately
+// - MUST close channel when context is cancelled
+// - MUST send updates only on state change
+// - Poll interval: 10 seconds (Bitcoin block time ~10 minutes)
+//
+// Returns:
+// - Channel receiving status updates
+// - Error if initial status query fails
 func (b *BitcoinAdapter) SubscribeStatus(ctx context.Context, txHash string) (<-chan *chainadapter.TransactionStatus, error) {
-	// TODO: Implement in T067
-	return nil, chainadapter.NewNonRetryableError(
-		"ERR_NOT_IMPLEMENTED",
-		"Bitcoin SubscribeStatus() not yet implemented",
-		nil,
-	)
+	statusChan := make(chan *chainadapter.TransactionStatus, 10)
+
+	// Get initial status
+	initialStatus, err := b.QueryStatus(ctx, txHash)
+	if err != nil {
+		close(statusChan)
+		return statusChan, err
+	}
+
+	// Start background polling goroutine
+	go func() {
+		defer close(statusChan)
+
+		// Send initial status
+		select {
+		case statusChan <- initialStatus:
+		case <-ctx.Done():
+			return
+		}
+
+		lastStatus := initialStatus.Status
+		lastConfirmations := initialStatus.Confirmations
+		pollInterval := 10 * time.Second
+		maxPollInterval := 60 * time.Second
+		errorBackoff := 5 * time.Second
+
+		ticker := time.NewTicker(pollInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				// Query current status
+				status, err := b.QueryStatus(ctx, txHash)
+				if err != nil {
+					// On error, increase backoff and continue
+					ticker.Reset(errorBackoff)
+					if errorBackoff < maxPollInterval {
+						errorBackoff *= 2
+					}
+					continue
+				}
+
+				// Reset backoff on success
+				errorBackoff = 5 * time.Second
+
+				// Check if status changed
+				statusChanged := status.Status != lastStatus || status.Confirmations != lastConfirmations
+
+				if statusChanged {
+					lastStatus = status.Status
+					lastConfirmations = status.Confirmations
+
+					// Send update
+					select {
+					case statusChan <- status:
+					case <-ctx.Done():
+						return
+					default:
+						// Channel full, drop old update
+					}
+
+					// Once finalized, we can slow down polling
+					if status.Status == chainadapter.TxStatusFinalized {
+						ticker.Reset(maxPollInterval)
+					}
+				}
+			}
+		}
+	}()
+
+	return statusChan, nil
 }
