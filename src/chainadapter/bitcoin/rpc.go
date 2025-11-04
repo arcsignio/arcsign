@@ -160,3 +160,54 @@ func (r *RPCHelper) GetBlockCount(ctx context.Context) (int64, error) {
 
 	return blockCount, nil
 }
+
+// SendRawTransaction broadcasts a signed transaction to the Bitcoin network.
+//
+// Parameters:
+// - ctx: Context for cancellation
+// - txHex: Hex-encoded signed transaction
+//
+// Returns:
+// - Transaction hash (hex string)
+// - Error if broadcast fails
+func (r *RPCHelper) SendRawTransaction(ctx context.Context, txHex string) (string, error) {
+	result, err := r.client.Call(ctx, "sendrawtransaction", []interface{}{txHex})
+	if err != nil {
+		// Check if error is due to duplicate transaction
+		if errMsg := err.Error(); errMsg != "" {
+			// Bitcoin Core returns specific errors for already-broadcast txs
+			if contains(errMsg, "already in block chain") || contains(errMsg, "txn-already-known") {
+				// Parse the transaction hash from error or result
+				var txHash string
+				if unmarshalErr := json.Unmarshal(result, &txHash); unmarshalErr == nil && txHash != "" {
+					return txHash, nil // Transaction already broadcast, return hash
+				}
+				// If we can't get the hash, return a retryable error
+				return "", chainadapter.NewRetryableError(
+					"ERR_TX_ALREADY_BROADCAST",
+					"transaction already broadcast",
+					nil,
+					err,
+				)
+			}
+		}
+
+		return "", chainadapter.NewRetryableError(
+			"ERR_BROADCAST_FAILED",
+			fmt.Sprintf("sendrawtransaction RPC failed: %s", err.Error()),
+			nil,
+			err,
+		)
+	}
+
+	var txHash string
+	if err := json.Unmarshal(result, &txHash); err != nil {
+		return "", chainadapter.NewNonRetryableError(
+			"ERR_RPC_PARSE",
+			"failed to parse sendrawtransaction result",
+			err,
+		)
+	}
+
+	return txHash, nil
+}
