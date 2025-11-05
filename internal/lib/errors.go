@@ -29,6 +29,13 @@ const (
 	ErrStorageError     ErrorCode = "STORAGE_ERROR"     // USB I/O failure
 	ErrEncryptionError  ErrorCode = "ENCRYPTION_ERROR"  // Cryptographic operation failed
 	ErrLibraryPanic     ErrorCode = "LIBRARY_PANIC"     // Unrecoverable Go panic
+
+	// ChainAdapter transaction errors
+	ErrTransactionBuildFailed     ErrorCode = "TRANSACTION_BUILD_FAILED"     // Transaction construction failed
+	ErrTransactionSignFailed      ErrorCode = "TRANSACTION_SIGN_FAILED"      // Transaction signing failed
+	ErrTransactionBroadcastFailed ErrorCode = "TRANSACTION_BROADCAST_FAILED" // Transaction broadcast failed
+	ErrTransactionQueryFailed     ErrorCode = "TRANSACTION_QUERY_FAILED"     // Transaction status query failed
+	ErrFeeEstimationFailed        ErrorCode = "FEE_ESTIMATION_FAILED"        // Fee estimation failed
 )
 
 // FFIError represents a structured error response for FFI functions

@@ -48,6 +48,22 @@ type RenameWalletFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for ListWallets: char* ListWallets(char* params)
 type ListWalletsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+// ChainAdapter transaction function types
+/// Function signature for BuildTransaction: char* BuildTransaction(char* params)
+type BuildTransactionFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for SignTransaction: char* SignTransaction(char* params)
+type SignTransactionFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for BroadcastTransaction: char* BroadcastTransaction(char* params)
+type BroadcastTransactionFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for QueryTransactionStatus: char* QueryTransactionStatus(char* params)
+type QueryTransactionStatusFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for EstimateFee: char* EstimateFee(char* params)
+type EstimateFeeFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 // ============================================================================
 // WalletLibrary - Dynamic Library Wrapper (T016, T017)
 // ============================================================================
@@ -74,6 +90,12 @@ pub struct WalletLibrary {
     export_wallet: Symbol<'static, ExportWalletFn>,
     rename_wallet: Symbol<'static, RenameWalletFn>,
     list_wallets: Symbol<'static, ListWalletsFn>,
+    // ChainAdapter transaction function symbols
+    build_transaction: Symbol<'static, BuildTransactionFn>,
+    sign_transaction: Symbol<'static, SignTransactionFn>,
+    broadcast_transaction: Symbol<'static, BroadcastTransactionFn>,
+    query_transaction_status: Symbol<'static, QueryTransactionStatusFn>,
+    estimate_fee: Symbol<'static, EstimateFeeFn>,
 }
 
 impl WalletLibrary {
@@ -168,6 +190,27 @@ impl WalletLibrary {
                 .get(b"ListWallets")
                 .map_err(|e| format!("ListWallets symbol not found: {}", e))?;
 
+            // Load ChainAdapter transaction symbols
+            let build_transaction: Symbol<BuildTransactionFn> = lib
+                .get(b"BuildTransaction")
+                .map_err(|e| format!("BuildTransaction symbol not found: {}", e))?;
+
+            let sign_transaction: Symbol<SignTransactionFn> = lib
+                .get(b"SignTransaction")
+                .map_err(|e| format!("SignTransaction symbol not found: {}", e))?;
+
+            let broadcast_transaction: Symbol<BroadcastTransactionFn> = lib
+                .get(b"BroadcastTransaction")
+                .map_err(|e| format!("BroadcastTransaction symbol not found: {}", e))?;
+
+            let query_transaction_status: Symbol<QueryTransactionStatusFn> = lib
+                .get(b"QueryTransactionStatus")
+                .map_err(|e| format!("QueryTransactionStatus symbol not found: {}", e))?;
+
+            let estimate_fee: Symbol<EstimateFeeFn> = lib
+                .get(b"EstimateFee")
+                .map_err(|e| format!("EstimateFee symbol not found: {}", e))?;
+
             // Extend symbol lifetime to 'static (safe because Library lives for program duration)
             let go_free: Symbol<'static, GoFreeFn> = std::mem::transmute(go_free);
             let get_version: Symbol<'static, GetVersionFn> = std::mem::transmute(get_version);
@@ -178,6 +221,11 @@ impl WalletLibrary {
             let export_wallet: Symbol<'static, ExportWalletFn> = std::mem::transmute(export_wallet);
             let rename_wallet: Symbol<'static, RenameWalletFn> = std::mem::transmute(rename_wallet);
             let list_wallets: Symbol<'static, ListWalletsFn> = std::mem::transmute(list_wallets);
+            let build_transaction: Symbol<'static, BuildTransactionFn> = std::mem::transmute(build_transaction);
+            let sign_transaction: Symbol<'static, SignTransactionFn> = std::mem::transmute(sign_transaction);
+            let broadcast_transaction: Symbol<'static, BroadcastTransactionFn> = std::mem::transmute(broadcast_transaction);
+            let query_transaction_status: Symbol<'static, QueryTransactionStatusFn> = std::mem::transmute(query_transaction_status);
+            let estimate_fee: Symbol<'static, EstimateFeeFn> = std::mem::transmute(estimate_fee);
 
             Ok(WalletLibrary {
                 lib: Arc::new(lib),
@@ -190,6 +238,11 @@ impl WalletLibrary {
                 export_wallet,
                 rename_wallet,
                 list_wallets,
+                build_transaction,
+                sign_transaction,
+                broadcast_transaction,
+                query_transaction_status,
+                estimate_fee,
             })
         }
     }
@@ -449,6 +502,85 @@ impl WalletLibrary {
     /// Enumerate all wallets on USB.
     pub fn list_wallets(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.list_wallets, params_json)
+    }
+
+    // ========================================================================
+    // ChainAdapter Transaction Operations
+    // ========================================================================
+
+    /// Build an unsigned transaction for the specified chain.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "chainId": "bitcoin"|"ethereum",
+    ///   "from": "...",
+    ///   "to": "...",
+    ///   "amount": "...",
+    ///   "feeSpeed": "fast"|"normal"|"slow"
+    /// }
+    /// ```
+    pub fn build_transaction(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.build_transaction, params_json)
+    }
+
+    /// Sign an unsigned transaction with the provided private key.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "chainId": "bitcoin"|"ethereum",
+    ///   "unsignedTx": {...},
+    ///   "privateKey": "..."
+    /// }
+    /// ```
+    ///
+    /// Security Note: Private key is zeroed after use on the Go side.
+    pub fn sign_transaction(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.sign_transaction, params_json)
+    }
+
+    /// Broadcast a signed transaction to the blockchain network.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "chainId": "bitcoin"|"ethereum",
+    ///   "signedTx": {...}
+    /// }
+    /// ```
+    ///
+    /// Note: Broadcast is idempotent - duplicate submissions are handled gracefully.
+    pub fn broadcast_transaction(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.broadcast_transaction, params_json)
+    }
+
+    /// Query the status of a transaction by hash.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "chainId": "bitcoin"|"ethereum",
+    ///   "txHash": "..."
+    /// }
+    /// ```
+    pub fn query_transaction_status(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.query_transaction_status, params_json)
+    }
+
+    /// Estimate transaction fees for the specified chain.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "chainId": "bitcoin"|"ethereum",
+    ///   "from": "...",
+    ///   "to": "...",
+    ///   "amount": "..."
+    /// }
+    /// ```
+    pub fn estimate_fee(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.estimate_fee, params_json)
     }
 }
 

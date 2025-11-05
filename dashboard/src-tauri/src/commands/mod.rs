@@ -3,7 +3,6 @@
  * Feature: User Dashboard for Wallet Management
  */
 
-pub mod export;
 pub mod security;
 pub mod usb;
 pub mod wallet;
