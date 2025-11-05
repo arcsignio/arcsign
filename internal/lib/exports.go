@@ -21,14 +21,31 @@ package main
 */
 import "C"
 import (
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"runtime/debug"
 	"time"
 	"unsafe"
 
+	"github.com/arcsign/chainadapter"
+	"github.com/yourusername/arcsign/internal/services/bip39service"
+	chainadapterService "github.com/yourusername/arcsign/internal/services/chainadapter"
+	"github.com/yourusername/arcsign/internal/services/hdkey"
 	"github.com/yourusername/arcsign/internal/services/wallet"
 )
+
+// Global ChainAdapter service instance (initialized on first use)
+var chainAdapterSvc *chainadapterService.Service
+
+// initChainAdapterService initializes the global ChainAdapter service (lazy initialization)
+func initChainAdapterService() *chainadapterService.Service {
+	if chainAdapterSvc == nil {
+		chainAdapterSvc = chainadapterService.NewService(nil) // nil = use in-memory tx store
+	}
+	return chainAdapterSvc
+}
 
 // T026: zeroString securely zeros sensitive string data from memory
 // This prevents sensitive data (passwords, mnemonics) from lingering in memory
@@ -661,17 +678,62 @@ func BuildTransaction(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// TODO: Implement actual ChainAdapter integration
-	// For now, return placeholder response
+	// Initialize ChainAdapter service
+	svc := initChainAdapterService()
+
+	// Parse amount string to *big.Int
+	amount, err := chainadapterService.ParseAmount(input.Amount)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid amount: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Convert feeSpeed string to enum
+	var feeSpeed chainadapter.FeeSpeed
+	switch input.FeeSpeed {
+	case "slow":
+		feeSpeed = chainadapter.FeeSpeedSlow
+	case "normal":
+		feeSpeed = chainadapter.FeeSpeedNormal
+	case "fast":
+		feeSpeed = chainadapter.FeeSpeedFast
+	default:
+		feeSpeed = chainadapter.FeeSpeedNormal // default
+	}
+
+	// Create transaction request
+	req := &chainadapter.TransactionRequest{
+		From:     input.From,
+		To:       input.To,
+		Asset:    input.Asset,
+		Amount:   amount,
+		FeeSpeed: feeSpeed,
+		Memo:     input.Memo,
+	}
+
+	// Build unsigned transaction
+	ctx := context.Background()
+	unsigned, err := svc.BuildTransaction(ctx, input.ChainID, req, input.RPCConfig)
+	if err != nil {
+		response := NewErrorResponse(ErrTransactionBuildFailed, fmt.Sprintf("Failed to build transaction: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Encode signing payload as base64 for JSON transport
+	signingPayloadB64 := base64.StdEncoding.EncodeToString(unsigned.SigningPayload)
+
+	// Marshal response
 	data := map[string]interface{}{
-		"id":              "tx-" + time.Now().Format("20060102150405"),
-		"chainId":         input.ChainID,
-		"from":            input.From,
-		"to":              input.To,
-		"amount":          input.Amount,
-		"fee":             "placeholder-fee",
-		"signingPayload":  "placeholder-signing-payload",
-		"humanReadable":   fmt.Sprintf("Transaction from %s to %s, amount: %s", input.From, input.To, input.Amount),
+		"id":              unsigned.ID,
+		"chainId":         unsigned.ChainID,
+		"from":            unsigned.From,
+		"to":              unsigned.To,
+		"amount":          unsigned.Amount.String(),
+		"fee":             unsigned.Fee.String(),
+		"signingPayload":  signingPayloadB64,
+		"humanReadable":   unsigned.HumanReadable,
 		"buildTimestamp":  time.Now().Format(time.RFC3339),
 	}
 
@@ -681,13 +743,21 @@ func BuildTransaction(params *C.char) *C.char {
 }
 
 //export SignTransaction
-// SignTransaction signs an unsigned transaction using provided private key.
+// SignTransaction signs an unsigned transaction using wallet password.
 // Feature: 006-chain-adapter - ChainAdapter Transaction FFI
 //
+// Security Design:
+// - Private key is derived on-demand from mnemonic using password
+// - Private key exists only during signing (~50-100ms)
+// - All sensitive data (password, mnemonic, privateKey) cleared after use
+//
 // Input JSON: {
+//   "walletId": "uuid-xxx",
+//   "password": "user-password",
+//   "passphrase": "bip39-passphrase",  // Optional BIP39 passphrase (empty string if not used)
+//   "usbPath": "/path/to/usb",
 //   "chainId": "bitcoin" | "ethereum",
-//   "unsignedTx": {...},  // UnsignedTransaction from BuildTransaction
-//   "privateKey": "hex-encoded-private-key" | "wif-format"
+//   "unsignedTx": {...}  // UnsignedTransaction from BuildTransaction (includes "from" address)
 // }
 //
 // Output JSON: {
@@ -718,9 +788,12 @@ func SignTransaction(params *C.char) *C.char {
 
 	paramsJSON := C.GoString(params)
 	var input struct {
-		ChainID     string                 `json:"chainId"`
-		UnsignedTx  map[string]interface{} `json:"unsignedTx"`
-		PrivateKey  string                 `json:"privateKey"`
+		WalletID   string                 `json:"walletId"`
+		Password   string                 `json:"password"`
+		Passphrase string                 `json:"passphrase"` // BIP39 passphrase (empty if not used)
+		USBPath    string                 `json:"usbPath"`
+		ChainID    string                 `json:"chainId"`
+		UnsignedTx map[string]interface{} `json:"unsignedTx"`
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -730,15 +803,153 @@ func SignTransaction(params *C.char) *C.char {
 	}
 
 	// Zero sensitive data after function returns
-	defer zeroString(&input.PrivateKey)
+	defer zeroString(&input.Password)
+	defer zeroString(&input.Passphrase)
 
-	// TODO: Implement actual ChainAdapter signing
+	// Step 1: Decrypt wallet to get mnemonic
+	walletSvc := wallet.NewWalletService(input.USBPath)
+	mnemonic, err := walletSvc.RestoreWallet(input.WalletID, input.Password)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, fmt.Sprintf("Failed to decrypt wallet: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&mnemonic) // Critical: clear mnemonic after use
+
+	// Step 2: Load wallet metadata to get AddressBook
+	walletObj, err := walletSvc.LoadWallet(input.WalletID)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, fmt.Sprintf("Failed to load wallet: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Step 3: Reconstruct UnsignedTransaction to get "from" address
+	unsignedBytes, err := json.Marshal(input.UnsignedTx)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid unsigned transaction: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var unsigned chainadapter.UnsignedTransaction
+	if err := json.Unmarshal(unsignedBytes, &unsigned); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to parse unsigned transaction: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Decode base64 signing payload if it was encoded
+	if len(unsigned.SigningPayload) == 0 {
+		if payloadStr, ok := input.UnsignedTx["signingPayload"].(string); ok {
+			decoded, err := base64.StdEncoding.DecodeString(payloadStr)
+			if err == nil {
+				unsigned.SigningPayload = decoded
+			}
+		}
+	}
+
+	// Step 4: Find derivation path from AddressBook using "from" address
+	if walletObj.AddressBook == nil {
+		response := NewErrorResponse(ErrStorageError, "Wallet has no AddressBook")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var derivationPath string
+	found := false
+	for _, addr := range walletObj.AddressBook.Addresses {
+		if addr.Address == unsigned.From {
+			derivationPath = addr.DerivationPath
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Address %s not found in wallet AddressBook", unsigned.From))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Step 5: Derive private key from mnemonic + derivation path
+	bip39Svc := bip39service.NewBIP39Service()
+	hdkeySvc := hdkey.NewHDKeyService()
+
+	// Mnemonic → Seed (use provided passphrase, empty string if not used)
+	seed, err := bip39Svc.MnemonicToSeed(mnemonic, input.Passphrase)
+	if err != nil {
+		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to derive seed: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Seed → Master Key
+	masterKey, err := hdkeySvc.NewMasterKey(seed)
+	if err != nil {
+		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to create master key: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Master Key → Child Key (using derivation path)
+	childKey, err := hdkeySvc.DerivePath(masterKey, derivationPath)
+	if err != nil {
+		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to derive key at path %s: %v", derivationPath, err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Child Key → Private Key (raw bytes)
+	privateKeyBytes, err := hdkeySvc.GetPrivateKey(childKey)
+	if err != nil {
+		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to extract private key: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer func() {
+		// Critical: zero private key bytes
+		for i := range privateKeyBytes {
+			privateKeyBytes[i] = 0
+		}
+	}()
+
+	// Convert private key bytes to hex string for SimpleSigner
+	privateKeyHex := fmt.Sprintf("%x", privateKeyBytes)
+	defer zeroString(&privateKeyHex)
+
+	// Step 6: Create signer
+	signer, err := chainadapterService.NewSimpleSigner(privateKeyHex, unsigned.From, input.ChainID)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to create signer: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer signer.Zeroize() // Clear private key from signer memory
+
+	// Step 7: Sign transaction using ChainAdapter
+	chainAdapterSvc := initChainAdapterService()
+	ctx := context.Background()
+	signed, err := chainAdapterSvc.SignTransaction(ctx, input.ChainID, &unsigned, signer, "")
+	if err != nil {
+		response := NewErrorResponse(ErrTransactionSignFailed, fmt.Sprintf("Failed to sign transaction: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Step 8: Encode signature and serialized tx as base64 for JSON transport
+	signatureB64 := base64.StdEncoding.EncodeToString(signed.Signature)
+	serializedTxB64 := base64.StdEncoding.EncodeToString(signed.SerializedTx)
+
+	// Step 9: Return signed transaction (no sensitive data)
 	data := map[string]interface{}{
-		"txHash":         "0xplaceholder-tx-hash",
-		"signature":      "placeholder-signature",
-		"serializedTx":   "placeholder-serialized-tx",
-		"signedBy":       input.UnsignedTx["from"],
-		"signTimestamp":  time.Now().Format(time.RFC3339),
+		"txHash":        signed.TxHash,
+		"signature":     signatureB64,
+		"serializedTx":  serializedTxB64,
+		"signedBy":      unsigned.From,
+		"signTimestamp": time.Now().Format(time.RFC3339),
 	}
 
 	response := NewSuccessResponse(data)
@@ -796,18 +1007,58 @@ func BroadcastTransaction(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// TODO: Implement actual ChainAdapter broadcast
-	txHash := input.SignedTx["txHash"]
-	if txHash == nil {
-		txHash = "0xplaceholder-broadcast-hash"
+	// Initialize ChainAdapter service
+	svc := initChainAdapterService()
+
+	// Reconstruct SignedTransaction from map
+	signedBytes, err := json.Marshal(input.SignedTx)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid signed transaction: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
 	}
 
+	var signed chainadapter.SignedTransaction
+	if err := json.Unmarshal(signedBytes, &signed); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to parse signed transaction: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Decode base64 fields if they were encoded
+	if len(signed.Signature) == 0 {
+		if sigStr, ok := input.SignedTx["signature"].(string); ok {
+			decoded, err := base64.StdEncoding.DecodeString(sigStr)
+			if err == nil {
+				signed.Signature = decoded
+			}
+		}
+	}
+	if len(signed.SerializedTx) == 0 {
+		if txStr, ok := input.SignedTx["serializedTx"].(string); ok {
+			decoded, err := base64.StdEncoding.DecodeString(txStr)
+			if err == nil {
+				signed.SerializedTx = decoded
+			}
+		}
+	}
+
+	// Broadcast transaction
+	ctx := context.Background()
+	receipt, err := svc.BroadcastTransaction(ctx, input.ChainID, &signed, input.RPCConfig)
+	if err != nil {
+		response := NewErrorResponse(ErrTransactionBroadcastFailed, fmt.Sprintf("Failed to broadcast transaction: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Marshal response
 	data := map[string]interface{}{
-		"txHash":       txHash,
-		"chainId":      input.ChainID,
-		"submittedAt":  time.Now().Format(time.RFC3339),
-		"status":       "pending",
-		"statusUrl":    fmt.Sprintf("https://blockexplorer.com/tx/%v", txHash),
+		"txHash":      receipt.TxHash,
+		"chainId":     input.ChainID,
+		"submittedAt": receipt.SubmittedAt.Format(time.RFC3339),
+		"status":      "pending",
+		"statusUrl":   receipt.StatusURL,
 	}
 
 	response := NewSuccessResponse(data)
@@ -866,14 +1117,41 @@ func QueryTransactionStatus(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// TODO: Implement actual ChainAdapter status query
+	// Initialize ChainAdapter service
+	svc := initChainAdapterService()
+
+	// Query transaction status
+	ctx := context.Background()
+	status, err := svc.QueryTransactionStatus(ctx, input.ChainID, input.TxHash, input.RPCConfig)
+	if err != nil {
+		response := NewErrorResponse(ErrTransactionQueryFailed, fmt.Sprintf("Failed to query transaction status: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Convert status to string
+	var statusStr string
+	switch status.Status {
+	case chainadapter.TxStatusPending:
+		statusStr = "pending"
+	case chainadapter.TxStatusConfirmed:
+		statusStr = "confirmed"
+	case chainadapter.TxStatusFinalized:
+		statusStr = "finalized"
+	case chainadapter.TxStatusFailed:
+		statusStr = "failed"
+	default:
+		statusStr = "unknown"
+	}
+
+	// Marshal response
 	data := map[string]interface{}{
-		"txHash":        input.TxHash,
-		"status":        "pending",
-		"confirmations": 0,
-		"blockNumber":   nil,
-		"blockHash":     nil,
-		"updatedAt":     time.Now().Format(time.RFC3339),
+		"txHash":        status.TxHash,
+		"status":        statusStr,
+		"confirmations": status.Confirmations,
+		"blockNumber":   status.BlockNumber,
+		"blockHash":     status.BlockHash,
+		"updatedAt":     status.UpdatedAt.Format(time.RFC3339),
 	}
 
 	response := NewSuccessResponse(data)
@@ -939,15 +1217,43 @@ func EstimateFee(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// TODO: Implement actual ChainAdapter fee estimation
+	// Initialize ChainAdapter service
+	svc := initChainAdapterService()
+
+	// Parse amount string to *big.Int
+	amount, err := chainadapterService.ParseAmount(input.Amount)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid amount: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Create transaction request for fee estimation
+	req := &chainadapter.TransactionRequest{
+		From:   input.From,
+		To:     input.To,
+		Asset:  input.Asset,
+		Amount: amount,
+	}
+
+	// Estimate fee
+	ctx := context.Background()
+	estimate, err := svc.EstimateFee(ctx, input.ChainID, req, input.RPCConfig)
+	if err != nil {
+		response := NewErrorResponse(ErrFeeEstimationFailed, fmt.Sprintf("Failed to estimate fee: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Marshal response
 	data := map[string]interface{}{
 		"chainId":         input.ChainID,
-		"minFee":          "1000",
-		"recommendedFee":  "5000",
-		"maxFee":          "10000",
-		"confidence":      85,
-		"estimatedBlocks": 6,
-		"timestamp":       time.Now().Format(time.RFC3339),
+		"minFee":          estimate.MinFee.String(),
+		"recommendedFee":  estimate.Recommended.String(),
+		"maxFee":          estimate.MaxFee.String(),
+		"confidence":      estimate.Confidence,
+		"estimatedBlocks": estimate.EstimatedBlocks,
+		"timestamp":       estimate.Timestamp.Format(time.RFC3339),
 	}
 
 	response := NewSuccessResponse(data)
