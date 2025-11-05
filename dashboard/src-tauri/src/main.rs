@@ -17,13 +17,11 @@
 const USE_FFI: bool = true;
 
 // Module declarations
-mod cli;
 mod commands;
 mod error;
 mod ffi;  // T017: Add FFI module
 mod models;
 
-use commands::export::export_addresses;
 use commands::security::{
     clear_sensitive_memory, disable_screenshot_protection, enable_screenshot_protection,
 };
@@ -201,8 +199,6 @@ fn main() {
             list_wallets,
             load_addresses,
             rename_wallet,
-            // Export commands
-            export_addresses,
             // Security commands
             enable_screenshot_protection,
             disable_screenshot_protection,

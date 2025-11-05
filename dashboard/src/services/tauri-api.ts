@@ -17,8 +17,6 @@ import type {
 } from '@/types/wallet';
 import type {
   AddressListResponse,
-  ExportResponse,
-  ExportFormat,
 } from '@/types/address';
 
 /**
@@ -148,24 +146,6 @@ export async function loadAddresses(params: LoadAddressesParams): Promise<Addres
   }
 }
 
-export async function exportAddresses(
-  walletId: string,
-  password: string,
-  usbPath: string,
-  format: ExportFormat
-): Promise<ExportResponse> {
-  try {
-    return await invoke<ExportResponse>('export_addresses', {
-      walletId,
-      password,
-      usbPath,
-      format,
-    });
-  } catch (error) {
-    throw parseError(error);
-  }
-}
-
 /**
  * Security Commands
  */
@@ -210,7 +190,6 @@ export const tauriApi = {
 
   // Address
   loadAddresses,
-  exportAddresses,
 
   // Security
   enableScreenshotProtection,

@@ -5,11 +5,6 @@
  * Updated: 2025-10-25 - T032.1: Migrated to FFI queue
  */
 
-use crate::cli::wrapper::{
-    AddressListResponse as CliAddressListResponse, CliCommand, CliWrapper,
-    WalletCreateResponse as CliWalletCreateResponse, WalletImportResponse as CliWalletImportResponse,
-    WalletInfo, WalletListResponse,
-};
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::ffi::LazyWalletQueue; // T032: Add FFI queue import (using LazyWalletQueue for deferred initialization)
 use crate::models::address::{Address, AddressListResponse, Category, KeyType};
@@ -248,14 +243,8 @@ async fn check_duplicate_wallet(
     use std::fs;
     use std::path::Path;
 
-    // T092: Derive Bitcoin address (m/44'/0'/0'/0/0) using CLI derive_address command
-    let cli = CliWrapper::new("./arcsign");
-
-    // Build derive_address command (uses T020c - handleDeriveAddressNonInteractive)
-    // For now, we'll skip the derive command and directly compare wallet files
-    // TODO: Implement once derive_address command is fully working
-
     // T093: Read all addresses.json files from USB
+    // TODO: Implement actual duplicate detection by deriving Bitcoin address and comparing
     let usb_dir = Path::new(usb_path);
 
     if !usb_dir.exists() {
