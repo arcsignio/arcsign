@@ -25,7 +25,7 @@
 
 ## 項目概述
 
-ArcSign 是一個安全的加密貨幣錢包系統，實現了 BIP39/BIP44 標準進行安全密鑰管理。系統採用 **Dashboard (Tauri) → FFI → Go Shared Library** 架構，提供統一的跨鏈交易接口 (ChainAdapter) 和錢包管理功能。所有敏感數據專門存儲在 USB 驅動器上，永不存儲在計算機硬盤上，提供額外的安全防護層，防止惡意軟件和數據盜竊。
+ArcSign 是一個命令行加密貨幣錢包，實現了 BIP39/BIP44 標準進行安全密鑰管理。所有敏感數據專門存儲在 USB 驅動器上，永不存儲在計算機硬盤上，提供額外的安全防護層，防止惡意軟件和數據盜竊。
 
 ### 版本狀態
 
@@ -147,6 +147,127 @@ BTC, ETH, USDT, BNB, SOL, USDC, XRP, DOGE, ADA, TRX, AVAX, SHIB, DOT, LINK, MATI
 - ✅ **審計日誌** - 完整的錢包操作審計追蹤
 - ✅ **BIP39密碼** - 可選第25個詞提供額外安全層
 - ✅ **原子文件操作** - 崩潰安全的文件寫入
+
+---
+
+## 快速開始
+
+### 系統要求
+
+- Go 1.21或更高版本
+- USB驅動器 (最少10 MB可用空間)
+- Windows, macOS, 或 Linux
+
+### 安裝
+
+#### 從源碼構建
+
+```bash
+# 克隆倉庫
+git clone https://github.com/yourusername/arcsign.git
+cd arcsign
+
+# 安裝依賴
+go mod download
+
+# 構建二進制文件
+go build -o arcsign ./cmd/arcsign
+
+# 驗證安裝
+./arcsign version
+```
+
+#### 運行測試
+
+```bash
+# 運行所有測試
+go test ./tests/... -v
+
+# 單元測試
+go test ./tests/unit/... -v
+
+# 集成測試
+go test ./tests/integration/... -v
+
+# ChainAdapter測試
+cd src/chainadapter && make test-unit
+```
+
+### 基本用法
+
+#### 1. 創建錢包
+
+```bash
+./arcsign create
+```
+
+**交互流程**:
+1. 檢測USB驅動器
+2. 輸入錢包名稱 (可選)
+3. 選擇助記詞長度 (12或24詞)
+4. 設置BIP39密碼 (可選, 高級)
+5. 創建強加密密碼
+6. 顯示恢復助記詞
+
+**⚠️ 重要**: 將助記詞寫在紙上並安全離線存儲!
+
+#### 2. 恢復錢包
+
+```bash
+./arcsign restore
+```
+
+**功能**:
+- 從USB加載錢包元數據
+- 解密並查看助記詞
+- 驗證錢包信息
+
+#### 3. 生成地址
+
+```bash
+./arcsign derive
+```
+
+**支持的幣種**:
+- Bitcoin (BTC) - P2PKH地址
+- Ethereum (ETH) - 原生地址
+- 自定義賬戶和地址索引
+
+#### 4. 生成所有54條鏈地址
+
+```bash
+./arcsign generate-all
+```
+
+**輸出格式**:
+- JSON文件: 完整元數據
+- CSV文件: 電子表格兼容
+- 保存位置: USB/{wallet-id}/addresses/
+
+**輸出示例** (addresses-20251017-143025.json):
+```json
+{
+  "wallet_id": "3c3e0aba-91e1-44d4-8b29-ec066d5acf0b",
+  "wallet_name": "My Wallet",
+  "generated_at": "2025-10-17T14:30:25+08:00",
+  "total_chains": 54,
+  "success_count": 54,
+  "failed_count": 0,
+  "addresses": [
+    {
+      "rank": 1,
+      "symbol": "BTC",
+      "name": "Bitcoin",
+      "coin_type": 0,
+      "address": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+      "path": "m/44'/0'/0'/0/0",
+      "category": "base",
+      "key_type": "secp256k1"
+    }
+    // ... 53 more chains
+  ]
+}
+```
 
 ---
 
@@ -372,15 +493,226 @@ fmt.Println(metricsRecorder.Export())
 
 ---
 
+## 使用指南
+
+### 創建錢包完整流程
+
+```
+$ ./arcsign create
+
+=== ArcSign Wallet Creation ===
+
+Step 1: Detecting USB storage...
+✓ USB device detected: D:\
+
+Step 2: Enter wallet name (optional, press Enter to skip): My Crypto Wallet
+
+Step 3: Choose mnemonic length:
+  1) 12 words (recommended for most users)
+  2) 24 words (maximum security)
+Enter choice (1 or 2): 1
+
+Step 4: BIP39 passphrase (advanced)
+A BIP39 passphrase adds an extra layer of security.
+⚠️  Warning: If you forget the passphrase, you cannot recover your wallet!
+Use BIP39 passphrase? (y/N): N
+
+Step 5: Set encryption password
+Requirements:
+  - At least 12 characters
+  - At least 3 of: uppercase, lowercase, numbers, special characters
+
+Enter password: ************
+Confirm password: ************
+
+Step 6: Creating wallet...
+✓ Wallet created successfully!
+
+═══════════════════════════════════════════════════════════
+                  ⚠️  BACKUP YOUR MNEMONIC  ⚠️
+═══════════════════════════════════════════════════════════
+
+Write down these words in order and store them safely:
+
+  abandon ability able about above absent absorb abstract absurd abuse access accident
+
+═══════════════════════════════════════════════════════════
+
+Wallet Information:
+  ID: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+  Name: My Crypto Wallet
+  Created: 2025-10-16 15:30:45
+  Storage: D:\
+
+Your wallet is now ready to use!
+```
+
+### 地址生成完整流程
+
+```
+$ ./arcsign derive
+
+=== ArcSign Address Derivation ===
+
+Step 1: Detecting USB storage...
+✓ USB device detected: D:\
+
+Step 2: Enter wallet ID: 3c3e0aba-91e1-44d4-8b29-ec066d5acf0b
+
+Step 3: Loading wallet...
+✓ Wallet found!
+
+Step 4: Enter encryption password to unlock wallet
+Enter password (attempt 1/3): ************
+
+✓ Wallet unlocked successfully!
+
+Step 5: Select cryptocurrency
+  1) Bitcoin (BTC)
+  2) Ethereum (ETH)
+Enter choice (1 or 2): 1
+
+Step 6: Enter account index (default 0): 0
+Step 7: Enter address index (default 0): 0
+
+Step 8: Deriving address...
+✓ Address derived successfully!
+
+═══════════════════════════════════════════════════════════
+                    BITCOIN ADDRESS
+═══════════════════════════════════════════════════════════
+
+  Address: 16XiVQeqbDsVPRNcCUCtKwiGhNsfhz8J1c
+
+  Derivation Path: m/44'/0'/0'/0/0
+  Coin: Bitcoin
+  Account: 0
+  Index: 0
+
+═══════════════════════════════════════════════════════════
+
+You can use this address to receive funds.
+```
+
+### 常見使用場景
+
+#### 場景1: 個人Bitcoin錢包
+
+```bash
+# 創建錢包
+./arcsign create
+# 選擇: 12詞，無密碼，名稱: "Personal BTC"
+
+# 生成接收地址
+./arcsign derive
+# Bitcoin (1), Account 0, Address 0 → 分享給他人
+# Bitcoin (1), Account 0, Address 1 → 另一個發送者
+# Bitcoin (1), Account 0, Address 2 → 再一個發送者
+```
+
+#### 場景2: 多幣種投資組合
+
+```bash
+# 創建錢包
+./arcsign create
+# 選擇: 24詞，無密碼，名稱: "Crypto Portfolio"
+
+# Bitcoin地址
+./arcsign derive
+# 選擇: 1 (Bitcoin), Account 0, Address 0
+
+# Ethereum地址
+./arcsign derive
+# 選擇: 2 (Ethereum), Account 0, Address 0
+```
+
+#### 場景3: 業務分離賬戶
+
+```bash
+# 創建錢包
+./arcsign create
+# 選擇: 12詞，無密碼，名稱: "Business Wallet"
+
+# 個人賬戶
+./arcsign derive
+# Bitcoin (1), Account 0, Address 0
+
+# 業務賬戶
+./arcsign derive
+# Bitcoin (1), Account 1, Address 0
+
+# 客戶存款
+./arcsign derive
+# Bitcoin (1), Account 2, Address 0
+```
+
+#### 場景4: 高安全性設置帶密碼
+
+```bash
+# 創建錢包
+./arcsign create
+# 選擇: 24詞，YES密碼，名稱: "High Security"
+# 密碼: [記住的強密碼]
+
+# 誘餌錢包 (無密碼)
+./arcsign derive
+# 使用空密碼，存入小額 ($100-500)
+
+# 真實錢包 (帶密碼)
+./arcsign derive
+# 使用真實密碼，存入主要資金
+```
+
+### 理解派生路徑
+
+#### BIP44路徑格式
+
+```
+m / purpose' / coin_type' / account' / change / address_index
+
+示例: m/44'/0'/0'/0/0
+     │  │   │    │   │  │
+     │  │   │    │   │  └─ 地址索引 0 (0, 1, 2, ...)
+     │  │   │    │   └──── 外部鏈 (0) 或 內部/找零 (1)
+     │  │   │    └──────── 賬戶 0 (0, 1, 2, ...)
+     │  │   └───────────── Bitcoin (0), Ethereum (60), 等
+     │  └───────────────── BIP44標準
+     └──────────────────── 主密鑰
+```
+
+#### 常見路徑
+
+**Bitcoin**:
+- 第一個地址: `m/44'/0'/0'/0/0`
+- 第二個地址: `m/44'/0'/0'/0/1`
+- 找零地址: `m/44'/0'/0'/1/0`
+- 第二個賬戶: `m/44'/0'/1'/0/0`
+
+**Ethereum**:
+- 第一個地址: `m/44'/60'/0'/0/0`
+- 第二個地址: `m/44'/60'/0'/0/1`
+
+#### 撇號 (') 含義
+
+- **帶撇號 (')**: 硬化派生
+  - 更安全
+  - 用於 purpose, coin_type, account
+  - 不能從父公鑰派生子公鑰
+
+- **無撇號**: 非硬化派生
+  - 用於 change 和 address_index
+  - 允許只讀錢包 (xpub)
+
+---
+
 ## 架構設計
 
 ### 整體項目架構
 
-本項目採用 **Dashboard (Tauri) → FFI → Go Shared Library** 架構:
+本項目包含兩個主要組件:
 
-1. **Dashboard (Tauri)** - 前端用戶界面
-2. **FFI (Foreign Function Interface)** - 橋接 Tauri 和 Go 庫
-3. **Go Shared Library** - 包含錢包管理和 ChainAdapter 交易接口
+1. **ChainAdapter 共享庫** (`src/chainadapter/`) - 統一的跨鏈交易接口 (SDK)
+2. **ArcSign Wallet CLI** (`cmd/arcsign/`, `internal/`) - 使用 ChainAdapter 的示例應用
 
 ### ChainAdapter 共享庫架構 (主要組件)
 
@@ -482,12 +814,20 @@ receipt, _ := btcAdapter.Broadcast(ctx, signed)
 status, _ := btcAdapter.QueryStatus(ctx, receipt.TxHash)
 ```
 
-### 錢包服務層 (Wallet Services)
+### ArcSign Wallet CLI 架構 (示例應用)
 
-錢包管理功能通過 Go Shared Library 提供，包含:
+ArcSign Wallet CLI 是一個使用 ChainAdapter 共享庫的示例命令行應用程序,展示如何集成 ChainAdapter 進行錢包管理和地址生成:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
+│                    CLI Layer (命令行層)                       │
+│  (cmd/arcsign/main.go)                                      │
+│  - 命令路由 (create, restore, derive, generate-all)         │
+│  - 用戶交互 (提示輸入、顯示結果)                             │
+│  - 輸入驗證                                                  │
+└─────────────────┬───────────────────────────────────────────┘
+                  │
+┌─────────────────▼───────────────────────────────────────────┐
 │                 Service Layer (服務層)                        │
 │  (internal/services/)                                        │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
@@ -514,10 +854,16 @@ status, _ := btcAdapter.QueryStatus(ctx, receipt.TxHash)
 └─────────────────────────────────────────────────────────────┘
 ```
 
+**注意**: ArcSign Wallet CLI 主要用於密鑰管理和地址生成。如需交易功能,可以導入 ChainAdapter 庫來實現 Build/Sign/Broadcast 操作。
+
 ### 項目結構
 
 ```
 arcSignv2/
+├── cmd/
+│   └── arcsign/              # CLI入口
+│       └── main.go           # 命令路由和UI (612行)
+│
 ├── internal/
 │   ├── models/               # 數據模型
 │   │   ├── models.go         # Wallet, Mnemonic (120行)
@@ -1109,10 +1455,32 @@ BIP39密碼充當"第25個詞":
 
 **添加大量資金之前**:
 
-1. **測試錢包創建**: 通過Dashboard創建測試錢包並寫下助記詞
-2. **測試恢復**: 驗證助記詞能夠正確恢復錢包
-3. **測試地址派生**: 生成測試地址 (m/44'/0'/0'/0/0) 並記下
-4. **測試確定性**: 多次生成相同路徑驗證地址一致性
+1. **測試錢包創建**:
+   ```bash
+   ./arcsign create
+   # 寫下助記詞
+   ```
+
+2. **測試恢復**:
+   ```bash
+   ./arcsign restore
+   # 驗證助記詞匹配
+   ```
+
+3. **測試地址派生**:
+   ```bash
+   ./arcsign derive
+   # 在 m/44'/0'/0'/0/0 生成地址
+   # 記下地址
+   ```
+
+4. **測試確定性**:
+   ```bash
+   ./arcsign derive
+   # 再次生成相同路徑
+   # 驗證地址相同
+   ```
+
 5. **測試小額**:
    - 發送 $10-50 到生成的地址
    - 在區塊鏈瀏覽器驗證接收
@@ -1441,6 +1809,17 @@ Too many failed attempts. Please wait 1 minute and try again.
 
 ## 快速參考
 
+### 命令
+
+```bash
+./arcsign create       # 創建新錢包
+./arcsign restore      # 查看助記詞
+./arcsign derive       # 生成地址
+./arcsign generate-all # 生成所有54條鏈地址
+./arcsign version      # 顯示版本
+./arcsign help         # 顯示使用方法
+```
+
 ### 幣種類型 (SLIP-44)
 
 ```
@@ -1527,8 +1906,9 @@ addresses/:     0700 (僅所有者訪問)
 
 ### 開發
 
-- 語言: Go 1.21+ (共享庫), Rust 1.75+ (Tauri), TypeScript 5.0+ (前端)
-- 測試: `go test ./tests/... -v`, `cd src/chainadapter && make test-unit`
+- 語言: Go 1.21+
+- 測試: `go test ./tests/... -v`
+- 構建: `./build.sh` 或 `build.bat`
 - 代碼風格: `gofmt`, `golint`
 
 ---
