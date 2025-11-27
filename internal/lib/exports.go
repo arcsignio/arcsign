@@ -30,6 +30,7 @@ import (
 	"unsafe"
 
 	"github.com/arcsign/chainadapter"
+	"github.com/arcsign/chainadapter/provider"
 	"github.com/yourusername/arcsign/internal/services/bip39service"
 	chainadapterService "github.com/yourusername/arcsign/internal/services/chainadapter"
 	"github.com/yourusername/arcsign/internal/services/hdkey"
@@ -1152,6 +1153,405 @@ func QueryTransactionStatus(params *C.char) *C.char {
 		"blockNumber":   status.BlockNumber,
 		"blockHash":     status.BlockHash,
 		"updatedAt":     status.UpdatedAt.Format(time.RFC3339),
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export SetProviderConfig
+// SetProviderConfig saves a blockchain data provider configuration.
+// Feature: Provider Registry System - API Key Management
+//
+// Input JSON: {
+//   "providerType": "alchemy" | "infura" | "quicknode",
+//   "apiKey": "your-api-key",
+//   "chainId": "ethereum",
+//   "networkId": "mainnet" | "sepolia",  // Optional
+//   "customEndpoint": "https://...",      // Optional
+//   "priority": 100,                      // Higher = preferred
+//   "enabled": true,
+//   "password": "wallet-password",        // For encryption
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "providerType": "alchemy",
+//     "chainId": "ethereum",
+//     "configured": true,
+//     "configuredAt": "2025-11-27T10:00:00Z"
+//   }
+// }
+func SetProviderConfig(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		ProviderType   string `json:"providerType"`
+		APIKey         string `json:"apiKey"`
+		ChainID        string `json:"chainId"`
+		NetworkID      string `json:"networkId"`
+		CustomEndpoint string `json:"customEndpoint"`
+		Priority       int    `json:"priority"`
+		Enabled        bool   `json:"enabled"`
+		Password       string `json:"password"` // For encryption
+		USBPath        string `json:"usbPath"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Zero sensitive data after function returns
+	defer zeroString(&input.APIKey)
+	defer zeroString(&input.Password)
+
+	// Create provider config store
+	configPath := input.USBPath + "/provider_config.enc"
+	store, err := provider.NewProviderConfigStore(configPath, input.Password)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Create provider configuration
+	config := &provider.ProviderConfig{
+		ProviderType:   input.ProviderType,
+		APIKey:         input.APIKey,
+		ChainID:        input.ChainID,
+		NetworkID:      input.NetworkID,
+		CustomEndpoint: input.CustomEndpoint,
+		Priority:       input.Priority,
+		Enabled:        input.Enabled,
+	}
+
+	// Validate API key format
+	if err := provider.ValidateAPIKey(config); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid API key: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Save configuration
+	if err := store.Set(config); err != nil {
+		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to save provider config: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Return success response
+	data := map[string]interface{}{
+		"providerType": input.ProviderType,
+		"chainId":      input.ChainID,
+		"configured":   true,
+		"configuredAt": time.Now().Format(time.RFC3339),
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export GetProviderConfig
+// GetProviderConfig retrieves a blockchain data provider configuration.
+// Feature: Provider Registry System - API Key Management
+//
+// Input JSON: {
+//   "chainId": "ethereum",
+//   "providerType": "alchemy",  // Optional: if not specified, returns best provider
+//   "password": "wallet-password",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "providerType": "alchemy",
+//     "chainId": "ethereum",
+//     "networkId": "mainnet",
+//     "priority": 100,
+//     "enabled": true,
+//     "hasApiKey": true,
+//     "createdAt": "2025-11-27T09:00:00Z",
+//     "updatedAt": "2025-11-27T10:00:00Z"
+//   }
+// }
+func GetProviderConfig(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		ChainID      string `json:"chainId"`
+		ProviderType string `json:"providerType"` // Optional
+		Password     string `json:"password"`
+		USBPath      string `json:"usbPath"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Zero sensitive data after function returns
+	defer zeroString(&input.Password)
+
+	// Create provider config store
+	configPath := input.USBPath + "/provider_config.enc"
+	store, err := provider.NewProviderConfigStore(configPath, input.Password)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var config *provider.ProviderConfig
+	if input.ProviderType != "" {
+		// Get specific provider
+		config, err = store.Get(input.ChainID, input.ProviderType)
+	} else {
+		// Get best provider for chain
+		config, err = store.GetBestProvider(input.ChainID)
+	}
+
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Provider config not found: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Return config without exposing API key
+	data := map[string]interface{}{
+		"providerType": config.ProviderType,
+		"chainId":      config.ChainID,
+		"networkId":    config.NetworkID,
+		"priority":     config.Priority,
+		"enabled":      config.Enabled,
+		"hasApiKey":    config.APIKey != "",
+		"createdAt":    config.CreatedAt.Format(time.RFC3339),
+		"updatedAt":    config.UpdatedAt.Format(time.RFC3339),
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export ListProviderConfigs
+// ListProviderConfigs retrieves all provider configurations for a chain.
+// Feature: Provider Registry System - API Key Management
+//
+// Input JSON: {
+//   "chainId": "ethereum",  // Optional: if not specified, lists all chains
+//   "password": "wallet-password",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "providers": [
+//       {
+//         "providerType": "alchemy",
+//         "chainId": "ethereum",
+//         "priority": 100,
+//         "enabled": true
+//       },
+//       {...}
+//     ],
+//     "count": 2
+//   }
+// }
+func ListProviderConfigs(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		ChainID  string `json:"chainId"` // Optional
+		Password string `json:"password"`
+		USBPath  string `json:"usbPath"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Zero sensitive data after function returns
+	defer zeroString(&input.Password)
+
+	// Create provider config store
+	configPath := input.USBPath + "/provider_config.enc"
+	store, err := provider.NewProviderConfigStore(configPath, input.Password)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var configs []*provider.ProviderConfig
+	if input.ChainID != "" {
+		// Get all providers for specific chain
+		configs, err = store.GetAllForChain(input.ChainID)
+		if err != nil {
+			response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to list providers: %v", err))
+			jsonBytes, _ := json.Marshal(response)
+			return C.CString(string(jsonBytes))
+		}
+	} else {
+		// Get all providers across all chains
+		chains := store.ListChains()
+		configs = make([]*provider.ProviderConfig, 0)
+		for _, chainID := range chains {
+			chainConfigs, _ := store.GetAllForChain(chainID)
+			configs = append(configs, chainConfigs...)
+		}
+	}
+
+	// Convert to response format (without API keys)
+	providers := make([]map[string]interface{}, 0, len(configs))
+	for _, config := range configs {
+		providers = append(providers, map[string]interface{}{
+			"providerType": config.ProviderType,
+			"chainId":      config.ChainID,
+			"networkId":    config.NetworkID,
+			"priority":     config.Priority,
+			"enabled":      config.Enabled,
+			"hasApiKey":    config.APIKey != "",
+		})
+	}
+
+	data := map[string]interface{}{
+		"providers": providers,
+		"count":     len(providers),
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export DeleteProviderConfig
+// DeleteProviderConfig removes a provider configuration.
+// Feature: Provider Registry System - API Key Management
+//
+// Input JSON: {
+//   "chainId": "ethereum",
+//   "providerType": "alchemy",
+//   "password": "wallet-password",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "deleted": true,
+//     "deletedAt": "2025-11-27T10:05:00Z"
+//   }
+// }
+func DeleteProviderConfig(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		ChainID      string `json:"chainId"`
+		ProviderType string `json:"providerType"`
+		Password     string `json:"password"`
+		USBPath      string `json:"usbPath"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Zero sensitive data after function returns
+	defer zeroString(&input.Password)
+
+	// Create provider config store
+	configPath := input.USBPath + "/provider_config.enc"
+	store, err := provider.NewProviderConfigStore(configPath, input.Password)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Delete configuration
+	if err := store.Delete(input.ChainID, input.ProviderType); err != nil {
+		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to delete provider config: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Return success response
+	data := map[string]interface{}{
+		"deleted":   true,
+		"deletedAt": time.Now().Format(time.RFC3339),
 	}
 
 	response := NewSuccessResponse(data)

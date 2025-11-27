@@ -64,6 +64,19 @@ type QueryTransactionStatusFn = unsafe extern "C" fn(*const c_char) -> *mut c_ch
 /// Function signature for EstimateFee: char* EstimateFee(char* params)
 type EstimateFeeFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+// Provider configuration function types
+/// Function signature for SetProviderConfig: char* SetProviderConfig(char* params)
+type SetProviderConfigFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for GetProviderConfig: char* GetProviderConfig(char* params)
+type GetProviderConfigFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for ListProviderConfigs: char* ListProviderConfigs(char* params)
+type ListProviderConfigsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for DeleteProviderConfig: char* DeleteProviderConfig(char* params)
+type DeleteProviderConfigFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 // ============================================================================
 // WalletLibrary - Dynamic Library Wrapper (T016, T017)
 // ============================================================================
@@ -96,6 +109,11 @@ pub struct WalletLibrary {
     broadcast_transaction: Symbol<'static, BroadcastTransactionFn>,
     query_transaction_status: Symbol<'static, QueryTransactionStatusFn>,
     estimate_fee: Symbol<'static, EstimateFeeFn>,
+    // Provider configuration function symbols
+    set_provider_config: Symbol<'static, SetProviderConfigFn>,
+    get_provider_config: Symbol<'static, GetProviderConfigFn>,
+    list_provider_configs: Symbol<'static, ListProviderConfigsFn>,
+    delete_provider_config: Symbol<'static, DeleteProviderConfigFn>,
 }
 
 impl WalletLibrary {
@@ -211,6 +229,23 @@ impl WalletLibrary {
                 .get(b"EstimateFee")
                 .map_err(|e| format!("EstimateFee symbol not found: {}", e))?;
 
+            // Load Provider configuration symbols
+            let set_provider_config: Symbol<SetProviderConfigFn> = lib
+                .get(b"SetProviderConfig")
+                .map_err(|e| format!("SetProviderConfig symbol not found: {}", e))?;
+
+            let get_provider_config: Symbol<GetProviderConfigFn> = lib
+                .get(b"GetProviderConfig")
+                .map_err(|e| format!("GetProviderConfig symbol not found: {}", e))?;
+
+            let list_provider_configs: Symbol<ListProviderConfigsFn> = lib
+                .get(b"ListProviderConfigs")
+                .map_err(|e| format!("ListProviderConfigs symbol not found: {}", e))?;
+
+            let delete_provider_config: Symbol<DeleteProviderConfigFn> = lib
+                .get(b"DeleteProviderConfig")
+                .map_err(|e| format!("DeleteProviderConfig symbol not found: {}", e))?;
+
             // Extend symbol lifetime to 'static (safe because Library lives for program duration)
             let go_free: Symbol<'static, GoFreeFn> = std::mem::transmute(go_free);
             let get_version: Symbol<'static, GetVersionFn> = std::mem::transmute(get_version);
@@ -226,6 +261,10 @@ impl WalletLibrary {
             let broadcast_transaction: Symbol<'static, BroadcastTransactionFn> = std::mem::transmute(broadcast_transaction);
             let query_transaction_status: Symbol<'static, QueryTransactionStatusFn> = std::mem::transmute(query_transaction_status);
             let estimate_fee: Symbol<'static, EstimateFeeFn> = std::mem::transmute(estimate_fee);
+            let set_provider_config: Symbol<'static, SetProviderConfigFn> = std::mem::transmute(set_provider_config);
+            let get_provider_config: Symbol<'static, GetProviderConfigFn> = std::mem::transmute(get_provider_config);
+            let list_provider_configs: Symbol<'static, ListProviderConfigsFn> = std::mem::transmute(list_provider_configs);
+            let delete_provider_config: Symbol<'static, DeleteProviderConfigFn> = std::mem::transmute(delete_provider_config);
 
             Ok(WalletLibrary {
                 lib: Arc::new(lib),
@@ -243,6 +282,10 @@ impl WalletLibrary {
                 broadcast_transaction,
                 query_transaction_status,
                 estimate_fee,
+                set_provider_config,
+                get_provider_config,
+                list_provider_configs,
+                delete_provider_config,
             })
         }
     }
@@ -581,6 +624,73 @@ impl WalletLibrary {
     /// ```
     pub fn estimate_fee(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.estimate_fee, params_json)
+    }
+
+    // ========================================================================
+    // Provider Configuration Operations
+    // ========================================================================
+
+    /// Set a blockchain provider configuration (Alchemy, Infura, etc.)
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "providerType": "alchemy",
+    ///   "apiKey": "your-api-key",
+    ///   "chainId": "ethereum",
+    ///   "networkId": "mainnet",
+    ///   "priority": 100,
+    ///   "enabled": true,
+    ///   "password": "wallet-password",
+    ///   "usbPath": "/path/to/usb"
+    /// }
+    /// ```
+    pub fn set_provider_config(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.set_provider_config, params_json)
+    }
+
+    /// Get a blockchain provider configuration.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "chainId": "ethereum",
+    ///   "providerType": "alchemy",
+    ///   "password": "wallet-password",
+    ///   "usbPath": "/path/to/usb"
+    /// }
+    /// ```
+    pub fn get_provider_config(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.get_provider_config, params_json)
+    }
+
+    /// List all provider configurations.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "chainId": "ethereum",
+    ///   "password": "wallet-password",
+    ///   "usbPath": "/path/to/usb"
+    /// }
+    /// ```
+    pub fn list_provider_configs(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.list_provider_configs, params_json)
+    }
+
+    /// Delete a provider configuration.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "chainId": "ethereum",
+    ///   "providerType": "alchemy",
+    ///   "password": "wallet-password",
+    ///   "usbPath": "/path/to/usb"
+    /// }
+    /// ```
+    pub fn delete_provider_config(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.delete_provider_config, params_json)
     }
 }
 
