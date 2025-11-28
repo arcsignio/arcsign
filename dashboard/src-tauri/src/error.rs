@@ -293,6 +293,9 @@ impl From<serde_json::Error> for AppError {
     }
 }
 
+/// Type alias for AppError (for backward compatibility)
+pub type Error = AppError;
+
 /// Type alias for Result with AppError
 pub type AppResult<T> = Result<T, AppError>;
 

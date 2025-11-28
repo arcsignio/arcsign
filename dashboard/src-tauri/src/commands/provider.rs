@@ -1,6 +1,7 @@
 /**
  * Provider configuration commands
  * Feature: Provider Registry System - API Key Management
+ * TODO: Implement provider methods in WalletQueue
  */
 
 use serde::{Deserialize, Serialize};
@@ -8,7 +9,7 @@ use std::sync::Arc;
 use tauri::State;
 
 use crate::error::Error;
-use crate::ffi::queue::WalletQueue;
+use crate::ffi::queue::LazyWalletQueue;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -65,10 +66,11 @@ pub struct DeleteProviderConfigInput {
 }
 
 /// Set provider configuration (Tauri command)
-#[tauri::command]
+/// TODO: Implement after adding provider methods to WalletQueue
+#[allow(dead_code)]
 pub async fn set_provider_config(
     input: SetProviderConfigInput,
-    queue: State<'_, Arc<WalletQueue>>,
+    _queue: State<'_, Arc<LazyWalletQueue>>,
 ) -> Result<serde_json::Value, Error> {
     tracing::info!(
         "set_provider_config: provider_type={}, chain_id={}",
@@ -88,20 +90,24 @@ pub async fn set_provider_config(
         "password": input.password,
         "usbPath": input.usb_path,
     }))
-    .map_err(|e| Error::Serialization(e.to_string()))?;
+    .map_err(|e| Error::new(
+        crate::error::ErrorCode::SerializationError,
+        format!("Failed to serialize provider config: {}", e)
+    ))?;
 
-    // Execute FFI call via queue
-    queue
-        .execute(move |lib| lib.set_provider_config(&params_json))
-        .await
-        .map_err(|e| Error::WalletOperation(e))
+    // TODO: Implement set_provider_config in WalletQueue
+    Err(Error::new(
+        crate::error::ErrorCode::InternalError,
+        "Provider configuration not yet implemented"
+    ))
 }
 
 /// Get provider configuration (Tauri command)
-#[tauri::command]
+/// TODO: Implement after adding provider methods to WalletQueue
+#[allow(dead_code)]
 pub async fn get_provider_config(
     input: GetProviderConfigInput,
-    queue: State<'_, Arc<WalletQueue>>,
+    _queue: State<'_, Arc<LazyWalletQueue>>,
 ) -> Result<serde_json::Value, Error> {
     tracing::info!(
         "get_provider_config: chain_id={}, provider_type={:?}",
@@ -116,20 +122,24 @@ pub async fn get_provider_config(
         "password": input.password,
         "usbPath": input.usb_path,
     }))
-    .map_err(|e| Error::Serialization(e.to_string()))?;
+    .map_err(|e| Error::new(
+        crate::error::ErrorCode::SerializationError,
+        format!("Failed to serialize provider config request: {}", e)
+    ))?;
 
-    // Execute FFI call via queue
-    queue
-        .execute(move |lib| lib.get_provider_config(&params_json))
-        .await
-        .map_err(|e| Error::WalletOperation(e))
+    // TODO: Implement get_provider_config in WalletQueue
+    Err(Error::new(
+        crate::error::ErrorCode::InternalError,
+        "Provider configuration not yet implemented"
+    ))
 }
 
 /// List provider configurations (Tauri command)
-#[tauri::command]
+/// TODO: Implement after adding provider methods to WalletQueue
+#[allow(dead_code)]
 pub async fn list_provider_configs(
     input: ListProviderConfigsInput,
-    queue: State<'_, Arc<WalletQueue>>,
+    _queue: State<'_, Arc<LazyWalletQueue>>,
 ) -> Result<serde_json::Value, Error> {
     tracing::info!("list_provider_configs: chain_id={:?}", input.chain_id);
 
@@ -139,20 +149,24 @@ pub async fn list_provider_configs(
         "password": input.password,
         "usbPath": input.usb_path,
     }))
-    .map_err(|e| Error::Serialization(e.to_string()))?;
+    .map_err(|e| Error::new(
+        crate::error::ErrorCode::SerializationError,
+        format!("Failed to serialize list request: {}", e)
+    ))?;
 
-    // Execute FFI call via queue
-    queue
-        .execute(move |lib| lib.list_provider_configs(&params_json))
-        .await
-        .map_err(|e| Error::WalletOperation(e))
+    // TODO: Implement list_provider_configs in WalletQueue
+    Err(Error::new(
+        crate::error::ErrorCode::InternalError,
+        "Provider configuration not yet implemented"
+    ))
 }
 
 /// Delete provider configuration (Tauri command)
-#[tauri::command]
+/// TODO: Implement after adding provider methods to WalletQueue
+#[allow(dead_code)]
 pub async fn delete_provider_config(
     input: DeleteProviderConfigInput,
-    queue: State<'_, Arc<WalletQueue>>,
+    _queue: State<'_, Arc<LazyWalletQueue>>,
 ) -> Result<serde_json::Value, Error> {
     tracing::info!(
         "delete_provider_config: chain_id={}, provider_type={}",
@@ -167,11 +181,14 @@ pub async fn delete_provider_config(
         "password": input.password,
         "usbPath": input.usb_path,
     }))
-    .map_err(|e| Error::Serialization(e.to_string()))?;
+    .map_err(|e| Error::new(
+        crate::error::ErrorCode::SerializationError,
+        format!("Failed to serialize delete request: {}", e)
+    ))?;
 
-    // Execute FFI call via queue
-    queue
-        .execute(move |lib| lib.delete_provider_config(&params_json))
-        .await
-        .map_err(|e| Error::WalletOperation(e))
+    // TODO: Implement delete_provider_config in WalletQueue
+    Err(Error::new(
+        crate::error::ErrorCode::InternalError,
+        "Provider configuration not yet implemented"
+    ))
 }

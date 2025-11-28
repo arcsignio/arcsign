@@ -205,3 +205,33 @@ func DeserializeEncryptedData(data []byte) (*models.EncryptedMnemonic, error) {
 		Version:       version,
 	}, nil
 }
+
+// Encrypt encrypts arbitrary data using Argon2id + AES-256-GCM
+// Returns serialized encrypted data compatible with Decrypt
+func Encrypt(data []byte, password string) ([]byte, error) {
+	// Convert to string for EncryptMnemonic (works with any data, not just mnemonics)
+	dataStr := string(data)
+	encrypted, err := EncryptMnemonic(dataStr, password)
+	if err != nil {
+		return nil, err
+	}
+	return SerializeEncryptedData(encrypted), nil
+}
+
+// Decrypt decrypts data encrypted with Encrypt function
+// Returns decrypted plaintext data
+func Decrypt(encryptedData []byte, password string) ([]byte, error) {
+	// Deserialize encrypted data
+	encrypted, err := DeserializeEncryptedData(encryptedData)
+	if err != nil {
+		return nil, err
+	}
+
+	// Decrypt
+	decrypted, err := DecryptMnemonic(encrypted, password)
+	if err != nil {
+		return nil, err
+	}
+
+	return []byte(decrypted), nil
+}

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/arcsign/chainadapter/provider"
+	"github.com/yourusername/arcsign/internal/provider"
 )
 
 // AlchemyProvider implements BlockchainProvider for Alchemy API

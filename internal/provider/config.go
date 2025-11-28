@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/arcsign/internal/crypto"
+	"github.com/yourusername/arcsign/internal/services/crypto"
 )
 
 // ProviderConfig represents the configuration for a blockchain data provider

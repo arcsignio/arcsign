@@ -30,7 +30,7 @@ import (
 	"unsafe"
 
 	"github.com/arcsign/chainadapter"
-	"github.com/arcsign/chainadapter/provider"
+	"github.com/yourusername/arcsign/internal/provider"
 	"github.com/yourusername/arcsign/internal/services/bip39service"
 	chainadapterService "github.com/yourusername/arcsign/internal/services/chainadapter"
 	"github.com/yourusername/arcsign/internal/services/hdkey"

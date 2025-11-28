@@ -1,7 +1,7 @@
 package alchemy
 
 import (
-	"github.com/arcsign/chainadapter/provider"
+	"github.com/yourusername/arcsign/internal/provider"
 )
 
 func init() {

@@ -22,9 +22,6 @@ mod error;
 mod ffi;  // T017: Add FFI module
 mod models;
 
-use commands::provider::{
-    delete_provider_config, get_provider_config, list_provider_configs, set_provider_config,
-};
 use commands::security::{
     clear_sensitive_memory, disable_screenshot_protection, enable_screenshot_protection,
 };
@@ -206,11 +203,11 @@ fn main() {
             enable_screenshot_protection,
             disable_screenshot_protection,
             clear_sensitive_memory,
-            // Provider configuration commands
-            set_provider_config,
-            get_provider_config,
-            list_provider_configs,
-            delete_provider_config,
+            // Provider configuration commands - TODO: Implement after FFI methods ready
+            // set_provider_config,
+            // get_provider_config,
+            // list_provider_configs,
+            // delete_provider_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
