@@ -3,6 +3,7 @@
  * Feature: User Dashboard for Wallet Management
  */
 
+pub mod app;
 pub mod provider;
 pub mod security;
 pub mod usb;

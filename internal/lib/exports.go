@@ -30,6 +30,7 @@ import (
 	"unsafe"
 
 	"github.com/arcsign/chainadapter"
+	"github.com/yourusername/arcsign/internal/app"
 	"github.com/yourusername/arcsign/internal/provider"
 	"github.com/yourusername/arcsign/internal/services/bip39service"
 	chainadapterService "github.com/yourusername/arcsign/internal/services/chainadapter"
@@ -1654,6 +1655,192 @@ func EstimateFee(params *C.char) *C.char {
 		"confidence":      estimate.Confidence,
 		"estimatedBlocks": estimate.EstimatedBlocks,
 		"timestamp":       estimate.Timestamp.Format(time.RFC3339),
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export IsFirstTimeSetup
+// IsFirstTimeSetup checks if app_config.enc exists at the USB path.
+// Feature: App-level authentication
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "isFirstTime": true  // true if app_config.enc doesn't exist
+//   }
+// }
+func IsFirstTimeSetup(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		USBPath string `json:"usbPath"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Check if app_config.enc exists
+	isFirstTime := !app.AppConfigExists(input.USBPath)
+
+	data := map[string]interface{}{
+		"isFirstTime": isFirstTime,
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export InitializeApp
+// InitializeApp creates a new encrypted app_config.enc file for first-time setup.
+// Feature: App-level authentication
+//
+// Input JSON: {
+//   "password": "user-master-password",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "message": "App initialized successfully"
+//   }
+// }
+func InitializeApp(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		Password string `json:"password"`
+		USBPath  string `json:"usbPath"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Security: Clear password after use
+	defer zeroString(&input.Password)
+
+	// Initialize app config
+	if err := app.InitializeAppConfig(input.Password, input.USBPath); err != nil {
+		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to initialize app: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	data := map[string]interface{}{
+		"message": "App initialized successfully",
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export UnlockApp
+// UnlockApp decrypts and loads app_config.enc using the provided password.
+// Feature: App-level authentication
+//
+// Input JSON: {
+//   "password": "user-master-password",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "config": {
+//       "version": "1.0.0",
+//       "wallets": [{"id": "...", "name": "...", "createdAt": "..."}],
+//       "providers": [{"providerType": "alchemy", "apiKey": "...", "priority": 100, "enabled": true}],
+//       "settings": {"theme": "light", "language": "en"}
+//     }
+//   }
+// }
+func UnlockApp(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		Password string `json:"password"`
+		USBPath  string `json:"usbPath"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Security: Clear password after use
+	defer zeroString(&input.Password)
+
+	// Load app config
+	config, err := app.LoadAppConfig(input.Password, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrWalletNotFound, fmt.Sprintf("Failed to unlock app (incorrect password?): %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	data := map[string]interface{}{
+		"config": config,
 	}
 
 	response := NewSuccessResponse(data)

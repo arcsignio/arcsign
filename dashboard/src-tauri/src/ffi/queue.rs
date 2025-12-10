@@ -181,6 +181,21 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Check if this is first-time setup
+    IsFirstTimeSetup {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Initialize app configuration
+    InitializeApp {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Unlock app and load configuration
+    UnlockApp {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
 }
 
 /// WalletQueue serializes all wallet operations through a single-threaded queue.
@@ -294,6 +309,21 @@ impl WalletQueue {
                 }
                 WalletCommand::DeleteProviderConfig { params_json, respond_to } => {
                     let result = library.delete_provider_config(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::IsFirstTimeSetup { params_json, respond_to } => {
+                    let result = library.is_first_time_setup(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::InitializeApp { params_json, respond_to } => {
+                    let result = library.initialize_app(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::UnlockApp { params_json, respond_to } => {
+                    let result = library.unlock_app(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -535,6 +565,63 @@ impl WalletQueue {
         .await
         .map_err(|e| format!("Task join error: {}", e))?
     }
+
+    /// Check if this is first-time setup.
+    pub async fn is_first_time_setup(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::IsFirstTimeSetup {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Initialize app configuration.
+    pub async fn initialize_app(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::InitializeApp {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Unlock app and load configuration.
+    pub async fn unlock_app(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::UnlockApp {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
 }
 
 /// Lazy-initialized WalletQueue wrapper
@@ -613,6 +700,21 @@ impl LazyWalletQueue {
     /// Delete a provider configuration
     pub async fn delete_provider_config(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().delete_provider_config(params_json).await
+    }
+
+    /// Check if this is first-time setup
+    pub async fn is_first_time_setup(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().is_first_time_setup(params_json).await
+    }
+
+    /// Initialize app configuration
+    pub async fn initialize_app(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().initialize_app(params_json).await
+    }
+
+    /// Unlock app and load configuration
+    pub async fn unlock_app(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().unlock_app(params_json).await
     }
 
     /// Get library version
