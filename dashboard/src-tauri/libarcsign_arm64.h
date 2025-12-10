@@ -155,6 +155,227 @@ extern char* RenameWallet(char* params);
 // Output JSON: {"success": true, "data": {"wallets": [{"walletId": "...", "walletName": "...", "createdAt": "..."}], "count": 2}}
 extern char* ListWallets(char* params);
 
+// BuildTransaction constructs an unsigned transaction ready for signing.
+// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+//
+// Input JSON: {
+//   "chainId": "bitcoin" | "ethereum",
+//   "from": "address",
+//   "to": "address",
+//   "asset": "BTC" | "ETH",
+//   "amount": "1000000",  // string representation of big.Int
+//   "feeSpeed": "slow" | "normal" | "fast",
+//   "memo": "optional"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "id": "unique-tx-id",
+//     "chainId": "bitcoin",
+//     "from": "address",
+//     "to": "address",
+//     "amount": "1000000",
+//     "fee": "5000",
+//     "signingPayload": "base64-encoded-bytes",
+//     "humanReadable": "JSON representation for audit"
+//   }
+// }
+extern char* BuildTransaction(char* params);
+
+// SignTransaction signs an unsigned transaction using wallet password.
+// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+//
+// Security Design:
+// - Private key is derived on-demand from mnemonic using password
+// - Private key exists only during signing (~50-100ms)
+// - All sensitive data (password, mnemonic, privateKey) cleared after use
+//
+// Input JSON: {
+//   "walletId": "uuid-xxx",
+//   "password": "user-password",
+//   "passphrase": "bip39-passphrase",  // Optional BIP39 passphrase (empty string if not used)
+//   "usbPath": "/path/to/usb",
+//   "chainId": "bitcoin" | "ethereum",
+//   "unsignedTx": {...}  // UnsignedTransaction from BuildTransaction (includes "from" address)
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "txHash": "0x...",
+//     "signature": "base64-encoded-signature",
+//     "serializedTx": "base64-encoded-serialized-tx",
+//     "signedBy": "address"
+//   }
+// }
+extern char* SignTransaction(char* params);
+
+// BroadcastTransaction submits a signed transaction to the blockchain network.
+// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+//
+// Input JSON: {
+//   "chainId": "bitcoin" | "ethereum",
+//   "signedTx": {...},  // SignedTransaction from SignTransaction
+//   "rpcConfig": "optional-rpc-endpoint"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "txHash": "0x...",
+//     "chainId": "bitcoin",
+//     "submittedAt": "2025-11-04T15:30:00Z",
+//     "status": "pending",
+//     "statusUrl": "https://blockexplorer.com/tx/..."
+//   }
+// }
+extern char* BroadcastTransaction(char* params);
+
+// QueryTransactionStatus retrieves the current status of a transaction.
+// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+//
+// Input JSON: {
+//   "chainId": "bitcoin" | "ethereum",
+//   "txHash": "0x..." | "bitcoin-tx-hash",
+//   "rpcConfig": "optional-rpc-endpoint"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "txHash": "0x...",
+//     "status": "pending" | "confirmed" | "finalized" | "failed",
+//     "confirmations": 3,
+//     "blockNumber": 12345,
+//     "blockHash": "0x...",
+//     "updatedAt": "2025-11-04T15:35:00Z"
+//   }
+// }
+extern char* QueryTransactionStatus(char* params);
+
+// SetProviderConfig saves a blockchain data provider configuration.
+// Feature: Provider Registry System - API Key Management
+//
+// Input JSON: {
+//   "providerType": "alchemy" | "infura" | "quicknode",
+//   "apiKey": "your-api-key",
+//   "chainId": "ethereum",
+//   "networkId": "mainnet" | "sepolia",  // Optional
+//   "customEndpoint": "https://...",      // Optional
+//   "priority": 100,                      // Higher = preferred
+//   "enabled": true,
+//   "password": "wallet-password",        // For encryption
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "providerType": "alchemy",
+//     "chainId": "ethereum",
+//     "configured": true,
+//     "configuredAt": "2025-11-27T10:00:00Z"
+//   }
+// }
+extern char* SetProviderConfig(char* params);
+
+// GetProviderConfig retrieves a blockchain data provider configuration.
+// Feature: Provider Registry System - API Key Management
+//
+// Input JSON: {
+//   "chainId": "ethereum",
+//   "providerType": "alchemy",  // Optional: if not specified, returns best provider
+//   "password": "wallet-password",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "providerType": "alchemy",
+//     "chainId": "ethereum",
+//     "networkId": "mainnet",
+//     "priority": 100,
+//     "enabled": true,
+//     "hasApiKey": true,
+//     "createdAt": "2025-11-27T09:00:00Z",
+//     "updatedAt": "2025-11-27T10:00:00Z"
+//   }
+// }
+extern char* GetProviderConfig(char* params);
+
+// ListProviderConfigs retrieves all provider configurations for a chain.
+// Feature: Provider Registry System - API Key Management
+//
+// Input JSON: {
+//   "chainId": "ethereum",  // Optional: if not specified, lists all chains
+//   "password": "wallet-password",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "providers": [
+//       {
+//         "providerType": "alchemy",
+//         "chainId": "ethereum",
+//         "priority": 100,
+//         "enabled": true
+//       },
+//       {...}
+//     ],
+//     "count": 2
+//   }
+// }
+extern char* ListProviderConfigs(char* params);
+
+// DeleteProviderConfig removes a provider configuration.
+// Feature: Provider Registry System - API Key Management
+//
+// Input JSON: {
+//   "chainId": "ethereum",
+//   "providerType": "alchemy",
+//   "password": "wallet-password",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "deleted": true,
+//     "deletedAt": "2025-11-27T10:05:00Z"
+//   }
+// }
+extern char* DeleteProviderConfig(char* params);
+
+// EstimateFee calculates fee estimates with confidence bounds.
+// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+//
+// Input JSON: {
+//   "chainId": "bitcoin" | "ethereum",
+//   "from": "address",
+//   "to": "address",
+//   "asset": "BTC" | "ETH",
+//   "amount": "1000000",
+//   "rpcConfig": "optional-rpc-endpoint"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "chainId": "bitcoin",
+//     "minFee": "1000",
+//     "recommendedFee": "5000",
+//     "maxFee": "10000",
+//     "confidence": 85,
+//     "estimatedBlocks": 6,
+//     "timestamp": "2025-11-04T15:40:00Z"
+//   }
+// }
+extern char* EstimateFee(char* params);
+
 #ifdef __cplusplus
 }
 #endif
