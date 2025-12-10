@@ -5,7 +5,6 @@
  */
 
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use tauri::State;
 
 use crate::error::Error;
@@ -66,11 +65,10 @@ pub struct DeleteProviderConfigInput {
 }
 
 /// Set provider configuration (Tauri command)
-/// TODO: Implement after adding provider methods to WalletQueue
-#[allow(dead_code)]
+#[tauri::command]
 pub async fn set_provider_config(
     input: SetProviderConfigInput,
-    _queue: State<'_, Arc<LazyWalletQueue>>,
+    queue: State<'_, LazyWalletQueue>,
 ) -> Result<serde_json::Value, Error> {
     tracing::info!(
         "set_provider_config: provider_type={}, chain_id={}",
@@ -95,19 +93,21 @@ pub async fn set_provider_config(
         format!("Failed to serialize provider config: {}", e)
     ))?;
 
-    // TODO: Implement set_provider_config in WalletQueue
-    Err(Error::new(
-        crate::error::ErrorCode::InternalError,
-        "Provider configuration not yet implemented"
-    ))
+    // Call FFI through queue
+    let result = queue.set_provider_config(params_json).await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::InternalError,
+            format!("Failed to set provider config: {}", e)
+        ))?;
+
+    Ok(result)
 }
 
 /// Get provider configuration (Tauri command)
-/// TODO: Implement after adding provider methods to WalletQueue
-#[allow(dead_code)]
+#[tauri::command]
 pub async fn get_provider_config(
     input: GetProviderConfigInput,
-    _queue: State<'_, Arc<LazyWalletQueue>>,
+    queue: State<'_, LazyWalletQueue>,
 ) -> Result<serde_json::Value, Error> {
     tracing::info!(
         "get_provider_config: chain_id={}, provider_type={:?}",
@@ -127,19 +127,21 @@ pub async fn get_provider_config(
         format!("Failed to serialize provider config request: {}", e)
     ))?;
 
-    // TODO: Implement get_provider_config in WalletQueue
-    Err(Error::new(
-        crate::error::ErrorCode::InternalError,
-        "Provider configuration not yet implemented"
-    ))
+    // Call FFI through queue
+    let result = queue.get_provider_config(params_json).await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::InternalError,
+            format!("Failed to get provider config: {}", e)
+        ))?;
+
+    Ok(result)
 }
 
 /// List provider configurations (Tauri command)
-/// TODO: Implement after adding provider methods to WalletQueue
-#[allow(dead_code)]
+#[tauri::command]
 pub async fn list_provider_configs(
     input: ListProviderConfigsInput,
-    _queue: State<'_, Arc<LazyWalletQueue>>,
+    queue: State<'_, LazyWalletQueue>,
 ) -> Result<serde_json::Value, Error> {
     tracing::info!("list_provider_configs: chain_id={:?}", input.chain_id);
 
@@ -154,19 +156,21 @@ pub async fn list_provider_configs(
         format!("Failed to serialize list request: {}", e)
     ))?;
 
-    // TODO: Implement list_provider_configs in WalletQueue
-    Err(Error::new(
-        crate::error::ErrorCode::InternalError,
-        "Provider configuration not yet implemented"
-    ))
+    // Call FFI through queue
+    let result = queue.list_provider_configs(params_json).await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::InternalError,
+            format!("Failed to list provider configs: {}", e)
+        ))?;
+
+    Ok(result)
 }
 
 /// Delete provider configuration (Tauri command)
-/// TODO: Implement after adding provider methods to WalletQueue
-#[allow(dead_code)]
+#[tauri::command]
 pub async fn delete_provider_config(
     input: DeleteProviderConfigInput,
-    _queue: State<'_, Arc<LazyWalletQueue>>,
+    queue: State<'_, LazyWalletQueue>,
 ) -> Result<serde_json::Value, Error> {
     tracing::info!(
         "delete_provider_config: chain_id={}, provider_type={}",
@@ -186,9 +190,12 @@ pub async fn delete_provider_config(
         format!("Failed to serialize delete request: {}", e)
     ))?;
 
-    // TODO: Implement delete_provider_config in WalletQueue
-    Err(Error::new(
-        crate::error::ErrorCode::InternalError,
-        "Provider configuration not yet implemented"
-    ))
+    // Call FFI through queue
+    let result = queue.delete_provider_config(params_json).await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::InternalError,
+            format!("Failed to delete provider config: {}", e)
+        ))?;
+
+    Ok(result)
 }

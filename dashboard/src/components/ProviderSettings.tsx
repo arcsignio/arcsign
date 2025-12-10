@@ -16,33 +16,51 @@ import {
 
 interface ProviderSettingsProps {
   usbPath: string;
-  password: string;
 }
 
 export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
   usbPath,
-  password,
 }) => {
   const [providers, setProviders] = useState<ProviderListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Password and authentication state
+  const [password, setPassword] = useState('');
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+
   // Form state
   const [showAddForm, setShowAddForm] = useState(false);
   const [formData, setFormData] = useState({
     providerType: PROVIDER_TYPES.ALCHEMY,
-    chainId: CHAIN_IDS.ETHEREUM,
-    networkId: 'mainnet',
     apiKey: '',
     priority: 100,
     enabled: true,
   });
 
-  // Load providers on mount
-  useEffect(() => {
-    loadProviders();
-  }, []);
+  const handleUnlock = async () => {
+    if (!password) {
+      setUnlockError('Please enter a password');
+      return;
+    }
+
+    setLoading(true);
+    setUnlockError(null);
+    try {
+      // Try to load providers with this password
+      const result = await listProviderConfigs(null, password, usbPath);
+      setProviders(result);
+      setIsUnlocked(true);
+      setSuccess('Provider settings unlocked successfully');
+    } catch (err) {
+      setUnlockError(`Failed to unlock: ${err}`);
+      setPassword(''); // Clear invalid password
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadProviders = async () => {
     setLoading(true);
@@ -64,10 +82,12 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
     setSuccess(null);
 
     try {
+      // We'll use a placeholder chainId since it will be determined at runtime
+      // when the provider is actually used for a specific blockchain operation
       await setProviderConfig({
         providerType: formData.providerType,
-        chainId: formData.chainId,
-        networkId: formData.networkId,
+        chainId: 'global', // Placeholder - will be specified when provider is used
+        networkId: undefined,
         apiKey: formData.apiKey,
         priority: formData.priority,
         enabled: formData.enabled,
@@ -79,8 +99,6 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
       setShowAddForm(false);
       setFormData({
         providerType: PROVIDER_TYPES.ALCHEMY,
-        chainId: CHAIN_IDS.ETHEREUM,
-        networkId: 'mainnet',
         apiKey: '',
         priority: 100,
         enabled: true,
@@ -111,6 +129,101 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
     }
   };
 
+  // Show password prompt if not unlocked
+  if (!isUnlocked) {
+    return (
+      <div className="provider-settings">
+        <div className="unlock-prompt">
+          <h2>API Provider Settings</h2>
+          <p className="description">
+            Configure blockchain API providers (Alchemy, Infura, QuickNode) to enable balance queries,
+            fee estimation, and transaction broadcasting.
+          </p>
+          <p className="security-note">
+            Your API keys are encrypted with AES-256-GCM and stored on your USB drive.
+            Enter a password to unlock provider settings.
+          </p>
+
+          {unlockError && (
+            <div className="alert alert-error">{unlockError}</div>
+          )}
+
+          <div className="unlock-form">
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleUnlock();
+                  }
+                }}
+                placeholder="Enter your encryption password"
+                disabled={loading}
+                autoFocus
+              />
+              <small className="form-hint">
+                Use any password to create new provider settings, or use your existing password to access saved providers.
+              </small>
+            </div>
+
+            <button
+              onClick={handleUnlock}
+              className="btn-primary"
+              disabled={loading || !password}
+            >
+              {loading ? 'Unlocking...' : 'Unlock Settings'}
+            </button>
+          </div>
+        </div>
+
+        <style>{`
+          .unlock-prompt {
+            max-width: 500px;
+            margin: 40px auto;
+            padding: 32px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          }
+
+          .unlock-prompt h2 {
+            margin-top: 0;
+            margin-bottom: 16px;
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a1a;
+          }
+
+          .description {
+            margin-bottom: 16px;
+            color: #666;
+            line-height: 1.6;
+          }
+
+          .security-note {
+            margin-bottom: 24px;
+            padding: 12px 16px;
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            border-radius: 4px;
+            color: #1e40af;
+            font-size: 14px;
+            line-height: 1.5;
+          }
+
+          .unlock-form {
+            margin-top: 24px;
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // Show provider management interface after unlock
   return (
     <div className="provider-settings">
       <div className="header">
@@ -147,48 +260,9 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
                 QuickNode (Coming Soon)
               </option>
             </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="chainId">Blockchain</label>
-            <select
-              id="chainId"
-              value={formData.chainId}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  chainId: e.target.value,
-                  networkId: 'mainnet',
-                })
-              }
-              required
-            >
-              <option value={CHAIN_IDS.ETHEREUM}>Ethereum</option>
-              <option value={CHAIN_IDS.POLYGON}>Polygon</option>
-              <option value={CHAIN_IDS.ARBITRUM}>Arbitrum</option>
-              <option value={CHAIN_IDS.OPTIMISM}>Optimism</option>
-              <option value={CHAIN_IDS.BASE}>Base</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="networkId">Network</label>
-            <select
-              id="networkId"
-              value={formData.networkId}
-              onChange={(e) =>
-                setFormData({ ...formData, networkId: e.target.value })
-              }
-              required
-            >
-              {NETWORK_IDS[formData.chainId as keyof typeof NETWORK_IDS]?.map(
-                (network) => (
-                  <option key={network} value={network}>
-                    {network.charAt(0).toUpperCase() + network.slice(1)}
-                  </option>
-                )
-              )}
-            </select>
+            <small className="form-hint">
+              This API key will be used for all supported blockchains
+            </small>
           </div>
 
           <div className="form-group">
@@ -268,10 +342,9 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
             <thead>
               <tr>
                 <th>Provider</th>
-                <th>Chain</th>
-                <th>Network</th>
                 <th>Priority</th>
                 <th>Status</th>
+                <th>Has API Key</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -281,9 +354,9 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
                   key={`${provider.chainId}-${provider.providerType}`}
                   className={provider.enabled ? '' : 'disabled'}
                 >
-                  <td>{provider.providerType}</td>
-                  <td>{provider.chainId}</td>
-                  <td>{provider.networkId || 'mainnet'}</td>
+                  <td className="provider-name">
+                    {provider.providerType.charAt(0).toUpperCase() + provider.providerType.slice(1)}
+                  </td>
                   <td>{provider.priority}</td>
                   <td>
                     <span
@@ -292,6 +365,11 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
                       }`}
                     >
                       {provider.enabled ? 'Active' : 'Disabled'}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`api-key-badge ${provider.hasApiKey ? 'has-key' : 'no-key'}`}>
+                      {provider.hasApiKey ? '✓ Configured' : '✗ Missing'}
                     </span>
                   </td>
                   <td>
@@ -495,6 +573,28 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
         .status-inactive {
           background: #f8d7da;
           color: #721c24;
+        }
+
+        .api-key-badge {
+          display: inline-block;
+          padding: 4px 12px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 500;
+        }
+
+        .api-key-badge.has-key {
+          background: #d4edda;
+          color: #155724;
+        }
+
+        .api-key-badge.no-key {
+          background: #fff3cd;
+          color: #856404;
+        }
+
+        .provider-name {
+          font-weight: 500;
         }
 
         .loading,

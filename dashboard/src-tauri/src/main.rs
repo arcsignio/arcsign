@@ -27,6 +27,7 @@ use commands::security::{
 };
 use commands::usb::detect_usb;
 use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, rename_wallet, AddressCache};
+use commands::provider::{set_provider_config, get_provider_config, list_provider_configs, delete_provider_config};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant; // T045: Startup time logging
@@ -203,11 +204,11 @@ fn main() {
             enable_screenshot_protection,
             disable_screenshot_protection,
             clear_sensitive_memory,
-            // Provider configuration commands - TODO: Implement after FFI methods ready
-            // set_provider_config,
-            // get_provider_config,
-            // list_provider_configs,
-            // delete_provider_config,
+            // Provider configuration commands
+            set_provider_config,
+            get_provider_config,
+            list_provider_configs,
+            delete_provider_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

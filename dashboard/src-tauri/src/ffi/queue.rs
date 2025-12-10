@@ -161,6 +161,26 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Set blockchain provider configuration
+    SetProviderConfig {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Get blockchain provider configuration
+    GetProviderConfig {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// List all provider configurations
+    ListProviderConfigs {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Delete a provider configuration
+    DeleteProviderConfig {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
 }
 
 /// WalletQueue serializes all wallet operations through a single-threaded queue.
@@ -254,6 +274,26 @@ impl WalletQueue {
                 }
                 WalletCommand::ListWallets { params_json, respond_to } => {
                     let result = library.list_wallets(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::SetProviderConfig { params_json, respond_to } => {
+                    let result = library.set_provider_config(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::GetProviderConfig { params_json, respond_to } => {
+                    let result = library.get_provider_config(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::ListProviderConfigs { params_json, respond_to } => {
+                    let result = library.list_provider_configs(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::DeleteProviderConfig { params_json, respond_to } => {
+                    let result = library.delete_provider_config(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -419,6 +459,82 @@ impl WalletQueue {
         .await
         .map_err(|e| format!("Task join error: {}", e))?
     }
+
+    /// Set blockchain provider configuration.
+    pub async fn set_provider_config(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::SetProviderConfig {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Get blockchain provider configuration.
+    pub async fn get_provider_config(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::GetProviderConfig {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// List all provider configurations.
+    pub async fn list_provider_configs(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::ListProviderConfigs {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Delete a provider configuration.
+    pub async fn delete_provider_config(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::DeleteProviderConfig {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
 }
 
 /// Lazy-initialized WalletQueue wrapper
@@ -477,6 +593,26 @@ impl LazyWalletQueue {
     /// Enumerate all wallets on USB
     pub async fn list_wallets(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().list_wallets(params_json).await
+    }
+
+    /// Set blockchain provider configuration
+    pub async fn set_provider_config(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().set_provider_config(params_json).await
+    }
+
+    /// Get blockchain provider configuration
+    pub async fn get_provider_config(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().get_provider_config(params_json).await
+    }
+
+    /// List all provider configurations
+    pub async fn list_provider_configs(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().list_provider_configs(params_json).await
+    }
+
+    /// Delete a provider configuration
+    pub async fn delete_provider_config(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().delete_provider_config(params_json).await
     }
 
     /// Get library version

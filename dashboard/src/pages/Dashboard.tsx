@@ -11,12 +11,13 @@ import tauriApi, { type AppError } from '@/services/tauri-api';
 import { WalletCreate } from '@/components/WalletCreate';
 import { WalletImport } from '@/components/WalletImport';
 import { AddressList } from '@/components/AddressList';
+import { ProviderSettings } from '@/components/ProviderSettings';
 import { InactivityWarningDialog } from '@/components/InactivityWarningDialog';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useInactivityLogout } from '@/hooks/useInactivityLogout';
 import type { Address } from '@/types/address';
 
-type View = 'list' | 'create' | 'import' | 'addresses';
+type View = 'list' | 'create' | 'import' | 'addresses' | 'settings';
 
 export function Dashboard() {
   const [currentView, setCurrentView] = useState<View>('list');
@@ -221,12 +222,41 @@ export function Dashboard() {
     );
   }
 
+  // Show provider settings view
+  if (currentView === 'settings') {
+    return (
+      <div className="dashboard">
+        <button onClick={handleBackToList} className="back-button">
+          ← Back to Wallets
+        </button>
+        {usbPath ? (
+          <ProviderSettings usbPath={usbPath} />
+        ) : (
+          <div className="settings-prompt">
+            <h2>API Provider Settings</h2>
+            <p>No USB drive detected. Please insert a USB drive to configure providers.</p>
+            <button onClick={handleBackToList} className="primary-button">
+              Go to Wallets
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // Show wallet list view
   return (
     <div className="dashboard">
       <header className="dashboard-header">
         <h1>ArcSign Dashboard</h1>
         <div className="header-actions">
+          <button
+            onClick={() => setCurrentView('settings')}
+            className="secondary-button"
+            title="Configure blockchain API providers"
+          >
+            ⚙️ API Settings
+          </button>
           <button
             onClick={handleReload}
             disabled={isLoadingWallets}
