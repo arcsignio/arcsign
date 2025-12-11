@@ -27,12 +27,16 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
   // Check if this is first-time setup
   useEffect(() => {
     const checkFirstTime = async () => {
+      console.log('[AppUnlock] Checking first-time setup for USB:', usbPath);
       setCheckingSetup(true);
       try {
+        console.log('[AppUnlock] Calling tauriApi.isFirstTimeSetup...');
         const result = await tauriApi.isFirstTimeSetup(usbPath);
+        console.log('[AppUnlock] isFirstTimeSetup result:', result);
         setIsFirstTime(result);
       } catch (err) {
         const error = err as AppError;
+        console.error('[AppUnlock] isFirstTimeSetup error:', error);
         setError(`Failed to check setup status: ${error.message}`);
       } finally {
         setCheckingSetup(false);

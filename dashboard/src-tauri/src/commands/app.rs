@@ -76,27 +76,41 @@ pub async fn is_first_time_setup(
     let params_json = serde_json::to_string(&serde_json::json!({
         "usbPath": usb_path,
     }))
-    .map_err(|e| Error::new(
-        crate::error::ErrorCode::SerializationError,
-        format!("Failed to serialize input: {}", e)
-    ))?;
+    .map_err(|e| {
+        tracing::error!("Failed to serialize input: {}", e);
+        Error::new(
+            crate::error::ErrorCode::SerializationError,
+            format!("Failed to serialize input: {}", e)
+        )
+    })?;
+
+    tracing::info!("Calling FFI with params: {}", params_json);
 
     // Call FFI through queue
     let result = queue.is_first_time_setup(params_json).await
-        .map_err(|e| Error::new(
-            crate::error::ErrorCode::InternalError,
-            format!("Failed to check first-time setup: {}", e)
-        ))?;
+        .map_err(|e| {
+            tracing::error!("FFI call failed: {}", e);
+            Error::new(
+                crate::error::ErrorCode::InternalError,
+                format!("Failed to check first-time setup: {}", e)
+            )
+        })?;
 
-    // Parse response - Go returns {success: true, data: {isFirstTime: bool}}
+    tracing::info!("FFI response: {:?}", result);
+
+    // Parse response - Go returns {isFirstTime: bool} directly
     let is_first_time = result
-        .get("data")
-        .and_then(|data| data.get("isFirstTime"))
+        .get("isFirstTime")
         .and_then(|v| v.as_bool())
-        .ok_or_else(|| Error::new(
-            crate::error::ErrorCode::InternalError,
-            "Invalid response from FFI".to_string()
-        ))?;
+        .ok_or_else(|| {
+            tracing::error!("Invalid FFI response structure: {:?}", result);
+            Error::new(
+                crate::error::ErrorCode::InternalError,
+                format!("Invalid response from FFI: {:?}", result)
+            )
+        })?;
+
+    tracing::info!("is_first_time_setup result: {}", is_first_time);
 
     Ok(is_first_time)
 }

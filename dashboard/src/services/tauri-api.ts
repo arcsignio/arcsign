@@ -201,12 +201,15 @@ export interface AppConfig {
 
 export async function isFirstTimeSetup(usbPath: string): Promise<boolean> {
   try {
+    console.log('[tauri-api] isFirstTimeSetup called with usbPath:', usbPath);
     // Tauri command returns bool directly, not {isFirstTime: bool}
     const result = await invoke<boolean>('is_first_time_setup', {
       usbPath,
     });
+    console.log('[tauri-api] isFirstTimeSetup result:', result);
     return result;
   } catch (error) {
+    console.error('[tauri-api] isFirstTimeSetup error:', error);
     throw parseError(error);
   }
 }
