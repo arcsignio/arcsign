@@ -1,6 +1,7 @@
 /**
  * Provider Settings Component
  * Feature: Provider Registry System - API Key Management
+ * Updated: 2025-10-25 - Integrate with app-level password (方案 A)
  */
 
 import React, { useState, useEffect } from 'react';
@@ -9,10 +10,9 @@ import {
   listProviderConfigs,
   deleteProviderConfig,
   PROVIDER_TYPES,
-  CHAIN_IDS,
-  NETWORK_IDS,
   type ProviderListItem,
 } from '../api/provider';
+import { useAppPassword } from '@/contexts/AppPasswordContext';
 
 interface ProviderSettingsProps {
   usbPath: string;
@@ -21,52 +21,38 @@ interface ProviderSettingsProps {
 export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
   usbPath,
 }) => {
+  const { appPassword } = useAppPassword();
   const [providers, setProviders] = useState<ProviderListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Password and authentication state
-  const [password, setPassword] = useState('');
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [unlockError, setUnlockError] = useState<string | null>(null);
-
   // Form state
   const [showAddForm, setShowAddForm] = useState(false);
   const [formData, setFormData] = useState({
-    providerType: PROVIDER_TYPES.ALCHEMY,
+    providerType: PROVIDER_TYPES.ALCHEMY as string,
     apiKey: '',
     priority: 100,
     enabled: true,
   });
 
-  const handleUnlock = async () => {
-    if (!password) {
-      setUnlockError('Please enter a password');
+  // Load providers on mount
+  useEffect(() => {
+    if (appPassword) {
+      loadProviders();
+    }
+  }, [appPassword]);
+
+  const loadProviders = async () => {
+    if (!appPassword) {
+      setError('App password not available');
       return;
     }
 
     setLoading(true);
-    setUnlockError(null);
-    try {
-      // Try to load providers with this password
-      const result = await listProviderConfigs(null, password, usbPath);
-      setProviders(result);
-      setIsUnlocked(true);
-      setSuccess('Provider settings unlocked successfully');
-    } catch (err) {
-      setUnlockError(`Failed to unlock: ${err}`);
-      setPassword(''); // Clear invalid password
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadProviders = async () => {
-    setLoading(true);
     setError(null);
     try {
-      const result = await listProviderConfigs(null, password, usbPath);
+      const result = await listProviderConfigs(null, appPassword, usbPath);
       setProviders(result);
     } catch (err) {
       setError(`Failed to load providers: ${err}`);
@@ -77,6 +63,12 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
 
   const handleAddProvider = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!appPassword) {
+      setError('App password not available');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(null);
@@ -91,14 +83,14 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
         apiKey: formData.apiKey,
         priority: formData.priority,
         enabled: formData.enabled,
-        password,
+        password: appPassword,
         usbPath,
       });
 
       setSuccess(`Provider ${formData.providerType} added successfully!`);
       setShowAddForm(false);
       setFormData({
-        providerType: PROVIDER_TYPES.ALCHEMY,
+        providerType: PROVIDER_TYPES.ALCHEMY as string,
         apiKey: '',
         priority: 100,
         enabled: true,
@@ -111,16 +103,20 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
     }
   };
 
-  const handleDeleteProvider = async (chainId: string, providerType: string) => {
-    if (!confirm(`Are you sure you want to delete ${providerType} for ${chainId}?`)) {
+  const handleDeleteProvider = async (
+    chainId: string,
+    providerType: string
+  ) => {
+    if (!appPassword) {
+      setError('App password not available');
       return;
     }
 
     setLoading(true);
     setError(null);
     try {
-      await deleteProviderConfig(chainId, providerType, password, usbPath);
-      setSuccess(`Provider ${providerType} deleted successfully!`);
+      await deleteProviderConfig(chainId, providerType, appPassword, usbPath);
+      setSuccess(`Provider ${providerType} deleted successfully`);
       await loadProviders();
     } catch (err) {
       setError(`Failed to delete provider: ${err}`);
@@ -129,101 +125,6 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
     }
   };
 
-  // Show password prompt if not unlocked
-  if (!isUnlocked) {
-    return (
-      <div className="provider-settings">
-        <div className="unlock-prompt">
-          <h2>API Provider Settings</h2>
-          <p className="description">
-            Configure blockchain API providers (Alchemy, Infura, QuickNode) to enable balance queries,
-            fee estimation, and transaction broadcasting.
-          </p>
-          <p className="security-note">
-            Your API keys are encrypted with AES-256-GCM and stored on your USB drive.
-            Enter a password to unlock provider settings.
-          </p>
-
-          {unlockError && (
-            <div className="alert alert-error">{unlockError}</div>
-          )}
-
-          <div className="unlock-form">
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleUnlock();
-                  }
-                }}
-                placeholder="Enter your encryption password"
-                disabled={loading}
-                autoFocus
-              />
-              <small className="form-hint">
-                Use any password to create new provider settings, or use your existing password to access saved providers.
-              </small>
-            </div>
-
-            <button
-              onClick={handleUnlock}
-              className="btn-primary"
-              disabled={loading || !password}
-            >
-              {loading ? 'Unlocking...' : 'Unlock Settings'}
-            </button>
-          </div>
-        </div>
-
-        <style>{`
-          .unlock-prompt {
-            max-width: 500px;
-            margin: 40px auto;
-            padding: 32px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-          }
-
-          .unlock-prompt h2 {
-            margin-top: 0;
-            margin-bottom: 16px;
-            font-size: 24px;
-            font-weight: 600;
-            color: #1a1a1a;
-          }
-
-          .description {
-            margin-bottom: 16px;
-            color: #666;
-            line-height: 1.6;
-          }
-
-          .security-note {
-            margin-bottom: 24px;
-            padding: 12px 16px;
-            background: #f0f9ff;
-            border-left: 4px solid #3b82f6;
-            border-radius: 4px;
-            color: #1e40af;
-            font-size: 14px;
-            line-height: 1.5;
-          }
-
-          .unlock-form {
-            margin-top: 24px;
-          }
-        `}</style>
-      </div>
-    );
-  }
-
-  // Show provider management interface after unlock
   return (
     <div className="provider-settings">
       <div className="header">
@@ -233,15 +134,21 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
           className="btn-primary"
           disabled={loading}
         >
-          {showAddForm ? 'Cancel' : 'Add Provider'}
+          {showAddForm ? 'Cancel' : '+ Add Provider'}
         </button>
       </div>
+
+      <p className="description">
+        Configure blockchain API providers (Alchemy, Infura, QuickNode) to
+        enable balance queries, fee estimation, and transaction broadcasting.
+      </p>
 
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
 
+      {/* Add Provider Form */}
       {showAddForm && (
-        <form onSubmit={handleAddProvider} className="add-provider-form">
+        <form onSubmit={handleAddProvider} className="add-form">
           <h3>Add New Provider</h3>
 
           <div className="form-group">
@@ -252,6 +159,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
               onChange={(e) =>
                 setFormData({ ...formData, providerType: e.target.value })
               }
+              disabled={loading}
               required
             >
               <option value={PROVIDER_TYPES.ALCHEMY}>Alchemy</option>
@@ -275,10 +183,11 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
                 setFormData({ ...formData, apiKey: e.target.value })
               }
               placeholder="Enter your API key"
+              disabled={loading}
               required
             />
             <small className="form-hint">
-              Your API key will be encrypted and stored on your USB drive
+              Get your API key from the provider's dashboard
             </small>
           </div>
 
@@ -291,16 +200,17 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
               onChange={(e) =>
                 setFormData({ ...formData, priority: parseInt(e.target.value) })
               }
-              min="0"
-              max="999"
+              min={1}
+              max={999}
+              disabled={loading}
               required
             />
             <small className="form-hint">
-              Higher priority providers are used first (0-999)
+              Lower numbers = higher priority (1 is highest)
             </small>
           </div>
 
-          <div className="form-group">
+          <div className="form-group checkbox-group">
             <label>
               <input
                 type="checkbox"
@@ -308,8 +218,9 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
                 onChange={(e) =>
                   setFormData({ ...formData, enabled: e.target.checked })
                 }
+                disabled={loading}
               />
-              <span>Enabled</span>
+              <span>Enable this provider</span>
             </label>
           </div>
 
@@ -319,8 +230,8 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
             </button>
             <button
               type="button"
-              className="btn-secondary"
               onClick={() => setShowAddForm(false)}
+              className="btn-secondary"
               disabled={loading}
             >
               Cancel
@@ -329,9 +240,10 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
         </form>
       )}
 
-      <div className="providers-list">
+      {/* Provider List */}
+      <div className="providers-section">
         <h3>Configured Providers</h3>
-        {loading && providers.length === 0 ? (
+        {loading && !showAddForm ? (
           <div className="loading">Loading providers...</div>
         ) : providers.length === 0 ? (
           <div className="empty-state">
@@ -395,16 +307,16 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
 
       <style>{`
         .provider-settings {
-          padding: 24px;
-          max-width: 1200px;
+          max-width: 1000px;
           margin: 0 auto;
+          padding: 20px;
         }
 
         .header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 24px;
+          margin-bottom: 16px;
         }
 
         .header h2 {
@@ -413,68 +325,96 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
           font-weight: 600;
         }
 
+        .description {
+          margin-bottom: 24px;
+          color: #666;
+          line-height: 1.6;
+        }
+
         .alert {
           padding: 12px 16px;
-          border-radius: 6px;
-          margin-bottom: 16px;
+          border-radius: 8px;
+          margin-bottom: 20px;
+          font-size: 14px;
         }
 
         .alert-error {
-          background-color: #fee;
-          color: #c33;
-          border: 1px solid #fcc;
+          background-color: #fee2e2;
+          color: #991b1b;
+          border: 1px solid #fecaca;
         }
 
         .alert-success {
-          background-color: #efe;
-          color: #3c3;
-          border: 1px solid #cfc;
+          background-color: #d1fae5;
+          color: #065f46;
+          border: 1px solid #a7f3d0;
         }
 
-        .add-provider-form {
-          background: #f8f9fa;
+        .add-form {
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
           padding: 24px;
-          border-radius: 8px;
-          margin-bottom: 24px;
+          margin-bottom: 32px;
         }
 
-        .add-provider-form h3 {
-          margin-top: 0;
-          margin-bottom: 20px;
+        .add-form h3 {
+          margin: 0 0 20px;
           font-size: 18px;
+          font-weight: 600;
         }
 
         .form-group {
-          margin-bottom: 16px;
+          margin-bottom: 20px;
         }
 
         .form-group label {
           display: block;
-          margin-bottom: 6px;
+          margin-bottom: 8px;
           font-weight: 500;
+          color: #333;
           font-size: 14px;
         }
 
         .form-group input,
         .form-group select {
           width: 100%;
-          padding: 8px 12px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
+          padding: 10px 12px;
+          border: 1px solid #d1d5db;
+          border-radius: 6px;
           font-size: 14px;
+          box-sizing: border-box;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+          outline: none;
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
         .form-hint {
           display: block;
-          margin-top: 4px;
+          margin-top: 6px;
           font-size: 12px;
-          color: #666;
+          color: #6b7280;
+        }
+
+        .checkbox-group label {
+          display: flex;
+          align-items: center;
+          cursor: pointer;
+        }
+
+        .checkbox-group input[type='checkbox'] {
+          width: auto;
+          margin-right: 8px;
         }
 
         .form-actions {
           display: flex;
           gap: 12px;
-          margin-top: 20px;
+          margin-top: 24px;
         }
 
         .btn-primary,
@@ -486,49 +426,54 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
           font-size: 14px;
           font-weight: 500;
           cursor: pointer;
-          transition: opacity 0.2s;
+          transition: all 0.2s;
         }
 
         .btn-primary {
-          background: #007bff;
+          background: #3b82f6;
           color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+          background: #2563eb;
         }
 
         .btn-secondary {
-          background: #6c757d;
-          color: white;
+          background: #e5e7eb;
+          color: #374151;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+          background: #d1d5db;
         }
 
         .btn-danger {
-          background: #dc3545;
+          background: #ef4444;
           color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+          background: #dc2626;
         }
 
         .btn-sm {
           padding: 6px 12px;
-          font-size: 12px;
+          font-size: 13px;
         }
 
-        .btn-primary:hover,
-        .btn-secondary:hover,
-        .btn-danger:hover {
-          opacity: 0.9;
-        }
-
-        .btn-primary:disabled,
-        .btn-secondary:disabled,
-        .btn-danger:disabled {
+        button:disabled {
           opacity: 0.5;
           cursor: not-allowed;
         }
 
-        .providers-list {
+        .providers-section {
           margin-top: 32px;
         }
 
-        .providers-list h3 {
-          margin-bottom: 16px;
+        .providers-section h3 {
+          margin: 0 0 16px;
           font-size: 18px;
+          font-weight: 600;
         }
 
         .providers-table {
@@ -540,20 +485,27 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
-        .providers-table th,
-        .providers-table td {
+        .providers-table th {
+          background: #f9fafb;
           padding: 12px 16px;
           text-align: left;
-          border-bottom: 1px solid #eee;
+          font-weight: 600;
+          font-size: 13px;
+          color: #374151;
+          border-bottom: 1px solid #e5e7eb;
         }
 
-        .providers-table th {
-          background: #f8f9fa;
-          font-weight: 600;
+        .providers-table td {
+          padding: 12px 16px;
+          border-bottom: 1px solid #f3f4f6;
           font-size: 14px;
         }
 
-        .providers-table tbody tr.disabled {
+        .providers-table tr:last-child td {
+          border-bottom: none;
+        }
+
+        .providers-table tr.disabled {
           opacity: 0.6;
         }
 
@@ -566,13 +518,13 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
         }
 
         .status-active {
-          background: #d4edda;
-          color: #155724;
+          background: #d1fae5;
+          color: #065f46;
         }
 
         .status-inactive {
-          background: #f8d7da;
-          color: #721c24;
+          background: #fee2e2;
+          color: #991b1b;
         }
 
         .api-key-badge {
@@ -584,13 +536,13 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
         }
 
         .api-key-badge.has-key {
-          background: #d4edda;
-          color: #155724;
+          background: #d1fae5;
+          color: #065f46;
         }
 
         .api-key-badge.no-key {
-          background: #fff3cd;
-          color: #856404;
+          background: #fef3c7;
+          color: #92400e;
         }
 
         .provider-name {
@@ -601,7 +553,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
         .empty-state {
           text-align: center;
           padding: 40px;
-          color: #666;
+          color: #6b7280;
         }
       `}</style>
     </div>

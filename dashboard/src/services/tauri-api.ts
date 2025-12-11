@@ -175,12 +175,79 @@ export async function clearSensitiveMemory(): Promise<void> {
 }
 
 /**
+ * App-level Authentication
+ */
+
+export interface AppConfig {
+  version: string;
+  createdAt: string;
+  updatedAt: string;
+  wallets: Array<{
+    id: string;
+    name: string;
+    createdAt: string;
+  }>;
+  providers: Array<{
+    providerType: string;
+    apiKey: string;
+    priority: number;
+    enabled: boolean;
+  }>;
+  settings: {
+    autoLockMinutes: number;
+    requirePasswordOnStart: boolean;
+  };
+}
+
+export async function isFirstTimeSetup(usbPath: string): Promise<boolean> {
+  try {
+    const result = await invoke<{ isFirstTime: boolean }>('is_first_time_setup', {
+      usbPath,
+    });
+    return result.isFirstTime;
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+export async function initializeApp(password: string, usbPath: string): Promise<string> {
+  try {
+    return await invoke<string>('initialize_app', {
+      input: {
+        password,
+        usbPath,
+      },
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+export async function unlockApp(password: string, usbPath: string): Promise<AppConfig> {
+  try {
+    return await invoke<AppConfig>('unlock_app', {
+      input: {
+        password,
+        usbPath,
+      },
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+/**
  * Typed Tauri API wrapper
  * Provides type-safe access to all Tauri commands
  */
 export const tauriApi = {
   // USB
   detectUsb,
+
+  // App Authentication
+  isFirstTimeSetup,
+  initializeApp,
+  unlockApp,
 
   // Wallet
   createWallet,
