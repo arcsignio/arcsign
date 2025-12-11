@@ -77,6 +77,16 @@ type ListProviderConfigsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for DeleteProviderConfig: char* DeleteProviderConfig(char* params)
 type DeleteProviderConfigFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+// App-level authentication function types
+/// Function signature for IsFirstTimeSetup: char* IsFirstTimeSetup(char* params)
+type IsFirstTimeSetupFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for InitializeApp: char* InitializeApp(char* params)
+type InitializeAppFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for UnlockApp: char* UnlockApp(char* params)
+type UnlockAppFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 // ============================================================================
 // WalletLibrary - Dynamic Library Wrapper (T016, T017)
 // ============================================================================
@@ -114,6 +124,10 @@ pub struct WalletLibrary {
     get_provider_config: Symbol<'static, GetProviderConfigFn>,
     list_provider_configs: Symbol<'static, ListProviderConfigsFn>,
     delete_provider_config: Symbol<'static, DeleteProviderConfigFn>,
+    // App-level authentication function symbols
+    is_first_time_setup: Symbol<'static, IsFirstTimeSetupFn>,
+    initialize_app: Symbol<'static, InitializeAppFn>,
+    unlock_app: Symbol<'static, UnlockAppFn>,
 }
 
 impl WalletLibrary {
@@ -246,6 +260,19 @@ impl WalletLibrary {
                 .get(b"DeleteProviderConfig")
                 .map_err(|e| format!("DeleteProviderConfig symbol not found: {}", e))?;
 
+            // App-level authentication symbols
+            let is_first_time_setup: Symbol<IsFirstTimeSetupFn> = lib
+                .get(b"IsFirstTimeSetup")
+                .map_err(|e| format!("IsFirstTimeSetup symbol not found: {}", e))?;
+
+            let initialize_app: Symbol<InitializeAppFn> = lib
+                .get(b"InitializeApp")
+                .map_err(|e| format!("InitializeApp symbol not found: {}", e))?;
+
+            let unlock_app: Symbol<UnlockAppFn> = lib
+                .get(b"UnlockApp")
+                .map_err(|e| format!("UnlockApp symbol not found: {}", e))?;
+
             // Extend symbol lifetime to 'static (safe because Library lives for program duration)
             let go_free: Symbol<'static, GoFreeFn> = std::mem::transmute(go_free);
             let get_version: Symbol<'static, GetVersionFn> = std::mem::transmute(get_version);
@@ -265,6 +292,9 @@ impl WalletLibrary {
             let get_provider_config: Symbol<'static, GetProviderConfigFn> = std::mem::transmute(get_provider_config);
             let list_provider_configs: Symbol<'static, ListProviderConfigsFn> = std::mem::transmute(list_provider_configs);
             let delete_provider_config: Symbol<'static, DeleteProviderConfigFn> = std::mem::transmute(delete_provider_config);
+            let is_first_time_setup: Symbol<'static, IsFirstTimeSetupFn> = std::mem::transmute(is_first_time_setup);
+            let initialize_app: Symbol<'static, InitializeAppFn> = std::mem::transmute(initialize_app);
+            let unlock_app: Symbol<'static, UnlockAppFn> = std::mem::transmute(unlock_app);
 
             Ok(WalletLibrary {
                 lib: Arc::new(lib),
@@ -286,6 +316,9 @@ impl WalletLibrary {
                 get_provider_config,
                 list_provider_configs,
                 delete_provider_config,
+                is_first_time_setup,
+                initialize_app,
+                unlock_app,
             })
         }
     }
@@ -691,6 +724,44 @@ impl WalletLibrary {
     /// ```
     pub fn delete_provider_config(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.delete_provider_config, params_json)
+    }
+
+    /// Check if this is first-time setup (app_config.enc doesn't exist).
+    ///
+    /// # Example Input JSON
+    /// ```json
+    /// {
+    ///   "usbPath": "/path/to/usb"
+    /// }
+    /// ```
+    pub fn is_first_time_setup(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.is_first_time_setup, params_json)
+    }
+
+    /// Initialize app configuration for first-time setup.
+    ///
+    /// # Example Input JSON
+    /// ```json
+    /// {
+    ///   "password": "master-password",
+    ///   "usbPath": "/path/to/usb"
+    /// }
+    /// ```
+    pub fn initialize_app(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.initialize_app, params_json)
+    }
+
+    /// Unlock app and load configuration.
+    ///
+    /// # Example Input JSON
+    /// ```json
+    /// {
+    ///   "password": "master-password",
+    ///   "usbPath": "/path/to/usb"
+    /// }
+    /// ```
+    pub fn unlock_app(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.unlock_app, params_json)
     }
 }
 

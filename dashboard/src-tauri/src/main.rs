@@ -22,6 +22,7 @@ mod error;
 mod ffi;  // T017: Add FFI module
 mod models;
 
+use commands::app::{is_first_time_setup, initialize_app, unlock_app};
 use commands::security::{
     clear_sensitive_memory, disable_screenshot_protection, enable_screenshot_protection,
 };
@@ -194,6 +195,10 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             // USB commands
             detect_usb,
+            // App-level authentication commands
+            is_first_time_setup,
+            initialize_app,
+            unlock_app,
             // Wallet commands
             create_wallet,
             import_wallet,
