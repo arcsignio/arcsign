@@ -88,9 +88,10 @@ pub async fn is_first_time_setup(
             format!("Failed to check first-time setup: {}", e)
         ))?;
 
-    // Parse response
+    // Parse response - Go returns {success: true, data: {isFirstTime: bool}}
     let is_first_time = result
-        .get("isFirstTime")
+        .get("data")
+        .and_then(|data| data.get("isFirstTime"))
         .and_then(|v| v.as_bool())
         .ok_or_else(|| Error::new(
             crate::error::ErrorCode::InternalError,
@@ -125,9 +126,10 @@ pub async fn initialize_app(
             format!("Failed to initialize app: {}", e)
         ))?;
 
-    // Parse response
+    // Parse response - Go returns {success: true, data: {message: string}}
     let message = result
-        .get("message")
+        .get("data")
+        .and_then(|data| data.get("message"))
         .and_then(|v| v.as_str())
         .unwrap_or("App initialized successfully")
         .to_string();
@@ -160,9 +162,10 @@ pub async fn unlock_app(
             format!("Failed to unlock app: {}", e)
         ))?;
 
-    // Parse config from response
+    // Parse config from response - Go returns {success: true, data: {config: AppConfig}}
     let config_value = result
-        .get("config")
+        .get("data")
+        .and_then(|data| data.get("config"))
         .ok_or_else(|| Error::new(
             crate::error::ErrorCode::InternalError,
             "No config in response".to_string()
