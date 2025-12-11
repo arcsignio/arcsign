@@ -201,10 +201,11 @@ export interface AppConfig {
 
 export async function isFirstTimeSetup(usbPath: string): Promise<boolean> {
   try {
-    const result = await invoke<{ isFirstTime: boolean }>('is_first_time_setup', {
+    // Tauri command returns bool directly, not {isFirstTime: bool}
+    const result = await invoke<boolean>('is_first_time_setup', {
       usbPath,
     });
-    return result.isFirstTime;
+    return result;
   } catch (error) {
     throw parseError(error);
   }
