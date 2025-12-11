@@ -133,20 +133,28 @@ pub async fn initialize_app(
         format!("Failed to serialize input: {}", e)
     ))?;
 
+    tracing::info!("Calling FFI with params: {}", params_json);
+
     // Call FFI through queue
     let result = queue.initialize_app(params_json).await
-        .map_err(|e| Error::new(
-            crate::error::ErrorCode::InternalError,
-            format!("Failed to initialize app: {}", e)
-        ))?;
+        .map_err(|e| {
+            tracing::error!("FFI call failed: {}", e);
+            Error::new(
+                crate::error::ErrorCode::InternalError,
+                format!("Failed to initialize app: {}", e)
+            )
+        })?;
 
-    // Parse response - Go returns {success: true, data: {message: string}}
+    tracing::info!("FFI response: {:?}", result);
+
+    // Parse response - Go returns {message: string} directly
     let message = result
-        .get("data")
-        .and_then(|data| data.get("message"))
+        .get("message")
         .and_then(|v| v.as_str())
         .unwrap_or("App initialized successfully")
         .to_string();
+
+    tracing::info!("initialize_app result: {}", message);
 
     Ok(message)
 }
@@ -164,32 +172,49 @@ pub async fn unlock_app(
         "password": input.password,
         "usbPath": input.usb_path,
     }))
-    .map_err(|e| Error::new(
-        crate::error::ErrorCode::SerializationError,
-        format!("Failed to serialize input: {}", e)
-    ))?;
+    .map_err(|e| {
+        tracing::error!("Failed to serialize input: {}", e);
+        Error::new(
+            crate::error::ErrorCode::SerializationError,
+            format!("Failed to serialize input: {}", e)
+        )
+    })?;
+
+    tracing::info!("Calling FFI with params_json (password hidden)");
 
     // Call FFI through queue
     let result = queue.unlock_app(params_json).await
-        .map_err(|e| Error::new(
-            crate::error::ErrorCode::InternalError,
-            format!("Failed to unlock app: {}", e)
-        ))?;
+        .map_err(|e| {
+            tracing::error!("FFI call failed: {}", e);
+            Error::new(
+                crate::error::ErrorCode::InternalError,
+                format!("Failed to unlock app: {}", e)
+            )
+        })?;
 
-    // Parse config from response - Go returns {success: true, data: {config: AppConfig}}
+    tracing::info!("FFI response: {:?}", result);
+
+    // Parse config from response - Go returns {config: AppConfig} directly
     let config_value = result
-        .get("data")
-        .and_then(|data| data.get("config"))
-        .ok_or_else(|| Error::new(
-            crate::error::ErrorCode::InternalError,
-            "No config in response".to_string()
-        ))?;
+        .get("config")
+        .ok_or_else(|| {
+            tracing::error!("No config in FFI response: {:?}", result);
+            Error::new(
+                crate::error::ErrorCode::InternalError,
+                format!("No config in response: {:?}", result)
+            )
+        })?;
 
     let config: AppConfig = serde_json::from_value(config_value.clone())
-        .map_err(|e| Error::new(
-            crate::error::ErrorCode::SerializationError,
-            format!("Failed to parse config: {}", e)
-        ))?;
+        .map_err(|e| {
+            tracing::error!("Failed to parse config: {}", e);
+            Error::new(
+                crate::error::ErrorCode::SerializationError,
+                format!("Failed to parse config: {}", e)
+            )
+        })?;
+
+    tracing::info!("unlock_app succeeded");
 
     Ok(config)
 }
