@@ -57,6 +57,10 @@ func debugLog(message string) {
 	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
 	logMessage := fmt.Sprintf("[%s] %s\n", timestamp, message)
 
+	// Output to stderr so it appears in terminal
+	fmt.Fprintf(os.Stderr, "[Go Debug] %s\n", message)
+
+	// Also write to file
 	f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return
@@ -1320,23 +1324,22 @@ func SetProviderConfig(params *C.char) *C.char {
 //   }
 // }
 func GetProviderConfig(params *C.char) *C.char {
+	fmt.Fprintf(os.Stderr, "[Go] GetProviderConfig called\n")
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
-		_ = elapsed
+		fmt.Fprintf(os.Stderr, "[Go] GetProviderConfig took %v\n", elapsed)
 	}()
 
 	defer func() {
 		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "[Go] PANIC in GetProviderConfig: %v\n", r)
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
-			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
 		}
 	}()
 
 	paramsJSON := C.GoString(params)
+	fmt.Fprintf(os.Stderr, "[Go] GetProviderConfig params: %s\n", paramsJSON)
 	var input struct {
 		ChainID      string `json:"chainId"`
 		ProviderType string `json:"providerType"` // Optional
@@ -1345,16 +1348,20 @@ func GetProviderConfig(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		fmt.Fprintf(os.Stderr, "[Go] GetProviderConfig JSON parse error: %v\n", err)
 		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
+
+	fmt.Fprintf(os.Stderr, "[Go] GetProviderConfig: chainId=%s, providerType=%s, password length=%d\n", input.ChainID, input.ProviderType, len(input.Password))
 
 	// Zero sensitive data after function returns
 	defer zeroString(&input.Password)
 
 	// Create provider config store
 	configPath := input.USBPath + "/provider_config.enc"
+	fmt.Fprintf(os.Stderr, "[Go] GetProviderConfig: configPath=%s\n", configPath)
 	store, err := provider.NewProviderConfigStore(configPath, input.Password)
 	if err != nil {
 		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
@@ -1420,23 +1427,22 @@ func GetProviderConfig(params *C.char) *C.char {
 //   }
 // }
 func ListProviderConfigs(params *C.char) *C.char {
+	fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs called\n")
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
-		_ = elapsed
+		fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs took %v\n", elapsed)
 	}()
 
 	defer func() {
 		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "[Go] PANIC in ListProviderConfigs: %v\n", r)
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
-			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
 		}
 	}()
 
 	paramsJSON := C.GoString(params)
+	fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs params: %s\n", paramsJSON)
 	var input struct {
 		ChainID  string `json:"chainId"` // Optional
 		Password string `json:"password"`
@@ -1444,16 +1450,20 @@ func ListProviderConfigs(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs JSON parse error: %v\n", err)
 		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
+
+	fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs: chainId=%s, password length=%d\n", input.ChainID, len(input.Password))
 
 	// Zero sensitive data after function returns
 	defer zeroString(&input.Password)
 
 	// Create provider config store
 	configPath := input.USBPath + "/provider_config.enc"
+	fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs: configPath=%s\n", configPath)
 	store, err := provider.NewProviderConfigStore(configPath, input.Password)
 	if err != nil {
 		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
@@ -1522,23 +1532,22 @@ func ListProviderConfigs(params *C.char) *C.char {
 //   }
 // }
 func DeleteProviderConfig(params *C.char) *C.char {
+	fmt.Fprintf(os.Stderr, "[Go] DeleteProviderConfig called\n")
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
-		_ = elapsed
+		fmt.Fprintf(os.Stderr, "[Go] DeleteProviderConfig took %v\n", elapsed)
 	}()
 
 	defer func() {
 		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "[Go] PANIC in DeleteProviderConfig: %v\n", r)
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
-			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
 		}
 	}()
 
 	paramsJSON := C.GoString(params)
+	fmt.Fprintf(os.Stderr, "[Go] DeleteProviderConfig params: %s\n", paramsJSON)
 	var input struct {
 		ChainID      string `json:"chainId"`
 		ProviderType string `json:"providerType"`
@@ -1547,16 +1556,20 @@ func DeleteProviderConfig(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		fmt.Fprintf(os.Stderr, "[Go] DeleteProviderConfig JSON parse error: %v\n", err)
 		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
+
+	fmt.Fprintf(os.Stderr, "[Go] DeleteProviderConfig: chainId=%s, providerType=%s, password length=%d\n", input.ChainID, input.ProviderType, len(input.Password))
 
 	// Zero sensitive data after function returns
 	defer zeroString(&input.Password)
 
 	// Create provider config store
 	configPath := input.USBPath + "/provider_config.enc"
+	fmt.Fprintf(os.Stderr, "[Go] DeleteProviderConfig: configPath=%s\n", configPath)
 	store, err := provider.NewProviderConfigStore(configPath, input.Password)
 	if err != nil {
 		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
