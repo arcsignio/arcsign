@@ -25,6 +25,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"runtime/debug"
 	"time"
 	"unsafe"
@@ -47,6 +49,20 @@ func initChainAdapterService() *chainadapterService.Service {
 		chainAdapterSvc = chainadapterService.NewService(nil) // nil = use in-memory tx store
 	}
 	return chainAdapterSvc
+}
+
+// debugLog writes debug messages to /Volumes/arcsign/logs/go_debug.log
+func debugLog(message string) {
+	logFile := "/Volumes/arcsign/logs/go_debug.log"
+	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+	logMessage := fmt.Sprintf("[%s] %s\n", timestamp, message)
+
+	f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	f.WriteString(logMessage)
 }
 
 // T026: zeroString securely zeros sensitive string data from memory
@@ -1227,13 +1243,19 @@ func SetProviderConfig(params *C.char) *C.char {
 	defer zeroString(&input.Password)
 
 	// Create provider config store
-	configPath := input.USBPath + "/provider_config.enc"
+	configPath := filepath.Join(input.USBPath, "provider_config.enc")
+	debugLog(fmt.Sprintf("[DEBUG] SetProviderConfig: configPath = %s", configPath))
+	debugLog(fmt.Sprintf("[DEBUG] SetProviderConfig: password length = %d", len(input.Password)))
+	debugLog(fmt.Sprintf("[DEBUG] SetProviderConfig: password = '%s'", input.Password))
+
 	store, err := provider.NewProviderConfigStore(configPath, input.Password)
 	if err != nil {
+		debugLog(fmt.Sprintf("[DEBUG] SetProviderConfig: Failed to create store: %v", err))
 		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
+	debugLog("[DEBUG] SetProviderConfig: Store created successfully")
 
 	// Create provider configuration
 	config := &provider.ProviderConfig{
@@ -1677,35 +1699,40 @@ func EstimateFee(params *C.char) *C.char {
 //   }
 // }
 func IsFirstTimeSetup(params *C.char) *C.char {
+	fmt.Fprintf(os.Stderr, "[Go] IsFirstTimeSetup called\n")
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
-		_ = elapsed
+		fmt.Fprintf(os.Stderr, "[Go] IsFirstTimeSetup took %v\n", elapsed)
 	}()
 
 	defer func() {
 		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "[Go] PANIC in IsFirstTimeSetup: %v\n", r)
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
-			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			// We can't return a value from here without named returns.
+			// Just log it for now.
 		}
 	}()
 
 	paramsJSON := C.GoString(params)
+	fmt.Fprintf(os.Stderr, "[Go] IsFirstTimeSetup params: %s\n", paramsJSON)
+
 	var input struct {
 		USBPath string `json:"usbPath"`
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		fmt.Fprintf(os.Stderr, "[Go] JSON Unmarshal error: %v\n", err)
 		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
 	// Check if app_config.enc exists
-	isFirstTime := !app.AppConfigExists(input.USBPath)
+	exists := app.AppConfigExists(input.USBPath)
+	isFirstTime := !exists
+	fmt.Fprintf(os.Stderr, "[Go] AppConfigExists(%s) = %v, isFirstTime = %v\n", input.USBPath, exists, isFirstTime)
 
 	data := map[string]interface{}{
 		"isFirstTime": isFirstTime,
@@ -1713,6 +1740,7 @@ func IsFirstTimeSetup(params *C.char) *C.char {
 
 	response := NewSuccessResponse(data)
 	jsonBytes, _ := json.Marshal(response)
+	fmt.Fprintf(os.Stderr, "[Go] IsFirstTimeSetup response: %s\n", string(jsonBytes))
 	return C.CString(string(jsonBytes))
 }
 
@@ -1844,6 +1872,184 @@ func UnlockApp(params *C.char) *C.char {
 	}
 
 	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export GetTokenBalances
+// GetTokenBalances queries token balances for all addresses in a wallet across multiple chains
+// using Alchemy API. Returns aggregated token balances with USD values.
+//
+// Input JSON: {
+//   "walletId": "uuid",
+//   "password": "wallet-password",  // Not used (addresses already stored)
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "app-level-password"
+// }
+//
+// Returns: {"success": true, "data": {"tokens": [...], "totalUsd": 5000.50, ...}}
+func GetTokenBalances(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input provider.GetTokenBalancesInput
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Security: Clear sensitive data
+	defer zeroString(&input.AppPassword)
+
+	// Step 1: Load Alchemy API key from provider registry
+	// Note: Using provider registry system instead of app config for now
+	// Construct full path to provider_config.enc in USB root directory
+	providerConfigPath := filepath.Join(input.USBPath, "provider_config.enc")
+	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: providerConfigPath = %s", providerConfigPath))
+	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: appPassword length = %d", len(input.AppPassword)))
+	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: appPassword = '%s'", input.AppPassword))
+
+	providerStore, err := provider.NewProviderConfigStore(providerConfigPath, input.AppPassword)
+	if err != nil {
+		debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Failed to initialize provider store: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to initialize provider store: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	debugLog("[DEBUG] GetTokenBalances: Provider store initialized successfully")
+
+	// Try to get Alchemy provider for global chainId (set by ProviderSettings UI)
+	debugLog("[DEBUG] GetTokenBalances: Attempting to get provider with chainId='global', providerType='alchemy'")
+	providerConfig, err := providerStore.Get("global", "alchemy")
+	if err != nil {
+		debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Error getting provider: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to get Alchemy provider: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	if providerConfig == nil {
+		debugLog("[DEBUG] GetTokenBalances: providerConfig is nil")
+		response := NewErrorResponse(ErrInvalidInput, "Alchemy provider not configured")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	if providerConfig.APIKey == "" {
+		debugLog("[DEBUG] GetTokenBalances: providerConfig.APIKey is empty")
+		response := NewErrorResponse(ErrInvalidInput, "Alchemy API key is missing")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Provider config retrieved successfully, APIKey length = %d", len(providerConfig.APIKey)))
+
+	if !providerConfig.Enabled {
+		response := NewErrorResponse(ErrInvalidInput, "Alchemy provider is disabled")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	alchemyAPIKey := providerConfig.APIKey
+
+	// Step 2: Load wallet to get addresses
+	walletService := wallet.NewWalletService(input.USBPath)
+	walletObj, err := walletService.LoadWallet(input.WalletID)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if walletObj.AddressBook == nil || len(walletObj.AddressBook.Addresses) == 0 {
+		emptyOutput := provider.GetTokenBalancesOutput{
+			Tokens:       []provider.SimplifiedTokenBalance{},
+			TotalUSD:     0,
+			AddressCount: 0,
+			NetworkCount: 0,
+		}
+		response := NewSuccessResponse(emptyOutput)
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Step 3: Build Alchemy API request
+	addressNetworkMap := make(map[string][]string) // address -> networks
+
+	for _, addr := range walletObj.AddressBook.Addresses {
+		// Convert chain name to Alchemy network identifier
+		network, ok := provider.GetAlchemyNetwork(addr.CoinName)
+		if !ok {
+			// Skip unsupported chains
+			continue
+		}
+
+		// Add network to address
+		addressNetworkMap[addr.Address] = append(addressNetworkMap[addr.Address], network)
+	}
+
+	if len(addressNetworkMap) == 0 {
+		emptyOutput := provider.GetTokenBalancesOutput{
+			Tokens:       []provider.SimplifiedTokenBalance{},
+			TotalUSD:     0,
+			AddressCount: 0,
+			NetworkCount: 0,
+		}
+		response := NewSuccessResponse(emptyOutput)
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Convert map to slice
+	var alchemyAddresses []provider.AlchemyAddressWithNetworks
+	for addr, networks := range addressNetworkMap {
+		alchemyAddresses = append(alchemyAddresses, provider.AlchemyAddressWithNetworks{
+			Address:  addr,
+			Networks: networks,
+		})
+	}
+
+	// Step 4: Query Alchemy API
+	alchemyClient := provider.NewAlchemyClient(alchemyAPIKey)
+	alchemyResponse, err := alchemyClient.GetTokenBalancesByAddress(alchemyAddresses)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Alchemy API error: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Step 5: Simplify and aggregate results
+	tokens := provider.SimplifyTokenBalances(alchemyResponse)
+
+	// Calculate totals
+	var totalUSD float64
+	networkSet := make(map[string]bool)
+	for _, token := range tokens {
+		totalUSD += token.USDValue
+		networkSet[token.Network] = true
+	}
+
+	output := provider.GetTokenBalancesOutput{
+		Tokens:       tokens,
+		TotalUSD:     totalUSD,
+		AddressCount: len(addressNetworkMap),
+		NetworkCount: len(networkSet),
+	}
+
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }

@@ -18,6 +18,10 @@ import type {
 import type {
   AddressListResponse,
 } from '@/types/address';
+import type {
+  TokenBalancesResponse,
+  GetTokenBalancesParams,
+} from '@/types/tokens';
 
 /**
  * USB Device information
@@ -42,6 +46,7 @@ export interface AppError {
  * Parse error from Tauri response
  */
 function parseError(error: unknown): AppError {
+  // Handle string errors (might be JSON or plain text)
   if (typeof error === 'string') {
     try {
       // Try to parse as JSON error
@@ -58,6 +63,16 @@ function parseError(error: unknown): AppError {
         message: error,
       };
     }
+  }
+
+  // Handle object errors (already parsed)
+  if (error && typeof error === 'object') {
+    const err = error as any;
+    return {
+      code: err.code || 'UNKNOWN_ERROR',
+      message: err.message || 'An unexpected error occurred',
+      details: err.details,
+    };
   }
 
   return {
@@ -140,6 +155,19 @@ export async function loadAddresses(params: LoadAddressesParams): Promise<Addres
       walletId: params.wallet_id,
       password: params.password,
       usbPath: params.usb_path,
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+export async function getTokenBalances(params: GetTokenBalancesParams): Promise<TokenBalancesResponse> {
+  try {
+    return await invoke<TokenBalancesResponse>('get_token_balances', {
+      walletId: params.walletId,
+      password: params.password,
+      usbPath: params.usbPath,
+      appPassword: params.appPassword,
     });
   } catch (error) {
     throw parseError(error);
@@ -261,6 +289,7 @@ export const tauriApi = {
 
   // Address
   loadAddresses,
+  getTokenBalances,
 
   // Security
   enableScreenshotProtection,

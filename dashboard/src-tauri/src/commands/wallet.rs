@@ -925,3 +925,80 @@ mod tests {
         assert!(validate_password("ValidPassword123#").is_ok());
     }
 }
+
+/// Get token balances across multiple chains using Alchemy API
+/// Requirements: Asset management, multi-chain balance queries
+#[tauri::command]
+pub async fn get_token_balances(
+    queue: State<'_, LazyWalletQueue>,
+    wallet_id: String,
+    mut password: String,
+    usb_path: String,
+    app_password: String,
+) -> Result<serde_json::Value, String> {
+    let start = Instant::now();
+    tracing::info!("get_token_balances called for wallet_id: {}", wallet_id);
+
+    // Build JSON params for FFI call
+    let params = json!({
+        "walletId": wallet_id,
+        "password": password,
+        "usbPath": usb_path,
+        "appPassword": app_password,
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| {
+            tracing::error!("Failed to serialize params: {}", e);
+            format!("Failed to serialize params: {}", e)
+        })?;
+
+    tracing::info!("Calling FFI queue.get_token_balances");
+
+    // Call FFI queue
+    let ffi_response = queue
+        .get_token_balances(params_json)
+        .await
+        .map_err(|e| {
+            tracing::error!("FFI call failed with error: {}", e);
+            if e.contains("WALLET_NOT_FOUND") {
+                AppError::new(
+                    ErrorCode::WalletNotFound,
+                    "Wallet not found on USB",
+                )
+            } else if e.contains("INVALID_PASSWORD") || e.contains("DECRYPTION_ERROR") {
+                AppError::new(
+                    ErrorCode::PasswordTooWeak,
+                    "Invalid password",
+                )
+            } else if e.contains("USB_NOT_FOUND") || e.contains("STORAGE_ERROR") {
+                AppError::new(
+                    ErrorCode::UsbNotFound,
+                    "USB device not found",
+                )
+            } else if e.contains("PROVIDER_NOT_FOUND") || e.contains("API_KEY") {
+                AppError::new(
+                    ErrorCode::CliExecutionFailed,
+                    "Alchemy provider not configured or API key missing",
+                )
+            } else {
+                AppError::with_details(
+                    ErrorCode::CliExecutionFailed,
+                    "Failed to get token balances",
+                    e,
+                )
+            }
+        })?;
+
+    // Zero sensitive data
+    password.zeroize();
+
+    let elapsed = start.elapsed();
+    tracing::info!(
+        "Retrieved token balances for wallet {} (took {:?})",
+        wallet_id,
+        elapsed
+    );
+
+    Ok(ffi_response)
+}

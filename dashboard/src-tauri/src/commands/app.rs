@@ -186,10 +186,32 @@ pub async fn unlock_app(
     let result = queue.unlock_app(params_json).await
         .map_err(|e| {
             tracing::error!("FFI call failed: {}", e);
-            Error::new(
-                crate::error::ErrorCode::InternalError,
-                format!("Failed to unlock app: {}", e)
-            )
+
+            // Map specific error codes to user-friendly messages
+            if e.contains("INVALID_PASSWORD") || e.contains("ENCRYPTION_ERROR") ||
+               e.contains("cipher: message authentication failed") ||
+               e.contains("incorrect password") {
+                Error::new(
+                    crate::error::ErrorCode::InvalidPassword,
+                    "Incorrect password. Please try again."
+                )
+            } else if e.contains("STORAGE_ERROR") || e.contains("USB_NOT_FOUND") {
+                Error::new(
+                    crate::error::ErrorCode::UsbNotFound,
+                    "USB device not accessible. Please ensure your USB drive is properly connected."
+                )
+            } else if e.contains("WALLET_NOT_FOUND") {
+                Error::new(
+                    crate::error::ErrorCode::WalletNotFound,
+                    "App configuration not found on USB. Please initialize first."
+                )
+            } else {
+                Error::with_details(
+                    crate::error::ErrorCode::InternalError,
+                    "Failed to unlock app",
+                    e
+                )
+            }
         })?;
 
     tracing::info!("FFI response: {:?}", result);
