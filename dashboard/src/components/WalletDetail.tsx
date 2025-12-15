@@ -1,14 +1,19 @@
 /**
  * Wallet Detail View - Asset-first display with multi-chain token balances
- * Feature: Asset management with Alchemy API integration
+ * Feature: Asset management with Alchemy API integration + CoinGecko Token Lists
  */
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAppPassword } from "@/contexts/AppPasswordContext";
 import tauriApi, { type AppError } from "@/services/tauri-api";
 import type { TokenBalance, TokenBalancesResponse } from "@/types/tokens";
 import type { Wallet } from "@/types/wallet";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import {
+  getTokenEmoji,
+  normalizeTokenForDisplay,
+} from "@/constants/commonTokens";
+import { usePriorityTokens } from "@/hooks/useTokenList";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
 
@@ -34,6 +39,10 @@ export function WalletDetail({
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("crypto");
   const [showPercentage, setShowPercentage] = useState(true);
+
+  // Load priority tokens from CoinGecko token lists
+  const { tokens: priorityTokens, isLoading: isLoadingPriority } =
+    usePriorityTokens();
 
   const handleLoadBalances = async () => {
     if (!password || !appPassword) {
@@ -81,13 +90,49 @@ export function WalletDetail({
     return num.toFixed(2);
   };
 
+  // Merge user tokens with priority tokens from CoinGecko lists
+  const displayTokens = useMemo(() => {
+    const tokenMap = new Map<string, TokenBalance>();
+
+    // Add all user tokens first (these have actual balances)
+    tokens.forEach((token) => {
+      const key = `${token.network}-${
+        token.tokenSymbol
+      }-${token.tokenAddress.toLowerCase()}`;
+      tokenMap.set(key, token);
+    });
+
+    // Add priority tokens from CoinGecko lists if they don't exist
+    if (!isLoadingPriority) {
+      priorityTokens.forEach((priorityToken) => {
+        const key = `chain-${priorityToken.chainId}-${
+          priorityToken.symbol
+        }-${priorityToken.address.toLowerCase()}`;
+
+        // Only add if not already in map (user doesn't have this token)
+        if (!tokenMap.has(key)) {
+          const displayToken = normalizeTokenForDisplay(priorityToken);
+          tokenMap.set(key, displayToken);
+        }
+      });
+    }
+
+    return Array.from(tokenMap.values()).sort((a, b) => {
+      // Sort by value (highest first), then by symbol
+      if (b.usdValue !== a.usdValue) {
+        return b.usdValue - a.usdValue;
+      }
+      return a.tokenSymbol.localeCompare(b.tokenSymbol);
+    });
+  }, [tokens, priorityTokens, isLoadingPriority]);
+
   // Group tokens by network
-  const tokensByNetwork = tokens.reduce((acc, token) => {
+  const tokensByNetwork = displayTokens.reduce((acc, token) => {
     if (!acc[token.networkLabel]) {
       acc[token.networkLabel] = [];
     }
     acc[token.networkLabel].push(token);
-    return {};
+    return acc;
   }, {} as Record<string, TokenBalance[]>);
 
   if (showPasswordPrompt) {
@@ -727,7 +772,7 @@ export function WalletDetail({
                 Loading assets...
               </p>
             </div>
-          ) : tokens.length === 0 ? (
+          ) : displayTokens.length === 0 ? (
             <div
               style={{
                 textAlign: "center",
@@ -746,9 +791,9 @@ export function WalletDetail({
                 gap: "0.5rem",
               }}
             >
-              {tokens.map((token, idx) => (
+              {displayTokens.map((token, idx) => (
                 <button
-                  key={`${token.address}-${token.tokenAddress}-${idx}`}
+                  key={`${token.network}-${token.tokenSymbol}-${idx}`}
                   title={`View ${token.tokenSymbol} details`}
                   style={{
                     background: "rgba(255, 255, 255, 0.03)",
@@ -762,16 +807,20 @@ export function WalletDetail({
                     transition: "all 0.2s",
                     color: "white",
                     textAlign: "left",
+                    opacity: token.usdValue === 0 ? 0.6 : 1,
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background =
                       "rgba(255, 255, 255, 0.05)";
                     e.currentTarget.style.transform = "translateX(4px)";
+                    e.currentTarget.style.opacity = "1";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background =
                       "rgba(255, 255, 255, 0.03)";
                     e.currentTarget.style.transform = "translateX(0)";
+                    e.currentTarget.style.opacity =
+                      token.usdValue === 0 ? "0.6" : "1";
                   }}
                 >
                   {/* Token Icon */}
@@ -781,7 +830,7 @@ export function WalletDetail({
                       height: "40px",
                       borderRadius: "50%",
                       background: token.tokenLogo
-                        ? `url(${token.tokenLogo}) center/cover`
+                        ? "#1a1f2e"
                         : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                       display: "flex",
                       alignItems: "center",
@@ -789,9 +838,33 @@ export function WalletDetail({
                       color: "white",
                       fontWeight: "600",
                       flexShrink: 0,
+                      fontSize: token.tokenLogo ? "1.25rem" : "1rem",
+                      overflow: "hidden",
                     }}
                   >
-                    {!token.tokenLogo && token.tokenSymbol.slice(0, 1)}
+                    {token.tokenLogo ? (
+                      <img
+                        src={token.tokenLogo}
+                        alt={token.tokenSymbol}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                        onError={(e) => {
+                          // Fallback to emoji if image fails to load
+                          const target = e.target as HTMLImageElement;
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.style.background =
+                              "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+                            parent.innerHTML = getTokenEmoji(token.tokenSymbol);
+                          }
+                        }}
+                      />
+                    ) : (
+                      getTokenEmoji(token.tokenSymbol)
+                    )}
                   </div>
 
                   {/* Token Info */}
@@ -806,11 +879,11 @@ export function WalletDetail({
                       {token.tokenSymbol}
                     </div>
                     <div style={{ fontSize: "0.8125rem", color: "#8b92a7" }}>
-                      {formatBalance(token.balance)}
+                      {token.tokenName}
                     </div>
                   </div>
 
-                  {/* Token Value */}
+                  {/* Token Balance */}
                   <div style={{ textAlign: "right" }}>
                     <div
                       style={{
@@ -827,9 +900,7 @@ export function WalletDetail({
                         color: token.usdValue > 0 ? "#34c759" : "#8b92a7",
                       }}
                     >
-                      {token.usdValue > 0
-                        ? `$${token.usdValue.toFixed(2)} (+0.41%)`
-                        : "$0.00"}
+                      {formatBalance(token.balance)} {token.tokenSymbol}
                     </div>
                   </div>
                 </button>
