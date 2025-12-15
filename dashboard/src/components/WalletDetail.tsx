@@ -10,6 +10,8 @@ import type { TokenBalance, TokenBalancesResponse } from "@/types/tokens";
 import type { Wallet } from "@/types/wallet";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 
+type TabType = "crypto" | "defi" | "nft" | "approvals";
+
 interface WalletDetailProps {
   wallet: Wallet;
   usbPath: string;
@@ -30,6 +32,8 @@ export function WalletDetail({
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>("crypto");
+  const [showPercentage, setShowPercentage] = useState(true);
 
   const handleLoadBalances = async () => {
     if (!password || !appPassword) {
@@ -309,77 +313,620 @@ export function WalletDetail({
   }
 
   return (
-    <div className="wallet-detail">
-      <div className="detail-header">
-        <button onClick={onBack} className="back-button">
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#0a0e17",
+        color: "white",
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      }}
+    >
+      {/* Header with Account Info */}
+      <div
+        style={{
+          background: "linear-gradient(180deg, #1a1f2e 0%, #0a0e17 100%)",
+          padding: "1rem 1.5rem",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+        }}
+      >
+        <button
+          onClick={onBack}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "#8b92a7",
+            fontSize: "0.875rem",
+            cursor: "pointer",
+            padding: "0.5rem 0",
+            marginBottom: "1rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+          }}
+        >
           ← Back to Wallets
         </button>
-        <div className="header-content">
-          <h2>{wallet.name}</h2>
-          <div className="total-value">
-            <span className="label">Total Value</span>
-            <span className="value">{formatUSD(totalUsd)}</span>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "1rem",
+            marginBottom: "1rem",
+          }}
+        >
+          <div
+            style={{
+              width: "48px",
+              height: "48px",
+              borderRadius: "12px",
+              background: "linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "1.5rem",
+            }}
+          >
+            💼
+          </div>
+          <div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                marginBottom: "0.25rem",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "1.125rem",
+                  fontWeight: "600",
+                  margin: 0,
+                }}
+              >
+                {wallet.name}
+              </h3>
+              <button
+                title="Switch Wallet"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "#8b92a7",
+                  fontSize: "0.875rem",
+                  cursor: "pointer",
+                  padding: "0.25rem",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "white";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "#8b92a7";
+                }}
+              >
+                ▼
+              </button>
+            </div>
+            <div
+              style={{
+                fontSize: "0.8125rem",
+                color: "#8b92a7",
+              }}
+            >
+              Wallet 01
+            </div>
+          </div>
+          <div style={{ marginLeft: "auto", display: "flex", gap: "0.75rem" }}>
+            <button
+              title="Copy Address"
+              style={{
+                background: "transparent",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "8px",
+                padding: "0.5rem",
+                cursor: "pointer",
+                color: "white",
+                fontSize: "1rem",
+                position: "relative",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+              }}
+            >
+              📋
+            </button>
+            <button
+              title="Refresh Balances"
+              style={{
+                background: "transparent",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "8px",
+                padding: "0.5rem",
+                cursor: "pointer",
+                color: "white",
+                fontSize: "1rem",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+              }}
+            >
+              🔄
+            </button>
+            <button
+              title="Network Settings"
+              style={{
+                background: "transparent",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "8px",
+                padding: "0.5rem",
+                cursor: "pointer",
+                color: "white",
+                fontSize: "1rem",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+              }}
+            >
+              🌐
+            </button>
           </div>
         </div>
-        {onViewAddresses && (
-          <button onClick={onViewAddresses} className="view-addresses-link">
-            📋 View Addresses
-          </button>
-        )}
+
+        {/* Balance Display */}
+        <div style={{ textAlign: "center", padding: "1.5rem 0" }}>
+          <div
+            style={{
+              fontSize: "2.5rem",
+              fontWeight: "700",
+              marginBottom: "0.5rem",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            {formatUSD(totalUsd)}
+          </div>
+          <div
+            style={{
+              fontSize: "0.875rem",
+              color: showPercentage ? "#34c759" : "#8b92a7",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <span>{formatUSD(0)} (0.00%)</span>
+            <button
+              title="Change Time Period"
+              onClick={() => setShowPercentage(!showPercentage)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#8b92a7",
+                cursor: "pointer",
+                padding: "0.25rem",
+                fontSize: "0.875rem",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "white";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "#8b92a7";
+              }}
+            >
+              1D ▼
+            </button>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(5, 1fr)",
+            gap: "0.75rem",
+            marginTop: "1.5rem",
+          }}
+        >
+          {[
+            {
+              icon: "↑",
+              label: "Send",
+              tooltip: "Send tokens to another address",
+            },
+            {
+              icon: "↓",
+              label: "Receive",
+              tooltip: "Receive tokens to your wallet",
+            },
+            { icon: "🔄", label: "Swap", tooltip: "Exchange tokens instantly" },
+            {
+              icon: "📜",
+              label: "History",
+              tooltip: "View transaction history",
+            },
+            { icon: "⋯", label: "More", tooltip: "More options and settings" },
+          ].map((action) => (
+            <button
+              key={action.label}
+              title={action.tooltip}
+              style={{
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "12px",
+                padding: "1rem 0.5rem",
+                cursor: "pointer",
+                color: "white",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "0.5rem",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+                e.currentTarget.style.transform = "translateY(-2px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+            >
+              <div
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "50%",
+                  background: "rgba(255, 255, 255, 0.1)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "1.125rem",
+                }}
+              >
+                {action.icon}
+              </div>
+              <span style={{ fontSize: "0.75rem", color: "#b8bcc8" }}>
+                {action.label}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {isLoading && (
-        <div className="loading-container">
-          <LoadingSpinner />
-          <p>Loading token balances...</p>
+      {/* Promotion Banner (optional) */}
+      <div
+        style={{
+          margin: "1rem 1.5rem",
+          padding: "1rem",
+          background:
+            "linear-gradient(90deg, rgba(255, 107, 107, 0.1) 0%, rgba(255, 142, 83, 0.1) 100%)",
+          border: "1px solid rgba(255, 107, 107, 0.2)",
+          borderRadius: "12px",
+          display: "flex",
+          alignItems: "center",
+          gap: "1rem",
+          position: "relative",
+        }}
+      >
+        <div
+          style={{
+            width: "48px",
+            height: "48px",
+            borderRadius: "12px",
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "1.5rem",
+          }}
+        >
+          🎁
         </div>
-      )}
-
-      {error && <div className="error-message">{error}</div>}
-
-      {!isLoading && tokens.length === 0 && (
-        <div className="empty-state">
-          <p>No tokens found in this wallet</p>
+        <div style={{ flex: 1 }}>
+          <div
+            style={{
+              fontSize: "0.875rem",
+              fontWeight: "600",
+              marginBottom: "0.25rem",
+            }}
+          >
+            Join SRLS trading competition and
+          </div>
+          <div style={{ fontSize: "0.875rem", color: "#8b92a7" }}>
+            earn 20M SRLS in rewards
+          </div>
         </div>
-      )}
+        <button
+          title="Close Promotion"
+          style={{
+            position: "absolute",
+            top: "0.5rem",
+            right: "0.5rem",
+            background: "transparent",
+            border: "none",
+            color: "#8b92a7",
+            cursor: "pointer",
+            fontSize: "1rem",
+            padding: "0.25rem",
+            width: "24px",
+            height: "24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "4px",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+            e.currentTarget.style.color = "white";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "#8b92a7";
+          }}
+        >
+          ✕
+        </button>
+      </div>
 
-      {!isLoading && tokens.length > 0 && (
-        <div className="tokens-container">
-          {Object.entries(tokensByNetwork).map(([network, networkTokens]) => (
-            <div key={network} className="network-section">
-              <h3 className="network-header">{network}</h3>
-              <div className="tokens-list">
-                {networkTokens.map((token, idx) => (
+      {/* Tabs */}
+      <div
+        style={{
+          display: "flex",
+          gap: "2rem",
+          padding: "0 1.5rem",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+          marginBottom: "1rem",
+        }}
+      >
+        {[
+          { id: "crypto" as TabType, label: "Crypto" },
+          { id: "defi" as TabType, label: "DeFi" },
+          { id: "nft" as TabType, label: "NFT" },
+          { id: "approvals" as TabType, label: "Approvals" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: activeTab === tab.id ? "white" : "#8b92a7",
+              fontSize: "0.9375rem",
+              fontWeight: activeTab === tab.id ? "600" : "400",
+              padding: "1rem 0",
+              cursor: "pointer",
+              borderBottom:
+                activeTab === tab.id
+                  ? "2px solid white"
+                  : "2px solid transparent",
+              transition: "all 0.2s",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Token List */}
+      {activeTab === "crypto" && (
+        <div style={{ padding: "0 1.5rem 1.5rem" }}>
+          {isLoading ? (
+            <div style={{ textAlign: "center", padding: "3rem" }}>
+              <LoadingSpinner />
+              <p style={{ marginTop: "1rem", color: "#8b92a7" }}>
+                Loading assets...
+              </p>
+            </div>
+          ) : tokens.length === 0 ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "3rem",
+                color: "#8b92a7",
+              }}
+            >
+              <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📭</div>
+              <p>No tokens found in this wallet</p>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.5rem",
+              }}
+            >
+              {tokens.map((token, idx) => (
+                <button
+                  key={`${token.address}-${token.tokenAddress}-${idx}`}
+                  title={`View ${token.tokenSymbol} details`}
+                  style={{
+                    background: "rgba(255, 255, 255, 0.03)",
+                    border: "1px solid rgba(255, 255, 255, 0.05)",
+                    borderRadius: "12px",
+                    padding: "1rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "1rem",
+                    transition: "all 0.2s",
+                    color: "white",
+                    textAlign: "left",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background =
+                      "rgba(255, 255, 255, 0.05)";
+                    e.currentTarget.style.transform = "translateX(4px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background =
+                      "rgba(255, 255, 255, 0.03)";
+                    e.currentTarget.style.transform = "translateX(0)";
+                  }}
+                >
+                  {/* Token Icon */}
                   <div
-                    key={`${token.address}-${token.tokenAddress}-${idx}`}
-                    className="token-card"
+                    style={{
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "50%",
+                      background: token.tokenLogo
+                        ? `url(${token.tokenLogo}) center/cover`
+                        : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "white",
+                      fontWeight: "600",
+                      flexShrink: 0,
+                    }}
                   >
-                    <div className="token-info">
-                      {token.tokenLogo && (
-                        <img
-                          src={token.tokenLogo}
-                          alt={token.tokenSymbol}
-                          className="token-logo"
-                        />
-                      )}
-                      <div className="token-details">
-                        <div className="token-name">{token.tokenSymbol}</div>
-                        <div className="token-network">{token.tokenName}</div>
-                      </div>
+                    {!token.tokenLogo && token.tokenSymbol.slice(0, 1)}
+                  </div>
+
+                  {/* Token Info */}
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{
+                        fontSize: "1rem",
+                        fontWeight: "600",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      {token.tokenSymbol}
                     </div>
-                    <div className="token-balance">
-                      <div className="balance-amount">
-                        {formatBalance(token.balance)}
-                      </div>
-                      <div className="balance-usd">
-                        {formatUSD(token.usdValue)}
-                      </div>
+                    <div style={{ fontSize: "0.8125rem", color: "#8b92a7" }}>
+                      {formatBalance(token.balance)}
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  {/* Token Value */}
+                  <div style={{ textAlign: "right" }}>
+                    <div
+                      style={{
+                        fontSize: "1rem",
+                        fontWeight: "600",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      {formatUSD(token.usdValue)}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "0.8125rem",
+                        color: token.usdValue > 0 ? "#34c759" : "#8b92a7",
+                      }}
+                    >
+                      {token.usdValue > 0
+                        ? `$${token.usdValue.toFixed(2)} (+0.41%)`
+                        : "$0.00"}
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
-          ))}
+          )}
+        </div>
+      )}
+
+      {/* DeFi Tab */}
+      {activeTab === "defi" && (
+        <div
+          style={{
+            textAlign: "center",
+            padding: "3rem 1.5rem",
+            color: "#8b92a7",
+          }}
+        >
+          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🏦</div>
+          <p
+            style={{
+              marginBottom: "0.5rem",
+              fontWeight: "600",
+              color: "white",
+            }}
+          >
+            DeFi Coming Soon
+          </p>
+          <p style={{ fontSize: "0.875rem" }}>
+            View your DeFi positions, staking, and lending protocols
+          </p>
+        </div>
+      )}
+
+      {/* NFT Tab */}
+      {activeTab === "nft" && (
+        <div
+          style={{
+            textAlign: "center",
+            padding: "3rem 1.5rem",
+            color: "#8b92a7",
+          }}
+        >
+          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🖼️</div>
+          <p
+            style={{
+              marginBottom: "0.5rem",
+              fontWeight: "600",
+              color: "white",
+            }}
+          >
+            NFT Gallery Coming Soon
+          </p>
+          <p style={{ fontSize: "0.875rem" }}>
+            Browse and manage your NFT collection
+          </p>
+        </div>
+      )}
+
+      {/* Approvals Tab */}
+      {activeTab === "approvals" && (
+        <div
+          style={{
+            textAlign: "center",
+            padding: "3rem 1.5rem",
+            color: "#8b92a7",
+          }}
+        >
+          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>✅</div>
+          <p
+            style={{
+              marginBottom: "0.5rem",
+              fontWeight: "600",
+              color: "white",
+            }}
+          >
+            Token Approvals Coming Soon
+          </p>
+          <p style={{ fontSize: "0.875rem" }}>
+            Review and revoke token approvals for security
+          </p>
+        </div>
+      )}
+
+      {error && (
+        <div
+          style={{
+            margin: "1rem 1.5rem",
+            padding: "1rem",
+            background: "rgba(239, 68, 68, 0.1)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            borderRadius: "12px",
+            color: "#ef4444",
+            fontSize: "0.875rem",
+          }}
+        >
+          ⚠️ {error}
         </div>
       )}
     </div>
