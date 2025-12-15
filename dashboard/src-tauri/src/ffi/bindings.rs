@@ -87,6 +87,9 @@ type InitializeAppFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for UnlockApp: char* UnlockApp(char* params)
 type UnlockAppFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+/// Function signature for GetTokenBalances: char* GetTokenBalances(char* params)
+type GetTokenBalancesFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 // ============================================================================
 // WalletLibrary - Dynamic Library Wrapper (T016, T017)
 // ============================================================================
@@ -128,6 +131,8 @@ pub struct WalletLibrary {
     is_first_time_setup: Symbol<'static, IsFirstTimeSetupFn>,
     initialize_app: Symbol<'static, InitializeAppFn>,
     unlock_app: Symbol<'static, UnlockAppFn>,
+    // Token balance query function symbols
+    get_token_balances: Symbol<'static, GetTokenBalancesFn>,
 }
 
 impl WalletLibrary {
@@ -273,6 +278,10 @@ impl WalletLibrary {
                 .get(b"UnlockApp")
                 .map_err(|e| format!("UnlockApp symbol not found: {}", e))?;
 
+            let get_token_balances: Symbol<GetTokenBalancesFn> = lib
+                .get(b"GetTokenBalances")
+                .map_err(|e| format!("GetTokenBalances symbol not found: {}", e))?;
+
             // Extend symbol lifetime to 'static (safe because Library lives for program duration)
             let go_free: Symbol<'static, GoFreeFn> = std::mem::transmute(go_free);
             let get_version: Symbol<'static, GetVersionFn> = std::mem::transmute(get_version);
@@ -295,6 +304,7 @@ impl WalletLibrary {
             let is_first_time_setup: Symbol<'static, IsFirstTimeSetupFn> = std::mem::transmute(is_first_time_setup);
             let initialize_app: Symbol<'static, InitializeAppFn> = std::mem::transmute(initialize_app);
             let unlock_app: Symbol<'static, UnlockAppFn> = std::mem::transmute(unlock_app);
+            let get_token_balances: Symbol<'static, GetTokenBalancesFn> = std::mem::transmute(get_token_balances);
 
             Ok(WalletLibrary {
                 lib: Arc::new(lib),
@@ -319,6 +329,7 @@ impl WalletLibrary {
                 is_first_time_setup,
                 initialize_app,
                 unlock_app,
+                get_token_balances,
             })
         }
     }
@@ -762,6 +773,21 @@ impl WalletLibrary {
     /// ```
     pub fn unlock_app(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.unlock_app, params_json)
+    }
+
+    /// Get token balances across multiple chains using Alchemy API.
+    ///
+    /// # Example Input JSON
+    /// ```json
+    /// {
+    ///   "walletId": "wallet-uuid",
+    ///   "password": "wallet-password",
+    ///   "usbPath": "/path/to/usb",
+    ///   "appPassword": "app-password"
+    /// }
+    /// ```
+    pub fn get_token_balances(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.get_token_balances, params_json)
     }
 }
 

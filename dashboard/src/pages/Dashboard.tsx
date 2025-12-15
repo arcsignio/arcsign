@@ -12,12 +12,13 @@ import { WalletCreate } from '@/components/WalletCreate';
 import { WalletImport } from '@/components/WalletImport';
 import { AddressList } from '@/components/AddressList';
 import { ProviderSettings } from '@/components/ProviderSettings';
+import { WalletDetail } from '@/components/WalletDetail';
 import { InactivityWarningDialog } from '@/components/InactivityWarningDialog';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useInactivityLogout } from '@/hooks/useInactivityLogout';
 import type { Address } from '@/types/address';
 
-type View = 'list' | 'create' | 'import' | 'addresses' | 'settings';
+type View = 'list' | 'create' | 'import' | 'addresses' | 'settings' | 'detail';
 
 export function Dashboard() {
   const [currentView, setCurrentView] = useState<View>('list');
@@ -112,6 +113,7 @@ export function Dashboard() {
 
   const handleWalletSelect = (walletId: string) => {
     selectWallet(walletId);
+    setCurrentView('detail');
   };
 
   // Handle "View Addresses" button click (T061)
@@ -169,6 +171,20 @@ export function Dashboard() {
             handleReload(); // Reload wallets after creation
             handleBackToList();
           }}
+        />
+      </div>
+    );
+  }
+
+  // Show wallet detail view with assets
+  if (currentView === 'detail' && selectedWallet && usbPath) {
+    return (
+      <div className="dashboard">
+        <WalletDetail
+          wallet={selectedWallet}
+          usbPath={usbPath}
+          onBack={handleBackToList}
+          onViewAddresses={() => handleViewAddresses(selectedWallet.id)}
         />
       </div>
     );
@@ -319,10 +335,10 @@ export function Dashboard() {
                   className="view-addresses-button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleViewAddresses(wallet.id);
+                    handleWalletSelect(wallet.id);
                   }}
                 >
-                  View Addresses →
+                  View Assets →
                 </button>
               </div>
             ))}

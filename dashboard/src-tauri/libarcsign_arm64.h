@@ -376,6 +376,71 @@ extern char* DeleteProviderConfig(char* params);
 // }
 extern char* EstimateFee(char* params);
 
+// IsFirstTimeSetup checks if app_config.enc exists at the USB path.
+// Feature: App-level authentication
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "isFirstTime": true  // true if app_config.enc doesn't exist
+//   }
+// }
+extern char* IsFirstTimeSetup(char* params);
+
+// InitializeApp creates a new encrypted app_config.enc file for first-time setup.
+// Feature: App-level authentication
+//
+// Input JSON: {
+//   "password": "user-master-password",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "message": "App initialized successfully"
+//   }
+// }
+extern char* InitializeApp(char* params);
+
+// UnlockApp decrypts and loads app_config.enc using the provided password.
+// Feature: App-level authentication
+//
+// Input JSON: {
+//   "password": "user-master-password",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "config": {
+//       "version": "1.0.0",
+//       "wallets": [{"id": "...", "name": "...", "createdAt": "..."}],
+//       "providers": [{"providerType": "alchemy", "apiKey": "...", "priority": 100, "enabled": true}],
+//       "settings": {"theme": "light", "language": "en"}
+//     }
+//   }
+// }
+extern char* UnlockApp(char* params);
+
+// GetTokenBalances queries token balances for all addresses in a wallet across multiple chains
+// using Alchemy API. Returns aggregated token balances with USD values.
+//
+// Input JSON: {
+//   "walletId": "uuid",
+//   "password": "wallet-password",  // Not used (addresses already stored)
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "app-level-password"
+// }
+//
+// Returns: {"success": true, "data": {"tokens": [...], "totalUsd": 5000.50, ...}}
+extern char* GetTokenBalances(char* params);
+
 #ifdef __cplusplus
 }
 #endif
