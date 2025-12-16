@@ -1891,9 +1891,11 @@ func UnlockApp(params *C.char) *C.char {
 // GetTokenBalances queries token balances for all addresses in a wallet across multiple chains
 // using Alchemy API. Returns aggregated token balances with USD values.
 //
+// Security: Requires valid wallet password for authentication before accessing balance data.
+//
 // Input JSON: {
 //   "walletId": "uuid",
-//   "password": "wallet-password",  // Not used (addresses already stored)
+//   "password": "wallet-password",  // REQUIRED: Must be correct wallet password
 //   "usbPath": "/path/to/usb",
 //   "appPassword": "app-level-password"
 // }
@@ -1924,7 +1926,8 @@ func GetTokenBalances(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Security: Clear sensitive data
+	// Security: Clear sensitive data after use
+	defer zeroString(&input.Password)
 	defer zeroString(&input.AppPassword)
 
 	// Step 1: Load Alchemy API key from provider registry
@@ -1975,8 +1978,22 @@ func GetTokenBalances(params *C.char) *C.char {
 
 	alchemyAPIKey := providerConfig.APIKey
 
-	// Step 2: Load wallet to get addresses
+	// Step 2: Verify wallet password before loading addresses
+	// Security: Must authenticate user before exposing wallet data
 	walletService := wallet.NewWalletService(input.USBPath)
+	
+	// First, verify the password by attempting to restore the wallet
+	// This ensures only authorized users can view asset balances
+	_, err = walletService.RestoreWallet(input.WalletID, input.Password)
+	if err != nil {
+		// Password verification failed
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, "Invalid password or wallet access denied")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	
+	// Password verified successfully, now load wallet metadata
 	walletObj, err := walletService.LoadWallet(input.WalletID)
 	if err != nil {
 		code := MapWalletError(err)
