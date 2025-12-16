@@ -9,10 +9,12 @@ import tauriApi, { type AppError } from "@/services/tauri-api";
 import type { TokenBalance, TokenBalancesResponse } from "@/types/tokens";
 import type { Wallet } from "@/types/wallet";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { normalizeTokenForDisplay } from "@/constants/commonTokens";
 import {
-  getTokenEmoji,
-  normalizeTokenForDisplay,
-} from "@/constants/commonTokens";
+  getNativeToken,
+  isNativeTokenAddress,
+  getNetworkKey,
+} from "@/constants/nativeTokens";
 import { usePriorityTokens } from "@/hooks/useTokenList";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
@@ -96,6 +98,35 @@ export function WalletDetail({
 
     // Add all user tokens first (these have actual balances)
     tokens.forEach((token) => {
+      // Check if this is a native token and enrich with metadata
+      const networkKey = getNetworkKey(token.networkLabel);
+      
+      // Debug: Log native token detection
+      if (isNativeTokenAddress(token.tokenAddress)) {
+        console.log("🔍 Native token detected:", {
+          symbol: token.tokenSymbol,
+          networkLabel: token.networkLabel,
+          networkKey,
+          address: token.tokenAddress,
+        });
+      }
+      
+      if (networkKey && isNativeTokenAddress(token.tokenAddress)) {
+        const nativeToken = getNativeToken(networkKey);
+        if (nativeToken) {
+          console.log("✅ Enriching native token:", {
+            before: { symbol: token.tokenSymbol, logo: token.tokenLogo },
+            after: { symbol: nativeToken.symbol, logo: nativeToken.logoURI },
+          });
+          // Enrich native token with proper metadata
+          token.tokenLogo = nativeToken.logoURI;
+          token.tokenName = nativeToken.name;
+          token.tokenSymbol = nativeToken.symbol;
+        } else {
+          console.log("⚠️ No native token metadata found for:", networkKey);
+        }
+      }
+
       const key = `${token.network}-${
         token.tokenSymbol
       }-${token.tokenAddress.toLowerCase()}`;
@@ -648,81 +679,6 @@ export function WalletDetail({
         </div>
       </div>
 
-      {/* Promotion Banner (optional) */}
-      <div
-        style={{
-          margin: "1rem 1.5rem",
-          padding: "1rem",
-          background:
-            "linear-gradient(90deg, rgba(255, 107, 107, 0.1) 0%, rgba(255, 142, 83, 0.1) 100%)",
-          border: "1px solid rgba(255, 107, 107, 0.2)",
-          borderRadius: "12px",
-          display: "flex",
-          alignItems: "center",
-          gap: "1rem",
-          position: "relative",
-        }}
-      >
-        <div
-          style={{
-            width: "48px",
-            height: "48px",
-            borderRadius: "12px",
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "1.5rem",
-          }}
-        >
-          🎁
-        </div>
-        <div style={{ flex: 1 }}>
-          <div
-            style={{
-              fontSize: "0.875rem",
-              fontWeight: "600",
-              marginBottom: "0.25rem",
-            }}
-          >
-            Join SRLS trading competition and
-          </div>
-          <div style={{ fontSize: "0.875rem", color: "#8b92a7" }}>
-            earn 20M SRLS in rewards
-          </div>
-        </div>
-        <button
-          title="Close Promotion"
-          style={{
-            position: "absolute",
-            top: "0.5rem",
-            right: "0.5rem",
-            background: "transparent",
-            border: "none",
-            color: "#8b92a7",
-            cursor: "pointer",
-            fontSize: "1rem",
-            padding: "0.25rem",
-            width: "24px",
-            height: "24px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            borderRadius: "4px",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-            e.currentTarget.style.color = "white";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = "#8b92a7";
-          }}
-        >
-          ✕
-        </button>
-      </div>
-
       {/* Tabs */}
       <div
         style={{
@@ -829,57 +785,91 @@ export function WalletDetail({
                       width: "40px",
                       height: "40px",
                       borderRadius: "50%",
-                      background: token.tokenLogo
-                        ? "#1a1f2e"
-                        : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      background: "#1a1f2e",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      color: "white",
-                      fontWeight: "600",
                       flexShrink: 0,
-                      fontSize: token.tokenLogo ? "1.25rem" : "1rem",
                       overflow: "hidden",
+                      border: "1px solid rgba(255, 255, 255, 0.05)",
                     }}
                   >
-                    {token.tokenLogo ? (
-                      <img
-                        src={token.tokenLogo}
-                        alt={token.tokenSymbol}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
-                        onError={(e) => {
-                          // Fallback to emoji if image fails to load
-                          const target = e.target as HTMLImageElement;
-                          const parent = target.parentElement;
-                          if (parent) {
-                            parent.style.background =
-                              "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
-                            parent.innerHTML = getTokenEmoji(token.tokenSymbol);
-                          }
-                        }}
-                      />
-                    ) : (
-                      getTokenEmoji(token.tokenSymbol)
-                    )}
+                    <img
+                      src={token.tokenLogo}
+                      alt={token.tokenSymbol}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                      onError={(e) => {
+                        // Fallback to gradient background with first letter
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
+                        const parent = target.parentElement;
+                        if (parent) {
+                          parent.style.background =
+                            "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+                          parent.innerHTML = `<span style="color: white; font-weight: 600; font-size: 1rem;">${token.tokenSymbol.charAt(
+                            0
+                          )}</span>`;
+                        }
+                      }}
+                    />
                   </div>
 
                   {/* Token Info */}
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
-                        fontSize: "1rem",
-                        fontWeight: "600",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
                         marginBottom: "0.25rem",
                       }}
                     >
-                      {token.tokenSymbol}
+                      <span
+                        style={{
+                          fontSize: "1rem",
+                          fontWeight: "600",
+                        }}
+                      >
+                        {token.tokenSymbol}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "0.6875rem",
+                          padding: "0.125rem 0.375rem",
+                          borderRadius: "0.25rem",
+                          background: "rgba(59, 130, 246, 0.1)",
+                          color: "#60a5fa",
+                          fontWeight: "500",
+                        }}
+                      >
+                        {token.networkLabel}
+                      </span>
                     </div>
-                    <div style={{ fontSize: "0.8125rem", color: "#8b92a7" }}>
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "#8b92a7",
+                        marginBottom: "0.125rem",
+                      }}
+                    >
                       {token.tokenName}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "0.6875rem",
+                        color: "#6b7280",
+                        fontFamily: "monospace",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {token.tokenAddress.slice(0, 6)}...
+                      {token.tokenAddress.slice(-4)}
                     </div>
                   </div>
 
