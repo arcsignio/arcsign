@@ -89,8 +89,15 @@ func SimplifyTokenBalances(alchemyResponse *AlchemyTokenBalanceResponse) []Simpl
 	var result []SimplifiedTokenBalance
 
 	for _, token := range alchemyResponse.Data.Tokens {
+		// Fix decimals for native tokens (Alchemy returns 0 for native tokens)
+		decimals := token.TokenMetadata.Decimals
+		if token.TokenAddress == "" && decimals == 0 {
+			// Native tokens typically use 18 decimals
+			decimals = 18
+		}
+		
 		// Convert raw balance to human-readable format
-		balance := formatTokenBalance(token.TokenBalance, token.TokenMetadata.Decimals)
+		balance := formatTokenBalance(token.TokenBalance, decimals)
 
 		// Get USD price and value
 		var priceUSD float64
@@ -122,7 +129,7 @@ func SimplifyTokenBalances(alchemyResponse *AlchemyTokenBalanceResponse) []Simpl
 			TokenLogo:    token.TokenMetadata.Logo,
 			Balance:      balance,
 			RawBalance:   token.TokenBalance,
-			Decimals:     token.TokenMetadata.Decimals,
+			Decimals:     decimals,
 			USDValue:     usdValue,
 			PriceUSD:     priceUSD,
 			Error:        token.Error,
