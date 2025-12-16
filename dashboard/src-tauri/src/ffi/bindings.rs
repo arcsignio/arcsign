@@ -45,6 +45,9 @@ type ExportWalletFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for RenameWallet: char* RenameWallet(char* params)
 type RenameWalletFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+/// Function signature for DeleteWallet: char* DeleteWallet(char* params)
+type DeleteWalletFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 /// Function signature for ListWallets: char* ListWallets(char* params)
 type ListWalletsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
@@ -115,6 +118,7 @@ pub struct WalletLibrary {
     generate_addresses: Symbol<'static, GenerateAddressesFn>,
     export_wallet: Symbol<'static, ExportWalletFn>,
     rename_wallet: Symbol<'static, RenameWalletFn>,
+    delete_wallet: Symbol<'static, DeleteWalletFn>,
     list_wallets: Symbol<'static, ListWalletsFn>,
     // ChainAdapter transaction function symbols
     build_transaction: Symbol<'static, BuildTransactionFn>,
@@ -223,6 +227,10 @@ impl WalletLibrary {
                 .get(b"RenameWallet")
                 .map_err(|e| format!("RenameWallet symbol not found: {}", e))?;
 
+            let delete_wallet: Symbol<DeleteWalletFn> = lib
+                .get(b"DeleteWallet")
+                .map_err(|e| format!("DeleteWallet symbol not found: {}", e))?;
+
             let list_wallets: Symbol<ListWalletsFn> = lib
                 .get(b"ListWallets")
                 .map_err(|e| format!("ListWallets symbol not found: {}", e))?;
@@ -291,6 +299,7 @@ impl WalletLibrary {
             let generate_addresses: Symbol<'static, GenerateAddressesFn> = std::mem::transmute(generate_addresses);
             let export_wallet: Symbol<'static, ExportWalletFn> = std::mem::transmute(export_wallet);
             let rename_wallet: Symbol<'static, RenameWalletFn> = std::mem::transmute(rename_wallet);
+            let delete_wallet: Symbol<'static, DeleteWalletFn> = std::mem::transmute(delete_wallet);
             let list_wallets: Symbol<'static, ListWalletsFn> = std::mem::transmute(list_wallets);
             let build_transaction: Symbol<'static, BuildTransactionFn> = std::mem::transmute(build_transaction);
             let sign_transaction: Symbol<'static, SignTransactionFn> = std::mem::transmute(sign_transaction);
@@ -316,6 +325,7 @@ impl WalletLibrary {
                 generate_addresses,
                 export_wallet,
                 rename_wallet,
+                delete_wallet,
                 list_wallets,
                 build_transaction,
                 sign_transaction,
@@ -584,6 +594,11 @@ impl WalletLibrary {
     /// Change wallet display name.
     pub fn rename_wallet(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.rename_wallet, params_json)
+    }
+
+    /// Delete a wallet from storage (requires password verification).
+    pub fn delete_wallet(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.delete_wallet, params_json)
     }
 
     /// Enumerate all wallets on USB.

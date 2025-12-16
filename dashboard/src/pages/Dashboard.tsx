@@ -5,23 +5,29 @@
  * Generated: 2025-10-17
  */
 
-import { useState, useEffect } from 'react';
-import { useDashboardStore, useSelectedWallet, useHasWallets } from '@/stores/dashboardStore';
-import tauriApi, { type AppError } from '@/services/tauri-api';
-import { WalletCreate } from '@/components/WalletCreate';
-import { WalletImport } from '@/components/WalletImport';
-import { AddressList } from '@/components/AddressList';
-import { ProviderSettings } from '@/components/ProviderSettings';
-import { WalletDetail } from '@/components/WalletDetail';
-import { InactivityWarningDialog } from '@/components/InactivityWarningDialog';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { useInactivityLogout } from '@/hooks/useInactivityLogout';
-import type { Address } from '@/types/address';
+import { useState, useEffect } from "react";
+import {
+  useDashboardStore,
+  useSelectedWallet,
+  useHasWallets,
+} from "@/stores/dashboardStore";
+import tauriApi, { type AppError } from "@/services/tauri-api";
+import { WalletCreate } from "@/components/WalletCreate";
+import { WalletImport } from "@/components/WalletImport";
+import { AddressList } from "@/components/AddressList";
+import { ProviderSettings } from "@/components/ProviderSettings";
+import { WalletDetail } from "@/components/WalletDetail";
+import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { DeleteWalletDialog } from "@/components/DeleteWalletDialog";
+import { useInactivityLogout } from "@/hooks/useInactivityLogout";
+import type { Address } from "@/types/address";
+import type { Wallet } from "@/types/wallet";
 
-type View = 'list' | 'create' | 'import' | 'addresses' | 'settings' | 'detail';
+type View = "list" | "create" | "import" | "addresses" | "settings" | "detail";
 
 export function Dashboard() {
-  const [currentView, setCurrentView] = useState<View>('list');
+  const [currentView, setCurrentView] = useState<View>("list");
   const [isLoadingWallets, setIsLoadingWallets] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -30,9 +36,16 @@ export function Dashboard() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
-  const [passwordForAddresses, setPasswordForAddresses] = useState<string>('');
+  const [passwordForAddresses, setPasswordForAddresses] = useState<string>("");
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
-  const [walletIdForAddresses, setWalletIdForAddresses] = useState<string | null>(null);
+  const [walletIdForAddresses, setWalletIdForAddresses] = useState<
+    string | null
+  >(null);
+
+  // Delete wallet state
+  const [walletToDelete, setWalletToDelete] = useState<Wallet | null>(null);
+  const [isDeletingWallet, setIsDeletingWallet] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const {
     wallets,
@@ -47,14 +60,15 @@ export function Dashboard() {
   const hasWallets = useHasWallets();
 
   // Auto-logout after 15 minutes of inactivity (SEC-006, T092)
-  const { showWarning, remainingSeconds, stayLoggedIn, logout } = useInactivityLogout({
-    enabled: true,
-    onLogout: () => {
-      // Navigate to list view after logout
-      setCurrentView('list');
-      setError('You have been logged out due to inactivity.');
-    },
-  });
+  const { showWarning, remainingSeconds, stayLoggedIn, logout } =
+    useInactivityLogout({
+      enabled: true,
+      onLogout: () => {
+        // Navigate to list view after logout
+        setCurrentView("list");
+        setError("You have been logged out due to inactivity.");
+      },
+    });
 
   // Load USB path and wallets on mount
   useEffect(() => {
@@ -66,7 +80,7 @@ export function Dashboard() {
         // Detect USB first
         const devices = await tauriApi.detectUsb();
         if (devices.length === 0) {
-          setError('No USB drive detected. Please insert a USB drive.');
+          setError("No USB drive detected. Please insert a USB drive.");
           setIsLoadingWallets(false);
           return;
         }
@@ -85,7 +99,7 @@ export function Dashboard() {
         }
       } catch (err) {
         const error = err as AppError;
-        setError(error.message || 'Failed to load wallets');
+        setError(error.message || "Failed to load wallets");
       } finally {
         setIsLoadingWallets(false);
       }
@@ -100,34 +114,34 @@ export function Dashboard() {
   };
 
   const handleCreateWallet = () => {
-    setCurrentView('create');
+    setCurrentView("create");
   };
 
   const handleImportWallet = () => {
-    setCurrentView('import');
+    setCurrentView("import");
   };
 
   const handleBackToList = () => {
-    setCurrentView('list');
+    setCurrentView("list");
   };
 
   const handleWalletSelect = (walletId: string) => {
     selectWallet(walletId);
-    setCurrentView('detail');
+    setCurrentView("detail");
   };
 
   // Handle "View Addresses" button click (T061)
   const handleViewAddresses = (walletId: string) => {
     setWalletIdForAddresses(walletId);
     setShowPasswordPrompt(true);
-    setPasswordForAddresses('');
+    setPasswordForAddresses("");
     setAddressError(null);
   };
 
   // Load addresses after password is entered (T061)
   const handleLoadAddresses = async () => {
     if (!walletIdForAddresses || !usbPath || !passwordForAddresses) {
-      setAddressError('Missing required information');
+      setAddressError("Missing required information");
       return;
     }
 
@@ -142,12 +156,12 @@ export function Dashboard() {
       });
 
       setAddresses(response.addresses);
-      setCurrentView('addresses');
+      setCurrentView("addresses");
       setShowPasswordPrompt(false);
-      setPasswordForAddresses(''); // Clear password after use
+      setPasswordForAddresses(""); // Clear password after use
     } catch (err) {
       const error = err as AppError;
-      setAddressError(error.message || 'Failed to load addresses');
+      setAddressError(error.message || "Failed to load addresses");
     } finally {
       setIsLoadingAddresses(false);
     }
@@ -156,13 +170,54 @@ export function Dashboard() {
   // Cancel password prompt
   const handleCancelPasswordPrompt = () => {
     setShowPasswordPrompt(false);
-    setPasswordForAddresses('');
+    setPasswordForAddresses("");
     setWalletIdForAddresses(null);
     setAddressError(null);
   };
 
+  // Handle delete wallet button click
+  const handleDeleteWallet = (wallet: Wallet, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent wallet selection
+    setWalletToDelete(wallet);
+    setDeleteError(null);
+  };
+
+  // Confirm and execute wallet deletion
+  const handleConfirmDelete = async (password: string) => {
+    if (!walletToDelete || !usbPath) {
+      setDeleteError("Missing required information");
+      return;
+    }
+
+    setIsDeletingWallet(true);
+    setDeleteError(null);
+
+    try {
+      await tauriApi.deleteWallet({
+        wallet_id: walletToDelete.id,
+        password,
+        usb_path: usbPath,
+      });
+
+      // Success: close dialog and reload wallets
+      setWalletToDelete(null);
+      handleReload();
+    } catch (err) {
+      const error = err as AppError;
+      setDeleteError(error.message || "Failed to delete wallet");
+    } finally {
+      setIsDeletingWallet(false);
+    }
+  };
+
+  // Cancel delete wallet
+  const handleCancelDelete = () => {
+    setWalletToDelete(null);
+    setDeleteError(null);
+  };
+
   // Show wallet creation view
-  if (currentView === 'create') {
+  if (currentView === "create") {
     return (
       <div className="dashboard">
         <WalletCreate
@@ -177,7 +232,7 @@ export function Dashboard() {
   }
 
   // Show wallet detail view with assets
-  if (currentView === 'detail' && selectedWallet && usbPath) {
+  if (currentView === "detail" && selectedWallet && usbPath) {
     return (
       <div className="dashboard">
         <WalletDetail
@@ -191,7 +246,7 @@ export function Dashboard() {
   }
 
   // Show wallet import view (T075)
-  if (currentView === 'import') {
+  if (currentView === "import") {
     return (
       <div className="dashboard">
         <button onClick={handleBackToList} className="back-button">
@@ -216,8 +271,8 @@ export function Dashboard() {
   }
 
   // Show address list view (T061)
-  if (currentView === 'addresses') {
-    const wallet = wallets.find(w => w.id === walletIdForAddresses);
+  if (currentView === "addresses") {
+    const wallet = wallets.find((w) => w.id === walletIdForAddresses);
     return (
       <div className="dashboard">
         <button onClick={handleBackToList} className="back-button">
@@ -239,7 +294,7 @@ export function Dashboard() {
   }
 
   // Show provider settings view
-  if (currentView === 'settings') {
+  if (currentView === "settings") {
     return (
       <div className="dashboard">
         <button onClick={handleBackToList} className="back-button">
@@ -250,7 +305,10 @@ export function Dashboard() {
         ) : (
           <div className="settings-prompt">
             <h2>API Provider Settings</h2>
-            <p>No USB drive detected. Please insert a USB drive to configure providers.</p>
+            <p>
+              No USB drive detected. Please insert a USB drive to configure
+              providers.
+            </p>
             <button onClick={handleBackToList} className="primary-button">
               Go to Wallets
             </button>
@@ -267,7 +325,7 @@ export function Dashboard() {
         <h1>ArcSign Dashboard</h1>
         <div className="header-actions">
           <button
-            onClick={() => setCurrentView('settings')}
+            onClick={() => setCurrentView("settings")}
             className="secondary-button"
             title="Configure blockchain API providers"
           >
@@ -279,7 +337,7 @@ export function Dashboard() {
             className="secondary-button"
             title="Reload USB and wallets"
           >
-            {isLoadingWallets ? '↻ Reloading...' : '↻ Reload'}
+            {isLoadingWallets ? "↻ Reloading..." : "↻ Reload"}
           </button>
           <button onClick={handleCreateWallet} className="primary-button">
             + Create New Wallet
@@ -315,13 +373,25 @@ export function Dashboard() {
             {wallets.map((wallet) => (
               <div
                 key={wallet.id}
-                className={`wallet-card ${selectedWalletId === wallet.id ? 'selected' : ''}`}
+                className={`wallet-card ${
+                  selectedWalletId === wallet.id ? "selected" : ""
+                }`}
                 onClick={() => handleWalletSelect(wallet.id)}
               >
-                <h3>{wallet.name}</h3>
+                <div className="wallet-card-header">
+                  <h3>{wallet.name}</h3>
+                  <button
+                    className="delete-wallet-button"
+                    onClick={(e) => handleDeleteWallet(wallet, e)}
+                    title="Delete wallet"
+                    aria-label={`Delete wallet ${wallet.name}`}
+                  >
+                    🗑️
+                  </button>
+                </div>
                 <div className="wallet-info">
                   <p>
-                    <strong>Created:</strong>{' '}
+                    <strong>Created:</strong>{" "}
                     {new Date(wallet.created_at).toLocaleDateString()}
                   </p>
                   <p>
@@ -349,7 +419,9 @@ export function Dashboard() {
       {selectedWallet && (
         <div className="selected-wallet-info">
           <h3>Selected: {selectedWallet.name}</h3>
-          <p className="wallet-id">ID: {selectedWallet.id.substring(0, 16)}...</p>
+          <p className="wallet-id">
+            ID: {selectedWallet.id.substring(0, 16)}...
+          </p>
         </div>
       )}
 
@@ -363,9 +435,12 @@ export function Dashboard() {
       {showPasswordPrompt && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-semibold mb-4">Enter Wallet Password</h2>
+            <h2 className="text-xl font-semibold mb-4">
+              Enter Wallet Password
+            </h2>
             <p className="text-sm text-gray-600 mb-4">
-              Enter your password to unlock and view the addresses for this wallet.
+              Enter your password to unlock and view the addresses for this
+              wallet.
             </p>
 
             {addressError && (
@@ -375,7 +450,10 @@ export function Dashboard() {
             )}
 
             <div className="mb-4">
-              <label htmlFor="address-password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="address-password"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Password
               </label>
               <input
@@ -384,7 +462,7 @@ export function Dashboard() {
                 value={passwordForAddresses}
                 onChange={(e) => setPasswordForAddresses(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === "Enter") {
                     handleLoadAddresses();
                   }
                 }}
@@ -401,7 +479,7 @@ export function Dashboard() {
                 disabled={isLoadingAddresses || !passwordForAddresses}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {isLoadingAddresses ? 'Loading...' : 'Unlock Wallet'}
+                {isLoadingAddresses ? "Loading..." : "Unlock Wallet"}
               </button>
               <button
                 onClick={handleCancelPasswordPrompt}
@@ -421,6 +499,16 @@ export function Dashboard() {
         remainingSeconds={remainingSeconds}
         onStayLoggedIn={stayLoggedIn}
         onLogout={logout}
+      />
+
+      {/* Delete Wallet Dialog */}
+      <DeleteWalletDialog
+        wallet={walletToDelete}
+        isOpen={!!walletToDelete}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeletingWallet}
+        error={deleteError}
       />
     </div>
   );

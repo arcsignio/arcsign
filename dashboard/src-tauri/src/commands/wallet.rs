@@ -865,6 +865,78 @@ pub async fn rename_wallet(
     Ok(wallet)
 }
 
+/// Delete a wallet from USB storage
+/// Requirements: FR-020 (Delete wallet with confirmation)
+/// Deletes the wallet directory and all associated files
+#[tauri::command]
+pub async fn delete_wallet(
+    queue: State<'_, LazyWalletQueue>,
+    wallet_id: String,
+    password: String,
+    usb_path: String,
+) -> Result<(), String> {
+    let start = Instant::now();
+
+    // Validate password
+    validate_password(&password).map_err(String::from)?;
+
+    // Validate wallet_id format (basic UUID validation)
+    if wallet_id.trim().is_empty() {
+        return Err(AppError::new(
+            ErrorCode::InvalidWalletId,
+            "Wallet ID cannot be empty",
+        ).into());
+    }
+
+    // Build JSON params for FFI call
+    let params = json!({
+        "walletId": wallet_id,
+        "password": password,
+        "usbPath": usb_path,
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    // Call FFI to delete wallet (this will verify password first)
+    queue
+        .delete_wallet(params_json)
+        .await
+        .map_err(|e| {
+            if e.contains("INCORRECT_PASSWORD") || e.contains("password") {
+                AppError::new(
+                    ErrorCode::InvalidPassword,
+                    "Incorrect password",
+                )
+            } else if e.contains("WALLET_NOT_FOUND") || e.contains("not found") {
+                AppError::new(
+                    ErrorCode::WalletNotFound,
+                    "Wallet not found on USB",
+                )
+            } else if e.contains("USB_NOT_FOUND") {
+                AppError::new(
+                    ErrorCode::UsbNotFound,
+                    "USB device not found",
+                )
+            } else {
+                AppError::with_details(
+                    ErrorCode::CliExecutionFailed,
+                    "Failed to delete wallet",
+                    e,
+                )
+            }
+        })?;
+
+    let elapsed = start.elapsed();
+    tracing::info!(
+        "Wallet deleted successfully: {} (took {:?})",
+        wallet_id,
+        elapsed
+    );
+
+    Ok(())
+}
+
 /// Parse category string to Category enum
 fn parse_category(s: &str) -> Category {
     match s {

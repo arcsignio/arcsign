@@ -152,11 +152,54 @@ code {
   background-color: #eff6ff;
 }
 
+.wallet-card {
+  position: relative;
+}
+
 .wallet-card h3 {
   font-size: 1.25rem;
   font-weight: 600;
   color: #1f2937;
   margin-bottom: 1rem;
+  padding-right: 2.5rem;
+}
+
+.wallet-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  position: relative;
+}
+
+.wallet-card-header h3 {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.delete-wallet-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: all 0.2s;
+  border-radius: 0.375rem;
+  line-height: 1;
+}
+
+.delete-wallet-button:hover {
+  opacity: 1;
+  background-color: #fef2f2;
+  transform: scale(1.1);
+}
+
+.delete-wallet-button:active {
+  transform: scale(0.95);
 }
 
 .wallet-info {

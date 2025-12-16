@@ -27,7 +27,7 @@ use commands::security::{
     clear_sensitive_memory, disable_screenshot_protection, enable_screenshot_protection,
 };
 use commands::usb::detect_usb;
-use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, rename_wallet, get_token_balances, AddressCache};
+use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, rename_wallet, delete_wallet, get_token_balances, AddressCache};
 use commands::provider::{set_provider_config, get_provider_config, list_provider_configs, delete_provider_config};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -205,6 +205,7 @@ fn main() {
             list_wallets,
             load_addresses,
             rename_wallet,
+            delete_wallet,
             get_token_balances,
             // Security commands
             enable_screenshot_protection,
