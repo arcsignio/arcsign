@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/yourusername/arcsign/internal/models"
@@ -76,6 +77,9 @@ func (s *WalletService) CreateWallet(
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to generate mnemonic: %w", err)
 	}
+
+	// Normalize mnemonic: trim whitespace to prevent seed derivation issues
+	mnemonic = strings.TrimSpace(mnemonic)
 
 	// 4. Encrypt mnemonic with password
 	encryptedMnemonic, err := crypto.EncryptMnemonic(mnemonic, password)
@@ -175,6 +179,132 @@ func (s *WalletService) CreateWallet(
 	// 11. Return wallet metadata and plaintext mnemonic
 	// IMPORTANT: Caller MUST display mnemonic to user and clear it from memory
 	return wallet, mnemonic, nil
+}
+
+// ImportWalletFromMnemonic imports an existing wallet using a provided mnemonic phrase
+// This is similar to CreateWallet but uses the provided mnemonic instead of generating one
+//
+// Parameters:
+//   - name: Optional wallet name (max 64 chars, empty string allowed)
+//   - mnemonic: BIP39 mnemonic phrase to import (12 or 24 words)
+//   - password: Encryption password (validated for strength)
+//   - usesPassphrase: Whether wallet uses BIP39 passphrase extension
+//   - bip39Passphrase: Optional BIP39 passphrase (empty if usesPassphrase is false)
+//
+// Returns:
+//   - *models.Wallet: Wallet metadata
+//   - error: Any error during import
+func (s *WalletService) ImportWalletFromMnemonic(
+	name string,
+	mnemonic string,
+	password string,
+	usesPassphrase bool,
+	bip39Passphrase string,
+) (*models.Wallet, error) {
+	// 1. Normalize mnemonic: trim whitespace to prevent seed derivation issues
+	mnemonic = strings.TrimSpace(mnemonic)
+
+	// 2. Validate mnemonic
+	if err := s.bip39Service.ValidateMnemonic(mnemonic); err != nil {
+		return nil, fmt.Errorf("invalid mnemonic: %w", err)
+	}
+
+	// 3. Validate password
+	if err := utils.ValidatePassword(password); err != nil {
+		return nil, fmt.Errorf("password validation failed: %w", err)
+	}
+
+	// 4. Validate wallet name
+	if err := models.ValidateWalletName(name); err != nil {
+		return nil, fmt.Errorf("wallet name validation failed: %w", err)
+	}
+
+	// 5. Generate secure wallet ID
+	walletID, err := utils.GenerateSecureUUID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate wallet ID: %w", err)
+	}
+
+	// 6. Encrypt mnemonic with password
+	encryptedMnemonic, err := crypto.EncryptMnemonic(mnemonic, password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt mnemonic: %w", err)
+	}
+
+	// 7. Create wallet directory structure
+	walletDir := filepath.Join(s.storagePath, walletID)
+	mnemonicPath := filepath.Join(walletDir, "mnemonic.enc")
+
+	// 8. Serialize and save encrypted mnemonic
+	encryptedData := crypto.SerializeEncryptedData(encryptedMnemonic)
+	if err := storage.AtomicWriteFile(mnemonicPath, encryptedData, 0600); err != nil {
+		return nil, fmt.Errorf("failed to save encrypted mnemonic: %w", err)
+	}
+
+	// 9. Generate multi-coin addresses from provided mnemonic
+	addressBook, addressGenErr := s.generateMultiCoinAddresses(mnemonic, bip39Passphrase, walletID)
+
+	// 10. Create wallet metadata
+	now := time.Now()
+	wallet := &models.Wallet{
+		ID:                    walletID,
+		Name:                  name,
+		CreatedAt:             now,
+		LastAccessedAt:        now,
+		EncryptedMnemonicPath: mnemonicPath,
+		UsesPassphrase:        usesPassphrase,
+		AddressBook:           addressBook,
+	}
+
+	// 11. Save wallet metadata as JSON
+	metadataPath := filepath.Join(walletDir, "wallet.json")
+	metadataJSON, err := json.MarshalIndent(wallet, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal wallet metadata: %w", err)
+	}
+
+	if err := storage.AtomicWriteFile(metadataPath, metadataJSON, 0600); err != nil {
+		return nil, fmt.Errorf("failed to save wallet metadata: %w", err)
+	}
+
+	// 12. Create audit log entries
+	auditPath := filepath.Join(walletDir, "audit.log")
+	auditLogger, err := audit.NewAuditLogger(auditPath)
+	if err != nil {
+		fmt.Printf("Warning: failed to create audit logger: %v\n", err)
+	} else {
+		// Log wallet import
+		auditEntry := audit.AuditLogEntry{
+			ID:        walletID + "-import",
+			WalletID:  walletID,
+			Timestamp: now,
+			Operation: "WALLET_IMPORT",
+			Status:    "SUCCESS",
+		}
+		if err := auditLogger.LogOperation(auditEntry); err != nil {
+			fmt.Printf("Warning: failed to log audit entry: %v\n", err)
+		}
+
+		// Log address generation results
+		if addressBook != nil {
+			addressEntry := audit.AuditLogEntry{
+				ID:        walletID + "-addresses",
+				WalletID:  walletID,
+				Timestamp: now,
+				Operation: "ADDRESS_GENERATION",
+				Status:    "SUCCESS",
+			}
+			if addressGenErr != nil {
+				addressEntry.Status = "PARTIAL_FAILURE"
+				addressEntry.FailureReason = fmt.Sprintf("Address generation errors: %v", addressGenErr)
+			}
+			if err := auditLogger.LogOperation(addressEntry); err != nil {
+				fmt.Printf("Warning: failed to log address generation audit entry: %v\n", err)
+			}
+		}
+	}
+
+	return wallet, nil
 }
 
 // LoadWallet loads wallet metadata from disk

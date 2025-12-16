@@ -28,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"time"
 	"unsafe"
 
@@ -264,6 +265,9 @@ func ImportWallet(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
+	// Normalize mnemonic: trim whitespace to prevent seed derivation issues
+	input.Mnemonic = strings.TrimSpace(input.Mnemonic)
+
 	// T026: Ensure sensitive data is zeroed before function returns
 	defer func() {
 		zeroString(&input.Mnemonic)
@@ -274,19 +278,13 @@ func ImportWallet(params *C.char) *C.char {
 	// Create wallet service
 	svc := wallet.NewWalletService(input.USBPath)
 
-	// Determine word count (12 or 24)
-	words := len(input.Mnemonic) / 8 // Approximate: 12 words ≈ 96 chars, 24 words ≈ 192 chars
-	wordCount := 24
-	if words < 20 {
-		wordCount = 12
-	}
 	usesPassphrase := input.Passphrase != ""
 
-	// Create wallet using service (which validates mnemonic and generates addresses)
-	walletObj, _, err := svc.CreateWallet(
+	// Import wallet using provided mnemonic (not generate new one!)
+	walletObj, err := svc.ImportWalletFromMnemonic(
 		input.WalletName,
+		input.Mnemonic,
 		input.Password,
-		wordCount,
 		usesPassphrase,
 		input.Passphrase,
 	)

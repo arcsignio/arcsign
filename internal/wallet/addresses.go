@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/yourusername/arcsign/internal/services/address"
 	"github.com/yourusername/arcsign/internal/services/bip39service"
@@ -31,6 +32,9 @@ func GenerateAddressesFile(usbPath, walletID, mnemonic, passphrase string) (stri
 	hdkeyService := hdkey.NewHDKeyService()
 	addressService := address.NewAddressService()
 
+	// Normalize mnemonic: trim whitespace to prevent seed derivation issues
+	mnemonic = strings.TrimSpace(mnemonic)
+
 	// Generate BIP39 seed from mnemonic + passphrase
 	seed, err := bip39Service.MnemonicToSeed(mnemonic, passphrase)
 	if err != nil {
@@ -50,6 +54,8 @@ func GenerateAddressesFile(usbPath, walletID, mnemonic, passphrase string) (stri
 	for _, chain := range chains {
 		// Derive key at BIP44 path for this chain
 		derivationPath := FormatDerivationPath(chain.CoinType, 0, 0, 0)
+		fmt.Printf("[Wallet Debug] Deriving %s address at path: %s\n", chain.Symbol, derivationPath)
+		
 		derivedKey, err := hdkeyService.DerivePath(masterKey, derivationPath)
 		if err != nil {
 			return "", fmt.Errorf("failed to derive key for %s at path %s: %w", chain.Symbol, derivationPath, err)
@@ -61,7 +67,11 @@ func GenerateAddressesFile(usbPath, walletID, mnemonic, passphrase string) (stri
 		case 0: // Bitcoin
 			addressString, err = addressService.DeriveBitcoinAddress(derivedKey)
 		case 60: // Ethereum and EVM-compatible chains
+			fmt.Printf("[Wallet Debug] Generating Ethereum address for %s (coinType=%d)\n", chain.Symbol, chain.CoinType)
 			addressString, err = addressService.DeriveEthereumAddress(derivedKey)
+			if err == nil {
+				fmt.Printf("[Wallet Debug] Generated %s address: %s\n", chain.Symbol, addressString)
+			}
 		case 2: // Litecoin
 			addressString, err = addressService.DeriveLitecoinAddress(derivedKey)
 		case 3: // Dogecoin

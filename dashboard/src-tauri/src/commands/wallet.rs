@@ -377,6 +377,7 @@ pub async fn import_wallet(
 
     // Check if passphrase is provided (before moving it)
     let has_passphrase = passphrase.is_some();
+    let passphrase_value = passphrase.as_deref().unwrap_or("");
 
     let wallet_name = name.clone().unwrap_or_else(|| {
         format!("Imported Wallet {}", chrono::Local::now().format("%Y-%m-%d"))
@@ -388,6 +389,7 @@ pub async fn import_wallet(
         "mnemonic": normalized_mnemonic,
         "password": password,
         "usbPath": usb_path,
+        "passphrase": passphrase_value,  // 傳遞 BIP39 passphrase
     });
 
     let params_json = serde_json::to_string(&params)

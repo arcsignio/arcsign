@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/tyler-smith/go-bip39"
 	"github.com/tyler-smith/go-bip39/wordlists"
@@ -57,6 +58,9 @@ func (s *BIP39Service) GenerateMnemonic(wordCount int) (string, error) {
 // - All words are in BIP39 wordlist
 // - Checksum is valid
 func (s *BIP39Service) ValidateMnemonic(mnemonic string) error {
+	// Normalize: trim whitespace
+	mnemonic = strings.TrimSpace(mnemonic)
+	
 	if mnemonic == "" {
 		return errors.New("mnemonic cannot be empty")
 	}
@@ -74,6 +78,9 @@ func (s *BIP39Service) ValidateMnemonic(mnemonic string) error {
 // Optionally accepts a passphrase for additional security (BIP39 extension)
 // Returns 64 bytes of deterministic seed data
 func (s *BIP39Service) MnemonicToSeed(mnemonic string, passphrase string) ([]byte, error) {
+	// Normalize mnemonic: trim whitespace to prevent seed derivation issues
+	mnemonic = strings.TrimSpace(mnemonic)
+	
 	// Validate mnemonic first
 	if err := s.ValidateMnemonic(mnemonic); err != nil {
 		return nil, fmt.Errorf("invalid mnemonic: %w", err)

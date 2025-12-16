@@ -57,13 +57,21 @@ func (s *AddressService) DeriveEthereumAddress(key *hdkeychain.ExtendedKey) (str
 
 	// Convert to uncompressed format (65 bytes: 0x04 + X + Y)
 	uncompressed := pubKey.SerializeUncompressed()
+	
+	// Debug logging
+	log.Printf("[Address Debug] Public key (compressed): %x", pubKey.SerializeCompressed())
+	log.Printf("[Address Debug] Public key (uncompressed): %x", uncompressed)
+	log.Printf("[Address Debug] Public key length: %d bytes", len(uncompressed))
 
 	// Ethereum address = last 20 bytes of Keccak256(uncompressed public key without 0x04 prefix)
 	// Skip the first byte (0x04) and hash the remaining 64 bytes
 	hash := crypto.Keccak256(uncompressed[1:])
+	log.Printf("[Address Debug] Keccak256 hash: %x", hash)
 
 	// Take last 20 bytes and add 0x prefix
 	address := fmt.Sprintf("0x%x", hash[len(hash)-20:])
+	
+	log.Printf("[Address Debug] Final Ethereum address: %s", address)
 
 	return address, nil
 }
