@@ -56,6 +56,13 @@ export function WalletDetail({
     setError(null);
 
     try {
+      console.log("🚀 Starting getTokenBalances request...", {
+        walletId: wallet.id,
+        usbPath,
+        hasPassword: !!password,
+        hasAppPassword: !!appPassword,
+      });
+
       const response: TokenBalancesResponse = await tauriApi.getTokenBalances({
         walletId: wallet.id,
         password,
@@ -63,12 +70,43 @@ export function WalletDetail({
         appPassword,
       });
 
+      console.log("📡 Alchemy API Response (RAW):", response);
+      console.log("📊 Response Details:", {
+        totalTokens: response?.tokens?.length || 0,
+        totalUsd: response?.totalUsd || 0,
+        tokensIsArray: Array.isArray(response?.tokens),
+        responseType: typeof response,
+        responseKeys: response ? Object.keys(response) : [],
+      });
+
+      // Log each token in detail
+      if (response?.tokens && Array.isArray(response.tokens)) {
+        if (response.tokens.length === 0) {
+          console.warn("⚠️ No tokens returned from Alchemy API");
+        }
+        response.tokens.forEach((token, idx) => {
+          console.log(`🪙 Token ${idx + 1}:`, {
+            symbol: token.tokenSymbol,
+            name: token.tokenName,
+            network: token.network,
+            networkLabel: token.networkLabel,
+            address: token.tokenAddress,
+            balance: token.balance,
+            usdValue: token.usdValue,
+            logo: token.tokenLogo,
+          });
+        });
+      } else {
+        console.error("❌ Invalid tokens data:", response?.tokens);
+      }
+
       setTokens(response.tokens);
       setTotalUsd(response.totalUsd);
       setShowPasswordPrompt(false);
     } catch (err) {
       const error = err as AppError;
       setError(error.message || "Failed to load token balances");
+      console.error("❌ Failed to load token balances:", error);
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +138,7 @@ export function WalletDetail({
     tokens.forEach((token) => {
       // Check if this is a native token and enrich with metadata
       const networkKey = getNetworkKey(token.networkLabel);
-      
+
       // Debug: Log native token detection
       if (isNativeTokenAddress(token.tokenAddress)) {
         console.log("🔍 Native token detected:", {
@@ -110,7 +148,7 @@ export function WalletDetail({
           address: token.tokenAddress,
         });
       }
-      
+
       if (networkKey && isNativeTokenAddress(token.tokenAddress)) {
         const nativeToken = getNativeToken(networkKey);
         if (nativeToken) {
@@ -863,13 +901,37 @@ export function WalletDetail({
                         fontSize: "0.6875rem",
                         color: "#6b7280",
                         fontFamily: "monospace",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
                       }}
                     >
-                      {token.tokenAddress.slice(0, 6)}...
-                      {token.tokenAddress.slice(-4)}
+                      <div
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                        title={`Wallet: ${token.address}`}
+                      >
+                        💼 {token.address.slice(0, 6)}...
+                        {token.address.slice(-4)}
+                      </div>
+                      {token.tokenAddress &&
+                        token.tokenAddress !==
+                          "0x0000000000000000000000000000000000000000" && (
+                          <div
+                            style={{
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                            title={`Contract: ${token.tokenAddress}`}
+                          >
+                            📜 {token.tokenAddress.slice(0, 6)}...
+                            {token.tokenAddress.slice(-4)}
+                          </div>
+                        )}
                     </div>
                   </div>
 

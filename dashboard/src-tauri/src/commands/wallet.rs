@@ -994,6 +994,36 @@ pub async fn get_token_balances(
     password.zeroize();
 
     let elapsed = start.elapsed();
+    
+    // Log the response details for debugging
+    tracing::info!("FFI Response received: {}", serde_json::to_string_pretty(&ffi_response).unwrap_or_else(|_| "Failed to serialize".to_string()));
+    
+    // Check if response has expected structure
+    if let Some(obj) = ffi_response.as_object() {
+        tracing::info!("Response keys: {:?}", obj.keys().collect::<Vec<_>>());
+        
+        if let Some(tokens) = obj.get("tokens") {
+            if let Some(arr) = tokens.as_array() {
+                tracing::info!("Number of tokens: {}", arr.len());
+                
+                // Log first few tokens
+                for (idx, token) in arr.iter().take(3).enumerate() {
+                    tracing::info!("Token {}: {}", idx + 1, serde_json::to_string_pretty(token).unwrap_or_else(|_| "Failed to serialize".to_string()));
+                }
+            } else {
+                tracing::warn!("tokens field is not an array: {:?}", tokens);
+            }
+        } else {
+            tracing::warn!("No 'tokens' field in response");
+        }
+        
+        if let Some(total_usd) = obj.get("totalUsd") {
+            tracing::info!("Total USD: {}", total_usd);
+        }
+    } else {
+        tracing::warn!("Response is not a JSON object: {:?}", ffi_response);
+    }
+    
     tracing::info!(
         "Retrieved token balances for wallet {} (took {:?})",
         wallet_id,

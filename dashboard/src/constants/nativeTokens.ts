@@ -139,7 +139,7 @@ export function getNetworkKey(networkLabel: string): string | null {
   if (NETWORK_LABEL_TO_KEY[networkLabel]) {
     return NETWORK_LABEL_TO_KEY[networkLabel];
   }
-  
+
   // Try case-insensitive match
   const lowerLabel = networkLabel.toLowerCase();
   for (const [key, value] of Object.entries(NETWORK_LABEL_TO_KEY)) {
@@ -147,7 +147,7 @@ export function getNetworkKey(networkLabel: string): string | null {
       return value;
     }
   }
-  
+
   // Try partial match for network id in string
   if (lowerLabel.includes("polygon") || lowerLabel.includes("matic")) {
     return "polygon-mainnet";
@@ -170,6 +170,6 @@ export function getNetworkKey(networkLabel: string): string | null {
   if (lowerLabel.includes("btc") || lowerLabel.includes("bitcoin")) {
     return "btc-mainnet";
   }
-  
+
   return null;
 }
