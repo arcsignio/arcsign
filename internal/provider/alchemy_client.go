@@ -141,8 +141,19 @@ func SimplifyTokenBalances(alchemyResponse *AlchemyTokenBalanceResponse) []Simpl
 
 // formatTokenBalance converts raw balance string to human-readable format
 func formatTokenBalance(rawBalance string, decimals int) string {
-	// Parse big int
-	balance, ok := new(big.Int).SetString(rawBalance, 10)
+	// Handle hex format (0x prefix)
+	var balance *big.Int
+	var ok bool
+	
+	if strings.HasPrefix(rawBalance, "0x") || strings.HasPrefix(rawBalance, "0X") {
+		// Parse as hexadecimal (remove 0x prefix)
+		balance = new(big.Int)
+		_, ok = balance.SetString(rawBalance[2:], 16)
+	} else {
+		// Parse as decimal
+		balance, ok = new(big.Int).SetString(rawBalance, 10)
+	}
+	
 	if !ok {
 		return "0"
 	}
