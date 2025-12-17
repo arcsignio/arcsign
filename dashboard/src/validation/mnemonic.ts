@@ -77,7 +77,7 @@ export const walletImportSchema = z.object({
   confirmPassword: z.string(),
   usePassphrase: z.boolean().default(false),
   passphrase: z.string().optional(),
-  name: z.string().trim().min(1).max(50).optional(),
+  name: z.string().trim().min(1, 'Wallet name is required').max(50, 'Wallet name must be 50 characters or less'),
 }).refine(
   (data) => data.password === data.confirmPassword,
   {

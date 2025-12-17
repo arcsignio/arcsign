@@ -284,10 +284,10 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
           )}
         </div>
 
-        {/* Optional Wallet Name */}
+        {/* Wallet Name */}
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-            Wallet Name (Optional)
+            Wallet Name
           </label>
           <input
             type="text"
