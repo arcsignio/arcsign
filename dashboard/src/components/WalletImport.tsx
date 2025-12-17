@@ -5,13 +5,17 @@
  * Generated: 2025-10-17
  */
 
-import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { walletImportSchema, type WalletImportFormData, normalizeMnemonic } from '@/validation/mnemonic';
-import tauriApi, { type AppError } from '@/services/tauri-api';
-import { useDashboardStore } from '@/stores/dashboardStore';
-import { ConfirmationDialog } from './ConfirmationDialog';
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  walletImportSchema,
+  type WalletImportFormData,
+  normalizeMnemonic,
+} from "@/validation/mnemonic";
+import tauriApi, { type AppError } from "@/services/tauri-api";
+import { useDashboardStore } from "@/stores/dashboardStore";
+import { ConfirmationDialog } from "./ConfirmationDialog";
 
 interface WalletImportProps {
   usbPath: string;
@@ -23,12 +27,16 @@ interface WalletImportProps {
  * WalletImport component for importing existing wallets from mnemonic
  * Requirements: FR-006 (BIP39 import), FR-029 (validation), FR-031 (duplicate detection)
  */
-export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, onCancel }) => {
+export const WalletImport: React.FC<WalletImportProps> = ({
+  usbPath,
+  onSuccess,
+  onCancel,
+}) => {
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [mnemonicValue, setMnemonicValue] = useState('');
+  const [mnemonicValue, setMnemonicValue] = useState("");
 
   const { addWallet } = useDashboardStore();
 
@@ -40,10 +48,10 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
     formState: { errors, isDirty },
   } = useForm<WalletImportFormData>({
     resolver: zodResolver(walletImportSchema),
-    mode: 'onBlur',
+    mode: "onBlur",
   });
 
-  const usePassphrase = watch('usePassphrase', false);
+  const usePassphrase = watch("usePassphrase", false);
 
   /**
    * Handle mnemonic input change with normalization (FR-030)
@@ -51,7 +59,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
   const handleMnemonicChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setMnemonicValue(value);
-    setValue('mnemonic', value);
+    setValue("mnemonic", value);
   };
 
   /**
@@ -61,7 +69,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
     if (mnemonicValue) {
       const normalized = normalizeMnemonic(mnemonicValue);
       setMnemonicValue(normalized);
-      setValue('mnemonic', normalized);
+      setValue("mnemonic", normalized);
     }
   };
 
@@ -91,11 +99,11 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
       addWallet(response.wallet);
 
       // Clear sensitive data
-      setMnemonicValue('');
-      setValue('mnemonic', '');
-      setValue('password', '');
-      setValue('confirmPassword', '');
-      setValue('passphrase', '');
+      setMnemonicValue("");
+      setValue("mnemonic", "");
+      setValue("password", "");
+      setValue("confirmPassword", "");
+      setValue("passphrase", "");
 
       if (onSuccess) {
         onSuccess();
@@ -104,10 +112,12 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
       const error = err as AppError;
 
       // Handle duplicate wallet error (FR-031)
-      if (error.code === 'WALLET_ALREADY_EXISTS') {
+      if (error.code === "WALLET_ALREADY_EXISTS") {
         setShowDuplicateDialog(true);
       } else {
-        setImportError(error.message || 'Failed to import wallet. Please try again.');
+        setImportError(
+          error.message || "Failed to import wallet. Please try again."
+        );
       }
     } finally {
       setIsImporting(false);
@@ -128,7 +138,9 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
    */
   const handleOverwriteDuplicate = async () => {
     setShowDuplicateDialog(false);
-    setImportError('Overwrite functionality not yet implemented. Please use a different mnemonic.');
+    setImportError(
+      "Overwrite functionality not yet implemented. Please use a different mnemonic."
+    );
     // TODO: Implement force import with overwrite flag
   };
 
@@ -165,20 +177,23 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Mnemonic Input (T071, T072) */}
         <div>
-          <label htmlFor="mnemonic" className="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            htmlFor="mnemonic"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
             Recovery Phrase (Mnemonic) *
           </label>
           <textarea
             id="mnemonic"
-            {...register('mnemonic')}
+            {...register("mnemonic")}
             value={mnemonicValue}
             onChange={handleMnemonicChange}
             onBlur={handleMnemonicBlur}
             rows={3}
             className={`w-full px-4 py-3 border rounded-md font-mono text-sm focus:outline-none focus:ring-2 ${
               errors.mnemonic
-                ? 'border-red-500 focus:ring-red-500'
-                : 'border-gray-300 focus:ring-blue-500'
+                ? "border-red-500 focus:ring-red-500"
+                : "border-gray-300 focus:ring-blue-500"
             }`}
             placeholder="Enter your 12 or 24 word recovery phrase..."
             disabled={isImporting}
@@ -195,17 +210,20 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
 
         {/* Password Fields */}
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
             Wallet Password *
           </label>
           <input
             type="password"
             id="password"
-            {...register('password')}
+            {...register("password")}
             className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
               errors.password
-                ? 'border-red-500 focus:ring-red-500'
-                : 'border-gray-300 focus:ring-blue-500'
+                ? "border-red-500 focus:ring-red-500"
+                : "border-gray-300 focus:ring-blue-500"
             }`}
             placeholder="Enter a strong password (12+ characters)"
             disabled={isImporting}
@@ -218,17 +236,20 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
         </div>
 
         <div>
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            htmlFor="confirmPassword"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
             Confirm Password *
           </label>
           <input
             type="password"
             id="confirmPassword"
-            {...register('confirmPassword')}
+            {...register("confirmPassword")}
             className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
               errors.confirmPassword
-                ? 'border-red-500 focus:ring-red-500'
-                : 'border-gray-300 focus:ring-blue-500'
+                ? "border-red-500 focus:ring-red-500"
+                : "border-gray-300 focus:ring-blue-500"
             }`}
             placeholder="Re-enter your password"
             disabled={isImporting}
@@ -246,28 +267,34 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
             <input
               type="checkbox"
               id="usePassphrase"
-              {...register('usePassphrase')}
+              {...register("usePassphrase")}
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               disabled={isImporting}
             />
-            <label htmlFor="usePassphrase" className="ml-2 block text-sm text-gray-700">
+            <label
+              htmlFor="usePassphrase"
+              className="ml-2 block text-sm text-gray-700"
+            >
               Use BIP39 Passphrase (25th word)
             </label>
           </div>
 
           {usePassphrase && (
             <div>
-              <label htmlFor="passphrase" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="passphrase"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 BIP39 Passphrase
               </label>
               <input
                 type="password"
                 id="passphrase"
-                {...register('passphrase')}
+                {...register("passphrase")}
                 className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                   errors.passphrase
-                    ? 'border-red-500 focus:ring-red-500'
-                    : 'border-gray-300 focus:ring-blue-500'
+                    ? "border-red-500 focus:ring-red-500"
+                    : "border-gray-300 focus:ring-blue-500"
                 }`}
                 placeholder="Enter BIP39 passphrase (optional)"
                 disabled={isImporting}
@@ -278,7 +305,8 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
                 </p>
               )}
               <p className="mt-2 text-xs text-yellow-600">
-                ⚠️ If your original wallet used a passphrase, you must enter the exact same passphrase here.
+                ⚠️ If your original wallet used a passphrase, you must enter the
+                exact same passphrase here.
               </p>
             </div>
           )}
@@ -286,17 +314,20 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
 
         {/* Wallet Name */}
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            htmlFor="name"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
             Wallet Name
           </label>
           <input
             type="text"
             id="name"
-            {...register('name')}
+            {...register("name")}
             className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
               errors.name
-                ? 'border-red-500 focus:ring-red-500'
-                : 'border-gray-300 focus:ring-blue-500'
+                ? "border-red-500 focus:ring-red-500"
+                : "border-gray-300 focus:ring-blue-500"
             }`}
             placeholder="e.g., My Main Wallet"
             disabled={isImporting}
@@ -323,7 +354,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
             disabled={isImporting}
             className="flex-1 px-6 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isImporting ? 'Importing...' : 'Import Wallet'}
+            {isImporting ? "Importing..." : "Import Wallet"}
           </button>
 
           {onCancel && (
@@ -343,9 +374,12 @@ export const WalletImport: React.FC<WalletImportProps> = ({ usbPath, onSuccess, 
       {showDuplicateDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-semibold text-yellow-600 mb-4">⚠️ Duplicate Wallet</h3>
+            <h3 className="text-xl font-semibold text-yellow-600 mb-4">
+              ⚠️ Duplicate Wallet
+            </h3>
             <p className="text-sm text-gray-700 mb-4">
-              A wallet with this mnemonic already exists on your USB drive. Importing it again will overwrite the existing wallet data.
+              A wallet with this mnemonic already exists on your USB drive.
+              Importing it again will overwrite the existing wallet data.
             </p>
             <p className="text-sm text-gray-700 mb-6">
               Are you sure you want to continue?

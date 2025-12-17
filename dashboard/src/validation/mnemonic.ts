@@ -5,18 +5,14 @@
  * Generated: 2025-10-17
  */
 
-import { z } from 'zod';
-import { passwordSchema } from './password';
+import { z } from "zod";
+import { passwordSchema } from "./password";
 
 /**
  * Normalize mnemonic whitespace (FR-030)
  */
 export function normalizeMnemonic(mnemonic: string): string {
-  return mnemonic
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .join(' ');
+  return mnemonic.trim().toLowerCase().split(/\s+/).join(" ");
 }
 
 /**
@@ -24,7 +20,7 @@ export function normalizeMnemonic(mnemonic: string): string {
  */
 function validateMnemonicLength(mnemonic: string): boolean {
   const normalized = normalizeMnemonic(mnemonic);
-  const wordCount = normalized.split(' ').length;
+  const wordCount = normalized.split(" ").length;
   return wordCount === 12 || wordCount === 24;
 }
 
@@ -33,8 +29,16 @@ function validateMnemonicLength(mnemonic: string): boolean {
  * In production, use complete BIP39 wordlist from 'bip39' package
  */
 export const BIP39_SAMPLE_WORDS = [
-  'abandon', 'ability', 'able', 'about', 'above',
-  'absent', 'absorb', 'abstract', 'absurd', 'abuse',
+  "abandon",
+  "ability",
+  "able",
+  "about",
+  "above",
+  "absent",
+  "absorb",
+  "abstract",
+  "absurd",
+  "abuse",
   // ... (complete list would have 2048 words)
 ];
 
@@ -44,11 +48,11 @@ export const BIP39_SAMPLE_WORDS = [
  */
 function validateMnemonicWords(mnemonic: string): boolean {
   const normalized = normalizeMnemonic(mnemonic);
-  const words = normalized.split(' ');
+  const words = normalized.split(" ");
 
   // For demo purposes, we accept any lowercase alphabetic words
   // In production, check against complete BIP39 wordlist
-  return words.every(word => /^[a-z]+$/.test(word));
+  return words.every((word) => /^[a-z]+$/.test(word));
 }
 
 /**
@@ -58,45 +62,52 @@ function validateMnemonicWords(mnemonic: string): boolean {
 export const mnemonicSchema = z
   .string()
   .trim()
-  .min(1, 'Mnemonic phrase is required')
+  .min(1, "Mnemonic phrase is required")
   .transform(normalizeMnemonic)
   .refine(validateMnemonicLength, {
-    message: 'Mnemonic must be 12 or 24 words',
+    message: "Mnemonic must be 12 or 24 words",
   })
   .refine(validateMnemonicWords, {
-    message: 'Mnemonic contains invalid words. Please check your phrase.',
+    message: "Mnemonic contains invalid words. Please check your phrase.",
   });
 
 /**
  * Wallet import form schema
  * Requirements: FR-006, FR-007 (passphrase), FR-029, FR-030
  */
-export const walletImportSchema = z.object({
-  mnemonic: mnemonicSchema,
-  password: passwordSchema,
-  confirmPassword: z.string(),
-  usePassphrase: z.boolean().default(false),
-  passphrase: z.string().optional(),
-  name: z.string().trim().min(1, 'Wallet name is required').max(50, 'Wallet name must be 50 characters or less'),
-}).refine(
-  (data) => data.password === data.confirmPassword,
-  {
-    message: 'Passwords do not match',
-    path: ['confirmPassword'],
-  }
-).refine(
-  (data) => {
-    // If passphrase is enabled, it must not be empty
-    if (data.usePassphrase && (!data.passphrase || data.passphrase.trim() === '')) {
-      return false;
+export const walletImportSchema = z
+  .object({
+    mnemonic: mnemonicSchema,
+    password: passwordSchema,
+    confirmPassword: z.string(),
+    usePassphrase: z.boolean().default(false),
+    passphrase: z.string().optional(),
+    name: z
+      .string()
+      .trim()
+      .min(1, "Wallet name is required")
+      .max(50, "Wallet name must be 50 characters or less"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  })
+  .refine(
+    (data) => {
+      // If passphrase is enabled, it must not be empty
+      if (
+        data.usePassphrase &&
+        (!data.passphrase || data.passphrase.trim() === "")
+      ) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "BIP39 passphrase cannot be empty when enabled",
+      path: ["passphrase"],
     }
-    return true;
-  },
-  {
-    message: 'BIP39 passphrase cannot be empty when enabled',
-    path: ['passphrase'],
-  }
-);
+  );
 
 /**
  * Type inference for wallet import form
@@ -111,7 +122,9 @@ export function validateMnemonicChecksum(mnemonic: string): boolean {
   // TODO: Implement actual BIP39 checksum validation
   // For now, just check basic format
   const normalized = normalizeMnemonic(mnemonic);
-  return validateMnemonicLength(normalized) && validateMnemonicWords(normalized);
+  return (
+    validateMnemonicLength(normalized) && validateMnemonicWords(normalized)
+  );
 }
 
 /**
@@ -121,20 +134,20 @@ export function getMnemonicValidationError(mnemonic: string): string | null {
   const normalized = normalizeMnemonic(mnemonic);
 
   if (!normalized) {
-    return 'Mnemonic phrase is required';
+    return "Mnemonic phrase is required";
   }
 
   if (!validateMnemonicLength(normalized)) {
-    const wordCount = normalized.split(' ').length;
+    const wordCount = normalized.split(" ").length;
     return `Mnemonic must be 12 or 24 words (you entered ${wordCount} words)`;
   }
 
   if (!validateMnemonicWords(normalized)) {
-    return 'Mnemonic contains invalid words. Please check your phrase.';
+    return "Mnemonic contains invalid words. Please check your phrase.";
   }
 
   if (!validateMnemonicChecksum(normalized)) {
-    return 'Invalid mnemonic checksum. Please verify your recovery phrase.';
+    return "Invalid mnemonic checksum. Please verify your recovery phrase.";
   }
 
   return null;
