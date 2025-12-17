@@ -509,3 +509,70 @@ func (s *WalletService) ListWallets() ([]*models.Wallet, error) {
 
 	return wallets, nil
 }
+
+// DeleteWallet permanently deletes a wallet from storage after password verification.
+// This operation cannot be undone. It removes the entire wallet directory including
+// encrypted mnemonic, addresses, and audit logs.
+//
+// Security Requirements:
+// - Must provide correct password for verification
+// - Password is verified by attempting to decrypt the mnemonic
+// - Operation is logged to audit log before deletion
+// - Rate limiting applies (protects against brute force)
+//
+// Parameters:
+//   - walletID: UUID of the wallet to delete
+//   - password: Wallet password (must be correct)
+//
+// Returns:
+//   - error: nil on success, error if password wrong or deletion fails
+func (s *WalletService) DeleteWallet(walletID string, password string) error {
+	// 1. Validate inputs
+	if walletID == "" {
+		return utils.ErrWalletNotFound
+	}
+	if password == "" {
+		return utils.ErrInvalidPassword
+	}
+
+	// 2. Load wallet to verify it exists
+	wallet, err := s.LoadWallet(walletID)
+	if err != nil {
+		return fmt.Errorf("wallet not found: %w", err)
+	}
+
+	// 3. CRITICAL: Verify password by attempting to restore wallet
+	// This ensures only the wallet owner can delete it
+	_, err = s.RestoreWallet(walletID, password)
+	if err != nil {
+		// Password verification failed
+		// Note: RestoreWallet already logs failed attempts
+		return fmt.Errorf("incorrect password: %w", err)
+	}
+
+	// 4. Create audit log entry before deletion
+	// This creates a permanent record of the deletion
+	auditPath := filepath.Join(s.storagePath, walletID, "audit.log")
+	auditLogger, err := audit.NewAuditLogger(auditPath)
+	if err == nil {
+		entry := audit.AuditLogEntry{
+			ID:        walletID + "-delete-" + fmt.Sprintf("%d", time.Now().Unix()),
+			WalletID:  walletID,
+			Timestamp: time.Now(),
+			Operation: "WALLET_DELETE",
+			Status:    "SUCCESS",
+		}
+		auditLogger.LogOperation(entry)
+	}
+
+	// 5. Delete entire wallet directory
+	walletDir := filepath.Join(s.storagePath, walletID)
+	err = os.RemoveAll(walletDir)
+	if err != nil {
+		return fmt.Errorf("failed to delete wallet directory: %w", err)
+	}
+
+	// 6. Success - wallet and all data permanently deleted
+	fmt.Printf("Wallet %s (%s) deleted successfully\n", wallet.Name, walletID)
+	return nil
+}

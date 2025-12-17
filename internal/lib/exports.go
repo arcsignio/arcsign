@@ -567,6 +567,88 @@ func RenameWallet(params *C.char) *C.char {
 	return C.CString(string(jsonBytes))
 }
 
+//export DeleteWallet
+// DeleteWallet permanently deletes a wallet from storage after password verification.
+// This is a destructive operation that cannot be undone.
+//
+// Security: Requires correct wallet password for authentication.
+//
+// Input JSON: {
+//   "walletId": "uuid",
+//   "password": "wallet-password",  // REQUIRED: Must be correct
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Returns: {"success": true, "data": {"walletId": "...", "deletedAt": "..."}}
+func DeleteWallet(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		WalletID string `json:"walletId"`
+		Password string `json:"password"`
+		USBPath  string `json:"usbPath"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Security: Clear sensitive data after use
+	defer zeroString(&input.Password)
+
+	// Validate inputs
+	if input.WalletID == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Wallet ID is required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if input.Password == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Password is required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Create wallet service
+	svc := wallet.NewWalletService(input.USBPath)
+
+	// Delete wallet (password will be verified inside)
+	err := svc.DeleteWallet(input.WalletID, input.Password)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Success
+	data := map[string]interface{}{
+		"walletId":  input.WalletID,
+		"deletedAt": time.Now().Format(time.RFC3339),
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
 //export ListWallets
 // ListWallets enumerates all wallets on USB.
 // T024.3: Implement ListWallets export function
