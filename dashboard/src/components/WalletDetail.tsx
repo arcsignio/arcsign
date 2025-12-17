@@ -8,6 +8,7 @@ import { useAppPassword } from "@/contexts/AppPasswordContext";
 import tauriApi, { type AppError } from "@/services/tauri-api";
 import type { TokenBalance, TokenBalancesResponse } from "@/types/tokens";
 import type { Wallet } from "@/types/wallet";
+import type { Address } from "@/types/address";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { normalizeTokenForDisplay } from "@/constants/commonTokens";
 import {
@@ -20,7 +21,8 @@ import { TransactionHistory } from "@/components/TransactionHistory";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
 
-// Map network labels to Alchemy network IDs
+// Map network labels to Alchemy network IDs (used in History feature)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const NETWORK_TO_ALCHEMY: Record<string, string> = {
   Ethereum: "eth-mainnet",
   Polygon: "polygon-mainnet",
@@ -29,6 +31,7 @@ const NETWORK_TO_ALCHEMY: Record<string, string> = {
   Base: "base-mainnet",
   "BNB Chain": "bnb-mainnet",
 };
+void NETWORK_TO_ALCHEMY; // Suppress unused warning temporarily
 
 interface WalletDetailProps {
   wallet: Wallet;
@@ -41,8 +44,9 @@ export function WalletDetail({
   wallet,
   usbPath,
   onBack,
-  onViewAddresses,
+  onViewAddresses: _onViewAddresses,
 }: WalletDetailProps) {
+  void _onViewAddresses; // Suppress unused variable warning
   const { appPassword } = useAppPassword();
   const [tokens, setTokens] = useState<TokenBalance[]>([]);
   const [totalUsd, setTotalUsd] = useState<number>(0);
@@ -57,29 +61,8 @@ export function WalletDetail({
   const [showHistory, setShowHistory] = useState(false);
   const [historyAddress, setHistoryAddress] = useState("");
   const [historyNetwork, setHistoryNetwork] = useState("eth-mainnet");
-
-  // Handle opening transaction history
-  const handleOpenHistory = (address?: string, networkLabel?: string) => {
-    // Use first available token's address if not specified
-    if (address) {
-      setHistoryAddress(address);
-    } else if (displayTokens.length > 0) {
-      setHistoryAddress(displayTokens[0].address);
-    } else {
-      // No tokens available
-      return;
-    }
-
-    // Convert network label to Alchemy network ID
-    if (networkLabel) {
-      setHistoryNetwork(NETWORK_TO_ALCHEMY[networkLabel] || "eth-mainnet");
-    } else if (displayTokens.length > 0) {
-      const firstTokenNetwork = displayTokens[0].networkLabel;
-      setHistoryNetwork(NETWORK_TO_ALCHEMY[firstTokenNetwork] || "eth-mainnet");
-    }
-
-    setShowHistory(true);
-  };
+  // Store wallet addresses from AddressBook (loaded when unlocking wallet)
+  const [walletAddresses, setWalletAddresses] = useState<Address[]>([]);
 
   // Load priority tokens from CoinGecko token lists
   const { tokens: priorityTokens, isLoading: isLoadingPriority } =
@@ -95,13 +78,25 @@ export function WalletDetail({
     setError(null);
 
     try {
-      console.log("🚀 Starting getTokenBalances request...", {
+      console.log("🚀 Starting wallet unlock...", {
         walletId: wallet.id,
         usbPath,
         hasPassword: !!password,
         hasAppPassword: !!appPassword,
       });
 
+      // First, load wallet addresses from AddressBook
+      console.log("📍 Loading wallet addresses...");
+      const addressResponse = await tauriApi.loadAddresses({
+        wallet_id: wallet.id,
+        password,
+        usb_path: usbPath,
+      });
+      console.log("📍 Loaded addresses:", addressResponse.addresses.length);
+      setWalletAddresses(addressResponse.addresses);
+
+      // Then load token balances
+      console.log("🚀 Starting getTokenBalances request...");
       const response: TokenBalancesResponse = await tauriApi.getTokenBalances({
         walletId: wallet.id,
         password,
@@ -234,14 +229,15 @@ export function WalletDetail({
     });
   }, [tokens, priorityTokens, isLoadingPriority]);
 
-  // Group tokens by network
-  const tokensByNetwork = displayTokens.reduce((acc, token) => {
+  // Group tokens by network (prepared for future use in network grouping view)
+  const _tokensByNetwork = displayTokens.reduce((acc, token) => {
     if (!acc[token.networkLabel]) {
       acc[token.networkLabel] = [];
     }
     acc[token.networkLabel].push(token);
     return acc;
   }, {} as Record<string, TokenBalance[]>);
+  void _tokensByNetwork; // Suppress unused variable warning
 
   if (showPasswordPrompt) {
     return (
@@ -466,7 +462,15 @@ export function WalletDetail({
   }
 
   // Show Transaction History view
+  console.log("🔍 [WalletDetail] Checking showHistory condition:", {
+    showHistory,
+    historyAddress,
+    hasAppPassword: !!appPassword,
+    shouldShowHistory: showHistory && historyAddress && appPassword,
+  });
+
   if (showHistory && historyAddress && appPassword) {
+    console.log("✅ [WalletDetail] Rendering TransactionHistory component");
     return (
       <TransactionHistory
         address={historyAddress}
@@ -721,7 +725,33 @@ export function WalletDetail({
               icon: "📜",
               label: "History",
               tooltip: "View transaction history",
-              onClick: () => handleOpenHistory(),
+              onClick: () => {
+                console.log("📜 [History] Button clicked, walletAddresses:", walletAddresses.length);
+                // Get first EVM address (coin_type 60 = Ethereum compatible)
+                // EVM addresses start with 0x and are used for ETH, Polygon, Arbitrum, etc.
+                const evmAddress = walletAddresses.find(
+                  (addr) => addr.coin_type === 60 && !addr.is_testnet
+                );
+                console.log("📜 [History] Found EVM address:", evmAddress);
+                if (evmAddress) {
+                  setHistoryAddress(evmAddress.address);
+                  setHistoryNetwork("eth-mainnet");
+                  setShowHistory(true);
+                } else {
+                  // Try to find any address that looks like EVM (starts with 0x)
+                  const anyEvmAddress = walletAddresses.find(
+                    (addr) => addr.address.startsWith("0x") && !addr.is_testnet
+                  );
+                  if (anyEvmAddress) {
+                    console.log("📜 [History] Using fallback EVM address:", anyEvmAddress);
+                    setHistoryAddress(anyEvmAddress.address);
+                    setHistoryNetwork("eth-mainnet");
+                    setShowHistory(true);
+                  } else {
+                    alert("No EVM address found. Transaction history requires an Ethereum-compatible address (0x...).");
+                  }
+                }
+              },
             },
             { icon: "⋯", label: "More", tooltip: "More options and settings", onClick: () => {} },
           ].map((action) => (

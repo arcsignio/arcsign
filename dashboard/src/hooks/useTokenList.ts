@@ -3,7 +3,7 @@
  * Provides easy access to token information from CoinGecko token lists
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import {
   getCommonTokens,
   searchTokenBySymbol,

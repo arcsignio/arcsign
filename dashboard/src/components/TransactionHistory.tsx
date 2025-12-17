@@ -17,15 +17,8 @@ interface TransactionHistoryProps {
   onBack: () => void;
 }
 
-// Network display names
-const NETWORK_NAMES: Record<string, string> = {
-  "eth-mainnet": "Ethereum",
-  "polygon-mainnet": "Polygon",
-  "arbitrum-mainnet": "Arbitrum",
-  "optimism-mainnet": "Optimism",
-  "base-mainnet": "Base",
-  "bnb-mainnet": "BNB Chain",
-};
+// Supported EVM chains for display
+const SUPPORTED_EVM_CHAINS = "Ethereum, Polygon, Arbitrum, Optimism, Base";
 
 // Category display names and colors
 const CATEGORY_STYLES: Record<string, { label: string; color: string }> = {
@@ -79,6 +72,13 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   usbPath,
   onBack,
 }) => {
+  console.log("🔵 [TransactionHistory] Component rendered with props:", {
+    address,
+    network,
+    hasPassword: !!password,
+    usbPath,
+  });
+
   const [transfers, setTransfers] = useState<AssetTransfer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,10 +87,18 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
   const fetchTransfers = useCallback(
     async (loadMore = false) => {
+      console.log("🔵 [TransactionHistory] fetchTransfers called:", {
+        loadMore,
+        address,
+        network,
+        currentPageKey: pageKey,
+      });
+
       setIsLoading(true);
       setError(null);
 
       try {
+        console.log("🔵 [TransactionHistory] Calling tauriApi.getAssetTransfers...");
         const response: AssetTransfersResponse =
           await tauriApi.getAssetTransfers({
             address,
@@ -100,6 +108,11 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
             password,
             usbPath,
           });
+
+        console.log("🔵 [TransactionHistory] API response received:", {
+          transfersCount: response.transfers?.length || 0,
+          pageKey: response.pageKey,
+        });
 
         if (loadMore) {
           setTransfers((prev) => [...prev, ...response.transfers]);
@@ -112,6 +125,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
       } catch (err: unknown) {
         const errorMessage =
           err instanceof Error ? err.message : "Failed to load transaction history";
+        console.error("❌ [TransactionHistory] Error fetching transfers:", err);
         setError(errorMessage);
       } finally {
         setIsLoading(false);
@@ -121,6 +135,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   );
 
   useEffect(() => {
+    console.log("🔵 [TransactionHistory] useEffect triggered - fetching transfers");
     fetchTransfers(false);
   }, [address, network]);
 
@@ -138,8 +153,10 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         <div className="header-info">
           <h2>Transaction History</h2>
           <p className="address-info">
-            {shortenAddress(address)} on{" "}
-            {NETWORK_NAMES[network] || network}
+            {shortenAddress(address)}
+          </p>
+          <p className="supported-chains">
+            Supported: {SUPPORTED_EVM_CHAINS}
           </p>
         </div>
         <button
@@ -162,7 +179,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         <div className="empty-state">
           <div className="empty-icon">📭</div>
           <h3>No Transactions Found</h3>
-          <p>This address has no transaction history on {NETWORK_NAMES[network] || network}.</p>
+          <p>This address has no transaction history on supported EVM chains.</p>
         </div>
       )}
 
@@ -294,6 +311,12 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           margin: 4px 0 0;
           font-size: 14px;
           color: #6b7280;
+        }
+
+        .supported-chains {
+          margin: 2px 0 0;
+          font-size: 12px;
+          color: #9ca3af;
         }
 
         .refresh-button {

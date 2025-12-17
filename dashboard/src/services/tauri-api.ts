@@ -272,8 +272,17 @@ export interface GetAssetTransfersParams {
 export async function getAssetTransfers(
   params: GetAssetTransfersParams
 ): Promise<AssetTransfersResponse> {
+  console.log("🟢 [tauri-api] getAssetTransfers called with:", {
+    address: params.address,
+    network: params.network || "eth-mainnet",
+    maxCount: params.maxCount || 50,
+    pageKey: params.pageKey || "",
+    hasPassword: !!params.password,
+    usbPath: params.usbPath,
+  });
+
   try {
-    return await invoke<AssetTransfersResponse>("get_asset_transfers", {
+    const result = await invoke<AssetTransfersResponse>("get_asset_transfers", {
       input: {
         address: params.address,
         network: params.network || "eth-mainnet",
@@ -283,7 +292,13 @@ export async function getAssetTransfers(
         usbPath: params.usbPath,
       },
     });
+    console.log("🟢 [tauri-api] getAssetTransfers response:", {
+      transfersCount: result.transfers?.length || 0,
+      pageKey: result.pageKey,
+    });
+    return result;
   } catch (error) {
+    console.error("🔴 [tauri-api] getAssetTransfers error:", error);
     throw parseError(error);
   }
 }
