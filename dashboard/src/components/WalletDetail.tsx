@@ -63,6 +63,9 @@ export function WalletDetail({
   const [historyNetwork, setHistoryNetwork] = useState("eth-mainnet");
   // Store wallet addresses from AddressBook (loaded when unlocking wallet)
   const [walletAddresses, setWalletAddresses] = useState<Address[]>([]);
+  // Address List modal state (for Copy Address feature)
+  const [showAddressList, setShowAddressList] = useState(false);
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   // Load priority tokens from CoinGecko token lists
   const { tokens: priorityTokens, isLoading: isLoadingPriority } =
@@ -162,6 +165,16 @@ export function WalletDetail({
     if (num < 1) return num.toFixed(6);
     if (num < 1000) return num.toFixed(4);
     return num.toFixed(2);
+  };
+
+  const handleCopyAddress = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedAddress(address);
+      setTimeout(() => setCopiedAddress(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy address:", err);
+    }
   };
 
   // Merge user tokens with priority tokens from CoinGecko lists
@@ -591,6 +604,7 @@ export function WalletDetail({
           <div style={{ marginLeft: "auto", display: "flex", gap: "0.75rem" }}>
             <button
               title="Copy Address"
+              onClick={() => setShowAddressList(true)}
               style={{
                 background: "transparent",
                 border: "1px solid #e2e8f0",
@@ -1139,6 +1153,240 @@ export function WalletDetail({
           }}
         >
           ⚠️ {error}
+        </div>
+      )}
+
+      {/* Address List Modal */}
+      {showAddressList && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setShowAddressList(false)}
+        >
+          <div
+            style={{
+              background: "#ffffff",
+              borderRadius: "16px",
+              width: "90%",
+              maxWidth: "600px",
+              maxHeight: "80vh",
+              overflow: "hidden",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: "1.5rem",
+                borderBottom: "1px solid #e2e8f0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: "1.25rem",
+                    fontWeight: "600",
+                    color: "#1e293b",
+                  }}
+                >
+                  Wallet Addresses
+                </h3>
+                <p
+                  style={{
+                    margin: "0.25rem 0 0",
+                    fontSize: "0.875rem",
+                    color: "#64748b",
+                  }}
+                >
+                  Click on an address to copy it
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAddressList(false)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  fontSize: "1.5rem",
+                  cursor: "pointer",
+                  color: "#64748b",
+                  padding: "0.5rem",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Address List */}
+            <div
+              style={{
+                padding: "1rem",
+                maxHeight: "60vh",
+                overflowY: "auto",
+              }}
+            >
+              {walletAddresses.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "2rem",
+                    color: "#64748b",
+                  }}
+                >
+                  <p>No addresses loaded. Please unlock the wallet first.</p>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.5rem",
+                  }}
+                >
+                  {walletAddresses
+                    .filter((addr) => !addr.is_testnet)
+                    .map((addr) => (
+                      <button
+                        key={`${addr.symbol}-${addr.address}`}
+                        onClick={() => handleCopyAddress(addr.address)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "1rem",
+                          padding: "1rem",
+                          background:
+                            copiedAddress === addr.address
+                              ? "#dcfce7"
+                              : "#f8fafc",
+                          border:
+                            copiedAddress === addr.address
+                              ? "1px solid #22c55e"
+                              : "1px solid #e2e8f0",
+                          borderRadius: "12px",
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                          textAlign: "left",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (copiedAddress !== addr.address) {
+                            e.currentTarget.style.background = "#f1f5f9";
+                            e.currentTarget.style.borderColor = "#cbd5e1";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (copiedAddress !== addr.address) {
+                            e.currentTarget.style.background = "#f8fafc";
+                            e.currentTarget.style.borderColor = "#e2e8f0";
+                          }
+                        }}
+                      >
+                        {/* Chain Icon */}
+                        <div
+                          style={{
+                            width: "40px",
+                            height: "40px",
+                            borderRadius: "50%",
+                            background:
+                              "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "white",
+                            fontWeight: "600",
+                            fontSize: "0.875rem",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {addr.symbol.slice(0, 3)}
+                        </div>
+
+                        {/* Chain Info */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.5rem",
+                              marginBottom: "0.25rem",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: "1rem",
+                                fontWeight: "600",
+                                color: "#1e293b",
+                              }}
+                            >
+                              {addr.name}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "0.75rem",
+                                padding: "0.125rem 0.375rem",
+                                borderRadius: "0.25rem",
+                                background: "#e0e7ff",
+                                color: "#4338ca",
+                                fontWeight: "500",
+                              }}
+                            >
+                              {addr.symbol}
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "0.8125rem",
+                              color: "#64748b",
+                              fontFamily: "monospace",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {addr.address}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "0.6875rem",
+                              color: "#94a3b8",
+                              marginTop: "0.25rem",
+                            }}
+                          >
+                            {addr.derivation_path}
+                          </div>
+                        </div>
+
+                        {/* Copy Icon */}
+                        <div
+                          style={{
+                            fontSize: "1.25rem",
+                            color:
+                              copiedAddress === addr.address
+                                ? "#22c55e"
+                                : "#94a3b8",
+                          }}
+                        >
+                          {copiedAddress === addr.address ? "✓" : "📋"}
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
