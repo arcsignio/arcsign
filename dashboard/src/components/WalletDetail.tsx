@@ -486,8 +486,8 @@ export function WalletDetail({
     <div
       style={{
         minHeight: "100vh",
-        background: "#0a0e17",
-        color: "white",
+        background: "#f8fafc",
+        color: "#1e293b",
         fontFamily:
           '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}
@@ -495,9 +495,9 @@ export function WalletDetail({
       {/* Header with Account Info */}
       <div
         style={{
-          background: "linear-gradient(180deg, #1a1f2e 0%, #0a0e17 100%)",
+          background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
           padding: "1rem 1.5rem",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+          borderBottom: "1px solid #e2e8f0",
         }}
       >
         <button
@@ -505,7 +505,7 @@ export function WalletDetail({
           style={{
             background: "transparent",
             border: "none",
-            color: "#8b92a7",
+            color: "#64748b",
             fontSize: "0.875rem",
             cursor: "pointer",
             padding: "0.5rem 0",
@@ -554,6 +554,7 @@ export function WalletDetail({
                   fontSize: "1.125rem",
                   fontWeight: "600",
                   margin: 0,
+                  color: "#1e293b",
                 }}
               >
                 {wallet.name}
@@ -563,16 +564,16 @@ export function WalletDetail({
                 style={{
                   background: "transparent",
                   border: "none",
-                  color: "#8b92a7",
+                  color: "#64748b",
                   fontSize: "0.875rem",
                   cursor: "pointer",
                   padding: "0.25rem",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "white";
+                  e.currentTarget.style.color = "#1e293b";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "#8b92a7";
+                  e.currentTarget.style.color = "#64748b";
                 }}
               >
                 ▼
@@ -581,7 +582,7 @@ export function WalletDetail({
             <div
               style={{
                 fontSize: "0.8125rem",
-                color: "#8b92a7",
+                color: "#64748b",
               }}
             >
               Wallet 01
@@ -592,16 +593,16 @@ export function WalletDetail({
               title="Copy Address"
               style={{
                 background: "transparent",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
+                border: "1px solid #e2e8f0",
                 borderRadius: "8px",
                 padding: "0.5rem",
                 cursor: "pointer",
-                color: "white",
+                color: "#1e293b",
                 fontSize: "1rem",
                 position: "relative",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                e.currentTarget.style.background = "#f1f5f9";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
@@ -613,15 +614,15 @@ export function WalletDetail({
               title="Refresh Balances"
               style={{
                 background: "transparent",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
+                border: "1px solid #e2e8f0",
                 borderRadius: "8px",
                 padding: "0.5rem",
                 cursor: "pointer",
-                color: "white",
+                color: "#1e293b",
                 fontSize: "1rem",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                e.currentTarget.style.background = "#f1f5f9";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
@@ -633,15 +634,15 @@ export function WalletDetail({
               title="Network Settings"
               style={{
                 background: "transparent",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
+                border: "1px solid #e2e8f0",
                 borderRadius: "8px",
                 padding: "0.5rem",
                 cursor: "pointer",
-                color: "white",
+                color: "#1e293b",
                 fontSize: "1rem",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                e.currentTarget.style.background = "#f1f5f9";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
@@ -660,6 +661,7 @@ export function WalletDetail({
               fontWeight: "700",
               marginBottom: "0.5rem",
               letterSpacing: "-0.02em",
+              color: "#1e293b",
             }}
           >
             {formatUSD(totalUsd)}
@@ -667,7 +669,7 @@ export function WalletDetail({
           <div
             style={{
               fontSize: "0.875rem",
-              color: showPercentage ? "#34c759" : "#8b92a7",
+              color: showPercentage ? "#22c55e" : "#64748b",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -681,16 +683,16 @@ export function WalletDetail({
               style={{
                 background: "transparent",
                 border: "none",
-                color: "#8b92a7",
+                color: "#64748b",
                 cursor: "pointer",
                 padding: "0.25rem",
                 fontSize: "0.875rem",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.color = "white";
+                e.currentTarget.style.color = "#1e293b";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.color = "#8b92a7";
+                e.currentTarget.style.color = "#64748b";
               }}
             >
               1D ▼
@@ -760,12 +762,12 @@ export function WalletDetail({
               title={action.tooltip}
               onClick={action.onClick}
               style={{
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
                 borderRadius: "12px",
                 padding: "1rem 0.5rem",
                 cursor: "pointer",
-                color: "white",
+                color: "#1e293b",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -773,11 +775,11 @@ export function WalletDetail({
                 transition: "all 0.2s",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+                e.currentTarget.style.background = "#f1f5f9";
                 e.currentTarget.style.transform = "translateY(-2px)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                e.currentTarget.style.background = "#ffffff";
                 e.currentTarget.style.transform = "translateY(0)";
               }}
             >
@@ -786,7 +788,7 @@ export function WalletDetail({
                   width: "36px",
                   height: "36px",
                   borderRadius: "50%",
-                  background: "rgba(255, 255, 255, 0.1)",
+                  background: "#f1f5f9",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -795,7 +797,7 @@ export function WalletDetail({
               >
                 {action.icon}
               </div>
-              <span style={{ fontSize: "0.75rem", color: "#b8bcc8" }}>
+              <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
                 {action.label}
               </span>
             </button>
@@ -809,8 +811,9 @@ export function WalletDetail({
           display: "flex",
           gap: "2rem",
           padding: "0 1.5rem",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+          borderBottom: "1px solid #e2e8f0",
           marginBottom: "1rem",
+          background: "#ffffff",
         }}
       >
         {[
@@ -825,14 +828,14 @@ export function WalletDetail({
             style={{
               background: "transparent",
               border: "none",
-              color: activeTab === tab.id ? "white" : "#8b92a7",
+              color: activeTab === tab.id ? "#1e293b" : "#64748b",
               fontSize: "0.9375rem",
               fontWeight: activeTab === tab.id ? "600" : "400",
               padding: "1rem 0",
               cursor: "pointer",
               borderBottom:
                 activeTab === tab.id
-                  ? "2px solid white"
+                  ? "2px solid #3b82f6"
                   : "2px solid transparent",
               transition: "all 0.2s",
             }}
@@ -848,7 +851,7 @@ export function WalletDetail({
           {isLoading ? (
             <div style={{ textAlign: "center", padding: "3rem" }}>
               <LoadingSpinner />
-              <p style={{ marginTop: "1rem", color: "#8b92a7" }}>
+              <p style={{ marginTop: "1rem", color: "#64748b" }}>
                 Loading assets...
               </p>
             </div>
@@ -857,7 +860,7 @@ export function WalletDetail({
               style={{
                 textAlign: "center",
                 padding: "3rem",
-                color: "#8b92a7",
+                color: "#64748b",
               }}
             >
               <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📭</div>
@@ -876,8 +879,8 @@ export function WalletDetail({
                   key={`${token.network}-${token.tokenSymbol}-${idx}`}
                   title={`View ${token.tokenSymbol} details`}
                   style={{
-                    background: "rgba(255, 255, 255, 0.03)",
-                    border: "1px solid rgba(255, 255, 255, 0.05)",
+                    background: "#ffffff",
+                    border: "1px solid #e2e8f0",
                     borderRadius: "12px",
                     padding: "1rem",
                     cursor: "pointer",
@@ -885,19 +888,17 @@ export function WalletDetail({
                     alignItems: "center",
                     gap: "1rem",
                     transition: "all 0.2s",
-                    color: "white",
+                    color: "#1e293b",
                     textAlign: "left",
                     opacity: token.usdValue === 0 ? 0.6 : 1,
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background =
-                      "rgba(255, 255, 255, 0.05)";
+                    e.currentTarget.style.background = "#f8fafc";
                     e.currentTarget.style.transform = "translateX(4px)";
                     e.currentTarget.style.opacity = "1";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background =
-                      "rgba(255, 255, 255, 0.03)";
+                    e.currentTarget.style.background = "#ffffff";
                     e.currentTarget.style.transform = "translateX(0)";
                     e.currentTarget.style.opacity =
                       token.usdValue === 0 ? "0.6" : "1";
@@ -909,13 +910,13 @@ export function WalletDetail({
                       width: "40px",
                       height: "40px",
                       borderRadius: "50%",
-                      background: "#1a1f2e",
+                      background: "#f1f5f9",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       flexShrink: 0,
                       overflow: "hidden",
-                      border: "1px solid rgba(255, 255, 255, 0.05)",
+                      border: "1px solid #e2e8f0",
                     }}
                   >
                     <img
@@ -956,6 +957,7 @@ export function WalletDetail({
                         style={{
                           fontSize: "1rem",
                           fontWeight: "600",
+                          color: "#1e293b",
                         }}
                       >
                         {token.tokenSymbol}
@@ -965,8 +967,8 @@ export function WalletDetail({
                           fontSize: "0.6875rem",
                           padding: "0.125rem 0.375rem",
                           borderRadius: "0.25rem",
-                          background: "rgba(59, 130, 246, 0.1)",
-                          color: "#60a5fa",
+                          background: "#dbeafe",
+                          color: "#2563eb",
                           fontWeight: "500",
                         }}
                       >
@@ -976,7 +978,7 @@ export function WalletDetail({
                     <div
                       style={{
                         fontSize: "0.75rem",
-                        color: "#8b92a7",
+                        color: "#64748b",
                         marginBottom: "0.125rem",
                       }}
                     >
@@ -985,7 +987,7 @@ export function WalletDetail({
                     <div
                       style={{
                         fontSize: "0.6875rem",
-                        color: "#6b7280",
+                        color: "#94a3b8",
                         fontFamily: "monospace",
                         display: "flex",
                         alignItems: "center",
@@ -1028,6 +1030,7 @@ export function WalletDetail({
                         fontSize: "1rem",
                         fontWeight: "600",
                         marginBottom: "0.25rem",
+                        color: "#1e293b",
                       }}
                     >
                       {formatUSD(token.usdValue)}
@@ -1035,7 +1038,7 @@ export function WalletDetail({
                     <div
                       style={{
                         fontSize: "0.8125rem",
-                        color: token.usdValue > 0 ? "#34c759" : "#8b92a7",
+                        color: token.usdValue > 0 ? "#22c55e" : "#64748b",
                       }}
                     >
                       {formatBalance(token.balance)} {token.tokenSymbol}
@@ -1054,7 +1057,7 @@ export function WalletDetail({
           style={{
             textAlign: "center",
             padding: "3rem 1.5rem",
-            color: "#8b92a7",
+            color: "#64748b",
           }}
         >
           <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🏦</div>
@@ -1062,7 +1065,7 @@ export function WalletDetail({
             style={{
               marginBottom: "0.5rem",
               fontWeight: "600",
-              color: "white",
+              color: "#1e293b",
             }}
           >
             DeFi Coming Soon
@@ -1079,7 +1082,7 @@ export function WalletDetail({
           style={{
             textAlign: "center",
             padding: "3rem 1.5rem",
-            color: "#8b92a7",
+            color: "#64748b",
           }}
         >
           <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🖼️</div>
@@ -1087,7 +1090,7 @@ export function WalletDetail({
             style={{
               marginBottom: "0.5rem",
               fontWeight: "600",
-              color: "white",
+              color: "#1e293b",
             }}
           >
             NFT Gallery Coming Soon
@@ -1104,7 +1107,7 @@ export function WalletDetail({
           style={{
             textAlign: "center",
             padding: "3rem 1.5rem",
-            color: "#8b92a7",
+            color: "#64748b",
           }}
         >
           <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>✅</div>
@@ -1112,7 +1115,7 @@ export function WalletDetail({
             style={{
               marginBottom: "0.5rem",
               fontWeight: "600",
-              color: "white",
+              color: "#1e293b",
             }}
           >
             Token Approvals Coming Soon
