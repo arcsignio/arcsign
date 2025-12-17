@@ -203,3 +203,249 @@ func getNetworkLabel(network string) string {
 	}
 	return network
 }
+
+// AssetTransfer represents a single transfer from Alchemy getAssetTransfers API
+type AssetTransfer struct {
+	BlockNum        string                 `json:"blockNum"`
+	UniqueID        string                 `json:"uniqueId"`
+	Hash            string                 `json:"hash"`
+	From            string                 `json:"from"`
+	To              string                 `json:"to"`
+	Value           float64                `json:"value"`
+	Asset           string                 `json:"asset"`
+	Category        string                 `json:"category"` // "external", "internal", "erc20", "erc721", "erc1155"
+	ERC721TokenID   *string                `json:"erc721TokenId,omitempty"`
+	ERC1155Metadata []ERC1155MetadataItem  `json:"erc1155Metadata,omitempty"`
+	TokenID         *string                `json:"tokenId,omitempty"`
+	RawContract     RawContractInfo        `json:"rawContract"`
+	Metadata        *TransferMetadataBlock `json:"metadata,omitempty"`
+}
+
+// ERC1155MetadataItem represents metadata for ERC1155 transfers
+type ERC1155MetadataItem struct {
+	TokenID string `json:"tokenId"`
+	Value   string `json:"value"`
+}
+
+// RawContractInfo contains raw contract information
+type RawContractInfo struct {
+	Value   string  `json:"value"`
+	Address *string `json:"address,omitempty"`
+	Decimal string  `json:"decimal"`
+}
+
+// TransferMetadataBlock contains block metadata for transfers
+type TransferMetadataBlock struct {
+	BlockTimestamp string `json:"blockTimestamp"`
+}
+
+// AssetTransfersResponse represents the response from alchemy_getAssetTransfers
+type AssetTransfersResponse struct {
+	Transfers []AssetTransfer `json:"transfers"`
+	PageKey   string          `json:"pageKey"`
+}
+
+// alchemyRPCRequest represents a JSON-RPC request
+type alchemyRPCRequest struct {
+	JSONRPC string        `json:"jsonrpc"`
+	ID      int           `json:"id"`
+	Method  string        `json:"method"`
+	Params  []interface{} `json:"params"`
+}
+
+// alchemyRPCResponse represents a JSON-RPC response
+type alchemyRPCResponse struct {
+	JSONRPC string                  `json:"jsonrpc"`
+	ID      int                     `json:"id"`
+	Result  *AssetTransfersResponse `json:"result,omitempty"`
+	Error   *alchemyRPCError        `json:"error,omitempty"`
+}
+
+// alchemyRPCError represents a JSON-RPC error
+type alchemyRPCError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+// networkToRPCEndpoint maps network identifiers to Alchemy RPC endpoints
+var networkToRPCEndpoint = map[string]string{
+	"eth-mainnet":      "https://eth-mainnet.g.alchemy.com/v2",
+	"polygon-mainnet":  "https://polygon-mainnet.g.alchemy.com/v2",
+	"arbitrum-mainnet": "https://arb-mainnet.g.alchemy.com/v2",
+	"optimism-mainnet": "https://opt-mainnet.g.alchemy.com/v2",
+	"base-mainnet":     "https://base-mainnet.g.alchemy.com/v2",
+	"bnb-mainnet":      "https://bnb-mainnet.g.alchemy.com/v2",
+	// Testnets
+	"eth-sepolia":      "https://eth-sepolia.g.alchemy.com/v2",
+	"polygon-amoy":     "https://polygon-amoy.g.alchemy.com/v2",
+	"arbitrum-sepolia": "https://arb-sepolia.g.alchemy.com/v2",
+	"optimism-sepolia": "https://opt-sepolia.g.alchemy.com/v2",
+	"base-sepolia":     "https://base-sepolia.g.alchemy.com/v2",
+}
+
+// GetAssetTransfers queries transaction history for an address using Alchemy API
+// Supports Ethereum, Polygon, Arbitrum, Optimism, Base
+func (c *AlchemyClient) GetAssetTransfers(address, network string, maxCount int, pageKey string) ([]AssetTransfer, string, error) {
+	// Get RPC endpoint for network
+	baseURL, ok := networkToRPCEndpoint[network]
+	if !ok {
+		return nil, "", fmt.Errorf("unsupported network: %s", network)
+	}
+
+	url := fmt.Sprintf("%s/%s", baseURL, c.apiKey)
+
+	// Build params for alchemy_getAssetTransfers
+	// We query both incoming (toAddress) and outgoing (fromAddress) transfers
+	params := map[string]interface{}{
+		"fromBlock":        "0x0",
+		"toBlock":          "latest",
+		"withMetadata":     true,
+		"excludeZeroValue": true,
+		"maxCount":         fmt.Sprintf("0x%x", maxCount),
+		"order":            "desc",
+		"category":         []string{"external", "internal", "erc20", "erc721", "erc1155"},
+	}
+
+	if pageKey != "" {
+		params["pageKey"] = pageKey
+	}
+
+	// Query incoming transfers (to address)
+	incomingParams := copyMap(params)
+	incomingParams["toAddress"] = address
+
+	incomingTransfers, incomingPageKey, err := c.executeAssetTransfersRequest(url, incomingParams)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get incoming transfers: %w", err)
+	}
+
+	// Query outgoing transfers (from address)
+	outgoingParams := copyMap(params)
+	outgoingParams["fromAddress"] = address
+
+	outgoingTransfers, _, err := c.executeAssetTransfersRequest(url, outgoingParams)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get outgoing transfers: %w", err)
+	}
+
+	// Merge and deduplicate transfers
+	allTransfers := append(incomingTransfers, outgoingTransfers...)
+	uniqueTransfers := deduplicateTransfers(allTransfers)
+
+	// Sort by block number (descending - newest first)
+	sortTransfersByBlock(uniqueTransfers)
+
+	// Limit to maxCount
+	if len(uniqueTransfers) > maxCount {
+		uniqueTransfers = uniqueTransfers[:maxCount]
+	}
+
+	return uniqueTransfers, incomingPageKey, nil
+}
+
+// executeAssetTransfersRequest executes a single alchemy_getAssetTransfers request
+func (c *AlchemyClient) executeAssetTransfersRequest(url string, params map[string]interface{}) ([]AssetTransfer, string, error) {
+	// Build JSON-RPC request
+	rpcRequest := alchemyRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "alchemy_getAssetTransfers",
+		Params:  []interface{}{params},
+	}
+
+	jsonData, err := json.Marshal(rpcRequest)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Create HTTP request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	// Execute request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse JSON-RPC response
+	var rpcResponse alchemyRPCResponse
+	if err := json.Unmarshal(body, &rpcResponse); err != nil {
+		return nil, "", fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Check for JSON-RPC error
+	if rpcResponse.Error != nil {
+		return nil, "", fmt.Errorf("API error: %s (code: %d)", rpcResponse.Error.Message, rpcResponse.Error.Code)
+	}
+
+	if rpcResponse.Result == nil {
+		return []AssetTransfer{}, "", nil
+	}
+
+	return rpcResponse.Result.Transfers, rpcResponse.Result.PageKey, nil
+}
+
+// copyMap creates a shallow copy of a map
+func copyMap(m map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	for k, v := range m {
+		result[k] = v
+	}
+	return result
+}
+
+// deduplicateTransfers removes duplicate transfers based on uniqueId
+func deduplicateTransfers(transfers []AssetTransfer) []AssetTransfer {
+	seen := make(map[string]bool)
+	result := make([]AssetTransfer, 0)
+
+	for _, t := range transfers {
+		if !seen[t.UniqueID] {
+			seen[t.UniqueID] = true
+			result = append(result, t)
+		}
+	}
+
+	return result
+}
+
+// sortTransfersByBlock sorts transfers by block number (descending)
+func sortTransfersByBlock(transfers []AssetTransfer) {
+	// Simple bubble sort (good enough for small lists)
+	for i := 0; i < len(transfers); i++ {
+		for j := i + 1; j < len(transfers); j++ {
+			blockI := parseHexToInt(transfers[i].BlockNum)
+			blockJ := parseHexToInt(transfers[j].BlockNum)
+			if blockJ > blockI {
+				transfers[i], transfers[j] = transfers[j], transfers[i]
+			}
+		}
+	}
+}
+
+// parseHexToInt parses a hex string to int64
+func parseHexToInt(hex string) int64 {
+	if len(hex) > 2 && (hex[:2] == "0x" || hex[:2] == "0X") {
+		hex = hex[2:]
+	}
+	val, _ := strconv.ParseInt(hex, 16, 64)
+	return val
+}

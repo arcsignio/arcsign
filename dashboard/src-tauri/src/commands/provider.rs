@@ -199,3 +199,61 @@ pub async fn delete_provider_config(
 
     Ok(result)
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetAssetTransfersInput {
+    pub address: String,
+    #[serde(default = "default_network")]
+    pub network: String,
+    #[serde(default = "default_max_count")]
+    pub max_count: i32,
+    #[serde(default)]
+    pub page_key: String,
+    pub password: String,
+    pub usb_path: String,
+}
+
+fn default_network() -> String {
+    "eth-mainnet".to_string()
+}
+
+fn default_max_count() -> i32 {
+    50
+}
+
+/// Get asset transfers (transaction history) for an address (Tauri command)
+#[tauri::command]
+pub async fn get_asset_transfers(
+    input: GetAssetTransfersInput,
+    queue: State<'_, LazyWalletQueue>,
+) -> Result<serde_json::Value, Error> {
+    tracing::info!(
+        "get_asset_transfers: address={}, network={}",
+        input.address,
+        input.network
+    );
+
+    // Serialize input to JSON for FFI
+    let params_json = serde_json::to_string(&serde_json::json!({
+        "address": input.address,
+        "network": input.network,
+        "maxCount": input.max_count,
+        "pageKey": input.page_key,
+        "appPassword": input.password,
+        "usbPath": input.usb_path,
+    }))
+    .map_err(|e| Error::new(
+        crate::error::ErrorCode::SerializationError,
+        format!("Failed to serialize asset transfers request: {}", e)
+    ))?;
+
+    // Call FFI through queue
+    let result = queue.get_asset_transfers(params_json).await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::InternalError,
+            format!("Failed to get asset transfers: {}", e)
+        ))?;
+
+    Ok(result)
+}

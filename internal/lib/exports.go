@@ -2164,6 +2164,118 @@ func GetTokenBalances(params *C.char) *C.char {
 	return C.CString(string(jsonBytes))
 }
 
+//export GetAssetTransfers
+// GetAssetTransfers queries transaction history for an address using Alchemy API.
+// Feature: Transaction History - Asset Transfers API Integration
+//
+// Input JSON: {
+//   "address": "0x...",           // The wallet address to query
+//   "network": "eth-mainnet",     // Network identifier (eth-mainnet, polygon-mainnet, etc.)
+//   "maxCount": 50,               // Optional: maximum number of transfers to return
+//   "pageKey": "",                // Optional: pagination key for next page
+//   "appPassword": "app-password",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Returns: {"success": true, "data": {"transfers": [...], "pageKey": "..."}}
+func GetAssetTransfers(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		Address     string `json:"address"`
+		Network     string `json:"network"`     // e.g., "eth-mainnet", "polygon-mainnet"
+		MaxCount    int    `json:"maxCount"`    // Optional: max transfers to return
+		PageKey     string `json:"pageKey"`     // Optional: pagination
+		AppPassword string `json:"appPassword"`
+		USBPath     string `json:"usbPath"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Security: Clear sensitive data after use
+	defer zeroString(&input.AppPassword)
+
+	// Validate required inputs
+	if input.Address == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Address is required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if input.Network == "" {
+		input.Network = "eth-mainnet" // Default to Ethereum mainnet
+	}
+
+	// Load Alchemy API key from provider registry
+	providerConfigPath := filepath.Join(input.USBPath, "provider_config.enc")
+	providerStore, err := provider.NewProviderConfigStore(providerConfigPath, input.AppPassword)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to initialize provider store: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	providerConfig, err := providerStore.Get("global", "alchemy")
+	if err != nil || providerConfig == nil || providerConfig.APIKey == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Alchemy API key not configured")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if !providerConfig.Enabled {
+		response := NewErrorResponse(ErrInvalidInput, "Alchemy provider is disabled")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Query Alchemy Asset Transfers API
+	alchemyClient := provider.NewAlchemyClient(providerConfig.APIKey)
+
+	// Default max count
+	maxCount := input.MaxCount
+	if maxCount <= 0 {
+		maxCount = 50
+	}
+
+	transfers, pageKey, err := alchemyClient.GetAssetTransfers(input.Address, input.Network, maxCount, input.PageKey)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Alchemy API error: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	output := map[string]interface{}{
+		"transfers": transfers,
+		"pageKey":   pageKey,
+		"address":   input.Address,
+		"network":   input.Network,
+		"count":     len(transfers),
+	}
+
+	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
 // main is required for buildmode=c-shared but should remain empty.
 // All functionality is exposed through //export functions.
 func main() {

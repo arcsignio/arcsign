@@ -16,8 +16,19 @@ import {
   getNetworkKey,
 } from "@/constants/nativeTokens";
 import { usePriorityTokens } from "@/hooks/useTokenList";
+import { TransactionHistory } from "@/components/TransactionHistory";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
+
+// Map network labels to Alchemy network IDs
+const NETWORK_TO_ALCHEMY: Record<string, string> = {
+  Ethereum: "eth-mainnet",
+  Polygon: "polygon-mainnet",
+  Arbitrum: "arbitrum-mainnet",
+  Optimism: "optimism-mainnet",
+  Base: "base-mainnet",
+  "BNB Chain": "bnb-mainnet",
+};
 
 interface WalletDetailProps {
   wallet: Wallet;
@@ -41,6 +52,34 @@ export function WalletDetail({
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("crypto");
   const [showPercentage, setShowPercentage] = useState(true);
+
+  // Transaction History state
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyAddress, setHistoryAddress] = useState("");
+  const [historyNetwork, setHistoryNetwork] = useState("eth-mainnet");
+
+  // Handle opening transaction history
+  const handleOpenHistory = (address?: string, networkLabel?: string) => {
+    // Use first available token's address if not specified
+    if (address) {
+      setHistoryAddress(address);
+    } else if (displayTokens.length > 0) {
+      setHistoryAddress(displayTokens[0].address);
+    } else {
+      // No tokens available
+      return;
+    }
+
+    // Convert network label to Alchemy network ID
+    if (networkLabel) {
+      setHistoryNetwork(NETWORK_TO_ALCHEMY[networkLabel] || "eth-mainnet");
+    } else if (displayTokens.length > 0) {
+      const firstTokenNetwork = displayTokens[0].networkLabel;
+      setHistoryNetwork(NETWORK_TO_ALCHEMY[firstTokenNetwork] || "eth-mainnet");
+    }
+
+    setShowHistory(true);
+  };
 
   // Load priority tokens from CoinGecko token lists
   const { tokens: priorityTokens, isLoading: isLoadingPriority } =
@@ -426,6 +465,19 @@ export function WalletDetail({
     );
   }
 
+  // Show Transaction History view
+  if (showHistory && historyAddress && appPassword) {
+    return (
+      <TransactionHistory
+        address={historyAddress}
+        network={historyNetwork}
+        password={appPassword}
+        usbPath={usbPath}
+        onBack={() => setShowHistory(false)}
+      />
+    );
+  }
+
   return (
     <div
       style={{
@@ -656,23 +708,27 @@ export function WalletDetail({
               icon: "↑",
               label: "Send",
               tooltip: "Send tokens to another address",
+              onClick: () => {},
             },
             {
               icon: "↓",
               label: "Receive",
               tooltip: "Receive tokens to your wallet",
+              onClick: () => {},
             },
-            { icon: "🔄", label: "Swap", tooltip: "Exchange tokens instantly" },
+            { icon: "🔄", label: "Swap", tooltip: "Exchange tokens instantly", onClick: () => {} },
             {
               icon: "📜",
               label: "History",
               tooltip: "View transaction history",
+              onClick: () => handleOpenHistory(),
             },
-            { icon: "⋯", label: "More", tooltip: "More options and settings" },
+            { icon: "⋯", label: "More", tooltip: "More options and settings", onClick: () => {} },
           ].map((action) => (
             <button
               key={action.label}
               title={action.tooltip}
+              onClick={action.onClick}
               style={{
                 background: "rgba(255, 255, 255, 0.05)",
                 border: "1px solid rgba(255, 255, 255, 0.1)",

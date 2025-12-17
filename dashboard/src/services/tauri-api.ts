@@ -227,6 +227,68 @@ export async function clearSensitiveMemory(): Promise<void> {
 }
 
 /**
+ * Asset Transfers (Transaction History)
+ */
+
+export interface AssetTransfer {
+  blockNum: string;
+  uniqueId: string;
+  hash: string;
+  from: string;
+  to: string;
+  value: number;
+  asset: string;
+  category: "external" | "internal" | "erc20" | "erc721" | "erc1155";
+  erc721TokenId?: string | null;
+  erc1155Metadata?: Array<{ tokenId: string; value: string }>;
+  tokenId?: string | null;
+  rawContract: {
+    value: string;
+    address?: string | null;
+    decimal: string;
+  };
+  metadata?: {
+    blockTimestamp: string;
+  };
+}
+
+export interface AssetTransfersResponse {
+  transfers: AssetTransfer[];
+  pageKey: string;
+  address: string;
+  network: string;
+  count: number;
+}
+
+export interface GetAssetTransfersParams {
+  address: string;
+  network?: string; // Default: "eth-mainnet"
+  maxCount?: number; // Default: 50
+  pageKey?: string;
+  password: string;
+  usbPath: string;
+}
+
+export async function getAssetTransfers(
+  params: GetAssetTransfersParams
+): Promise<AssetTransfersResponse> {
+  try {
+    return await invoke<AssetTransfersResponse>("get_asset_transfers", {
+      input: {
+        address: params.address,
+        network: params.network || "eth-mainnet",
+        maxCount: params.maxCount || 50,
+        pageKey: params.pageKey || "",
+        password: params.password,
+        usbPath: params.usbPath,
+      },
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+/**
  * App-level Authentication
  */
 
@@ -321,6 +383,9 @@ export const tauriApi = {
   // Address
   loadAddresses,
   getTokenBalances,
+
+  // Transaction History
+  getAssetTransfers,
 
   // Security
   enableScreenshotProtection,

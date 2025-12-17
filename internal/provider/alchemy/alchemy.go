@@ -559,6 +559,217 @@ func (a *AlchemyProvider) GetRawTransaction(ctx context.Context, chainID, txHash
 	return nil, fmt.Errorf("Bitcoin operations not supported by Alchemy (EVM chains only)")
 }
 
+// --- Asset Transfers API ---
+
+// TransferCategory represents the type of transfer
+type TransferCategory string
+
+const (
+	TransferCategoryExternal TransferCategory = "external"
+	TransferCategoryInternal TransferCategory = "internal"
+	TransferCategoryERC20    TransferCategory = "erc20"
+	TransferCategoryERC721   TransferCategory = "erc721"
+	TransferCategoryERC1155  TransferCategory = "erc1155"
+)
+
+// AssetTransfer represents a single transfer from the Alchemy API
+type AssetTransfer struct {
+	BlockNum        string            `json:"blockNum"`
+	UniqueID        string            `json:"uniqueId"`
+	Hash            string            `json:"hash"`
+	From            string            `json:"from"`
+	To              string            `json:"to"`
+	Value           float64           `json:"value"`
+	Asset           string            `json:"asset"`
+	Category        string            `json:"category"`
+	ERC721TokenID   *string           `json:"erc721TokenId"`
+	ERC1155Metadata []ERC1155Metadata `json:"erc1155Metadata"`
+	TokenID         *string           `json:"tokenId"`
+	RawContract     RawContract       `json:"rawContract"`
+	Metadata        *TransferMetadata `json:"metadata,omitempty"`
+}
+
+// ERC1155Metadata represents metadata for ERC1155 transfers
+type ERC1155Metadata struct {
+	TokenID string `json:"tokenId"`
+	Value   string `json:"value"`
+}
+
+// RawContract contains raw contract information
+type RawContract struct {
+	Value   string  `json:"value"`
+	Address *string `json:"address"`
+	Decimal string  `json:"decimal"`
+}
+
+// TransferMetadata contains block metadata
+type TransferMetadata struct {
+	BlockTimestamp string `json:"blockTimestamp"`
+}
+
+// AssetTransfersResponse represents the response from getAssetTransfers
+type AssetTransfersResponse struct {
+	Transfers []AssetTransfer `json:"transfers"`
+	PageKey   string          `json:"pageKey"`
+}
+
+// GetAssetTransfersParams represents parameters for getAssetTransfers
+type GetAssetTransfersParams struct {
+	FromBlock        string             `json:"fromBlock,omitempty"`
+	ToBlock          string             `json:"toBlock,omitempty"`
+	FromAddress      string             `json:"fromAddress,omitempty"`
+	ToAddress        string             `json:"toAddress,omitempty"`
+	ContractAddresses []string          `json:"contractAddresses,omitempty"`
+	Category         []TransferCategory `json:"category"`
+	Order            string             `json:"order,omitempty"` // "asc" or "desc"
+	WithMetadata     bool               `json:"withMetadata"`
+	ExcludeZeroValue bool               `json:"excludeZeroValue"`
+	MaxCount         string             `json:"maxCount,omitempty"` // hex string
+	PageKey          string             `json:"pageKey,omitempty"`
+}
+
+// GetAssetTransfers retrieves historical transactions for an address
+// Supports Ethereum, Polygon, Arbitrum, Optimism, Base
+func (a *AlchemyProvider) GetAssetTransfers(ctx context.Context, params GetAssetTransfersParams) (*AssetTransfersResponse, error) {
+	// Build request parameters
+	reqParams := map[string]interface{}{
+		"withMetadata":     params.WithMetadata,
+		"excludeZeroValue": params.ExcludeZeroValue,
+	}
+
+	if params.FromBlock != "" {
+		reqParams["fromBlock"] = params.FromBlock
+	} else {
+		reqParams["fromBlock"] = "0x0"
+	}
+
+	if params.ToBlock != "" {
+		reqParams["toBlock"] = params.ToBlock
+	} else {
+		reqParams["toBlock"] = "latest"
+	}
+
+	if params.FromAddress != "" {
+		reqParams["fromAddress"] = params.FromAddress
+	}
+
+	if params.ToAddress != "" {
+		reqParams["toAddress"] = params.ToAddress
+	}
+
+	if len(params.ContractAddresses) > 0 {
+		reqParams["contractAddresses"] = params.ContractAddresses
+	}
+
+	if len(params.Category) > 0 {
+		categories := make([]string, len(params.Category))
+		for i, c := range params.Category {
+			categories[i] = string(c)
+		}
+		reqParams["category"] = categories
+	} else {
+		// Default categories: all transfer types
+		reqParams["category"] = []string{"external", "internal", "erc20", "erc721", "erc1155"}
+	}
+
+	if params.Order != "" {
+		reqParams["order"] = params.Order
+	} else {
+		reqParams["order"] = "desc" // Newest first by default
+	}
+
+	if params.MaxCount != "" {
+		reqParams["maxCount"] = params.MaxCount
+	}
+
+	if params.PageKey != "" {
+		reqParams["pageKey"] = params.PageKey
+	}
+
+	// Call Alchemy API
+	result, err := a.rpcCall(ctx, "alchemy_getAssetTransfers", []interface{}{reqParams})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get asset transfers: %w", err)
+	}
+
+	var response AssetTransfersResponse
+	if err := json.Unmarshal(result, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse asset transfers response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetTransactionHistory is a convenience method to get all transfers for an address
+func (a *AlchemyProvider) GetTransactionHistory(ctx context.Context, address string, maxCount int) (*AssetTransfersResponse, error) {
+	// Get incoming transfers (to address)
+	incomingParams := GetAssetTransfersParams{
+		ToAddress:        address,
+		WithMetadata:     true,
+		ExcludeZeroValue: true,
+		Order:            "desc",
+	}
+	if maxCount > 0 {
+		incomingParams.MaxCount = fmt.Sprintf("0x%x", maxCount)
+	}
+
+	incoming, err := a.GetAssetTransfers(ctx, incomingParams)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get incoming transfers: %w", err)
+	}
+
+	// Get outgoing transfers (from address)
+	outgoingParams := GetAssetTransfersParams{
+		FromAddress:      address,
+		WithMetadata:     true,
+		ExcludeZeroValue: true,
+		Order:            "desc",
+	}
+	if maxCount > 0 {
+		outgoingParams.MaxCount = fmt.Sprintf("0x%x", maxCount)
+	}
+
+	outgoing, err := a.GetAssetTransfers(ctx, outgoingParams)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get outgoing transfers: %w", err)
+	}
+
+	// Merge and sort by block number (descending)
+	allTransfers := append(incoming.Transfers, outgoing.Transfers...)
+
+	// Remove duplicates based on uniqueId
+	seen := make(map[string]bool)
+	uniqueTransfers := make([]AssetTransfer, 0)
+	for _, t := range allTransfers {
+		if !seen[t.UniqueID] {
+			seen[t.UniqueID] = true
+			uniqueTransfers = append(uniqueTransfers, t)
+		}
+	}
+
+	// Sort by block number descending
+	for i := 0; i < len(uniqueTransfers); i++ {
+		for j := i + 1; j < len(uniqueTransfers); j++ {
+			blockI := new(big.Int)
+			blockJ := new(big.Int)
+			if len(uniqueTransfers[i].BlockNum) > 2 {
+				blockI.SetString(uniqueTransfers[i].BlockNum[2:], 16)
+			}
+			if len(uniqueTransfers[j].BlockNum) > 2 {
+				blockJ.SetString(uniqueTransfers[j].BlockNum[2:], 16)
+			}
+			if blockJ.Cmp(blockI) > 0 {
+				uniqueTransfers[i], uniqueTransfers[j] = uniqueTransfers[j], uniqueTransfers[i]
+			}
+		}
+	}
+
+	return &AssetTransfersResponse{
+		Transfers: uniqueTransfers,
+		PageKey:   "", // Combined results don't support pagination
+	}, nil
+}
+
 // --- Health & Diagnostics ---
 
 // HealthCheck verifies Alchemy connectivity
