@@ -16,6 +16,7 @@ import { WalletCreate } from "@/components/WalletCreate";
 import { WalletImport } from "@/components/WalletImport";
 import { AddressList } from "@/components/AddressList";
 import { ProviderSettings } from "@/components/ProviderSettings";
+import { Settings } from "@/pages/Settings";
 import { WalletDetail } from "@/components/WalletDetail";
 import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -24,7 +25,7 @@ import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import type { Address } from "@/types/address";
 import type { Wallet } from "@/types/wallet";
 
-type View = "list" | "create" | "import" | "addresses" | "settings" | "detail";
+type View = "list" | "create" | "import" | "addresses" | "settings" | "api-settings" | "detail";
 
 export function Dashboard() {
   const [currentView, setCurrentView] = useState<View>("list");
@@ -293,12 +294,31 @@ export function Dashboard() {
     );
   }
 
-  // Show provider settings view
+  // Handle settings navigation
+  const handleSettingsNavigate = (view: string) => {
+    if (view === "api-settings") {
+      setCurrentView("api-settings");
+    }
+  };
+
+  // Show settings menu
   if (currentView === "settings") {
     return (
       <div className="dashboard">
-        <button onClick={handleBackToList} className="back-button">
-          ← Back to Wallets
+        <Settings
+          onBack={handleBackToList}
+          onNavigate={handleSettingsNavigate}
+        />
+      </div>
+    );
+  }
+
+  // Show API provider settings view
+  if (currentView === "api-settings") {
+    return (
+      <div className="dashboard">
+        <button onClick={() => setCurrentView("settings")} className="back-button">
+          ← Back to Settings
         </button>
         {usbPath ? (
           <ProviderSettings usbPath={usbPath} />
@@ -309,8 +329,8 @@ export function Dashboard() {
               No USB drive detected. Please insert a USB drive to configure
               providers.
             </p>
-            <button onClick={handleBackToList} className="primary-button">
-              Go to Wallets
+            <button onClick={() => setCurrentView("settings")} className="primary-button">
+              Back to Settings
             </button>
           </div>
         )}
@@ -327,9 +347,9 @@ export function Dashboard() {
           <button
             onClick={() => setCurrentView("settings")}
             className="secondary-button"
-            title="Configure blockchain API providers"
+            title="Application settings"
           >
-            ⚙️ API Settings
+            ⚙️ Settings
           </button>
           <button
             onClick={handleReload}
