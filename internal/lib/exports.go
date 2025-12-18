@@ -2099,6 +2099,8 @@ func GetTokenBalances(params *C.char) *C.char {
 	// Step 3: Build Alchemy API request
 	addressNetworkMap := make(map[string][]string) // address -> networks
 
+	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: includeTestnets = %v", input.IncludeTestnets))
+
 	for _, addr := range walletObj.AddressBook.Addresses {
 		// Convert chain name to Alchemy network identifier
 		network, ok := provider.GetAlchemyNetwork(addr.CoinName)
@@ -2112,8 +2114,14 @@ func GetTokenBalances(params *C.char) *C.char {
 
 		// If includeTestnets is true and this is an Ethereum address, also query Sepolia
 		if input.IncludeTestnets && addr.CoinName == "Ethereum" {
+			debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Adding Sepolia for address %s", addr.Address))
 			addressNetworkMap[addr.Address] = append(addressNetworkMap[addr.Address], provider.NetworkEthSepolia)
 		}
+	}
+
+	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Total addresses with networks: %d", len(addressNetworkMap)))
+	for addr, networks := range addressNetworkMap {
+		debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Address %s -> Networks: %v", addr[:10]+"...", networks))
 	}
 
 	if len(addressNetworkMap) == 0 {

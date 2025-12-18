@@ -95,6 +95,17 @@ export const NATIVE_TOKENS: Record<string, NativeTokenMetadata> = {
     chainName: "Bitcoin",
     network: "btc-mainnet",
   },
+
+  // Testnets (for development)
+  "eth-sepolia": {
+    symbol: "ETH",
+    name: "Sepolia ETH",
+    decimals: 18,
+    logoURI: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
+    chainId: 11155111,
+    chainName: "Sepolia Testnet",
+    network: "eth-sepolia",
+  },
 };
 
 /**
@@ -129,6 +140,10 @@ export const NETWORK_LABEL_TO_KEY: Record<string, string> = {
   Optimism: "optimism-mainnet",
   Base: "base-mainnet",
   Bitcoin: "btc-mainnet",
+  // Testnets (for development)
+  "eth-sepolia": "eth-sepolia",
+  "Sepolia": "eth-sepolia",
+  "Sepolia Testnet": "eth-sepolia",
 };
 
 /**
@@ -160,6 +175,10 @@ export function getNetworkKey(networkLabel: string): string | null {
   }
   if (lowerLabel.includes("bnb") || lowerLabel.includes("bsc")) {
     return "bsc-mainnet";
+  }
+  // Check for Sepolia testnet before generic eth match
+  if (lowerLabel.includes("sepolia")) {
+    return "eth-sepolia";
   }
   if (lowerLabel.includes("eth") && !lowerLabel.includes("weth")) {
     return "eth-mainnet";
