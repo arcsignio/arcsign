@@ -38,6 +38,9 @@ pub struct BuildTransactionInput {
     /// Fee speed: "slow", "normal", "fast"
     #[serde(default = "default_fee_speed")]
     pub fee_speed: String,
+    /// ERC-20 token contract address (optional, empty for native token)
+    #[serde(default)]
+    pub token_address: Option<String>,
     /// USB path for provider config
     pub usb_path: String,
     /// App password for provider config decryption
@@ -141,7 +144,7 @@ pub async fn build_transaction(
     );
 
     // Build JSON params for FFI call
-    let params = json!({
+    let mut params = json!({
         "chainId": input.chain_id,
         "from": input.from,
         "to": input.to,
@@ -150,6 +153,14 @@ pub async fn build_transaction(
         "usbPath": input.usb_path,
         "appPassword": input.app_password,
     });
+
+    // Add tokenAddress for ERC-20 transfers
+    if let Some(ref token_addr) = input.token_address {
+        if !token_addr.is_empty() {
+            params["tokenAddress"] = json!(token_addr);
+            tracing::info!("ERC-20 transfer: token_address={}", token_addr);
+        }
+    }
 
     let params_json = serde_json::to_string(&params)
         .map_err(|e| format!("Failed to serialize params: {}", e))?;

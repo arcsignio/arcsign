@@ -764,14 +764,15 @@ func BuildTransaction(params *C.char) *C.char {
 
 	paramsJSON := C.GoString(params)
 	var input struct {
-		ChainID   string `json:"chainId"`
-		From      string `json:"from"`
-		To        string `json:"to"`
-		Asset     string `json:"asset"`
-		Amount    string `json:"amount"`    // string representation of big.Int
-		FeeSpeed  string `json:"feeSpeed"`  // "slow", "normal", "fast"
-		Memo      string `json:"memo"`      // optional
-		RPCConfig string `json:"rpcConfig"` // optional RPC endpoint
+		ChainID      string `json:"chainId"`
+		From         string `json:"from"`
+		To           string `json:"to"`
+		Asset        string `json:"asset"`
+		Amount       string `json:"amount"`       // string representation of big.Int
+		FeeSpeed     string `json:"feeSpeed"`     // "slow", "normal", "fast"
+		Memo         string `json:"memo"`         // optional
+		TokenAddress string `json:"tokenAddress"` // optional: ERC-20 token contract address
+		RPCConfig    string `json:"rpcConfig"`    // optional RPC endpoint
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -812,6 +813,13 @@ func BuildTransaction(params *C.char) *C.char {
 		Amount:   amount,
 		FeeSpeed: feeSpeed,
 		Memo:     input.Memo,
+	}
+
+	// Add ERC-20 token address to ChainSpecific if provided
+	if input.TokenAddress != "" {
+		req.ChainSpecific = map[string]interface{}{
+			"token_address": input.TokenAddress,
+		}
 	}
 
 	// Build unsigned transaction

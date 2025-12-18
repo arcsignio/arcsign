@@ -9,10 +9,39 @@ import (
 	"time"
 
 	"github.com/arcsign/chainadapter"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
+
+// ERC20 transfer function signature: transfer(address,uint256)
+const erc20TransferSig = "transfer(address,uint256)"
+
+// encodeERC20Transfer encodes an ERC-20 transfer call data
+func encodeERC20Transfer(to common.Address, amount *big.Int) ([]byte, error) {
+	// Method ID for transfer(address,uint256) = 0xa9059cbb
+	transferFnSignature := []byte("transfer(address,uint256)")
+	methodID := crypto.Keccak256(transferFnSignature)[:4]
+
+	// Encode the parameters using ABI encoding
+	addressType, _ := abi.NewType("address", "", nil)
+	uint256Type, _ := abi.NewType("uint256", "", nil)
+
+	arguments := abi.Arguments{
+		{Type: addressType},
+		{Type: uint256Type},
+	}
+
+	packedArgs, err := arguments.Pack(to, amount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack ERC-20 transfer arguments: %w", err)
+	}
+
+	// Combine method ID with packed arguments
+	data := append(methodID, packedArgs...)
+	return data, nil
+}
 
 // TransactionBuilder builds Ethereum transactions from TransactionRequest.
 type TransactionBuilder struct {
@@ -27,6 +56,7 @@ func NewTransactionBuilder(chainID int64) *TransactionBuilder {
 }
 
 // Build constructs an unsigned Ethereum transaction (EIP-1559).
+// Supports both native ETH transfers and ERC-20 token transfers.
 func (tb *TransactionBuilder) Build(
 	ctx context.Context,
 	req *chainadapter.TransactionRequest,
@@ -40,13 +70,48 @@ func (tb *TransactionBuilder) Build(
 		return nil, err
 	}
 
-	// Parse addresses
-	toAddr := common.HexToAddress(req.To)
+	// Determine if this is an ERC-20 transfer
+	// ERC-20 token address is passed via ChainSpecific["token_address"]
+	var tokenAddress string
+	if req.ChainSpecific != nil {
+		if ta, ok := req.ChainSpecific["token_address"].(string); ok && ta != "" {
+			tokenAddress = ta
+		}
+	}
 
-	// Parse data field (memo)
+	var toAddr common.Address
 	var data []byte
-	if req.Memo != "" {
-		data = []byte(req.Memo)
+	var value *big.Int
+
+	if tokenAddress != "" && tb.isValidAddress(tokenAddress) {
+		// ERC-20 transfer: to = token contract, data = transfer(recipient, amount), value = 0
+		toAddr = common.HexToAddress(tokenAddress)
+		recipientAddr := common.HexToAddress(req.To)
+
+		var err error
+		data, err = encodeERC20Transfer(recipientAddr, req.Amount)
+		if err != nil {
+			return nil, chainadapter.NewNonRetryableError(
+				"ERR_ERC20_ENCODE",
+				fmt.Sprintf("failed to encode ERC-20 transfer: %v", err),
+				err,
+			)
+		}
+		value = big.NewInt(0) // ERC-20 transfers don't send ETH
+
+		// ERC-20 transfers need more gas (typically ~65000)
+		if gasLimit < 65000 {
+			gasLimit = 65000
+		}
+	} else {
+		// Native ETH transfer
+		toAddr = common.HexToAddress(req.To)
+		value = req.Amount
+
+		// Parse data field (memo) for native transfers
+		if req.Memo != "" {
+			data = []byte(req.Memo)
+		}
 	}
 
 	// Override gas limit from chain-specific if provided
@@ -64,7 +129,7 @@ func (tb *TransactionBuilder) Build(
 		GasTipCap: maxPriorityFeePerGas,
 		Gas:       gasLimit,
 		To:        &toAddr,
-		Value:     req.Amount,
+		Value:     value,
 		Data:      data,
 	})
 
@@ -152,11 +217,19 @@ func (tb *TransactionBuilder) validateRequest(req *chainadapter.TransactionReque
 		)
 	}
 
-	// Validate Asset
-	if req.Asset != "ETH" && req.Asset != "ethereum" {
+	// Validate Asset (allow ERC-20 tokens when token_address is provided)
+	isERC20 := false
+	if req.ChainSpecific != nil {
+		if ta, ok := req.ChainSpecific["token_address"].(string); ok && ta != "" {
+			isERC20 = true
+		}
+	}
+
+	// For ERC-20, asset can be the token symbol; for native, must be ETH
+	if !isERC20 && req.Asset != "ETH" && req.Asset != "ethereum" && req.Asset != "" {
 		return chainadapter.NewNonRetryableError(
 			chainadapter.ErrCodeUnsupportedAsset,
-			fmt.Sprintf("unsupported asset: %s (use 'ETH' for Ethereum)", req.Asset),
+			fmt.Sprintf("unsupported asset: %s (use 'ETH' for native Ethereum transfers)", req.Asset),
 			nil,
 		)
 	}
