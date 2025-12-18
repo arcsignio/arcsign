@@ -211,6 +211,34 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    // ========================================================================
+    // ChainAdapter Transaction Operations
+    // ========================================================================
+    /// Build an unsigned transaction for the specified chain
+    BuildTransaction {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Sign an unsigned transaction with wallet password
+    SignTransaction {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Broadcast a signed transaction to the blockchain network
+    BroadcastTransaction {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Query the status of a transaction by hash
+    QueryTransactionStatus {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Estimate transaction fees for the specified chain
+    EstimateFee {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
 }
 
 /// WalletQueue serializes all wallet operations through a single-threaded queue.
@@ -354,6 +382,32 @@ impl WalletQueue {
                 }
                 WalletCommand::GetAssetTransfers { params_json, respond_to } => {
                     let result = library.get_asset_transfers(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                // ChainAdapter Transaction Operations
+                WalletCommand::BuildTransaction { params_json, respond_to } => {
+                    let result = library.build_transaction(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::SignTransaction { params_json, respond_to } => {
+                    let result = library.sign_transaction(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::BroadcastTransaction { params_json, respond_to } => {
+                    let result = library.broadcast_transaction(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::QueryTransactionStatus { params_json, respond_to } => {
+                    let result = library.query_transaction_status(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::EstimateFee { params_json, respond_to } => {
+                    let result = library.estimate_fee(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -709,6 +763,105 @@ impl WalletQueue {
         .await
         .map_err(|e| format!("Task join error: {}", e))?
     }
+
+    // ========================================================================
+    // ChainAdapter Transaction Operations
+    // ========================================================================
+
+    /// Build an unsigned transaction for the specified chain.
+    pub async fn build_transaction(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::BuildTransaction {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Sign an unsigned transaction with wallet password.
+    pub async fn sign_transaction(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::SignTransaction {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Broadcast a signed transaction to the blockchain network.
+    pub async fn broadcast_transaction(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::BroadcastTransaction {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Query the status of a transaction by hash.
+    pub async fn query_transaction_status(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::QueryTransactionStatus {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Estimate transaction fees for the specified chain.
+    pub async fn estimate_fee(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::EstimateFee {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
 }
 
 /// Lazy-initialized WalletQueue wrapper
@@ -822,5 +975,34 @@ impl LazyWalletQueue {
     /// Get library version
     pub async fn get_version(&self) -> Result<serde_json::Value, String> {
         self.get_or_init().get_version().await
+    }
+
+    // ========================================================================
+    // ChainAdapter Transaction Operations
+    // ========================================================================
+
+    /// Build an unsigned transaction for the specified chain
+    pub async fn build_transaction(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().build_transaction(params_json).await
+    }
+
+    /// Sign an unsigned transaction with wallet password
+    pub async fn sign_transaction(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().sign_transaction(params_json).await
+    }
+
+    /// Broadcast a signed transaction to the blockchain network
+    pub async fn broadcast_transaction(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().broadcast_transaction(params_json).await
+    }
+
+    /// Query the status of a transaction by hash
+    pub async fn query_transaction_status(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().query_transaction_status(params_json).await
+    }
+
+    /// Estimate transaction fees for the specified chain
+    pub async fn estimate_fee(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().estimate_fee(params_json).await
     }
 }

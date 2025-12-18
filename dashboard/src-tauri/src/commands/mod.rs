@@ -6,5 +6,6 @@
 pub mod app;
 pub mod provider;
 pub mod security;
+pub mod transaction;
 pub mod usb;
 pub mod wallet;

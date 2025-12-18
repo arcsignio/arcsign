@@ -375,6 +375,280 @@ export async function unlockApp(
   }
 }
 
+// ============================================================================
+// Transaction Types (ChainAdapter)
+// ============================================================================
+
+export interface BuildTransactionParams {
+  chainId: string; // "ethereum", "polygon", "arbitrum", etc.
+  from: string;
+  to: string;
+  amount: string; // Amount in native token (e.g., "0.1" for 0.1 ETH)
+  feeSpeed?: "slow" | "normal" | "fast";
+  usbPath: string;
+  appPassword: string;
+}
+
+export interface BuildTransactionResponse {
+  unsignedTx: {
+    nonce: string;
+    to: string;
+    value: string;
+    data: string;
+    gasLimit: string;
+    maxFeePerGas?: string;
+    maxPriorityFeePerGas?: string;
+    gasPrice?: string;
+    chainId: number;
+  };
+  signingPayload: string; // Base64 encoded payload to sign
+  feeEstimate: {
+    gasLimit: string;
+    maxFeePerGas: string;
+    maxPriorityFeePerGas: string;
+    estimatedFeeWei: string;
+    estimatedFeeEth: string;
+  };
+}
+
+export interface SignTransactionParams {
+  chainId: string;
+  walletId: string;
+  password: string;
+  fromAddress: string;
+  unsignedTx: BuildTransactionResponse["unsignedTx"];
+  usbPath: string;
+  appPassword: string;
+}
+
+export interface SignTransactionResponse {
+  signedTx: {
+    rawTransaction: string; // Hex-encoded signed transaction
+    txHash: string;
+  };
+  signature: {
+    v: string;
+    r: string;
+    s: string;
+  };
+}
+
+export interface BroadcastTransactionParams {
+  chainId: string;
+  signedTx: SignTransactionResponse["signedTx"];
+  usbPath: string;
+  appPassword: string;
+}
+
+export interface BroadcastTransactionResponse {
+  txHash: string;
+  submittedAt: string;
+  status: "pending" | "submitted";
+  statusUrl?: string; // Etherscan/block explorer URL
+}
+
+export interface QueryTransactionStatusParams {
+  chainId: string;
+  txHash: string;
+  usbPath: string;
+  appPassword: string;
+}
+
+export interface QueryTransactionStatusResponse {
+  txHash: string;
+  status: "pending" | "confirmed" | "failed";
+  blockNumber?: number;
+  blockHash?: string;
+  gasUsed?: string;
+  effectiveGasPrice?: string;
+  confirmations?: number;
+}
+
+export interface EstimateFeeParams {
+  chainId: string;
+  from: string;
+  to: string;
+  amount: string;
+  usbPath: string;
+  appPassword: string;
+}
+
+export interface EstimateFeeResponse {
+  slow: {
+    maxFeePerGas: string;
+    maxPriorityFeePerGas: string;
+    estimatedFeeWei: string;
+    estimatedFeeEth: string;
+    estimatedTimeSeconds: number;
+  };
+  normal: {
+    maxFeePerGas: string;
+    maxPriorityFeePerGas: string;
+    estimatedFeeWei: string;
+    estimatedFeeEth: string;
+    estimatedTimeSeconds: number;
+  };
+  fast: {
+    maxFeePerGas: string;
+    maxPriorityFeePerGas: string;
+    estimatedFeeWei: string;
+    estimatedFeeEth: string;
+    estimatedTimeSeconds: number;
+  };
+  gasLimit: string;
+  baseFee: string;
+}
+
+// ============================================================================
+// Transaction API Functions
+// ============================================================================
+
+export async function buildTransaction(
+  params: BuildTransactionParams
+): Promise<BuildTransactionResponse> {
+  console.log("🔧 [tauri-api] buildTransaction called:", {
+    chainId: params.chainId,
+    from: params.from,
+    to: params.to,
+    amount: params.amount,
+    feeSpeed: params.feeSpeed || "normal",
+  });
+
+  try {
+    const result = await invoke<BuildTransactionResponse>("build_transaction", {
+      input: {
+        chainId: params.chainId,
+        from: params.from,
+        to: params.to,
+        amount: params.amount,
+        feeSpeed: params.feeSpeed || "normal",
+        usbPath: params.usbPath,
+        appPassword: params.appPassword,
+      },
+    });
+    console.log("🔧 [tauri-api] buildTransaction response:", result);
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] buildTransaction error:", error);
+    throw parseError(error);
+  }
+}
+
+export async function signTransaction(
+  params: SignTransactionParams
+): Promise<SignTransactionResponse> {
+  console.log("✍️ [tauri-api] signTransaction called:", {
+    chainId: params.chainId,
+    walletId: params.walletId,
+    fromAddress: params.fromAddress,
+  });
+
+  try {
+    const result = await invoke<SignTransactionResponse>("sign_transaction", {
+      input: {
+        chainId: params.chainId,
+        walletId: params.walletId,
+        password: params.password,
+        fromAddress: params.fromAddress,
+        unsignedTx: params.unsignedTx,
+        usbPath: params.usbPath,
+        appPassword: params.appPassword,
+      },
+    });
+    console.log("✍️ [tauri-api] signTransaction response:", {
+      txHash: result.signedTx?.txHash,
+    });
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] signTransaction error:", error);
+    throw parseError(error);
+  }
+}
+
+export async function broadcastTransaction(
+  params: BroadcastTransactionParams
+): Promise<BroadcastTransactionResponse> {
+  console.log("📡 [tauri-api] broadcastTransaction called:", {
+    chainId: params.chainId,
+  });
+
+  try {
+    const result = await invoke<BroadcastTransactionResponse>(
+      "broadcast_transaction",
+      {
+        input: {
+          chainId: params.chainId,
+          signedTx: params.signedTx,
+          usbPath: params.usbPath,
+          appPassword: params.appPassword,
+        },
+      }
+    );
+    console.log("📡 [tauri-api] broadcastTransaction response:", result);
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] broadcastTransaction error:", error);
+    throw parseError(error);
+  }
+}
+
+export async function queryTransactionStatus(
+  params: QueryTransactionStatusParams
+): Promise<QueryTransactionStatusResponse> {
+  console.log("🔍 [tauri-api] queryTransactionStatus called:", {
+    chainId: params.chainId,
+    txHash: params.txHash,
+  });
+
+  try {
+    const result = await invoke<QueryTransactionStatusResponse>(
+      "query_transaction_status",
+      {
+        input: {
+          chainId: params.chainId,
+          txHash: params.txHash,
+          usbPath: params.usbPath,
+          appPassword: params.appPassword,
+        },
+      }
+    );
+    console.log("🔍 [tauri-api] queryTransactionStatus response:", result);
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] queryTransactionStatus error:", error);
+    throw parseError(error);
+  }
+}
+
+export async function estimateFee(
+  params: EstimateFeeParams
+): Promise<EstimateFeeResponse> {
+  console.log("💰 [tauri-api] estimateFee called:", {
+    chainId: params.chainId,
+    from: params.from,
+    to: params.to,
+    amount: params.amount,
+  });
+
+  try {
+    const result = await invoke<EstimateFeeResponse>("estimate_fee", {
+      input: {
+        chainId: params.chainId,
+        from: params.from,
+        to: params.to,
+        amount: params.amount,
+        usbPath: params.usbPath,
+        appPassword: params.appPassword,
+      },
+    });
+    console.log("💰 [tauri-api] estimateFee response:", result);
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] estimateFee error:", error);
+    throw parseError(error);
+  }
+}
+
 /**
  * Typed Tauri API wrapper
  * Provides type-safe access to all Tauri commands
@@ -401,6 +675,13 @@ export const tauriApi = {
 
   // Transaction History
   getAssetTransfers,
+
+  // Transaction Operations (ChainAdapter)
+  buildTransaction,
+  signTransaction,
+  broadcastTransaction,
+  queryTransactionStatus,
+  estimateFee,
 
   // Security
   enableScreenshotProtection,

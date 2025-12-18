@@ -18,6 +18,7 @@ import {
 } from "@/constants/nativeTokens";
 import { usePriorityTokens } from "@/hooks/useTokenList";
 import { TransactionHistory } from "@/components/TransactionHistory";
+import { SendTransaction } from "@/components/SendTransaction";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
 
@@ -66,6 +67,10 @@ export function WalletDetail({
   // Address List modal state (for Copy Address feature)
   const [showAddressList, setShowAddressList] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+
+  // Send Transaction state
+  const [showSendTransaction, setShowSendTransaction] = useState(false);
+  const [sendFromAddress, setSendFromAddress] = useState("");
 
   // Load priority tokens from CoinGecko token lists
   const { tokens: priorityTokens, isLoading: isLoadingPriority } =
@@ -495,6 +500,23 @@ export function WalletDetail({
     );
   }
 
+  // Show Send Transaction view
+  if (showSendTransaction && sendFromAddress && appPassword) {
+    console.log("💸 [WalletDetail] Rendering SendTransaction component");
+    return (
+      <SendTransaction
+        walletId={wallet.id}
+        fromAddress={sendFromAddress}
+        usbPath={usbPath}
+        appPassword={appPassword}
+        onBack={() => setShowSendTransaction(false)}
+        onSuccess={(txHash) => {
+          console.log("✅ Transaction submitted:", txHash);
+        }}
+      />
+    );
+  }
+
   return (
     <div
       style={{
@@ -728,7 +750,30 @@ export function WalletDetail({
               icon: "↑",
               label: "Send",
               tooltip: "Send tokens to another address",
-              onClick: () => {},
+              onClick: () => {
+                console.log("💸 [Send] Button clicked, walletAddresses:", walletAddresses.length);
+                // Get first EVM address (coin_type 60 = Ethereum compatible)
+                const evmAddress = walletAddresses.find(
+                  (addr) => addr.coin_type === 60 && !addr.is_testnet
+                );
+                console.log("💸 [Send] Found EVM address:", evmAddress);
+                if (evmAddress) {
+                  setSendFromAddress(evmAddress.address);
+                  setShowSendTransaction(true);
+                } else {
+                  // Try to find any address that looks like EVM (starts with 0x)
+                  const anyEvmAddress = walletAddresses.find(
+                    (addr) => addr.address.startsWith("0x") && !addr.is_testnet
+                  );
+                  if (anyEvmAddress) {
+                    console.log("💸 [Send] Using fallback EVM address:", anyEvmAddress);
+                    setSendFromAddress(anyEvmAddress.address);
+                    setShowSendTransaction(true);
+                  } else {
+                    alert("No EVM address found. Send requires an Ethereum-compatible address (0x...).");
+                  }
+                }
+              },
             },
             {
               icon: "↓",
