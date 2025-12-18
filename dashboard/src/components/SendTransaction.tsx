@@ -3,12 +3,13 @@
  * Feature: EVM Transaction Send Functionality
  *
  * Complete transaction flow:
- * 1. User enters recipient address and amount
- * 2. Estimate fees and build unsigned transaction
- * 3. User confirms and enters wallet password
- * 4. Sign transaction with wallet private key
- * 5. Broadcast to blockchain network
- * 6. Track transaction status
+ * 1. User selects which token to send (from their available balance)
+ * 2. User enters recipient address and amount
+ * 3. Estimate fees and build unsigned transaction
+ * 4. User confirms and enters wallet password
+ * 5. Sign transaction with wallet private key
+ * 6. Broadcast to blockchain network
+ * 7. Track transaction status
  */
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -20,30 +21,28 @@ import tauriApi, {
   type AppError,
 } from "@/services/tauri-api";
 
-// Mainnet EVM chains
-const MAINNET_CHAINS = [
-  { id: "ethereum", name: "Ethereum", symbol: "ETH", icon: "⟠" },
-  { id: "polygon", name: "Polygon", symbol: "MATIC", icon: "⬡" },
-  { id: "arbitrum", name: "Arbitrum", symbol: "ETH", icon: "🔵" },
-  { id: "optimism", name: "Optimism", symbol: "ETH", icon: "🔴" },
-  { id: "base", name: "Base", symbol: "ETH", icon: "🔷" },
-] as const;
+/**
+ * SendableToken represents a token that the user can send
+ * This is passed from WalletDetail based on tokens with balance > 0
+ */
+export interface SendableToken {
+  network: string;           // "eth-mainnet", "polygon-mainnet", "eth-sepolia"
+  networkLabel: string;      // "Ethereum", "Polygon", "eth-sepolia"
+  tokenAddress: string;      // "" for native, contract address for ERC-20
+  tokenSymbol: string;       // "ETH", "USDT", "AAVE"
+  tokenName: string;         // "Ethereum", "Tether USD"
+  tokenLogo: string;         // Logo URL
+  balance: string;           // "0.05", "100.5"
+  usdValue: number;          // USD value
+  decimals: number;          // Token decimals
+  fromAddress: string;       // User's wallet address on this network
+}
 
-// Testnet chains (dev mode only)
-const TESTNET_CHAINS = [
-  { id: "ethereum-sepolia", name: "Sepolia Testnet", symbol: "ETH", icon: "🧪", isTestnet: true },
-] as const;
-
-// Combine chains based on environment
-const SUPPORTED_CHAINS = import.meta.env.DEV
-  ? [...MAINNET_CHAINS, ...TESTNET_CHAINS]
-  : MAINNET_CHAINS;
-
-type ChainId = typeof MAINNET_CHAINS[number]["id"] | typeof TESTNET_CHAINS[number]["id"];
 type FeeSpeed = "slow" | "normal" | "fast";
 
-// Transaction steps
+// Transaction steps - now includes token selection
 type TransactionStep =
+  | "select"     // Select which token to send
   | "input"      // Enter recipient and amount
   | "review"     // Review transaction details
   | "password"   // Enter wallet password
@@ -54,25 +53,55 @@ type TransactionStep =
 
 interface SendTransactionProps {
   walletId: string;
-  fromAddress: string;
+  availableTokens: SendableToken[];  // Tokens with balance > 0
   usbPath: string;
   appPassword: string;
   onBack: () => void;
   onSuccess?: (txHash: string) => void;
 }
 
-// Helper to get block explorer URL
-function getExplorerUrl(chainId: ChainId, txHash: string): string {
-  const explorers: Record<ChainId, string> = {
-    ethereum: "https://etherscan.io/tx/",
-    polygon: "https://polygonscan.com/tx/",
-    arbitrum: "https://arbiscan.io/tx/",
-    optimism: "https://optimistic.etherscan.io/tx/",
-    base: "https://basescan.org/tx/",
-    "ethereum-sepolia": "https://sepolia.etherscan.io/tx/",
+// Map network to chainId for backend
+function networkToChainId(network: string): string {
+  const mapping: Record<string, string> = {
+    "eth-mainnet": "ethereum",
+    "polygon-mainnet": "polygon",
+    "arb-mainnet": "arbitrum",
+    "opt-mainnet": "optimism",
+    "base-mainnet": "base",
+    "bnb-mainnet": "bnb",
+    "eth-sepolia": "ethereum-sepolia",
   };
-  return `${explorers[chainId]}${txHash}`;
+  return mapping[network] || network;
 }
+
+// Get block explorer URL for a transaction
+function getExplorerUrl(network: string, txHash: string): string {
+  const explorers: Record<string, string> = {
+    "eth-mainnet": "https://etherscan.io/tx/",
+    "polygon-mainnet": "https://polygonscan.com/tx/",
+    "arb-mainnet": "https://arbiscan.io/tx/",
+    "opt-mainnet": "https://optimistic.etherscan.io/tx/",
+    "base-mainnet": "https://basescan.org/tx/",
+    "bnb-mainnet": "https://bscscan.com/tx/",
+    "eth-sepolia": "https://sepolia.etherscan.io/tx/",
+  };
+  return `${explorers[network] || "https://etherscan.io/tx/"}${txHash}`;
+}
+
+// Get network display icon
+function getNetworkIcon(network: string): string {
+  const icons: Record<string, string> = {
+    "eth-mainnet": "⟠",
+    "polygon-mainnet": "⬡",
+    "arb-mainnet": "🔵",
+    "opt-mainnet": "🔴",
+    "base-mainnet": "🔷",
+    "bnb-mainnet": "🟡",
+    "eth-sepolia": "🧪",
+  };
+  return icons[network] || "🔗";
+}
+
 
 // Helper to format ETH values
 function formatEth(wei: string): string {
@@ -92,21 +121,23 @@ function shortenAddress(address: string): string {
 
 export const SendTransaction: React.FC<SendTransactionProps> = ({
   walletId,
-  fromAddress,
+  availableTokens,
   usbPath,
   appPassword,
   onBack,
   onSuccess,
 }) => {
+  // Token selection state
+  const [selectedToken, setSelectedToken] = useState<SendableToken | null>(null);
+
   // Form state
-  const [chainId, setChainId] = useState<ChainId>("ethereum");
   const [toAddress, setToAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [feeSpeed, setFeeSpeed] = useState<FeeSpeed>("normal");
   const [walletPassword, setWalletPassword] = useState("");
 
   // Transaction state
-  const [step, setStep] = useState<TransactionStep>("input");
+  const [step, setStep] = useState<TransactionStep>("select");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -118,8 +149,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
   void _signedTx; // Suppress unused variable warning
   const [broadcastResult, setBroadcastResult] = useState<BroadcastTransactionResponse | null>(null);
 
-  // Get current chain info
-  const currentChain = SUPPORTED_CHAINS.find(c => c.id === chainId) || SUPPORTED_CHAINS[0];
+  // Get chainId for backend API
+  const chainId = selectedToken ? networkToChainId(selectedToken.network) : "";
 
   // Validate Ethereum address
   const isValidAddress = (address: string): boolean => {
@@ -134,7 +165,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
   // Estimate fees when inputs change
   const estimateFees = useCallback(async () => {
-    if (!isValidAddress(toAddress) || !isValidAmount(amount)) {
+    if (!selectedToken || !isValidAddress(toAddress) || !isValidAmount(amount)) {
       setFeeEstimate(null);
       return;
     }
@@ -143,7 +174,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       console.log("💰 Estimating fees...");
       const result = await tauriApi.estimateFee({
         chainId,
-        from: fromAddress,
+        from: selectedToken.fromAddress,
         to: toAddress,
         amount,
         usbPath,
@@ -157,7 +188,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       // Don't show error for fee estimation - just clear the estimate
       setFeeEstimate(null);
     }
-  }, [chainId, fromAddress, toAddress, amount, usbPath, appPassword]);
+  }, [chainId, selectedToken, toAddress, amount, usbPath, appPassword]);
 
   // Debounced fee estimation
   useEffect(() => {
@@ -171,6 +202,10 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
   // Step 1: Build unsigned transaction
   const handleBuildTransaction = async () => {
+    if (!selectedToken) {
+      setError("Please select a token first");
+      return;
+    }
     if (!isValidAddress(toAddress)) {
       setError("Invalid recipient address");
       return;
@@ -187,12 +222,14 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       console.log("🔧 Building transaction...");
       const result = await tauriApi.buildTransaction({
         chainId,
-        from: fromAddress,
+        from: selectedToken.fromAddress,
         to: toAddress,
         amount,
         feeSpeed,
         usbPath,
         appPassword,
+        // For ERC-20 tokens, include token contract address
+        tokenAddress: selectedToken.tokenAddress || undefined,
       });
       setUnsignedTx(result);
       setStep("review");
@@ -210,7 +247,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       setError("Please enter your wallet password");
       return;
     }
-    if (!unsignedTx) {
+    if (!unsignedTx || !selectedToken) {
       setError("No transaction to sign");
       return;
     }
@@ -225,7 +262,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         chainId,
         walletId,
         password: walletPassword,
-        fromAddress,
+        fromAddress: selectedToken.fromAddress,
         unsignedTx: unsignedTx.unsignedTx,
         usbPath,
         appPassword,
@@ -271,11 +308,12 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
   // Reset form
   const handleReset = () => {
+    setSelectedToken(null);
     setToAddress("");
     setAmount("");
     setWalletPassword("");
     setFeeSpeed("normal");
-    setStep("input");
+    setStep("select");
     setError(null);
     setFeeEstimate(null);
     setUnsignedTx(null);
@@ -283,18 +321,47 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
     setBroadcastResult(null);
   };
 
+  // Handle token selection
+  const handleSelectToken = (token: SendableToken) => {
+    setSelectedToken(token);
+    setStep("input");
+  };
+
+  // Check if it's an ERC-20 token (has tokenAddress)
+  const isERC20 = selectedToken && selectedToken.tokenAddress && selectedToken.tokenAddress !== "";
+
+  // Format balance display
+  const formatBalance = (balance: string, _decimals?: number): string => {
+    const num = parseFloat(balance);
+    if (num === 0) return "0";
+    if (num < 0.0001) return "<0.0001";
+    if (num < 0.01) return num.toFixed(6);
+    if (num < 1) return num.toFixed(4);
+    return num.toFixed(4);
+  };
+
+  // Group tokens by network for better display
+  const tokensByNetwork = availableTokens.reduce((acc, token) => {
+    const network = token.networkLabel;
+    if (!acc[network]) acc[network] = [];
+    acc[network].push(token);
+    return acc;
+  }, {} as Record<string, SendableToken[]>);
+
 
   return (
     <div className="send-transaction">
       <header className="send-header">
-        <button onClick={onBack} className="back-button">
+        <button onClick={step === "select" ? onBack : () => setStep("select")} className="back-button">
           <span>&larr;</span> Back
         </button>
-        <h2>Send {currentChain.symbol}</h2>
-        <div className="chain-badge">
-          <span className="chain-icon">{currentChain.icon}</span>
-          {currentChain.name}
-        </div>
+        <h2>Send {selectedToken ? selectedToken.tokenSymbol : "Token"}</h2>
+        {selectedToken && (
+          <div className="chain-badge">
+            <span className="chain-icon">{getNetworkIcon(selectedToken.network)}</span>
+            {selectedToken.networkLabel}
+          </div>
+        )}
       </header>
 
       {/* Error Display */}
@@ -306,31 +373,97 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         </div>
       )}
 
+      {/* Step 0: Token Selection */}
+      {step === "select" && (
+        <div className="token-select-form">
+          <h3>Select Token to Send</h3>
+          <p className="select-description">Choose which asset you want to send</p>
+
+          {availableTokens.length === 0 ? (
+            <div className="no-tokens">
+              <span className="no-tokens-icon">📭</span>
+              <p>No tokens with balance available to send</p>
+              <button className="secondary-button" onClick={onBack}>
+                Go Back
+              </button>
+            </div>
+          ) : (
+            <div className="token-list">
+              {Object.entries(tokensByNetwork).map(([networkLabel, tokens]) => (
+                <div key={networkLabel} className="network-group">
+                  <div className="network-header">
+                    <span className="network-icon">{getNetworkIcon(tokens[0].network)}</span>
+                    <span className="network-name">{networkLabel}</span>
+                    {tokens[0].network.includes("sepolia") && (
+                      <span className="testnet-badge">Testnet</span>
+                    )}
+                  </div>
+                  <div className="network-tokens">
+                    {tokens.map((token, idx) => (
+                      <button
+                        key={`${token.network}-${token.tokenAddress || "native"}-${idx}`}
+                        className="token-option"
+                        onClick={() => handleSelectToken(token)}
+                      >
+                        <div className="token-icon">
+                          {token.tokenLogo ? (
+                            <img src={token.tokenLogo} alt={token.tokenSymbol} />
+                          ) : (
+                            <span className="token-icon-fallback">{token.tokenSymbol.slice(0, 2)}</span>
+                          )}
+                        </div>
+                        <div className="token-info">
+                          <span className="token-symbol">{token.tokenSymbol}</span>
+                          <span className="token-name">{token.tokenName}</span>
+                          {token.tokenAddress && (
+                            <span className="token-type">ERC-20</span>
+                          )}
+                        </div>
+                        <div className="token-balance">
+                          <span className="balance-amount">{formatBalance(token.balance, token.decimals)}</span>
+                          {token.usdValue > 0 && (
+                            <span className="balance-usd">${token.usdValue.toFixed(2)}</span>
+                          )}
+                        </div>
+                        <span className="token-arrow">→</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Step 1: Input Form */}
-      {step === "input" && (
+      {step === "input" && selectedToken && (
         <div className="input-form">
+          {/* Selected Token Info */}
+          <div className="selected-token-card">
+            <div className="token-icon">
+              {selectedToken.tokenLogo ? (
+                <img src={selectedToken.tokenLogo} alt={selectedToken.tokenSymbol} />
+              ) : (
+                <span className="token-icon-fallback">{selectedToken.tokenSymbol.slice(0, 2)}</span>
+              )}
+            </div>
+            <div className="token-details">
+              <span className="token-symbol">{selectedToken.tokenSymbol}</span>
+              <span className="token-balance-info">
+                Balance: {formatBalance(selectedToken.balance, selectedToken.decimals)} {selectedToken.tokenSymbol}
+              </span>
+            </div>
+            <button className="change-token-btn" onClick={() => setStep("select")}>
+              Change
+            </button>
+          </div>
+
           {/* From Address */}
           <div className="form-group">
             <label>From</label>
             <div className="address-display">
-              <span className="address-text">{shortenAddress(fromAddress)}</span>
-            </div>
-          </div>
-
-          {/* Chain Selector */}
-          <div className="form-group">
-            <label>Network</label>
-            <div className="chain-selector">
-              {SUPPORTED_CHAINS.map((chain) => (
-                <button
-                  key={chain.id}
-                  className={`chain-option ${chainId === chain.id ? "selected" : ""}`}
-                  onClick={() => setChainId(chain.id)}
-                >
-                  <span className="chain-icon">{chain.icon}</span>
-                  <span className="chain-name">{chain.name}</span>
-                </button>
-              ))}
+              <span className="address-text">{shortenAddress(selectedToken.fromAddress)}</span>
             </div>
           </div>
 
@@ -351,7 +484,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
           {/* Amount */}
           <div className="form-group">
-            <label>Amount ({currentChain.symbol})</label>
+            <label>Amount ({selectedToken.tokenSymbol})</label>
             <div className="amount-input-wrapper">
               <input
                 type="text"
@@ -360,7 +493,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
                 onChange={(e) => setAmount(e.target.value)}
                 className="amount-input"
               />
-              <button className="max-button" onClick={() => setAmount("MAX")}>
+              <button className="max-button" onClick={() => setAmount(selectedToken.balance)}>
                 MAX
               </button>
             </div>
@@ -384,7 +517,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
                         {speed.charAt(0).toUpperCase() + speed.slice(1)}
                       </span>
                       <span className="fee-estimate">
-                        {formatEth(fee.estimatedFeeWei)} {currentChain.symbol}
+                        {formatEth(fee.estimatedFeeWei)} ETH
                       </span>
                       <span className="fee-time">
                         ~{Math.ceil(fee.estimatedTimeSeconds / 60)} min
@@ -393,6 +526,14 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* ERC-20 Notice */}
+          {isERC20 && (
+            <div className="erc20-notice">
+              <span className="notice-icon">ℹ️</span>
+              <span>This is an ERC-20 token. Gas fees will be paid in ETH.</span>
             </div>
           )}
 
@@ -408,7 +549,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       )}
 
       {/* Step 2: Review Transaction */}
-      {step === "review" && unsignedTx && (
+      {step === "review" && unsignedTx && selectedToken && (
         <div className="review-form">
           <h3>Review Transaction</h3>
 
@@ -416,12 +557,18 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
             <div className="review-row">
               <span className="review-label">Network</span>
               <span className="review-value">
-                {currentChain.icon} {currentChain.name}
+                {getNetworkIcon(selectedToken.network)} {selectedToken.networkLabel}
+              </span>
+            </div>
+            <div className="review-row">
+              <span className="review-label">Token</span>
+              <span className="review-value">
+                {selectedToken.tokenSymbol} {isERC20 && <span className="erc20-tag">(ERC-20)</span>}
               </span>
             </div>
             <div className="review-row">
               <span className="review-label">From</span>
-              <span className="review-value address">{shortenAddress(fromAddress)}</span>
+              <span className="review-value address">{shortenAddress(selectedToken.fromAddress)}</span>
             </div>
             <div className="review-row">
               <span className="review-label">To</span>
@@ -430,21 +577,23 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
             <div className="review-row highlight">
               <span className="review-label">Amount</span>
               <span className="review-value amount">
-                {amount} {currentChain.symbol}
+                {amount} {selectedToken.tokenSymbol}
               </span>
             </div>
             <div className="review-row">
               <span className="review-label">Estimated Fee</span>
               <span className="review-value">
-                {formatEth(unsignedTx.feeEstimate.estimatedFeeWei)} {currentChain.symbol}
+                {formatEth(unsignedTx.feeEstimate.estimatedFeeWei)} ETH
               </span>
             </div>
-            <div className="review-row total">
-              <span className="review-label">Total</span>
-              <span className="review-value">
-                {(parseFloat(amount) + parseFloat(unsignedTx.feeEstimate.estimatedFeeEth)).toFixed(6)} {currentChain.symbol}
-              </span>
-            </div>
+            {!isERC20 && (
+              <div className="review-row total">
+                <span className="review-label">Total</span>
+                <span className="review-value">
+                  {(parseFloat(amount) + parseFloat(unsignedTx.feeEstimate.estimatedFeeEth)).toFixed(6)} {selectedToken.tokenSymbol}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="review-actions">
@@ -504,21 +653,21 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       )}
 
       {/* Step 5: Broadcasting */}
-      {step === "broadcasting" && (
+      {step === "broadcasting" && selectedToken && (
         <div className="progress-view">
           <div className="progress-spinner" />
           <h3>Broadcasting Transaction...</h3>
-          <p>Submitting your transaction to the {currentChain.name} network.</p>
+          <p>Submitting your transaction to the {selectedToken.networkLabel} network.</p>
         </div>
       )}
 
       {/* Step 6: Success */}
-      {step === "success" && broadcastResult && (
+      {step === "success" && broadcastResult && selectedToken && (
         <div className="success-view">
           <div className="success-icon">✅</div>
           <h3>Transaction Submitted!</h3>
           <p className="success-message">
-            Your transaction has been submitted to the {currentChain.name} network.
+            Your transaction has been submitted to the {selectedToken.networkLabel} network.
           </p>
 
           <div className="tx-hash">
@@ -528,7 +677,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
           <div className="success-actions">
             <a
-              href={getExplorerUrl(chainId, broadcastResult.txHash)}
+              href={getExplorerUrl(selectedToken.network, broadcastResult.txHash)}
               target="_blank"
               rel="noopener noreferrer"
               className="explorer-link"
@@ -613,6 +762,264 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           border-radius: 20px;
           font-size: 13px;
           color: #1d4ed8;
+          font-weight: 500;
+        }
+
+        /* Token Selection Styles */
+        .token-select-form h3 {
+          margin: 0 0 8px;
+          font-size: 18px;
+          color: #111827;
+        }
+
+        .select-description {
+          margin: 0 0 20px;
+          font-size: 14px;
+          color: #6b7280;
+        }
+
+        .no-tokens {
+          text-align: center;
+          padding: 40px 20px;
+        }
+
+        .no-tokens-icon {
+          font-size: 48px;
+          display: block;
+          margin-bottom: 16px;
+        }
+
+        .no-tokens p {
+          margin: 0 0 20px;
+          color: #6b7280;
+        }
+
+        .token-list {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .network-group {
+          background: #f9fafb;
+          border-radius: 12px;
+          overflow: hidden;
+        }
+
+        .network-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 16px;
+          background: #f3f4f6;
+          font-size: 14px;
+          font-weight: 500;
+          color: #374151;
+        }
+
+        .network-icon {
+          font-size: 16px;
+        }
+
+        .testnet-badge {
+          margin-left: auto;
+          padding: 2px 8px;
+          background: #fef3c7;
+          color: #92400e;
+          border-radius: 10px;
+          font-size: 11px;
+          font-weight: 600;
+        }
+
+        .network-tokens {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .token-option {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px 16px;
+          background: white;
+          border: none;
+          border-bottom: 1px solid #e5e7eb;
+          cursor: pointer;
+          text-align: left;
+          transition: background 0.2s;
+          width: 100%;
+        }
+
+        .token-option:last-child {
+          border-bottom: none;
+        }
+
+        .token-option:hover {
+          background: #f9fafb;
+        }
+
+        .token-option .token-icon {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          overflow: hidden;
+          background: #e5e7eb;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .token-option .token-icon img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .token-icon-fallback {
+          font-size: 14px;
+          font-weight: 600;
+          color: #6b7280;
+        }
+
+        .token-info {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .token-info .token-symbol {
+          font-size: 15px;
+          font-weight: 600;
+          color: #111827;
+        }
+
+        .token-info .token-name {
+          font-size: 12px;
+          color: #6b7280;
+        }
+
+        .token-type {
+          display: inline-block;
+          padding: 2px 6px;
+          background: #dbeafe;
+          color: #1d4ed8;
+          border-radius: 4px;
+          font-size: 10px;
+          font-weight: 500;
+          margin-top: 2px;
+          width: fit-content;
+        }
+
+        .token-balance {
+          text-align: right;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .balance-amount {
+          font-size: 15px;
+          font-weight: 600;
+          color: #111827;
+        }
+
+        .balance-usd {
+          font-size: 12px;
+          color: #6b7280;
+        }
+
+        .token-arrow {
+          color: #9ca3af;
+          font-size: 18px;
+        }
+
+        /* Selected Token Card */
+        .selected-token-card {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 16px;
+          background: #f0f9ff;
+          border: 1px solid #bae6fd;
+          border-radius: 12px;
+          margin-bottom: 20px;
+        }
+
+        .selected-token-card .token-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          overflow: hidden;
+          background: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .selected-token-card .token-icon img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .token-details {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .token-details .token-symbol {
+          font-size: 18px;
+          font-weight: 600;
+          color: #0369a1;
+        }
+
+        .token-balance-info {
+          font-size: 13px;
+          color: #0284c7;
+        }
+
+        .change-token-btn {
+          padding: 8px 16px;
+          background: white;
+          border: 1px solid #0ea5e9;
+          border-radius: 8px;
+          color: #0284c7;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .change-token-btn:hover {
+          background: #0ea5e9;
+          color: white;
+        }
+
+        /* ERC-20 Notice */
+        .erc20-notice {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 16px;
+          background: #fefce8;
+          border: 1px solid #fef08a;
+          border-radius: 8px;
+          margin-bottom: 20px;
+          font-size: 13px;
+          color: #854d0e;
+        }
+
+        .erc20-tag {
+          font-size: 11px;
+          padding: 2px 6px;
+          background: #dbeafe;
+          color: #1d4ed8;
+          border-radius: 4px;
           font-weight: 500;
         }
 

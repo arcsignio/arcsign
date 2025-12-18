@@ -386,6 +386,7 @@ export interface BuildTransactionParams {
   to: string;
   amount: string; // Amount in native token (e.g., "0.1" for 0.1 ETH)
   feeSpeed?: "slow" | "normal" | "fast";
+  tokenAddress?: string; // ERC-20 token contract address (optional, empty for native)
   usbPath: string;
   appPassword: string;
 }

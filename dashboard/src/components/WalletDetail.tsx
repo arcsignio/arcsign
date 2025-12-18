@@ -18,7 +18,7 @@ import {
 } from "@/constants/nativeTokens";
 import { usePriorityTokens } from "@/hooks/useTokenList";
 import { TransactionHistory } from "@/components/TransactionHistory";
-import { SendTransaction } from "@/components/SendTransaction";
+import { SendTransaction, type SendableToken } from "@/components/SendTransaction";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
 
@@ -70,7 +70,6 @@ export function WalletDetail({
 
   // Send Transaction state
   const [showSendTransaction, setShowSendTransaction] = useState(false);
-  const [sendFromAddress, setSendFromAddress] = useState("");
 
   // Load priority tokens from CoinGecko token lists
   const { tokens: priorityTokens, isLoading: isLoadingPriority } =
@@ -542,13 +541,36 @@ export function WalletDetail({
     );
   }
 
+  // Convert tokens to SendableToken format for SendTransaction
+  const availableTokensForSend = useMemo((): SendableToken[] => {
+    // Filter tokens with balance > 0
+    const tokensWithBalance = tokens.filter((t) => {
+      const balance = parseFloat(t.balance);
+      return balance > 0;
+    });
+
+    // Convert to SendableToken format
+    return tokensWithBalance.map((token) => ({
+      network: token.network,
+      networkLabel: token.networkLabel,
+      tokenAddress: token.tokenAddress || "",
+      tokenSymbol: token.tokenSymbol,
+      tokenName: token.tokenName,
+      tokenLogo: token.tokenLogo,
+      balance: token.balance,
+      usdValue: token.usdValue,
+      decimals: token.decimals,
+      fromAddress: token.address, // The wallet address for this token's network
+    }));
+  }, [tokens]);
+
   // Show Send Transaction view
-  if (showSendTransaction && sendFromAddress && appPassword) {
-    console.log("💸 [WalletDetail] Rendering SendTransaction component");
+  if (showSendTransaction && appPassword) {
+    console.log("💸 [WalletDetail] Rendering SendTransaction component with", availableTokensForSend.length, "tokens");
     return (
       <SendTransaction
         walletId={wallet.id}
-        fromAddress={sendFromAddress}
+        availableTokens={availableTokensForSend}
         usbPath={usbPath}
         appPassword={appPassword}
         onBack={() => setShowSendTransaction(false)}
@@ -793,27 +815,11 @@ export function WalletDetail({
               label: "Send",
               tooltip: "Send tokens to another address",
               onClick: () => {
-                console.log("💸 [Send] Button clicked, walletAddresses:", walletAddresses.length);
-                // Get first EVM address (coin_type 60 = Ethereum compatible)
-                const evmAddress = walletAddresses.find(
-                  (addr) => addr.coin_type === 60 && !addr.is_testnet
-                );
-                console.log("💸 [Send] Found EVM address:", evmAddress);
-                if (evmAddress) {
-                  setSendFromAddress(evmAddress.address);
+                console.log("💸 [Send] Button clicked, available tokens:", availableTokensForSend.length);
+                if (availableTokensForSend.length > 0) {
                   setShowSendTransaction(true);
                 } else {
-                  // Try to find any address that looks like EVM (starts with 0x)
-                  const anyEvmAddress = walletAddresses.find(
-                    (addr) => addr.address.startsWith("0x") && !addr.is_testnet
-                  );
-                  if (anyEvmAddress) {
-                    console.log("💸 [Send] Using fallback EVM address:", anyEvmAddress);
-                    setSendFromAddress(anyEvmAddress.address);
-                    setShowSendTransaction(true);
-                  } else {
-                    alert("No EVM address found. Send requires an Ethereum-compatible address (0x...).");
-                  }
+                  alert("No tokens with balance available to send. Please load your token balances first.");
                 }
               },
             },
