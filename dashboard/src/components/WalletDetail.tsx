@@ -734,7 +734,7 @@ export function WalletDetail({
               icon: "↓",
               label: "Receive",
               tooltip: "Receive tokens to your wallet",
-              onClick: () => {},
+              onClick: () => setShowAddressList(true),
             },
             { icon: "🔄", label: "Swap", tooltip: "Exchange tokens instantly", onClick: () => {} },
             {
