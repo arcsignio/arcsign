@@ -192,6 +192,7 @@ export async function getTokenBalances(
       password: params.password,
       usbPath: params.usbPath,
       appPassword: params.appPassword,
+      includeTestnets: params.includeTestnets,
     });
   } catch (error) {
     throw parseError(error);

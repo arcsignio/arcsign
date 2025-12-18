@@ -74,10 +74,11 @@ type SimplifiedTokenBalance struct {
 
 // GetTokenBalancesInput represents the input for GetTokenBalances FFI function
 type GetTokenBalancesInput struct {
-	WalletID   string `json:"walletId"`
-	Password   string `json:"password"`
-	USBPath    string `json:"usbPath"`
-	AppPassword string `json:"appPassword"` // For reading provider config
+	WalletID        string   `json:"walletId"`
+	Password        string   `json:"password"`
+	USBPath         string   `json:"usbPath"`
+	AppPassword     string   `json:"appPassword"`     // For reading provider config
+	IncludeTestnets bool     `json:"includeTestnets"` // Include testnet networks (dev mode)
 }
 
 // GetTokenBalancesOutput represents the output

@@ -104,12 +104,15 @@ export function WalletDetail({
       setWalletAddresses(addressResponse.addresses);
 
       // Then load token balances
-      console.log("🚀 Starting getTokenBalances request...");
+      // In dev mode, also include testnet balances (Sepolia)
+      const includeTestnets = import.meta.env.DEV;
+      console.log("🚀 Starting getTokenBalances request...", { includeTestnets });
       const response: TokenBalancesResponse = await tauriApi.getTokenBalances({
         walletId: wallet.id,
         password,
         usbPath,
         appPassword,
+        includeTestnets,
       });
 
       console.log("📡 Alchemy API Response (RAW):", response);

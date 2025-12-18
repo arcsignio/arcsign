@@ -1009,6 +1009,7 @@ pub async fn get_token_balances(
     mut password: String,
     usb_path: String,
     app_password: String,
+    include_testnets: Option<bool>,
 ) -> Result<serde_json::Value, String> {
     let start = Instant::now();
     tracing::info!("get_token_balances called for wallet_id: {}", wallet_id);
@@ -1019,6 +1020,7 @@ pub async fn get_token_balances(
         "password": password,
         "usbPath": usb_path,
         "appPassword": app_password,
+        "includeTestnets": include_testnets.unwrap_or(false),
     });
 
     let params_json = serde_json::to_string(&params)

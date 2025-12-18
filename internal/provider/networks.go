@@ -13,6 +13,8 @@ const (
 	NetworkOptimismMainnet = "opt-mainnet"
 	NetworkBaseMainnet     = "base-mainnet"
 	NetworkBnbMainnet      = "bnb-mainnet"
+	// Testnets (for development)
+	NetworkEthSepolia = "eth-sepolia"
 )
 
 // SupportedNetworks returns all networks supported for token balance queries
@@ -29,25 +31,29 @@ func SupportedNetworks() []string {
 
 // ChainToAlchemyNetwork maps our internal chain names to Alchemy network identifiers
 var ChainToAlchemyNetwork = map[string]string{
-	"Ethereum":        NetworkEthMainnet,
-	"ethereum":        NetworkEthMainnet,
-	"eth":             NetworkEthMainnet,
-	"Polygon":         NetworkPolygonMainnet,
-	"polygon":         NetworkPolygonMainnet,
-	"matic":           NetworkPolygonMainnet,
-	"Arbitrum":        NetworkArbitrumMainnet,
-	"arbitrum":        NetworkArbitrumMainnet,
-	"arb":             NetworkArbitrumMainnet,
-	"Optimism":        NetworkOptimismMainnet,
-	"optimism":        NetworkOptimismMainnet,
-	"opt":             NetworkOptimismMainnet,
-	"Base":            NetworkBaseMainnet,
-	"base":            NetworkBaseMainnet,
-	"BNB":             NetworkBnbMainnet,
-	"bnb":             NetworkBnbMainnet,
-	"binance":         NetworkBnbMainnet,
-	"bsc":             NetworkBnbMainnet,
-	"binance-smart-chain": NetworkBnbMainnet,
+	"Ethereum":             NetworkEthMainnet,
+	"ethereum":             NetworkEthMainnet,
+	"eth":                  NetworkEthMainnet,
+	"Polygon":              NetworkPolygonMainnet,
+	"polygon":              NetworkPolygonMainnet,
+	"matic":                NetworkPolygonMainnet,
+	"Arbitrum":             NetworkArbitrumMainnet,
+	"arbitrum":             NetworkArbitrumMainnet,
+	"arb":                  NetworkArbitrumMainnet,
+	"Optimism":             NetworkOptimismMainnet,
+	"optimism":             NetworkOptimismMainnet,
+	"opt":                  NetworkOptimismMainnet,
+	"Base":                 NetworkBaseMainnet,
+	"base":                 NetworkBaseMainnet,
+	"BNB":                  NetworkBnbMainnet,
+	"bnb":                  NetworkBnbMainnet,
+	"binance":              NetworkBnbMainnet,
+	"bsc":                  NetworkBnbMainnet,
+	"binance-smart-chain":  NetworkBnbMainnet,
+	// Testnets (for development)
+	"Ethereum Sepolia":     NetworkEthSepolia,
+	"ethereum-sepolia":     NetworkEthSepolia,
+	"sepolia":              NetworkEthSepolia,
 }
 
 // GetAlchemyNetwork converts a chain name to Alchemy network identifier

@@ -31,4 +31,5 @@ export interface GetTokenBalancesParams {
   password: string;
   usbPath: string;
   appPassword: string;
+  includeTestnets?: boolean; // Include testnet networks (dev mode)
 }

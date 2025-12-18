@@ -2109,6 +2109,11 @@ func GetTokenBalances(params *C.char) *C.char {
 
 		// Add network to address
 		addressNetworkMap[addr.Address] = append(addressNetworkMap[addr.Address], network)
+
+		// If includeTestnets is true and this is an Ethereum address, also query Sepolia
+		if input.IncludeTestnets && addr.CoinName == "Ethereum" {
+			addressNetworkMap[addr.Address] = append(addressNetworkMap[addr.Address], provider.NetworkEthSepolia)
+		}
 	}
 
 	if len(addressNetworkMap) == 0 {
