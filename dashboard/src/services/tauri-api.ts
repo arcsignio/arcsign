@@ -391,26 +391,20 @@ export interface BuildTransactionParams {
   appPassword: string;
 }
 
+/**
+ * Build transaction response from Go backend
+ * Note: Backend returns simplified format with just the essential fields
+ */
 export interface BuildTransactionResponse {
-  unsignedTx: {
-    nonce: string;
-    to: string;
-    value: string;
-    data: string;
-    gasLimit: string;
-    maxFeePerGas?: string;
-    maxPriorityFeePerGas?: string;
-    gasPrice?: string;
-    chainId: number;
-  };
-  signingPayload: string; // Base64 encoded payload to sign
-  feeEstimate: {
-    gasLimit: string;
-    maxFeePerGas: string;
-    maxPriorityFeePerGas: string;
-    estimatedFeeWei: string;
-    estimatedFeeEth: string;
-  };
+  id: string;              // Unique transaction ID
+  chainId: string;         // Chain identifier
+  from: string;            // Sender address
+  to: string;              // Recipient address
+  amount: string;          // Amount in Wei
+  fee: string;             // Estimated fee in Wei
+  signingPayload: string;  // Base64 encoded payload to sign
+  humanReadable: string;   // JSON representation for audit
+  buildTimestamp: string;  // ISO timestamp
 }
 
 export interface SignTransactionParams {
@@ -418,7 +412,7 @@ export interface SignTransactionParams {
   walletId: string;
   password: string;
   fromAddress: string;
-  unsignedTx: BuildTransactionResponse["unsignedTx"];
+  unsignedTx: BuildTransactionResponse;  // The full BuildTransactionResponse object
   usbPath: string;
   appPassword: string;
 }
@@ -475,30 +469,19 @@ export interface EstimateFeeParams {
   appPassword: string;
 }
 
+/**
+ * Fee estimate response from Go backend
+ * Note: Backend returns minFee/recommendedFee/maxFee format
+ * We map this to slow/normal/fast for UI consistency
+ */
 export interface EstimateFeeResponse {
-  slow: {
-    maxFeePerGas: string;
-    maxPriorityFeePerGas: string;
-    estimatedFeeWei: string;
-    estimatedFeeEth: string;
-    estimatedTimeSeconds: number;
-  };
-  normal: {
-    maxFeePerGas: string;
-    maxPriorityFeePerGas: string;
-    estimatedFeeWei: string;
-    estimatedFeeEth: string;
-    estimatedTimeSeconds: number;
-  };
-  fast: {
-    maxFeePerGas: string;
-    maxPriorityFeePerGas: string;
-    estimatedFeeWei: string;
-    estimatedFeeEth: string;
-    estimatedTimeSeconds: number;
-  };
-  gasLimit: string;
-  baseFee: string;
+  chainId: string;
+  minFee: string;           // Wei - maps to "slow"
+  recommendedFee: string;   // Wei - maps to "normal"
+  maxFee: string;           // Wei - maps to "fast"
+  confidence: number;       // Confidence percentage (0-100)
+  estimatedBlocks: number;  // Blocks until confirmation
+  timestamp: string;        // ISO timestamp
 }
 
 // ============================================================================

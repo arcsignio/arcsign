@@ -263,7 +263,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         walletId,
         password: walletPassword,
         fromAddress: selectedToken.fromAddress,
-        unsignedTx: unsignedTx.unsignedTx,
+        unsignedTx: unsignedTx,  // Pass the full BuildTransactionResponse
         usbPath,
         appPassword,
       });
@@ -505,7 +505,14 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
               <label>Transaction Speed</label>
               <div className="fee-selector">
                 {(["slow", "normal", "fast"] as FeeSpeed[]).map((speed) => {
-                  const fee = feeEstimate[speed];
+                  // Map speed to backend fee fields
+                  const feeWei = speed === "slow"
+                    ? feeEstimate.minFee
+                    : speed === "normal"
+                      ? feeEstimate.recommendedFee
+                      : feeEstimate.maxFee;
+                  // Estimate time based on speed (rough estimates)
+                  const estimatedMinutes = speed === "slow" ? 10 : speed === "normal" ? 3 : 1;
                   return (
                     <button
                       key={speed}
@@ -517,10 +524,10 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
                         {speed.charAt(0).toUpperCase() + speed.slice(1)}
                       </span>
                       <span className="fee-estimate">
-                        {formatEth(fee.estimatedFeeWei)} ETH
+                        {formatEth(feeWei)} ETH
                       </span>
                       <span className="fee-time">
-                        ~{Math.ceil(fee.estimatedTimeSeconds / 60)} min
+                        ~{estimatedMinutes} min
                       </span>
                     </button>
                   );
@@ -583,14 +590,14 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
             <div className="review-row">
               <span className="review-label">Estimated Fee</span>
               <span className="review-value">
-                {formatEth(unsignedTx.feeEstimate.estimatedFeeWei)} ETH
+                {formatEth(unsignedTx.fee)} ETH
               </span>
             </div>
             {!isERC20 && (
               <div className="review-row total">
                 <span className="review-label">Total</span>
                 <span className="review-value">
-                  {(parseFloat(amount) + parseFloat(unsignedTx.feeEstimate.estimatedFeeEth)).toFixed(6)} {selectedToken.tokenSymbol}
+                  {(parseFloat(amount) + parseFloat(unsignedTx.fee) / 1e18).toFixed(6)} {selectedToken.tokenSymbol}
                 </span>
               </div>
             )}
