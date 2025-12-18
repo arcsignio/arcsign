@@ -298,6 +298,30 @@ export function WalletDetail({
   }, {} as Record<string, TokenBalance[]>);
   void _tokensByNetwork; // Suppress unused variable warning
 
+  // Convert tokens to SendableToken format for SendTransaction
+  // IMPORTANT: This must be before any conditional returns to follow React Hooks rules
+  const availableTokensForSend = useMemo((): SendableToken[] => {
+    // Filter tokens with balance > 0
+    const tokensWithBalance = tokens.filter((t) => {
+      const balance = parseFloat(t.balance);
+      return balance > 0;
+    });
+
+    // Convert to SendableToken format
+    return tokensWithBalance.map((token) => ({
+      network: token.network,
+      networkLabel: token.networkLabel,
+      tokenAddress: token.tokenAddress || "",
+      tokenSymbol: token.tokenSymbol,
+      tokenName: token.tokenName,
+      tokenLogo: token.tokenLogo,
+      balance: token.balance,
+      usdValue: token.usdValue,
+      decimals: token.decimals,
+      fromAddress: token.address, // The wallet address for this token's network
+    }));
+  }, [tokens]);
+
   if (showPasswordPrompt) {
     return (
       <div className="wallet-detail">
@@ -540,29 +564,6 @@ export function WalletDetail({
       />
     );
   }
-
-  // Convert tokens to SendableToken format for SendTransaction
-  const availableTokensForSend = useMemo((): SendableToken[] => {
-    // Filter tokens with balance > 0
-    const tokensWithBalance = tokens.filter((t) => {
-      const balance = parseFloat(t.balance);
-      return balance > 0;
-    });
-
-    // Convert to SendableToken format
-    return tokensWithBalance.map((token) => ({
-      network: token.network,
-      networkLabel: token.networkLabel,
-      tokenAddress: token.tokenAddress || "",
-      tokenSymbol: token.tokenSymbol,
-      tokenName: token.tokenName,
-      tokenLogo: token.tokenLogo,
-      balance: token.balance,
-      usdValue: token.usdValue,
-      decimals: token.decimals,
-      fromAddress: token.address, // The wallet address for this token's network
-    }));
-  }, [tokens]);
 
   // Show Send Transaction view
   if (showSendTransaction && appPassword) {

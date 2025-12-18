@@ -148,6 +148,20 @@ extern char* ExportWallet(char* params);
 // Output JSON: {"success": true, "data": {"walletId": "...", "oldName": "...", "newName": "...", "renamedAt": "..."}}
 extern char* RenameWallet(char* params);
 
+// DeleteWallet permanently deletes a wallet from storage after password verification.
+// This is a destructive operation that cannot be undone.
+//
+// Security: Requires correct wallet password for authentication.
+//
+// Input JSON: {
+//   "walletId": "uuid",
+//   "password": "wallet-password",  // REQUIRED: Must be correct
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Returns: {"success": true, "data": {"walletId": "...", "deletedAt": "..."}}
+extern char* DeleteWallet(char* params);
+
 // ListWallets enumerates all wallets on USB.
 // T024.3: Implement ListWallets export function
 //
@@ -431,15 +445,32 @@ extern char* UnlockApp(char* params);
 // GetTokenBalances queries token balances for all addresses in a wallet across multiple chains
 // using Alchemy API. Returns aggregated token balances with USD values.
 //
+// Security: Requires valid wallet password for authentication before accessing balance data.
+//
 // Input JSON: {
 //   "walletId": "uuid",
-//   "password": "wallet-password",  // Not used (addresses already stored)
+//   "password": "wallet-password",  // REQUIRED: Must be correct wallet password
 //   "usbPath": "/path/to/usb",
 //   "appPassword": "app-level-password"
 // }
 //
 // Returns: {"success": true, "data": {"tokens": [...], "totalUsd": 5000.50, ...}}
 extern char* GetTokenBalances(char* params);
+
+// GetAssetTransfers queries transaction history for an address using Alchemy API.
+// Feature: Transaction History - Asset Transfers API Integration
+//
+// Input JSON: {
+//   "address": "0x...",           // The wallet address to query
+//   "network": "eth-mainnet",     // Network identifier (eth-mainnet, polygon-mainnet, etc.)
+//   "maxCount": 50,               // Optional: maximum number of transfers to return
+//   "pageKey": "",                // Optional: pagination key for next page
+//   "appPassword": "app-password",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Returns: {"success": true, "data": {"transfers": [...], "pageKey": "..."}}
+extern char* GetAssetTransfers(char* params);
 
 #ifdef __cplusplus
 }
