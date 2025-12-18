@@ -141,6 +141,24 @@ export function WalletDetail({
             logo: token.tokenLogo,
           });
         });
+
+        // Pre-process: Enrich native tokens with metadata before setting state
+        // This ensures native tokens have proper symbol/name even if Alchemy returns empty
+        response.tokens.forEach((token) => {
+          const networkKey = getNetworkKey(token.networkLabel || token.network);
+          if (networkKey && isNativeTokenAddress(token.tokenAddress)) {
+            const nativeToken = getNativeToken(networkKey);
+            if (nativeToken && !token.tokenSymbol) {
+              console.log(`🔧 Pre-enriching native token for ${networkKey}:`, {
+                before: { symbol: token.tokenSymbol, name: token.tokenName },
+                after: { symbol: nativeToken.symbol, name: nativeToken.name },
+              });
+              token.tokenSymbol = nativeToken.symbol;
+              token.tokenName = nativeToken.name;
+              token.tokenLogo = nativeToken.logoURI;
+            }
+          }
+        });
       } else {
         console.error("❌ Invalid tokens data:", response?.tokens);
       }
@@ -188,6 +206,12 @@ export function WalletDetail({
   // Merge user tokens with priority tokens from CoinGecko lists
   const displayTokens = useMemo(() => {
     const tokenMap = new Map<string, TokenBalance>();
+
+    console.log("🔄 Processing tokens:", tokens.length, "tokens");
+    console.log(
+      "🔍 Sepolia tokens in input:",
+      tokens.filter((t) => t.network.includes("sepolia"))
+    );
 
     // Add all user tokens first (these have actual balances)
     tokens.forEach((token) => {
@@ -241,13 +265,28 @@ export function WalletDetail({
       });
     }
 
-    return Array.from(tokenMap.values()).sort((a, b) => {
-      // Sort by value (highest first), then by symbol
+    const result = Array.from(tokenMap.values()).sort((a, b) => {
+      // Sort by value (highest first)
       if (b.usdValue !== a.usdValue) {
         return b.usdValue - a.usdValue;
       }
+      // When value is same, sort by balance (highest first)
+      const balanceA = parseFloat(a.balance) || 0;
+      const balanceB = parseFloat(b.balance) || 0;
+      if (balanceB !== balanceA) {
+        return balanceB - balanceA;
+      }
+      // Finally sort by symbol
       return a.tokenSymbol.localeCompare(b.tokenSymbol);
     });
+
+    console.log("📊 Final displayTokens:", result.length, "tokens");
+    console.log(
+      "🔍 Sepolia in final result:",
+      result.filter((t) => t.network.includes("sepolia"))
+    );
+
+    return result;
   }, [tokens, priorityTokens, isLoadingPriority]);
 
   // Group tokens by network (prepared for future use in network grouping view)
@@ -1029,11 +1068,16 @@ export function WalletDetail({
                           fontSize: "0.6875rem",
                           padding: "0.125rem 0.375rem",
                           borderRadius: "0.25rem",
-                          background: "#dbeafe",
-                          color: "#2563eb",
+                          background: token.network.includes("sepolia")
+                            ? "#fef3c7"
+                            : "#dbeafe",
+                          color: token.network.includes("sepolia")
+                            ? "#d97706"
+                            : "#2563eb",
                           fontWeight: "500",
                         }}
                       >
+                        {token.network.includes("sepolia") && "🧪 "}
                         {token.networkLabel}
                       </span>
                     </div>
