@@ -373,14 +373,21 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
   // Check if it's an ERC-20 token (has tokenAddress)
   const isERC20 = selectedToken && selectedToken.tokenAddress && selectedToken.tokenAddress !== "";
 
-  // Format balance display
+  // Format balance display (truncate, no rounding)
   const formatBalance = (balance: string, _decimals?: number): string => {
     const num = parseFloat(balance);
     if (num === 0) return "0";
     if (num < 0.0001) return "<0.0001";
-    if (num < 0.01) return num.toFixed(6);
-    if (num < 1) return num.toFixed(4);
-    return num.toFixed(4);
+
+    // Truncate instead of rounding
+    const truncate = (n: number, decimals: number): string => {
+      const factor = Math.pow(10, decimals);
+      return (Math.floor(n * factor) / factor).toFixed(decimals);
+    };
+
+    if (num < 0.01) return truncate(num, 6);
+    if (num < 1000) return truncate(num, 6);
+    return truncate(num, 4);
   };
 
   // Group tokens by network for better display
