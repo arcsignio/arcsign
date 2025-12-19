@@ -826,12 +826,17 @@ func BuildTransaction(params *C.char) *C.char {
 		configPath := input.USBPath + "/provider_config.enc"
 		store, err := provider.NewProviderConfigStore(configPath, input.AppPassword)
 		if err == nil {
-			// Try to get best provider for this chain (using "ethereum" for all EVM chains)
-			providerChainID := "ethereum"
-			config, err := store.GetBestProvider(providerChainID)
-			if err == nil && config.APIKey != "" {
+			// Try to get provider - first try "global", then chain-specific
+			var config *provider.ProviderConfig
+			config, err = store.GetBestProvider("global")
+			if err != nil {
+				// Fallback to chain-specific provider
+				config, err = store.GetBestProvider("ethereum")
+			}
+			if err == nil && config != nil && config.APIKey != "" {
 				// Build Alchemy RPC URL based on chain
 				rpcEndpoint = buildAlchemyRPCEndpoint(input.ChainID, config.APIKey)
+				fmt.Fprintf(os.Stderr, "[Go BuildTransaction] Using RPC endpoint: %s\n", rpcEndpoint)
 			}
 		}
 	}
