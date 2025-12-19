@@ -19,6 +19,7 @@ import {
 import { usePriorityTokens } from "@/hooks/useTokenList";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { SendTransaction, type SendableToken } from "@/components/SendTransaction";
+import SwapTransaction from "@/components/SwapTransaction";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
 
@@ -76,6 +77,9 @@ export function WalletDetail({
 
   // Send Transaction state
   const [showSendTransaction, setShowSendTransaction] = useState(false);
+
+  // Swap Transaction state
+  const [showSwapTransaction, setShowSwapTransaction] = useState(false);
 
   // Refresh state
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -961,6 +965,25 @@ export function WalletDetail({
     );
   }
 
+  // Show Swap Transaction view
+  if (showSwapTransaction && appPassword) {
+    console.log("🔄 [WalletDetail] Rendering SwapTransaction component with", availableTokensForSend.length, "tokens");
+    return (
+      <SwapTransaction
+        walletId={wallet.id}
+        walletHasPassphrase={wallet.has_passphrase}
+        walletPassphrase={validatedPassphrase || undefined}
+        availableTokens={availableTokensForSend}
+        usbPath={usbPath}
+        appPassword={appPassword}
+        onBack={() => setShowSwapTransaction(false)}
+        onSuccess={(txHash) => {
+          console.log("✅ Swap transaction submitted:", txHash);
+        }}
+      />
+    );
+  }
+
   return (
     <div
       style={{
@@ -1213,7 +1236,14 @@ export function WalletDetail({
               tooltip: "Receive tokens to your wallet",
               onClick: () => setShowAddressList(true),
             },
-            { icon: "🔄", label: "Swap", tooltip: "Exchange tokens instantly", onClick: () => {} },
+            { icon: "🔄", label: "Swap", tooltip: "Exchange tokens instantly", onClick: () => {
+                console.log("🔄 [Swap] Button clicked, available tokens:", availableTokensForSend.length);
+                if (availableTokensForSend.length > 0) {
+                  setShowSwapTransaction(true);
+                } else {
+                  alert("No tokens with balance available to swap. Please load your token balances first.");
+                }
+              } },
             {
               icon: "📜",
               label: "History",

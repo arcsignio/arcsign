@@ -30,6 +30,10 @@ use commands::transaction::{
     build_transaction, sign_transaction, broadcast_transaction,
     query_transaction_status, estimate_fee,
 };
+use commands::swap::{
+    get_swap_quote, build_swap_transaction, get_swap_approval,
+    check_swap_allowance, get_native_token_address,
+};
 use commands::usb::detect_usb;
 use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, rename_wallet, delete_wallet, get_token_balances, validate_passphrase, AddressCache};
 use commands::provider::{set_provider_config, get_provider_config, list_provider_configs, delete_provider_config, get_asset_transfers};
@@ -229,6 +233,12 @@ fn main() {
             broadcast_transaction,
             query_transaction_status,
             estimate_fee,
+            // Swap commands (DEX Aggregator)
+            get_swap_quote,
+            build_swap_transaction,
+            get_swap_approval,
+            check_swap_allowance,
+            get_native_token_address,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

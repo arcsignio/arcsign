@@ -676,6 +676,236 @@ export async function validatePassphrase(
   }
 }
 
+// ============================================================================
+// Swap Types (DEX Aggregator - 1inch)
+// ============================================================================
+
+export interface SwapTokenInfo {
+  symbol: string;
+  name: string;
+  address: string;
+  decimals: number;
+  logoURI?: string;
+}
+
+export interface GetSwapQuoteParams {
+  chainId: string;
+  fromTokenAddress: string;
+  toTokenAddress: string;
+  amount: string; // Amount in wei/smallest unit
+  fromAddress: string;
+  slippage?: number; // Default 0.5 (0.5%)
+  usbPath: string;
+  appPassword: string;
+}
+
+export interface SwapQuoteResponse {
+  dex: string; // "1inch"
+  fromToken: SwapTokenInfo;
+  toToken: SwapTokenInfo;
+  fromAmount: string; // Input amount (wei)
+  toAmount: string; // Expected output (wei)
+  toAmountMin: string; // Minimum output with slippage
+  exchangeRate: string; // 1 FROM = ? TO
+  priceImpact: string; // Price impact percentage
+  estimatedGas: string; // Gas units
+  gasCostETH: string; // Gas cost in ETH
+  route: string[]; // Token path
+  protocols: string[]; // DEXes used
+  validUntil: number; // Quote expiry timestamp
+  needsApproval: boolean; // Whether approve tx is needed
+  approvalAddress: string; // Spender address for approval
+}
+
+export interface BuildSwapTransactionParams {
+  chainId: string;
+  fromTokenAddress: string;
+  toTokenAddress: string;
+  amount: string;
+  fromAddress: string;
+  slippage?: number;
+  usbPath: string;
+  appPassword: string;
+}
+
+export interface SwapTxData {
+  from: string;
+  to: string; // 1inch router contract
+  data: string; // Encoded swap call
+  value: string; // ETH value (for native token swaps)
+  gas: number; // Gas limit
+  gasPrice: string; // Legacy gas price
+}
+
+export interface BuildSwapTransactionResponse {
+  quote: SwapQuoteResponse;
+  txData: SwapTxData;
+  chainId: number;
+}
+
+export interface GetSwapApprovalParams {
+  chainId: string;
+  tokenAddress: string;
+  amount?: string; // Amount to approve (empty = unlimited)
+  usbPath: string;
+  appPassword: string;
+}
+
+export interface GetSwapApprovalResponse {
+  data: string; // Encoded approve call
+  gasPrice: string;
+  to: string; // Token contract address
+  value: string; // Always "0"
+}
+
+export interface CheckSwapAllowanceParams {
+  chainId: string;
+  tokenAddress: string;
+  walletAddress: string;
+  usbPath: string;
+  appPassword: string;
+}
+
+export interface CheckSwapAllowanceResponse {
+  allowance: string;
+  hasAllowance: boolean;
+}
+
+// ============================================================================
+// Swap API Functions
+// ============================================================================
+
+export async function getSwapQuote(
+  params: GetSwapQuoteParams
+): Promise<SwapQuoteResponse> {
+  console.log("🔄 [tauri-api] getSwapQuote called:", {
+    chainId: params.chainId,
+    fromToken: params.fromTokenAddress,
+    toToken: params.toTokenAddress,
+    amount: params.amount,
+  });
+
+  try {
+    const result = await invoke<SwapQuoteResponse>("get_swap_quote", {
+      input: {
+        chainId: params.chainId,
+        fromTokenAddress: params.fromTokenAddress,
+        toTokenAddress: params.toTokenAddress,
+        amount: params.amount,
+        fromAddress: params.fromAddress,
+        slippage: params.slippage ?? 0.5,
+        usbPath: params.usbPath,
+        appPassword: params.appPassword,
+      },
+    });
+    console.log("🔄 [tauri-api] getSwapQuote response:", result);
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] getSwapQuote error:", error);
+    throw parseError(error);
+  }
+}
+
+export async function buildSwapTransaction(
+  params: BuildSwapTransactionParams
+): Promise<BuildSwapTransactionResponse> {
+  console.log("🔄 [tauri-api] buildSwapTransaction called:", {
+    chainId: params.chainId,
+    fromToken: params.fromTokenAddress,
+    toToken: params.toTokenAddress,
+    amount: params.amount,
+  });
+
+  try {
+    const result = await invoke<BuildSwapTransactionResponse>(
+      "build_swap_transaction",
+      {
+        input: {
+          chainId: params.chainId,
+          fromTokenAddress: params.fromTokenAddress,
+          toTokenAddress: params.toTokenAddress,
+          amount: params.amount,
+          fromAddress: params.fromAddress,
+          slippage: params.slippage ?? 0.5,
+          usbPath: params.usbPath,
+          appPassword: params.appPassword,
+        },
+      }
+    );
+    console.log("🔄 [tauri-api] buildSwapTransaction response:", result);
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] buildSwapTransaction error:", error);
+    throw parseError(error);
+  }
+}
+
+export async function getSwapApproval(
+  params: GetSwapApprovalParams
+): Promise<GetSwapApprovalResponse> {
+  console.log("🔄 [tauri-api] getSwapApproval called:", {
+    chainId: params.chainId,
+    tokenAddress: params.tokenAddress,
+  });
+
+  try {
+    const result = await invoke<GetSwapApprovalResponse>("get_swap_approval", {
+      input: {
+        chainId: params.chainId,
+        tokenAddress: params.tokenAddress,
+        amount: params.amount || "",
+        usbPath: params.usbPath,
+        appPassword: params.appPassword,
+      },
+    });
+    console.log("🔄 [tauri-api] getSwapApproval response:", result);
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] getSwapApproval error:", error);
+    throw parseError(error);
+  }
+}
+
+export async function checkSwapAllowance(
+  params: CheckSwapAllowanceParams
+): Promise<CheckSwapAllowanceResponse> {
+  console.log("🔄 [tauri-api] checkSwapAllowance called:", {
+    chainId: params.chainId,
+    tokenAddress: params.tokenAddress,
+    walletAddress: params.walletAddress,
+  });
+
+  try {
+    const result = await invoke<CheckSwapAllowanceResponse>(
+      "check_swap_allowance",
+      {
+        input: {
+          chainId: params.chainId,
+          tokenAddress: params.tokenAddress,
+          walletAddress: params.walletAddress,
+          usbPath: params.usbPath,
+          appPassword: params.appPassword,
+        },
+      }
+    );
+    console.log("🔄 [tauri-api] checkSwapAllowance response:", result);
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] checkSwapAllowance error:", error);
+    throw parseError(error);
+  }
+}
+
+export async function getNativeTokenAddress(): Promise<string> {
+  try {
+    const result = await invoke<{ address: string }>("get_native_token_address");
+    return result.address;
+  } catch (error) {
+    console.error("🔴 [tauri-api] getNativeTokenAddress error:", error);
+    throw parseError(error);
+  }
+}
+
 /**
  * Typed Tauri API wrapper
  * Provides type-safe access to all Tauri commands
@@ -710,6 +940,13 @@ export const tauriApi = {
   broadcastTransaction,
   queryTransactionStatus,
   estimateFee,
+
+  // Swap Operations (DEX Aggregator)
+  getSwapQuote,
+  buildSwapTransaction,
+  getSwapApproval,
+  checkSwapAllowance,
+  getNativeTokenAddress,
 
   // Security
   enableScreenshotProtection,

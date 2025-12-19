@@ -41,6 +41,8 @@ import (
 	chainadapterService "github.com/yourusername/arcsign/internal/services/chainadapter"
 	"github.com/yourusername/arcsign/internal/services/hdkey"
 	"github.com/yourusername/arcsign/internal/services/wallet"
+	"github.com/yourusername/arcsign/src/swap"
+	"github.com/yourusername/arcsign/src/swap/oneinch"
 )
 
 // Global ChainAdapter service instance (initialized on first use)
@@ -2591,6 +2593,463 @@ func ValidatePassphrase(params *C.char) *C.char {
 	}
 
 	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+// ============================================================================
+// Swap FFI Functions (1inch DEX Aggregator)
+// Feature: Token Swap via 1inch API
+// ============================================================================
+
+// Global swap aggregator instance (lazy initialization)
+var swapAggregator *swap.Aggregator
+
+// initSwapAggregator initializes the global swap aggregator with API key from provider config
+func initSwapAggregator(oneInchAPIKey string) *swap.Aggregator {
+	if swapAggregator == nil || oneInchAPIKey != "" {
+		swapAggregator = swap.NewAggregator(&swap.Config{
+			OneInchAPIKey: oneInchAPIKey,
+		})
+	}
+	return swapAggregator
+}
+
+// chainIDToInt converts chain string to numeric chain ID for 1inch API
+func chainIDToInt(chainID string) int {
+	switch chainID {
+	case "ethereum", "ethereum-mainnet":
+		return 1
+	case "polygon", "polygon-mainnet":
+		return 137
+	case "arbitrum", "arbitrum-mainnet":
+		return 42161
+	case "optimism", "optimism-mainnet":
+		return 10
+	case "base", "base-mainnet":
+		return 8453
+	case "bsc", "bsc-mainnet", "bnb":
+		return 56
+	default:
+		return 1 // Default to Ethereum mainnet
+	}
+}
+
+//export GetSwapQuote
+// GetSwapQuote fetches a swap quote from 1inch DEX aggregator.
+// Feature: Token Swap
+//
+// Input JSON: {
+//   "chainId": "ethereum" | "polygon" | "arbitrum" | etc.,
+//   "fromTokenAddress": "0x..." or "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" for native,
+//   "toTokenAddress": "0x...",
+//   "amount": "1000000000000000000",  // Amount in smallest unit (wei)
+//   "fromAddress": "0x...",  // User's wallet address
+//   "slippage": 0.5,  // Slippage tolerance in percent
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "dex": "1inch",
+//     "fromToken": {...},
+//     "toToken": {...},
+//     "fromAmount": "...",
+//     "toAmount": "...",
+//     "toAmountMin": "...",
+//     "exchangeRate": "...",
+//     "estimatedGas": "...",
+//     "gasCostETH": "...",
+//     "route": ["ETH", "USDC"],
+//     "protocols": ["Uniswap V3"],
+//     "needsApproval": true,
+//     "approvalAddress": "0x..."
+//   }
+// }
+func GetSwapQuote(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		debugLog(fmt.Sprintf("GetSwapQuote completed in %v", elapsed))
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		ChainID          string  `json:"chainId"`
+		FromTokenAddress string  `json:"fromTokenAddress"`
+		ToTokenAddress   string  `json:"toTokenAddress"`
+		Amount           string  `json:"amount"`
+		FromAddress      string  `json:"fromAddress"`
+		Slippage         float64 `json:"slippage"`
+		USBPath          string  `json:"usbPath"`
+		AppPassword      string  `json:"appPassword"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	// Default slippage
+	if input.Slippage <= 0 {
+		input.Slippage = 0.5
+	}
+
+	// Get 1inch API key from provider config
+	oneInchAPIKey := ""
+	if input.USBPath != "" && input.AppPassword != "" {
+		configPath := input.USBPath + "/provider_config.enc"
+		store, err := provider.NewProviderConfigStore(configPath, input.AppPassword)
+		if err == nil {
+			// Try to get 1inch provider config
+			config, err := store.GetBestProvider("1inch")
+			if err == nil && config != nil && config.APIKey != "" {
+				oneInchAPIKey = config.APIKey
+			}
+		}
+	}
+
+	// Initialize swap aggregator
+	aggregator := initSwapAggregator(oneInchAPIKey)
+
+	// Parse amount
+	amount := new(big.Int)
+	amount.SetString(input.Amount, 10)
+
+	// Get gas price (use default estimate)
+	gasPrice := big.NewInt(30000000000) // 30 Gwei default
+
+	// Get quote
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	quote, err := aggregator.GetQuote(ctx, &swap.QuoteParams{
+		ChainID:          chainIDToInt(input.ChainID),
+		FromTokenAddress: input.FromTokenAddress,
+		ToTokenAddress:   input.ToTokenAddress,
+		Amount:           amount,
+		FromAddress:      input.FromAddress,
+		Slippage:         input.Slippage,
+	}, gasPrice)
+
+	if err != nil {
+		response := NewErrorResponse(ErrSwapQuoteFailed, fmt.Sprintf("Failed to get swap quote: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	response := NewSuccessResponse(quote)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export BuildSwapTransaction
+// BuildSwapTransaction builds a complete swap transaction ready for signing.
+// Feature: Token Swap
+//
+// Input JSON: same as GetSwapQuote
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "quote": {...},  // Same as GetSwapQuote response
+//     "txData": {
+//       "from": "0x...",
+//       "to": "0x...",  // 1inch router
+//       "data": "0x...",  // Encoded swap call
+//       "value": "0",  // ETH value for native swaps
+//       "gas": 200000
+//     },
+//     "chainId": 1
+//   }
+// }
+func BuildSwapTransaction(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		debugLog(fmt.Sprintf("BuildSwapTransaction completed in %v", elapsed))
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		ChainID          string  `json:"chainId"`
+		FromTokenAddress string  `json:"fromTokenAddress"`
+		ToTokenAddress   string  `json:"toTokenAddress"`
+		Amount           string  `json:"amount"`
+		FromAddress      string  `json:"fromAddress"`
+		Slippage         float64 `json:"slippage"`
+		USBPath          string  `json:"usbPath"`
+		AppPassword      string  `json:"appPassword"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	// Default slippage
+	if input.Slippage <= 0 {
+		input.Slippage = 0.5
+	}
+
+	// Get 1inch API key from provider config
+	oneInchAPIKey := ""
+	if input.USBPath != "" && input.AppPassword != "" {
+		configPath := input.USBPath + "/provider_config.enc"
+		store, err := provider.NewProviderConfigStore(configPath, input.AppPassword)
+		if err == nil {
+			config, err := store.GetBestProvider("1inch")
+			if err == nil && config != nil && config.APIKey != "" {
+				oneInchAPIKey = config.APIKey
+			}
+		}
+	}
+
+	// Initialize swap aggregator
+	aggregator := initSwapAggregator(oneInchAPIKey)
+
+	// Parse amount
+	amount := new(big.Int)
+	amount.SetString(input.Amount, 10)
+
+	// Get gas price
+	gasPrice := big.NewInt(30000000000) // 30 Gwei default
+
+	// Build swap transaction
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	swapTx, err := aggregator.BuildSwapTransaction(ctx, &swap.QuoteParams{
+		ChainID:          chainIDToInt(input.ChainID),
+		FromTokenAddress: input.FromTokenAddress,
+		ToTokenAddress:   input.ToTokenAddress,
+		Amount:           amount,
+		FromAddress:      input.FromAddress,
+		Slippage:         input.Slippage,
+	}, gasPrice)
+
+	if err != nil {
+		response := NewErrorResponse(ErrSwapBuildFailed, fmt.Sprintf("Failed to build swap transaction: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	response := NewSuccessResponse(swapTx)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export GetSwapApproval
+// GetSwapApproval gets the approval transaction data for ERC-20 token swap.
+// Feature: Token Swap - Approval Flow
+//
+// Input JSON: {
+//   "chainId": "ethereum",
+//   "tokenAddress": "0x...",  // Token to approve
+//   "amount": "1000000000000000000",  // Amount to approve (optional, empty = unlimited)
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "to": "0x...",  // Token contract address
+//     "data": "0x...",  // Encoded approve call
+//     "value": "0"
+//   }
+// }
+func GetSwapApproval(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		debugLog(fmt.Sprintf("GetSwapApproval completed in %v", elapsed))
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		ChainID      string `json:"chainId"`
+		TokenAddress string `json:"tokenAddress"`
+		Amount       string `json:"amount"` // Optional: empty = unlimited
+		USBPath      string `json:"usbPath"`
+		AppPassword  string `json:"appPassword"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	// Get 1inch API key
+	oneInchAPIKey := ""
+	if input.USBPath != "" && input.AppPassword != "" {
+		configPath := input.USBPath + "/provider_config.enc"
+		store, err := provider.NewProviderConfigStore(configPath, input.AppPassword)
+		if err == nil {
+			config, err := store.GetBestProvider("1inch")
+			if err == nil && config != nil && config.APIKey != "" {
+				oneInchAPIKey = config.APIKey
+			}
+		}
+	}
+
+	aggregator := initSwapAggregator(oneInchAPIKey)
+
+	// Parse amount (nil = unlimited)
+	var amount *big.Int
+	if input.Amount != "" {
+		amount = new(big.Int)
+		amount.SetString(input.Amount, 10)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	approval, err := aggregator.GetApprovalTransaction(ctx, chainIDToInt(input.ChainID), input.TokenAddress, amount)
+	if err != nil {
+		response := NewErrorResponse(ErrSwapApprovalFailed, fmt.Sprintf("Failed to get approval: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	response := NewSuccessResponse(approval)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export CheckSwapAllowance
+// CheckSwapAllowance checks the current token allowance for 1inch router.
+// Feature: Token Swap - Allowance Check
+//
+// Input JSON: {
+//   "chainId": "ethereum",
+//   "tokenAddress": "0x...",
+//   "walletAddress": "0x...",
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "allowance": "1000000000000000000",
+//     "hasAllowance": true
+//   }
+// }
+func CheckSwapAllowance(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		debugLog(fmt.Sprintf("CheckSwapAllowance completed in %v", elapsed))
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		ChainID       string `json:"chainId"`
+		TokenAddress  string `json:"tokenAddress"`
+		WalletAddress string `json:"walletAddress"`
+		USBPath       string `json:"usbPath"`
+		AppPassword   string `json:"appPassword"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	// Get 1inch API key
+	oneInchAPIKey := ""
+	if input.USBPath != "" && input.AppPassword != "" {
+		configPath := input.USBPath + "/provider_config.enc"
+		store, err := provider.NewProviderConfigStore(configPath, input.AppPassword)
+		if err == nil {
+			config, err := store.GetBestProvider("1inch")
+			if err == nil && config != nil && config.APIKey != "" {
+				oneInchAPIKey = config.APIKey
+			}
+		}
+	}
+
+	aggregator := initSwapAggregator(oneInchAPIKey)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	allowance, err := aggregator.CheckAllowance(ctx, chainIDToInt(input.ChainID), input.TokenAddress, input.WalletAddress)
+	if err != nil {
+		response := NewErrorResponse(ErrSwapAllowanceFailed, fmt.Sprintf("Failed to check allowance: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	output := map[string]interface{}{
+		"allowance":    allowance.String(),
+		"hasAllowance": allowance.Cmp(big.NewInt(0)) > 0,
+	}
+
+	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export GetNativeTokenAddress
+// GetNativeTokenAddress returns the standard native token address for 1inch API.
+// Native tokens (ETH, MATIC, etc.) use this special address in 1inch API calls.
+func GetNativeTokenAddress() *C.char {
+	address := oneinch.NativeTokenAddress
+	response := NewSuccessResponse(map[string]string{
+		"address": address,
+	})
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }

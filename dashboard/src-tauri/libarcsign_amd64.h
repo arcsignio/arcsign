@@ -501,6 +501,106 @@ extern char* GetAssetTransfers(char* params);
 // }
 extern char* ValidatePassphrase(char* params);
 
+// GetSwapQuote fetches a swap quote from 1inch DEX aggregator.
+// Feature: Token Swap
+//
+// Input JSON: {
+//   "chainId": "ethereum" | "polygon" | "arbitrum" | etc.,
+//   "fromTokenAddress": "0x..." or "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" for native,
+//   "toTokenAddress": "0x...",
+//   "amount": "1000000000000000000",  // Amount in smallest unit (wei)
+//   "fromAddress": "0x...",  // User's wallet address
+//   "slippage": 0.5,  // Slippage tolerance in percent
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "dex": "1inch",
+//     "fromToken": {...},
+//     "toToken": {...},
+//     "fromAmount": "...",
+//     "toAmount": "...",
+//     "toAmountMin": "...",
+//     "exchangeRate": "...",
+//     "estimatedGas": "...",
+//     "gasCostETH": "...",
+//     "route": ["ETH", "USDC"],
+//     "protocols": ["Uniswap V3"],
+//     "needsApproval": true,
+//     "approvalAddress": "0x..."
+//   }
+// }
+extern char* GetSwapQuote(char* params);
+
+// BuildSwapTransaction builds a complete swap transaction ready for signing.
+// Feature: Token Swap
+//
+// Input JSON: same as GetSwapQuote
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "quote": {...},  // Same as GetSwapQuote response
+//     "txData": {
+//       "from": "0x...",
+//       "to": "0x...",  // 1inch router
+//       "data": "0x...",  // Encoded swap call
+//       "value": "0",  // ETH value for native swaps
+//       "gas": 200000
+//     },
+//     "chainId": 1
+//   }
+// }
+extern char* BuildSwapTransaction(char* params);
+
+// GetSwapApproval gets the approval transaction data for ERC-20 token swap.
+// Feature: Token Swap - Approval Flow
+//
+// Input JSON: {
+//   "chainId": "ethereum",
+//   "tokenAddress": "0x...",  // Token to approve
+//   "amount": "1000000000000000000",  // Amount to approve (optional, empty = unlimited)
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "to": "0x...",  // Token contract address
+//     "data": "0x...",  // Encoded approve call
+//     "value": "0"
+//   }
+// }
+extern char* GetSwapApproval(char* params);
+
+// CheckSwapAllowance checks the current token allowance for 1inch router.
+// Feature: Token Swap - Allowance Check
+//
+// Input JSON: {
+//   "chainId": "ethereum",
+//   "tokenAddress": "0x...",
+//   "walletAddress": "0x...",
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "allowance": "1000000000000000000",
+//     "hasAllowance": true
+//   }
+// }
+extern char* CheckSwapAllowance(char* params);
+
+// GetNativeTokenAddress returns the standard native token address for 1inch API.
+// Native tokens (ETH, MATIC, etc.) use this special address in 1inch API calls.
+extern char* GetNativeTokenAddress(void);
+
 #ifdef __cplusplus
 }
 #endif

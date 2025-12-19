@@ -36,6 +36,13 @@ const (
 	ErrTransactionBroadcastFailed ErrorCode = "TRANSACTION_BROADCAST_FAILED" // Transaction broadcast failed
 	ErrTransactionQueryFailed     ErrorCode = "TRANSACTION_QUERY_FAILED"     // Transaction status query failed
 	ErrFeeEstimationFailed        ErrorCode = "FEE_ESTIMATION_FAILED"        // Fee estimation failed
+
+	// Swap/DEX aggregator errors
+	ErrSwapQuoteFailed    ErrorCode = "SWAP_QUOTE_FAILED"    // Failed to get swap quote from DEX
+	ErrSwapBuildFailed    ErrorCode = "SWAP_BUILD_FAILED"    // Failed to build swap transaction
+	ErrSwapApprovalFailed ErrorCode = "SWAP_APPROVAL_FAILED" // Failed to get token approval
+	ErrSwapAllowanceFailed ErrorCode = "SWAP_ALLOWANCE_FAILED" // Failed to check token allowance
+	ErrChainNotSupported  ErrorCode = "CHAIN_NOT_SUPPORTED"  // Chain not supported for swap
 )
 
 // FFIError represents a structured error response for FFI functions

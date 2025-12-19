@@ -99,6 +99,22 @@ type GetAssetTransfersFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for ValidatePassphrase: char* ValidatePassphrase(char* params)
 type ValidatePassphraseFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+// Swap/DEX aggregator function types
+/// Function signature for GetSwapQuote: char* GetSwapQuote(char* params)
+type GetSwapQuoteFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for BuildSwapTransaction: char* BuildSwapTransaction(char* params)
+type BuildSwapTransactionFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for GetSwapApproval: char* GetSwapApproval(char* params)
+type GetSwapApprovalFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for CheckSwapAllowance: char* CheckSwapAllowance(char* params)
+type CheckSwapAllowanceFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for GetNativeTokenAddress: char* GetNativeTokenAddress()
+type GetNativeTokenAddressFn = unsafe extern "C" fn() -> *mut c_char;
+
 // ============================================================================
 // WalletLibrary - Dynamic Library Wrapper (T016, T017)
 // ============================================================================
@@ -147,6 +163,12 @@ pub struct WalletLibrary {
     get_asset_transfers: Symbol<'static, GetAssetTransfersFn>,
     // Passphrase validation function symbol
     validate_passphrase: Symbol<'static, ValidatePassphraseFn>,
+    // Swap/DEX aggregator function symbols
+    get_swap_quote: Symbol<'static, GetSwapQuoteFn>,
+    build_swap_transaction: Symbol<'static, BuildSwapTransactionFn>,
+    get_swap_approval: Symbol<'static, GetSwapApprovalFn>,
+    check_swap_allowance: Symbol<'static, CheckSwapAllowanceFn>,
+    get_native_token_address: Symbol<'static, GetNativeTokenAddressFn>,
 }
 
 impl WalletLibrary {
@@ -308,6 +330,27 @@ impl WalletLibrary {
                 .get(b"ValidatePassphrase")
                 .map_err(|e| format!("ValidatePassphrase symbol not found: {}", e))?;
 
+            // Load Swap/DEX aggregator symbols
+            let get_swap_quote: Symbol<GetSwapQuoteFn> = lib
+                .get(b"GetSwapQuote")
+                .map_err(|e| format!("GetSwapQuote symbol not found: {}", e))?;
+
+            let build_swap_transaction: Symbol<BuildSwapTransactionFn> = lib
+                .get(b"BuildSwapTransaction")
+                .map_err(|e| format!("BuildSwapTransaction symbol not found: {}", e))?;
+
+            let get_swap_approval: Symbol<GetSwapApprovalFn> = lib
+                .get(b"GetSwapApproval")
+                .map_err(|e| format!("GetSwapApproval symbol not found: {}", e))?;
+
+            let check_swap_allowance: Symbol<CheckSwapAllowanceFn> = lib
+                .get(b"CheckSwapAllowance")
+                .map_err(|e| format!("CheckSwapAllowance symbol not found: {}", e))?;
+
+            let get_native_token_address: Symbol<GetNativeTokenAddressFn> = lib
+                .get(b"GetNativeTokenAddress")
+                .map_err(|e| format!("GetNativeTokenAddress symbol not found: {}", e))?;
+
             // Extend symbol lifetime to 'static (safe because Library lives for program duration)
             let go_free: Symbol<'static, GoFreeFn> = std::mem::transmute(go_free);
             let get_version: Symbol<'static, GetVersionFn> = std::mem::transmute(get_version);
@@ -334,6 +377,11 @@ impl WalletLibrary {
             let get_token_balances: Symbol<'static, GetTokenBalancesFn> = std::mem::transmute(get_token_balances);
             let get_asset_transfers: Symbol<'static, GetAssetTransfersFn> = std::mem::transmute(get_asset_transfers);
             let validate_passphrase: Symbol<'static, ValidatePassphraseFn> = std::mem::transmute(validate_passphrase);
+            let get_swap_quote: Symbol<'static, GetSwapQuoteFn> = std::mem::transmute(get_swap_quote);
+            let build_swap_transaction: Symbol<'static, BuildSwapTransactionFn> = std::mem::transmute(build_swap_transaction);
+            let get_swap_approval: Symbol<'static, GetSwapApprovalFn> = std::mem::transmute(get_swap_approval);
+            let check_swap_allowance: Symbol<'static, CheckSwapAllowanceFn> = std::mem::transmute(check_swap_allowance);
+            let get_native_token_address: Symbol<'static, GetNativeTokenAddressFn> = std::mem::transmute(get_native_token_address);
 
             Ok(WalletLibrary {
                 lib: Arc::new(lib),
@@ -362,6 +410,11 @@ impl WalletLibrary {
                 get_token_balances,
                 get_asset_transfers,
                 validate_passphrase,
+                get_swap_quote,
+                build_swap_transaction,
+                get_swap_approval,
+                check_swap_allowance,
+                get_native_token_address,
             })
         }
     }
@@ -859,6 +912,73 @@ impl WalletLibrary {
     /// ```
     pub fn validate_passphrase(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.validate_passphrase, params_json)
+    }
+
+    // ========================================================================
+    // Swap/DEX Aggregator Operations
+    // ========================================================================
+
+    /// Get a swap quote from 1inch DEX aggregator.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "chainId": "ethereum",
+    ///   "fromTokenAddress": "0x...",
+    ///   "toTokenAddress": "0x...",
+    ///   "amount": "1000000000000000000",
+    ///   "fromAddress": "0x...",
+    ///   "slippage": 0.5,
+    ///   "usbPath": "/path/to/usb",
+    ///   "appPassword": "password"
+    /// }
+    /// ```
+    pub fn get_swap_quote(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.get_swap_quote, params_json)
+    }
+
+    /// Build a complete swap transaction ready for signing.
+    ///
+    /// Input JSON format: same as get_swap_quote
+    pub fn build_swap_transaction(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.build_swap_transaction, params_json)
+    }
+
+    /// Get the approval transaction for ERC-20 token swap.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "chainId": "ethereum",
+    ///   "tokenAddress": "0x...",
+    ///   "amount": "1000000000000000000",
+    ///   "usbPath": "/path/to/usb",
+    ///   "appPassword": "password"
+    /// }
+    /// ```
+    pub fn get_swap_approval(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.get_swap_approval, params_json)
+    }
+
+    /// Check the current token allowance for 1inch router.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "chainId": "ethereum",
+    ///   "tokenAddress": "0x...",
+    ///   "walletAddress": "0x...",
+    ///   "usbPath": "/path/to/usb",
+    ///   "appPassword": "password"
+    /// }
+    /// ```
+    pub fn check_swap_allowance(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.check_swap_allowance, params_json)
+    }
+
+    /// Get the native token address used by 1inch API.
+    pub fn get_native_token_address(&self) -> Result<serde_json::Value, String> {
+        self.call_ffi_json(*self.get_native_token_address)
     }
 }
 

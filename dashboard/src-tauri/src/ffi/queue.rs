@@ -244,6 +244,33 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    // ========================================================================
+    // Swap/DEX Aggregator Operations
+    // ========================================================================
+    /// Get a swap quote from 1inch
+    GetSwapQuote {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Build a swap transaction
+    BuildSwapTransaction {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Get approval transaction for ERC-20
+    GetSwapApproval {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Check token allowance
+    CheckSwapAllowance {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Get native token address
+    GetNativeTokenAddress {
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
 }
 
 /// WalletQueue serializes all wallet operations through a single-threaded queue.
@@ -418,6 +445,32 @@ impl WalletQueue {
                 }
                 WalletCommand::ValidatePassphrase { params_json, respond_to } => {
                     let result = library.validate_passphrase(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                // Swap/DEX Aggregator Operations
+                WalletCommand::GetSwapQuote { params_json, respond_to } => {
+                    let result = library.get_swap_quote(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::BuildSwapTransaction { params_json, respond_to } => {
+                    let result = library.build_swap_transaction(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::GetSwapApproval { params_json, respond_to } => {
+                    let result = library.get_swap_approval(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::CheckSwapAllowance { params_json, respond_to } => {
+                    let result = library.check_swap_allowance(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::GetNativeTokenAddress { respond_to } => {
+                    let result = library.get_native_token_address();
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -891,6 +944,104 @@ impl WalletQueue {
         .await
         .map_err(|e| format!("Task join error: {}", e))?
     }
+
+    // ========================================================================
+    // Swap/DEX Aggregator Operations
+    // ========================================================================
+
+    /// Get a swap quote from 1inch DEX aggregator.
+    pub async fn get_swap_quote(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::GetSwapQuote {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Build a complete swap transaction.
+    pub async fn build_swap_transaction(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::BuildSwapTransaction {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Get approval transaction for ERC-20 token.
+    pub async fn get_swap_approval(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::GetSwapApproval {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Check token allowance for 1inch router.
+    pub async fn check_swap_allowance(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::CheckSwapAllowance {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Get native token address for 1inch API.
+    pub async fn get_native_token_address(&self) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::GetNativeTokenAddress {
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
 }
 
 /// Lazy-initialized WalletQueue wrapper
@@ -1038,5 +1189,34 @@ impl LazyWalletQueue {
     /// Validate a BIP39 passphrase by comparing derived address with stored address
     pub async fn validate_passphrase(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().validate_passphrase(params_json).await
+    }
+
+    // ========================================================================
+    // Swap/DEX Aggregator Operations
+    // ========================================================================
+
+    /// Get a swap quote from 1inch DEX aggregator
+    pub async fn get_swap_quote(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().get_swap_quote(params_json).await
+    }
+
+    /// Build a complete swap transaction
+    pub async fn build_swap_transaction(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().build_swap_transaction(params_json).await
+    }
+
+    /// Get approval transaction for ERC-20 token
+    pub async fn get_swap_approval(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().get_swap_approval(params_json).await
+    }
+
+    /// Check token allowance for 1inch router
+    pub async fn check_swap_allowance(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().check_swap_allowance(params_json).await
+    }
+
+    /// Get native token address for 1inch API
+    pub async fn get_native_token_address(&self) -> Result<serde_json::Value, String> {
+        self.get_or_init().get_native_token_address().await
     }
 }
