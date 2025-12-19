@@ -77,6 +77,9 @@ export function WalletDetail({
   // Send Transaction state
   const [showSendTransaction, setShowSendTransaction] = useState(false);
 
+  // Refresh state
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   // Load priority tokens from CoinGecko token lists
   const { tokens: priorityTokens, isLoading: isLoadingPriority } =
     usePriorityTokens();
@@ -278,6 +281,55 @@ export function WalletDetail({
     if (num < 1) return num.toFixed(6);
     if (num < 1000) return num.toFixed(4);
     return num.toFixed(2);
+  };
+
+  // Refresh token balances
+  const handleRefreshBalances = async () => {
+    if (!password || !appPassword) {
+      console.warn("Cannot refresh: missing password or appPassword");
+      return;
+    }
+
+    setIsRefreshing(true);
+    setError(null);
+
+    try {
+      console.log("🔄 Refreshing token balances...");
+      const includeTestnets = import.meta.env.DEV;
+      const response: TokenBalancesResponse = await tauriApi.getTokenBalances({
+        walletId: wallet.id,
+        password,
+        usbPath,
+        appPassword,
+        includeTestnets,
+      });
+
+      console.log("📡 Refresh complete:", response.tokens.length, "tokens");
+
+      // Pre-process tokens with native token metadata
+      if (response?.tokens && Array.isArray(response.tokens)) {
+        response.tokens.forEach((token) => {
+          const networkKey = getNetworkKey(token.networkLabel || token.network);
+          if (networkKey && isNativeTokenAddress(token.tokenAddress)) {
+            const nativeToken = getNativeToken(networkKey);
+            if (nativeToken && !token.tokenSymbol) {
+              token.tokenSymbol = nativeToken.symbol;
+              token.tokenName = nativeToken.name;
+              token.tokenLogo = nativeToken.logoURI;
+            }
+          }
+        });
+      }
+
+      setTokens(response.tokens);
+      setTotalUsd(response.totalUsd);
+    } catch (err) {
+      const error = err as AppError;
+      setError(error.message || "Failed to refresh token balances");
+      console.error("❌ Failed to refresh token balances:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleCopyAddress = async (address: string) => {
@@ -1033,17 +1085,21 @@ export function WalletDetail({
             </button>
             <button
               title="Refresh Balances"
+              onClick={handleRefreshBalances}
+              disabled={isRefreshing}
               style={{
                 background: "transparent",
                 border: "1px solid #e2e8f0",
                 borderRadius: "8px",
                 padding: "0.5rem",
-                cursor: "pointer",
+                cursor: isRefreshing ? "not-allowed" : "pointer",
                 color: "#1e293b",
                 fontSize: "1rem",
+                opacity: isRefreshing ? 0.6 : 1,
+                animation: isRefreshing ? "spin 1s linear infinite" : "none",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#f1f5f9";
+                if (!isRefreshing) e.currentTarget.style.background = "#f1f5f9";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
