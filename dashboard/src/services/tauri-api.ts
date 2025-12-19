@@ -495,6 +495,7 @@ export async function buildTransaction(
     to: params.to,
     amount: params.amount,
     feeSpeed: params.feeSpeed || "normal",
+    tokenAddress: params.tokenAddress || "(native)",
   });
 
   try {
@@ -505,6 +506,7 @@ export async function buildTransaction(
         to: params.to,
         amount: params.amount,
         feeSpeed: params.feeSpeed || "normal",
+        tokenAddress: params.tokenAddress || "",  // ERC-20 token contract address
         usbPath: params.usbPath,
         appPassword: params.appPassword,
       },
