@@ -277,10 +277,10 @@ export function WalletDetail({
   const formatBalance = (balance: string): string => {
     const num = parseFloat(balance);
     if (num === 0) return "0";
+    if (num < 0.000001) return num.toFixed(10);
     if (num < 0.01) return num.toFixed(8);
-    if (num < 1) return num.toFixed(6);
-    if (num < 1000) return num.toFixed(4);
-    return num.toFixed(2);
+    if (num < 1000) return num.toFixed(6);  // Show 6 decimals for better precision
+    return num.toFixed(4);
   };
 
   // Refresh token balances
