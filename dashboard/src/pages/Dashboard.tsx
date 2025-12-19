@@ -61,7 +61,8 @@ export function Dashboard() {
   const hasWallets = useHasWallets();
 
   // Auto-logout after 15 minutes of inactivity (SEC-006, T092)
-  const { showWarning, remainingSeconds, stayLoggedIn, logout } =
+  // continueUsing: locks app and requires password re-entry
+  const { showWarning, remainingSeconds, continueUsing, logout } =
     useInactivityLogout({
       enabled: true,
       onLogout: () => {
@@ -517,7 +518,7 @@ export function Dashboard() {
       <InactivityWarningDialog
         isOpen={showWarning}
         remainingSeconds={remainingSeconds}
-        onStayLoggedIn={stayLoggedIn}
+        onContinue={continueUsing}
         onLogout={logout}
       />
 

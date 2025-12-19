@@ -11,18 +11,18 @@ import React from 'react';
 interface InactivityWarningDialogProps {
   isOpen: boolean;
   remainingSeconds: number;
-  onStayLoggedIn: () => void;
+  onContinue: () => void;  // Requires re-authentication
   onLogout: () => void;
 }
 
 /**
  * Warning dialog shown before auto-logout
- * Displays countdown and allows user to stay logged in
+ * User must re-enter password to continue using the app
  */
 export const InactivityWarningDialog: React.FC<InactivityWarningDialogProps> = ({
   isOpen,
   remainingSeconds,
-  onStayLoggedIn,
+  onContinue,
   onLogout,
 }) => {
   if (!isOpen) return null;
@@ -85,19 +85,19 @@ export const InactivityWarningDialog: React.FC<InactivityWarningDialogProps> = (
         {/* Security Message */}
         <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-xs text-blue-800">
-            <strong>Security Notice:</strong> All sensitive data will be cleared from memory
-            when you are logged out.
+            <strong>Security Notice:</strong> You will need to re-enter your password to continue.
+            All sensitive data will be cleared from memory when you are logged out.
           </p>
         </div>
 
         {/* Action Buttons */}
         <div className="flex gap-3">
           <button
-            onClick={onStayLoggedIn}
+            onClick={onContinue}
             className="flex-1 px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             autoFocus
           >
-            Stay Logged In
+            Unlock & Continue
           </button>
           <button
             onClick={onLogout}
@@ -110,7 +110,7 @@ export const InactivityWarningDialog: React.FC<InactivityWarningDialogProps> = (
         {/* Keyboard Hint */}
         <p className="text-xs text-gray-500 text-center mt-4">
           Press <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded">Enter</kbd>{' '}
-          to stay logged in
+          to unlock
         </p>
       </div>
     </div>

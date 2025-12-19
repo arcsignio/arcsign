@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from 'react';
 import tauriApi from '@/services/tauri-api';
 import { useDashboardStore } from '@/stores/dashboardStore';
+import { useAppPassword } from '@/contexts/AppPasswordContext';
 
 const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes in milliseconds
 const WARNING_BEFORE_LOGOUT = 60 * 1000; // 1 minute warning before logout
@@ -34,6 +35,7 @@ export function useInactivityLogout(options: UseInactivityLogoutOptions = {}) {
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const { reset: resetStore } = useDashboardStore();
+  const { lock } = useAppPassword();
 
   /**
    * Clear all sensitive data and reset application state
@@ -141,11 +143,24 @@ export function useInactivityLogout(options: UseInactivityLogoutOptions = {}) {
   };
 
   /**
-   * Stay logged in (dismiss warning)
+   * Continue using - requires re-authentication
+   * Locks the app and redirects to unlock screen
    */
-  const stayLoggedIn = () => {
+  const continueUsing = () => {
+    // Clear timers
+    if (logoutTimerRef.current) {
+      clearTimeout(logoutTimerRef.current);
+      logoutTimerRef.current = null;
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+
     setShowWarning(false);
-    resetTimers();
+
+    // Lock the app - user must re-enter password
+    lock();
   };
 
   /**
@@ -206,7 +221,7 @@ export function useInactivityLogout(options: UseInactivityLogoutOptions = {}) {
   return {
     showWarning,
     remainingSeconds,
-    stayLoggedIn,
+    continueUsing,  // Renamed: now requires re-authentication
     logout,
   };
 }
