@@ -61,9 +61,18 @@ func NewService(txStore storage.TransactionStateStore) *Service {
 // - ChainAdapter instance
 // - Error if chainId not supported or adapter initialization fails
 func (s *Service) GetAdapter(ctx context.Context, chainId string, rpcEndpoint string) (chainadapter.ChainAdapter, error) {
+	// Resolve RPC endpoint first so we can use it in the cache key
+	if rpcEndpoint == "" {
+		rpcEndpoint = getDefaultRPCEndpoint(chainId)
+	}
+
+	// Create cache key that includes both chainId and rpcEndpoint
+	// This allows different endpoints for the same chain (e.g., different API keys)
+	cacheKey := chainId + "|" + rpcEndpoint
+
 	// Check cache first (read lock)
 	s.mu.RLock()
-	if adapter, exists := s.adapters[chainId]; exists {
+	if adapter, exists := s.adapters[cacheKey]; exists {
 		s.mu.RUnlock()
 		return adapter, nil
 	}
@@ -74,20 +83,13 @@ func (s *Service) GetAdapter(ctx context.Context, chainId string, rpcEndpoint st
 	defer s.mu.Unlock()
 
 	// Double-check after acquiring write lock (another goroutine might have created it)
-	if adapter, exists := s.adapters[chainId]; exists {
+	if adapter, exists := s.adapters[cacheKey]; exists {
 		return adapter, nil
 	}
 
 	// Create RPC client
-	var rpcClient rpc.RPCClient
-	var err error
-
-	if rpcEndpoint == "" {
-		rpcEndpoint = getDefaultRPCEndpoint(chainId)
-	}
-
-	// Create HTTP RPC client with default timeout and nil health tracker
-	rpcClient, err = rpc.NewHTTPRPCClient([]string{rpcEndpoint}, 30*time.Second, nil)
+	// Note: rpcEndpoint is already resolved at the beginning of this function
+	rpcClient, err := rpc.NewHTTPRPCClient([]string{rpcEndpoint}, 30*time.Second, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RPC client: %w", err)
 	}
@@ -115,8 +117,8 @@ func (s *Service) GetAdapter(ctx context.Context, chainId string, rpcEndpoint st
 		return nil, fmt.Errorf("failed to create adapter for %s: %w", chainId, err)
 	}
 
-	// Cache the adapter
-	s.adapters[chainId] = adapter
+	// Cache the adapter using cacheKey (chainId + rpcEndpoint)
+	s.adapters[cacheKey] = adapter
 
 	return adapter, nil
 }
