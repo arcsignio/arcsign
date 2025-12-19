@@ -25,6 +25,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -33,6 +34,7 @@ import (
 	"unsafe"
 
 	"github.com/arcsign/chainadapter"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/yourusername/arcsign/internal/app"
 	"github.com/yourusername/arcsign/internal/provider"
 	"github.com/yourusername/arcsign/internal/services/bip39service"
@@ -905,6 +907,7 @@ func BuildTransaction(params *C.char) *C.char {
 		"signingPayload":  signingPayloadB64,
 		"humanReadable":   unsigned.HumanReadable,
 		"buildTimestamp":  time.Now().Format(time.RFC3339),
+		"chainSpecific":   unsigned.ChainSpecific, // Critical for transaction reconstruction during signing
 	}
 
 	response := NewSuccessResponse(data)
@@ -996,29 +999,54 @@ func SignTransaction(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Step 3: Reconstruct UnsignedTransaction to get "from" address
-	unsignedBytes, err := json.Marshal(input.UnsignedTx)
-	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid unsigned transaction: %v", err))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
+	// Step 3: Manually reconstruct UnsignedTransaction from map
+	// Note: *big.Int fields can't be directly unmarshalled from JSON strings
+	unsigned := chainadapter.UnsignedTransaction{}
+
+	// Extract string fields
+	if id, ok := input.UnsignedTx["id"].(string); ok {
+		unsigned.ID = id
+	}
+	if chainID, ok := input.UnsignedTx["chainId"].(string); ok {
+		unsigned.ChainID = chainID
+	}
+	if from, ok := input.UnsignedTx["from"].(string); ok {
+		unsigned.From = from
+	}
+	if to, ok := input.UnsignedTx["to"].(string); ok {
+		unsigned.To = to
+	}
+	if humanReadable, ok := input.UnsignedTx["humanReadable"].(string); ok {
+		unsigned.HumanReadable = humanReadable
 	}
 
-	var unsigned chainadapter.UnsignedTransaction
-	if err := json.Unmarshal(unsignedBytes, &unsigned); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to parse unsigned transaction: %v", err))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	// Decode base64 signing payload if it was encoded
-	if len(unsigned.SigningPayload) == 0 {
-		if payloadStr, ok := input.UnsignedTx["signingPayload"].(string); ok {
-			decoded, err := base64.StdEncoding.DecodeString(payloadStr)
-			if err == nil {
-				unsigned.SigningPayload = decoded
-			}
+	// Parse Amount (string -> *big.Int)
+	if amountStr, ok := input.UnsignedTx["amount"].(string); ok {
+		amount := new(big.Int)
+		if _, success := amount.SetString(amountStr, 10); success {
+			unsigned.Amount = amount
 		}
+	}
+
+	// Parse Fee (string -> *big.Int)
+	if feeStr, ok := input.UnsignedTx["fee"].(string); ok {
+		fee := new(big.Int)
+		if _, success := fee.SetString(feeStr, 10); success {
+			unsigned.Fee = fee
+		}
+	}
+
+	// Decode base64 signing payload
+	if payloadStr, ok := input.UnsignedTx["signingPayload"].(string); ok {
+		decoded, err := base64.StdEncoding.DecodeString(payloadStr)
+		if err == nil {
+			unsigned.SigningPayload = decoded
+		}
+	}
+
+	// Parse ChainSpecific (critical for transaction reconstruction)
+	if chainSpecific, ok := input.UnsignedTx["chainSpecific"].(map[string]interface{}); ok {
+		unsigned.ChainSpecific = chainSpecific
 	}
 
 	// Step 4: Find derivation path from AddressBook using "from" address
@@ -1089,6 +1117,23 @@ func SignTransaction(params *C.char) *C.char {
 	// Convert private key bytes to hex string for SimpleSigner
 	privateKeyHex := fmt.Sprintf("%x", privateKeyBytes)
 	defer zeroString(&privateKeyHex)
+
+	// Debug: Verify derived address matches expected address
+	// Derive the Ethereum address from the private key to verify correctness
+	if strings.HasPrefix(input.ChainID, "ethereum") {
+		// Import go-ethereum crypto to derive address from private key
+		ethPrivKey, ethErr := ethcrypto.HexToECDSA(privateKeyHex)
+		if ethErr == nil {
+			derivedAddr := ethcrypto.PubkeyToAddress(ethPrivKey.PublicKey)
+			fmt.Fprintf(os.Stderr, "[SignTx] Derivation path: %s\n", derivationPath)
+			fmt.Fprintf(os.Stderr, "[SignTx] Expected address (from wallet): %s\n", unsigned.From)
+			fmt.Fprintf(os.Stderr, "[SignTx] Derived address (from privkey): %s\n", derivedAddr.Hex())
+			if strings.ToLower(derivedAddr.Hex()) != strings.ToLower(unsigned.From) {
+				fmt.Fprintf(os.Stderr, "[SignTx] CRITICAL: Address mismatch! Private key derives to different address.\n")
+				fmt.Fprintf(os.Stderr, "[SignTx] This means the wallet's AddressBook contains wrong address for this derivation path.\n")
+			}
+		}
+	}
 
 	// Step 6: Create signer
 	signer, err := chainadapterService.NewSimpleSigner(privateKeyHex, unsigned.From, input.ChainID)
@@ -1166,15 +1211,35 @@ func BroadcastTransaction(params *C.char) *C.char {
 
 	paramsJSON := C.GoString(params)
 	var input struct {
-		ChainID    string                 `json:"chainId"`
-		SignedTx   map[string]interface{} `json:"signedTx"`
-		RPCConfig  string                 `json:"rpcConfig"`
+		ChainID     string                 `json:"chainId"`
+		SignedTx    map[string]interface{} `json:"signedTx"`
+		RPCConfig   string                 `json:"rpcConfig"`
+		USBPath     string                 `json:"usbPath"`
+		AppPassword string                 `json:"appPassword"`
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
 		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
+	}
+
+	// Build RPC endpoint from provider configuration (same as BuildTransaction)
+	rpcEndpoint := input.RPCConfig
+	if rpcEndpoint == "" && input.USBPath != "" && input.AppPassword != "" {
+		configPath := input.USBPath + "/provider_config.enc"
+		store, err := provider.NewProviderConfigStore(configPath, input.AppPassword)
+		if err == nil {
+			var config *provider.ProviderConfig
+			config, err = store.GetBestProvider("global")
+			if err != nil {
+				config, err = store.GetBestProvider("ethereum")
+			}
+			if err == nil && config != nil && config.APIKey != "" {
+				rpcEndpoint = buildAlchemyRPCEndpoint(input.ChainID, config.APIKey)
+				fmt.Fprintf(os.Stderr, "[Go BroadcastTx] Built RPC endpoint for chain %s: %s\n", input.ChainID, rpcEndpoint[:50]+"...")
+			}
+		}
 	}
 
 	// Initialize ChainAdapter service
@@ -1215,7 +1280,7 @@ func BroadcastTransaction(params *C.char) *C.char {
 
 	// Broadcast transaction
 	ctx := context.Background()
-	receipt, err := svc.BroadcastTransaction(ctx, input.ChainID, &signed, input.RPCConfig)
+	receipt, err := svc.BroadcastTransaction(ctx, input.ChainID, &signed, rpcEndpoint)
 	if err != nil {
 		response := NewErrorResponse(ErrTransactionBroadcastFailed, fmt.Sprintf("Failed to broadcast transaction: %v", err))
 		jsonBytes, _ := json.Marshal(response)
@@ -2350,6 +2415,179 @@ func GetAssetTransfers(params *C.char) *C.char {
 		"address":   input.Address,
 		"network":   input.Network,
 		"count":     len(transfers),
+	}
+
+	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export ValidatePassphrase
+// ValidatePassphrase validates a BIP39 passphrase by deriving an Ethereum address
+// and comparing it with the stored address in the wallet's AddressBook.
+// Feature: Passphrase validation for wallets with BIP39 passphrase
+//
+// This is used during wallet unlock flow:
+// 1. User enters wallet password (validated via unlock_wallet)
+// 2. If wallet has_passphrase=true, user is prompted for passphrase
+// 3. This function validates the passphrase by comparing derived address
+//
+// Input JSON: {
+//   "walletId": "uuid-xxx",
+//   "password": "user-password",
+//   "passphrase": "bip39-passphrase",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "valid": true,
+//     "derivedAddress": "0x...",
+//     "expectedAddress": "0x..."
+//   }
+// }
+func ValidatePassphrase(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		WalletID   string `json:"walletId"`
+		Password   string `json:"password"`
+		Passphrase string `json:"passphrase"`
+		USBPath    string `json:"usbPath"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Zero sensitive data after function returns
+	defer zeroString(&input.Password)
+	defer zeroString(&input.Passphrase)
+
+	// Step 1: Decrypt wallet to get mnemonic
+	walletSvc := wallet.NewWalletService(input.USBPath)
+	mnemonic, err := walletSvc.RestoreWallet(input.WalletID, input.Password)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, fmt.Sprintf("Failed to decrypt wallet: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&mnemonic)
+
+	// Step 2: Load wallet metadata to get AddressBook
+	walletObj, err := walletSvc.LoadWallet(input.WalletID)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, fmt.Sprintf("Failed to load wallet: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if walletObj.AddressBook == nil {
+		response := NewErrorResponse(ErrStorageError, "Wallet has no AddressBook")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Step 3: Find the Ethereum address in AddressBook (coin_type 60)
+	// This is the address we'll compare against
+	var expectedAddress string
+	var ethDerivationPath string
+	for _, addr := range walletObj.AddressBook.Addresses {
+		// Ethereum addresses have CoinType 60 (SLIP-44)
+		if addr.CoinType == 60 {
+			expectedAddress = addr.Address
+			ethDerivationPath = addr.DerivationPath
+			break
+		}
+	}
+
+	if expectedAddress == "" {
+		response := NewErrorResponse(ErrInvalidInput, "No Ethereum address found in wallet")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Step 4: Derive Ethereum address using (mnemonic + passphrase)
+	bip39Svc := bip39service.NewBIP39Service()
+	hdkeySvc := hdkey.NewHDKeyService()
+
+	// Mnemonic → Seed (using provided passphrase)
+	seed, err := bip39Svc.MnemonicToSeed(mnemonic, input.Passphrase)
+	if err != nil {
+		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to derive seed: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Seed → Master Key
+	masterKey, err := hdkeySvc.NewMasterKey(seed)
+	if err != nil {
+		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to create master key: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Master Key → Child Key (using ETH derivation path)
+	childKey, err := hdkeySvc.DerivePath(masterKey, ethDerivationPath)
+	if err != nil {
+		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to derive key at path %s: %v", ethDerivationPath, err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Child Key → Private Key (raw bytes)
+	privateKeyBytes, err := hdkeySvc.GetPrivateKey(childKey)
+	if err != nil {
+		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to extract private key: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer func() {
+		for i := range privateKeyBytes {
+			privateKeyBytes[i] = 0
+		}
+	}()
+
+	// Convert private key to hex and derive Ethereum address
+	privateKeyHex := fmt.Sprintf("%x", privateKeyBytes)
+	defer zeroString(&privateKeyHex)
+
+	ethPrivKey, err := ethcrypto.HexToECDSA(privateKeyHex)
+	if err != nil {
+		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to parse private key: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	derivedAddress := ethcrypto.PubkeyToAddress(ethPrivKey.PublicKey).Hex()
+
+	// Step 5: Compare derived address with expected address
+	isValid := strings.EqualFold(derivedAddress, expectedAddress)
+
+	output := map[string]interface{}{
+		"valid":           isValid,
+		"derivedAddress":  derivedAddress,
+		"expectedAddress": expectedAddress,
 	}
 
 	response := NewSuccessResponse(output)

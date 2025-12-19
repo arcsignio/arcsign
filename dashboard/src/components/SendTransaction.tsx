@@ -53,6 +53,8 @@ type TransactionStep =
 
 interface SendTransactionProps {
   walletId: string;
+  walletHasPassphrase?: boolean;  // True if wallet uses BIP39 passphrase
+  walletPassphrase?: string;      // Pre-validated passphrase from WalletDetail
   availableTokens: SendableToken[];  // Tokens with balance > 0
   usbPath: string;
   appPassword: string;
@@ -121,6 +123,8 @@ function shortenAddress(address: string): string {
 
 export const SendTransaction: React.FC<SendTransactionProps> = ({
   walletId,
+  walletHasPassphrase = false,
+  walletPassphrase: preValidatedPassphrase,  // Pre-validated from WalletDetail
   availableTokens,
   usbPath,
   appPassword,
@@ -262,6 +266,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         chainId,
         walletId,
         password: walletPassword,
+        passphrase: preValidatedPassphrase || "",  // Use pre-validated passphrase from WalletDetail
         fromAddress: selectedToken.fromAddress,
         unsignedTx: unsignedTx,  // Pass the full BuildTransactionResponse
         usbPath,
@@ -287,10 +292,10 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
     setIsLoading(true);
 
     try {
-      console.log("📡 Broadcasting transaction...");
+      console.log("📡 Broadcasting transaction...", { txHash: signed.txHash });
       const result = await tauriApi.broadcastTransaction({
         chainId,
-        signedTx: signed.signedTx,
+        signedTx: signed,  // Pass the entire SignTransactionResponse object
         usbPath,
         appPassword,
       });
@@ -634,6 +639,14 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
               className="password-input"
             />
           </div>
+
+          {/* Passphrase indicator - shown if wallet uses passphrase (already validated) */}
+          {walletHasPassphrase && preValidatedPassphrase && (
+            <div className="passphrase-validated">
+              <span className="validated-icon">✓</span>
+              <span>BIP39 passphrase verified</span>
+            </div>
+          )}
 
           <div className="password-actions">
             <button className="secondary-button" onClick={() => setStep("review")}>
@@ -1373,6 +1386,27 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
         .password-actions .primary-button {
           flex: 2;
+        }
+
+        /* Passphrase Validated Indicator */
+        .passphrase-validated {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 12px 16px;
+          background: #dcfce7;
+          border: 1px solid #86efac;
+          border-radius: 8px;
+          margin-bottom: 16px;
+          color: #166534;
+          font-size: 14px;
+          font-weight: 500;
+        }
+
+        .validated-icon {
+          font-size: 16px;
+          color: #22c55e;
         }
 
         /* Progress View */

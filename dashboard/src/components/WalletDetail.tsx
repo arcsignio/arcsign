@@ -58,6 +58,12 @@ export function WalletDetail({
   const [activeTab, setActiveTab] = useState<TabType>("crypto");
   const [showPercentage, setShowPercentage] = useState(true);
 
+  // Passphrase validation state (for wallets with BIP39 passphrase)
+  const [showPassphrasePrompt, setShowPassphrasePrompt] = useState(false);
+  const [passphrase, setPassphrase] = useState("");
+  const [validatedPassphrase, setValidatedPassphrase] = useState<string | null>(null);
+  const [isValidatingPassphrase, setIsValidatingPassphrase] = useState(false);
+
   // Transaction History state
   const [showHistory, setShowHistory] = useState(false);
   const [historyAddress, setHistoryAddress] = useState("");
@@ -101,6 +107,15 @@ export function WalletDetail({
       });
       console.log("📍 Loaded addresses:", addressResponse.addresses.length);
       setWalletAddresses(addressResponse.addresses);
+
+      // Check if wallet has passphrase - if so, prompt for it before continuing
+      if (wallet.has_passphrase && !validatedPassphrase) {
+        console.log("🔐 Wallet has passphrase - prompting user for passphrase...");
+        setShowPasswordPrompt(false);
+        setShowPassphrasePrompt(true);
+        setIsLoading(false);
+        return; // Exit here - user will enter passphrase and call handleValidatePassphrase
+      }
 
       // Then load token balances
       // In dev mode, also include testnet balances (Sepolia)
@@ -170,6 +185,79 @@ export function WalletDetail({
       setError(error.message || "Failed to load token balances");
       console.error("❌ Failed to load token balances:", error);
     } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle passphrase validation for wallets with BIP39 passphrase
+  const handleValidatePassphrase = async () => {
+    if (!passphrase || !appPassword) {
+      setError("Please enter your BIP39 passphrase");
+      return;
+    }
+
+    setIsValidatingPassphrase(true);
+    setError(null);
+
+    try {
+      console.log("🔐 Validating passphrase for wallet:", wallet.id);
+      const result = await tauriApi.validatePassphrase({
+        walletId: wallet.id,
+        password,
+        passphrase,
+        usbPath,
+      });
+
+      console.log("🔐 Passphrase validation result:", result);
+
+      if (result.valid) {
+        console.log("✅ Passphrase is valid! Derived address matches stored address.");
+        setValidatedPassphrase(passphrase);
+        setShowPassphrasePrompt(false);
+
+        // Now continue with loading token balances
+        setIsLoading(true);
+        const includeTestnets = import.meta.env.DEV;
+        console.log("🚀 Continuing with getTokenBalances...", { includeTestnets });
+        const response: TokenBalancesResponse = await tauriApi.getTokenBalances({
+          walletId: wallet.id,
+          password,
+          usbPath,
+          appPassword,
+          includeTestnets,
+        });
+
+        console.log("📡 Alchemy API Response (RAW):", response);
+
+        // Pre-process tokens (same as in handleLoadBalances)
+        if (response?.tokens && Array.isArray(response.tokens)) {
+          response.tokens.forEach((token) => {
+            const networkKey = getNetworkKey(token.networkLabel || token.network);
+            if (networkKey && isNativeTokenAddress(token.tokenAddress)) {
+              const nativeToken = getNativeToken(networkKey);
+              if (nativeToken && !token.tokenSymbol) {
+                token.tokenSymbol = nativeToken.symbol;
+                token.tokenName = nativeToken.name;
+                token.tokenLogo = nativeToken.logoURI;
+              }
+            }
+          });
+        }
+
+        setTokens(response.tokens);
+        setTotalUsd(response.totalUsd);
+      } else {
+        console.log("❌ Passphrase is invalid!");
+        console.log("   Expected address:", result.expectedAddress);
+        console.log("   Derived address:", result.derivedAddress);
+        setError("Invalid passphrase. The derived address does not match your wallet address.");
+      }
+    } catch (err) {
+      const error = err as AppError;
+      setError(error.message || "Failed to validate passphrase");
+      console.error("❌ Failed to validate passphrase:", error);
+    } finally {
+      setIsValidatingPassphrase(false);
       setIsLoading(false);
     }
   };
@@ -544,6 +632,236 @@ export function WalletDetail({
     );
   }
 
+  // Show passphrase prompt for wallets with BIP39 passphrase
+  if (showPassphrasePrompt) {
+    return (
+      <div className="wallet-detail">
+        <div className="detail-header">
+          <button onClick={onBack} className="back-button">
+            ← Back to Wallets
+          </button>
+          <h2>{wallet.name}</h2>
+        </div>
+
+        <div
+          style={{
+            maxWidth: "480px",
+            margin: "3rem auto",
+            background: "white",
+            borderRadius: "1rem",
+            padding: "2.5rem",
+            boxShadow:
+              "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+            border: "1px solid #e5e7eb",
+          }}
+        >
+          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+            <div
+              style={{
+                width: "64px",
+                height: "64px",
+                margin: "0 auto 1.5rem",
+                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "2rem",
+                boxShadow: "0 4px 14px rgba(245, 158, 11, 0.4)",
+              }}
+            >
+              🔑
+            </div>
+            <h3
+              style={{
+                fontSize: "1.5rem",
+                fontWeight: "700",
+                color: "#1f2937",
+                marginBottom: "0.5rem",
+              }}
+            >
+              Enter Passphrase
+            </h3>
+            <p
+              style={{
+                fontSize: "0.9375rem",
+                color: "#6b7280",
+                lineHeight: "1.5",
+              }}
+            >
+              This wallet uses a BIP39 passphrase (25th word).
+              <br />
+              Please enter it to continue.
+            </p>
+          </div>
+
+          {error && (
+            <div
+              style={{
+                background: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)",
+                border: "1px solid #ef4444",
+                borderRadius: "0.5rem",
+                padding: "1rem",
+                marginBottom: "1.5rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.75rem",
+              }}
+            >
+              <span style={{ fontSize: "1.25rem" }}>⚠️</span>
+              <span
+                style={{
+                  color: "#991b1b",
+                  fontSize: "0.875rem",
+                  fontWeight: "500",
+                }}
+              >
+                {error}
+              </span>
+            </div>
+          )}
+
+          <div className="form-group" style={{ marginBottom: "1.5rem" }}>
+            <label
+              htmlFor="passphrase"
+              style={{
+                display: "block",
+                fontSize: "0.875rem",
+                fontWeight: "600",
+                color: "#374151",
+                marginBottom: "0.5rem",
+              }}
+            >
+              BIP39 Passphrase
+            </label>
+            <div style={{ position: "relative" }}>
+              <span
+                style={{
+                  position: "absolute",
+                  left: "1rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  fontSize: "1.125rem",
+                  color: "#9ca3af",
+                }}
+              >
+                🔑
+              </span>
+              <input
+                type="password"
+                id="passphrase"
+                value={passphrase}
+                onChange={(e) => setPassphrase(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && handleValidatePassphrase()}
+                placeholder="Enter your passphrase"
+                autoFocus
+                style={{
+                  width: "100%",
+                  padding: "0.875rem 1rem 0.875rem 3rem",
+                  border: "2px solid #e5e7eb",
+                  borderRadius: "0.5rem",
+                  fontSize: "1rem",
+                  transition: "all 0.2s ease",
+                  outline: "none",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#f59e0b";
+                  e.target.style.boxShadow =
+                    "0 0 0 3px rgba(245, 158, 11, 0.1)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "#e5e7eb";
+                  e.target.style.boxShadow = "none";
+                }}
+              />
+            </div>
+            <small
+              style={{
+                display: "block",
+                fontSize: "0.75rem",
+                color: "#9ca3af",
+                marginTop: "0.5rem",
+              }}
+            >
+              The passphrase is case-sensitive and used during wallet creation.
+            </small>
+          </div>
+
+          <button
+            onClick={handleValidatePassphrase}
+            disabled={isValidatingPassphrase || !passphrase}
+            style={{
+              width: "100%",
+              background:
+                isValidatingPassphrase || !passphrase
+                  ? "#d1d5db"
+                  : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+              color: "white",
+              padding: "0.875rem 1.5rem",
+              border: "none",
+              borderRadius: "0.5rem",
+              fontSize: "1rem",
+              fontWeight: "600",
+              cursor: isValidatingPassphrase || !passphrase ? "not-allowed" : "pointer",
+              transition: "all 0.2s ease",
+              boxShadow:
+                isValidatingPassphrase || !passphrase
+                  ? "none"
+                  : "0 4px 14px rgba(245, 158, 11, 0.4)",
+            }}
+          >
+            {isValidatingPassphrase ? (
+              <span
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <span
+                  style={{
+                    width: "16px",
+                    height: "16px",
+                    border: "2px solid white",
+                    borderTopColor: "transparent",
+                    borderRadius: "50%",
+                    animation: "spin 0.6s linear infinite",
+                  }}
+                ></span>
+                Validating...
+              </span>
+            ) : (
+              "Verify & Continue"
+            )}
+          </button>
+
+          <button
+            onClick={() => {
+              setShowPassphrasePrompt(false);
+              setShowPasswordPrompt(true);
+              setPassword("");
+              setPassphrase("");
+              setError(null);
+            }}
+            style={{
+              width: "100%",
+              marginTop: "1rem",
+              background: "transparent",
+              color: "#6b7280",
+              padding: "0.75rem",
+              border: "none",
+              fontSize: "0.875rem",
+              cursor: "pointer",
+            }}
+          >
+            ← Back to password
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Show Transaction History view
   console.log("🔍 [WalletDetail] Checking showHistory condition:", {
     showHistory,
@@ -571,6 +889,8 @@ export function WalletDetail({
     return (
       <SendTransaction
         walletId={wallet.id}
+        walletHasPassphrase={wallet.has_passphrase}
+        walletPassphrase={validatedPassphrase || undefined}
         availableTokens={availableTokensForSend}
         usbPath={usbPath}
         appPassword={appPassword}

@@ -61,6 +61,9 @@ pub struct SignTransactionInput {
     pub wallet_id: String,
     /// Wallet password for key derivation
     pub password: String,
+    /// BIP39 passphrase (empty string if not used)
+    #[serde(default)]
+    pub passphrase: String,
     /// From address (to determine derivation path)
     pub from_address: String,
     /// Unsigned transaction data (from build_transaction)
@@ -231,6 +234,7 @@ pub async fn sign_transaction(
         "chainId": input.chain_id,
         "walletId": input.wallet_id,
         "password": input.password,
+        "passphrase": input.passphrase,  // BIP39 passphrase for seed derivation
         "fromAddress": input.from_address,
         "unsignedTx": input.unsigned_tx,
         "usbPath": input.usb_path,
@@ -272,6 +276,7 @@ pub async fn sign_transaction(
 
     // Zero sensitive data
     input.password.zeroize();
+    input.passphrase.zeroize();
 
     let elapsed = start.elapsed();
     tracing::info!(

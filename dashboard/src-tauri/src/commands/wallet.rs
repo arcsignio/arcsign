@@ -727,8 +727,11 @@ pub async fn list_wallets(
         // Use created_at as updated_at for now (actual implementation would track this)
         let updated_at = created_at.clone();
 
-        // Default values (actual implementation would read from wallet metadata)
-        let has_passphrase = false;
+        // Read hasPassphrase from FFI response
+        let has_passphrase = wallet_data
+            .get("hasPassphrase")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         let address_count = 0;
 
         wallets.push(Wallet {
@@ -1102,6 +1105,73 @@ pub async fn get_token_balances(
     
     tracing::info!(
         "Retrieved token balances for wallet {} (took {:?})",
+        wallet_id,
+        elapsed
+    );
+
+    Ok(ffi_response)
+}
+
+/// Validate a BIP39 passphrase by comparing derived address with stored address.
+///
+/// This is used during wallet unlock to validate the passphrase before allowing
+/// the user to proceed with transactions.
+///
+/// Returns: { "valid": bool, "derivedAddress": "0x...", "expectedAddress": "0x..." }
+#[tauri::command]
+pub async fn validate_passphrase(
+    queue: State<'_, LazyWalletQueue>,
+    wallet_id: String,
+    mut password: String,
+    mut passphrase: String,
+    usb_path: String,
+) -> Result<serde_json::Value, String> {
+    let start = Instant::now();
+    tracing::info!("validate_passphrase called for wallet_id: {}", wallet_id);
+
+    // Build JSON params for FFI call
+    let params = json!({
+        "walletId": wallet_id,
+        "password": password,
+        "passphrase": passphrase,
+        "usbPath": usb_path,
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    // Call FFI queue
+    let ffi_response = queue
+        .validate_passphrase(params_json)
+        .await
+        .map_err(|e| {
+            tracing::error!("validate_passphrase FFI error: {}", e);
+            if e.contains("INVALID_PASSWORD") || e.contains("DECRYPTION_ERROR") {
+                AppError::new(
+                    ErrorCode::InvalidPassword,
+                    "Invalid password",
+                )
+            } else if e.contains("WALLET_NOT_FOUND") {
+                AppError::new(
+                    ErrorCode::WalletNotFound,
+                    "Wallet not found on USB",
+                )
+            } else {
+                AppError::with_details(
+                    ErrorCode::CliExecutionFailed,
+                    "Failed to validate passphrase",
+                    e,
+                )
+            }
+        })?;
+
+    // Zero sensitive data
+    password.zeroize();
+    passphrase.zeroize();
+
+    let elapsed = start.elapsed();
+    tracing::info!(
+        "Passphrase validation completed for wallet {} (took {:?})",
         wallet_id,
         elapsed
     );

@@ -96,6 +96,9 @@ type GetTokenBalancesFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for GetAssetTransfers: char* GetAssetTransfers(char* params)
 type GetAssetTransfersFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+/// Function signature for ValidatePassphrase: char* ValidatePassphrase(char* params)
+type ValidatePassphraseFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 // ============================================================================
 // WalletLibrary - Dynamic Library Wrapper (T016, T017)
 // ============================================================================
@@ -142,6 +145,8 @@ pub struct WalletLibrary {
     get_token_balances: Symbol<'static, GetTokenBalancesFn>,
     // Asset transfers query function symbols
     get_asset_transfers: Symbol<'static, GetAssetTransfersFn>,
+    // Passphrase validation function symbol
+    validate_passphrase: Symbol<'static, ValidatePassphraseFn>,
 }
 
 impl WalletLibrary {
@@ -299,6 +304,10 @@ impl WalletLibrary {
                 .get(b"GetAssetTransfers")
                 .map_err(|e| format!("GetAssetTransfers symbol not found: {}", e))?;
 
+            let validate_passphrase: Symbol<ValidatePassphraseFn> = lib
+                .get(b"ValidatePassphrase")
+                .map_err(|e| format!("ValidatePassphrase symbol not found: {}", e))?;
+
             // Extend symbol lifetime to 'static (safe because Library lives for program duration)
             let go_free: Symbol<'static, GoFreeFn> = std::mem::transmute(go_free);
             let get_version: Symbol<'static, GetVersionFn> = std::mem::transmute(get_version);
@@ -324,6 +333,7 @@ impl WalletLibrary {
             let unlock_app: Symbol<'static, UnlockAppFn> = std::mem::transmute(unlock_app);
             let get_token_balances: Symbol<'static, GetTokenBalancesFn> = std::mem::transmute(get_token_balances);
             let get_asset_transfers: Symbol<'static, GetAssetTransfersFn> = std::mem::transmute(get_asset_transfers);
+            let validate_passphrase: Symbol<'static, ValidatePassphraseFn> = std::mem::transmute(validate_passphrase);
 
             Ok(WalletLibrary {
                 lib: Arc::new(lib),
@@ -351,6 +361,7 @@ impl WalletLibrary {
                 unlock_app,
                 get_token_balances,
                 get_asset_transfers,
+                validate_passphrase,
             })
         }
     }
@@ -831,6 +842,23 @@ impl WalletLibrary {
     /// ```
     pub fn get_asset_transfers(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.get_asset_transfers, params_json)
+    }
+
+    /// Validate a BIP39 passphrase by comparing derived address with stored address.
+    ///
+    /// This is used during wallet unlock to validate the passphrase before proceeding.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "walletId": "...",
+    ///   "password": "...",
+    ///   "passphrase": "...",
+    ///   "usbPath": "/path/to/usb"
+    /// }
+    /// ```
+    pub fn validate_passphrase(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.validate_passphrase, params_json)
     }
 }
 

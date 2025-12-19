@@ -411,27 +411,25 @@ export interface SignTransactionParams {
   chainId: string;
   walletId: string;
   password: string;
+  passphrase?: string;  // BIP39 passphrase (required if wallet uses passphrase)
   fromAddress: string;
   unsignedTx: BuildTransactionResponse;  // The full BuildTransactionResponse object
   usbPath: string;
   appPassword: string;
 }
 
+// SignTransactionResponse matches Go FFI output format
 export interface SignTransactionResponse {
-  signedTx: {
-    rawTransaction: string; // Hex-encoded signed transaction
-    txHash: string;
-  };
-  signature: {
-    v: string;
-    r: string;
-    s: string;
-  };
+  txHash: string;           // Transaction hash
+  signature: string;        // Base64-encoded signature
+  serializedTx: string;     // Base64-encoded signed transaction (raw bytes)
+  signedBy: string;         // From address
+  signTimestamp: string;    // ISO timestamp
 }
 
 export interface BroadcastTransactionParams {
   chainId: string;
-  signedTx: SignTransactionResponse["signedTx"];
+  signedTx: SignTransactionResponse;  // Pass the entire signed transaction response
   usbPath: string;
   appPassword: string;
 }
@@ -534,6 +532,7 @@ export async function signTransaction(
         chainId: params.chainId,
         walletId: params.walletId,
         password: params.password,
+        passphrase: params.passphrase || "",  // Empty string if no passphrase
         fromAddress: params.fromAddress,
         unsignedTx: params.unsignedTx,
         usbPath: params.usbPath,
@@ -541,7 +540,7 @@ export async function signTransaction(
       },
     });
     console.log("✍️ [tauri-api] signTransaction response:", {
-      txHash: result.signedTx?.txHash,
+      txHash: result.txHash,
     });
     return result;
   } catch (error) {
@@ -634,6 +633,47 @@ export async function estimateFee(
   }
 }
 
+// ============================================================================
+// Passphrase Validation
+// ============================================================================
+
+export interface ValidatePassphraseParams {
+  walletId: string;
+  password: string;
+  passphrase: string;
+  usbPath: string;
+}
+
+export interface ValidatePassphraseResponse {
+  valid: boolean;
+  derivedAddress: string;
+  expectedAddress: string;
+}
+
+export async function validatePassphrase(
+  params: ValidatePassphraseParams
+): Promise<ValidatePassphraseResponse> {
+  console.log("🔐 [tauri-api] validatePassphrase called:", {
+    walletId: params.walletId,
+  });
+
+  try {
+    const result = await invoke<ValidatePassphraseResponse>("validate_passphrase", {
+      walletId: params.walletId,
+      password: params.password,
+      passphrase: params.passphrase,
+      usbPath: params.usbPath,
+    });
+    console.log("🔐 [tauri-api] validatePassphrase response:", {
+      valid: result.valid,
+    });
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] validatePassphrase error:", error);
+    throw parseError(error);
+  }
+}
+
 /**
  * Typed Tauri API wrapper
  * Provides type-safe access to all Tauri commands
@@ -657,6 +697,7 @@ export const tauriApi = {
   // Address
   loadAddresses,
   getTokenBalances,
+  validatePassphrase,
 
   // Transaction History
   getAssetTransfers,

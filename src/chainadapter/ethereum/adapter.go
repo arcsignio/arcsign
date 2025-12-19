@@ -5,13 +5,17 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"os"
 	"time"
 
 	"github.com/arcsign/chainadapter"
 	"github.com/arcsign/chainadapter/metrics"
 	"github.com/arcsign/chainadapter/rpc"
 	"github.com/arcsign/chainadapter/storage"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // EthereumAdapter implements ChainAdapter for Ethereum blockchain.
@@ -251,7 +255,103 @@ func (e *EthereumAdapter) Sign(ctx context.Context, unsigned *chainadapter.Unsig
 		)
 	}
 
-	// Step 4: Sign the payload
+	// Step 4: Reconstruct the EIP-1559 transaction from ChainSpecific data
+	// This is necessary to create a properly RLP-encoded signed transaction
+	chainSpecific := unsigned.ChainSpecific
+	if chainSpecific == nil {
+		return nil, chainadapter.NewNonRetryableError(
+			"ERR_INVALID_TX",
+			"ChainSpecific data is missing from unsigned transaction",
+			nil,
+		)
+	}
+
+	// Extract transaction parameters from ChainSpecific
+	chainIDVal, _ := chainSpecific["chain_id"].(int64)
+	if chainIDVal == 0 {
+		// Try float64 (JSON numbers default to float64)
+		if f, ok := chainSpecific["chain_id"].(float64); ok {
+			chainIDVal = int64(f)
+		}
+	}
+	nonce, _ := chainSpecific["nonce"].(uint64)
+	if nonce == 0 {
+		if f, ok := chainSpecific["nonce"].(float64); ok {
+			nonce = uint64(f)
+		}
+	}
+	gasLimit, _ := chainSpecific["gas_limit"].(uint64)
+	if gasLimit == 0 {
+		if f, ok := chainSpecific["gas_limit"].(float64); ok {
+			gasLimit = uint64(f)
+		}
+	}
+
+	maxFeePerGasStr, _ := chainSpecific["max_fee_per_gas"].(string)
+	maxPriorityFeePerGasStr, _ := chainSpecific["max_priority_fee_per_gas"].(string)
+
+	maxFeePerGas := new(big.Int)
+	maxFeePerGas.SetString(maxFeePerGasStr, 10)
+	maxPriorityFeePerGas := new(big.Int)
+	maxPriorityFeePerGas.SetString(maxPriorityFeePerGasStr, 10)
+
+	// Get transaction data (for ERC-20 or memo)
+	var data []byte
+	if dataRaw, ok := chainSpecific["data"].([]byte); ok {
+		data = dataRaw
+	} else if dataInterface, ok := chainSpecific["data"].([]interface{}); ok {
+		data = make([]byte, len(dataInterface))
+		for i, v := range dataInterface {
+			if f, ok := v.(float64); ok {
+				data[i] = byte(f)
+			}
+		}
+	}
+
+	// Get actual transaction target (tx_to) - may differ from unsigned.To for ERC-20
+	txToStr, _ := chainSpecific["tx_to"].(string)
+	if txToStr == "" {
+		txToStr = unsigned.To // Fallback to logical recipient
+	}
+	toAddr := common.HexToAddress(txToStr)
+
+	// Get actual transaction value (tx_value) - 0 for ERC-20 transfers
+	var txValue *big.Int
+	if txValueStr, ok := chainSpecific["tx_value"].(string); ok && txValueStr != "" {
+		txValue = new(big.Int)
+		txValue.SetString(txValueStr, 10)
+	} else {
+		txValue = unsigned.Amount // Fallback to logical amount
+	}
+
+	// Create EIP-1559 transaction
+	tx := types.NewTx(&types.DynamicFeeTx{
+		ChainID:   big.NewInt(chainIDVal),
+		Nonce:     nonce,
+		GasFeeCap: maxFeePerGas,
+		GasTipCap: maxPriorityFeePerGas,
+		Gas:       gasLimit,
+		To:        &toAddr,
+		Value:     txValue,
+		Data:      data,
+	})
+
+	// Debug: Verify reconstructed transaction hash matches original signing payload
+	reconstructedSigner := types.LatestSignerForChainID(big.NewInt(chainIDVal))
+	reconstructedHash := reconstructedSigner.Hash(tx)
+	fmt.Fprintf(os.Stderr, "[ETH Sign] Original SigningPayload: %x\n", unsigned.SigningPayload)
+	fmt.Fprintf(os.Stderr, "[ETH Sign] Reconstructed tx hash:   %x\n", reconstructedHash.Bytes())
+	if string(reconstructedHash.Bytes()) != string(unsigned.SigningPayload) {
+		fmt.Fprintf(os.Stderr, "[ETH Sign] CRITICAL: Hash mismatch! Transaction parameters don't match.\n")
+		fmt.Fprintf(os.Stderr, "[ETH Sign] ChainID: %d, Nonce: %d, GasLimit: %d\n", chainIDVal, nonce, gasLimit)
+		fmt.Fprintf(os.Stderr, "[ETH Sign] MaxFeePerGas: %s, MaxPriorityFeePerGas: %s\n", maxFeePerGas.String(), maxPriorityFeePerGas.String())
+		fmt.Fprintf(os.Stderr, "[ETH Sign] To: %s, Value: %s\n", toAddr.Hex(), txValue.String())
+		fmt.Fprintf(os.Stderr, "[ETH Sign] Data length: %d\n", len(data))
+	}
+
+	// Step 5: Sign the transaction using go-ethereum's types.SignTx
+	// First, get the private key from the signer's Sign method
+	// We'll sign the payload and extract the signature components
 	signature, err := signer.Sign(unsigned.SigningPayload, unsigned.From)
 	if err != nil {
 		return nil, chainadapter.NewNonRetryableError(
@@ -261,15 +361,53 @@ func (e *EthereumAdapter) Sign(ctx context.Context, unsigned *chainadapter.Unsig
 		)
 	}
 
-	// Step 5: For Ethereum, the serialized transaction is the SigningPayload + signature
-	// In production, this would be a properly serialized EIP-1559 transaction
-	// For now, we use the SigningPayload as the SerializedTx base
-	serializedTx := append(unsigned.SigningPayload, signature...)
+	// Signature format: [R (32 bytes) || S (32 bytes) || V (1 byte)]
+	if len(signature) != 65 {
+		return nil, chainadapter.NewNonRetryableError(
+			"ERR_INVALID_SIGNATURE",
+			fmt.Sprintf("invalid signature length: expected 65, got %d", len(signature)),
+			nil,
+		)
+	}
 
-	// Step 6: Compute transaction hash (use the original ID)
-	txHash := unsigned.ID
+	// For EIP-1559 transactions, WithSignature expects the raw 65-byte signature directly
+	// The signature is already in [R (32) || S (32) || V (1)] format from ethcrypto.Sign()
+	londonSigner := types.NewLondonSigner(big.NewInt(chainIDVal))
+	signedTx, err := tx.WithSignature(londonSigner, signature)
+	if err != nil {
+		return nil, chainadapter.NewNonRetryableError(
+			"ERR_SIGNING_FAILED",
+			fmt.Sprintf("failed to attach signature: %v", err),
+			err,
+		)
+	}
 
-	// Step 7: Create SignedTransaction
+	// Debug: Verify recovered sender matches expected from address
+	recoveredSender, err := types.Sender(londonSigner, signedTx)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ETH Sign] WARNING: Could not recover sender: %v\n", err)
+	} else {
+		fmt.Fprintf(os.Stderr, "[ETH Sign] Expected from: %s\n", unsigned.From)
+		fmt.Fprintf(os.Stderr, "[ETH Sign] Recovered sender: %s\n", recoveredSender.Hex())
+		if normalizeHash(recoveredSender.Hex()) != normalizeHash(unsigned.From) {
+			fmt.Fprintf(os.Stderr, "[ETH Sign] CRITICAL: Sender mismatch! Transaction will fail with 'insufficient funds'\n")
+		}
+	}
+
+	// Step 6: RLP-encode the signed transaction for broadcasting
+	serializedTx, err := signedTx.MarshalBinary()
+	if err != nil {
+		return nil, chainadapter.NewNonRetryableError(
+			"ERR_SERIALIZATION_FAILED",
+			fmt.Sprintf("failed to serialize signed transaction: %v", err),
+			err,
+		)
+	}
+
+	// Step 7: Compute the actual transaction hash from the signed tx
+	txHash := signedTx.Hash().Hex()
+
+	// Step 8: Create SignedTransaction
 	signed := &chainadapter.SignedTransaction{
 		UnsignedTx:   unsigned,
 		Signature:    signature,
@@ -281,6 +419,20 @@ func (e *EthereumAdapter) Sign(ctx context.Context, unsigned *chainadapter.Unsig
 
 	return signed, nil
 }
+
+// reconstructTxFromChainSpecific is a helper to get value from chain specific
+func getChainSpecificInt64(chainSpecific map[string]interface{}, key string) int64 {
+	if v, ok := chainSpecific[key].(int64); ok {
+		return v
+	}
+	if f, ok := chainSpecific[key].(float64); ok {
+		return int64(f)
+	}
+	return 0
+}
+
+// Ensure crypto import is used
+var _ = crypto.Keccak256
 
 // Broadcast submits a signed Ethereum transaction to the blockchain network.
 //

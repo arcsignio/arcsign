@@ -31,7 +31,7 @@ use commands::transaction::{
     query_transaction_status, estimate_fee,
 };
 use commands::usb::detect_usb;
-use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, rename_wallet, delete_wallet, get_token_balances, AddressCache};
+use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, rename_wallet, delete_wallet, get_token_balances, validate_passphrase, AddressCache};
 use commands::provider::{set_provider_config, get_provider_config, list_provider_configs, delete_provider_config, get_asset_transfers};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -211,6 +211,7 @@ fn main() {
             rename_wallet,
             delete_wallet,
             get_token_balances,
+            validate_passphrase,
             // Security commands
             enable_screenshot_protection,
             disable_screenshot_protection,

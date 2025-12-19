@@ -239,6 +239,11 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Validate a BIP39 passphrase by comparing derived address
+    ValidatePassphrase {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
 }
 
 /// WalletQueue serializes all wallet operations through a single-threaded queue.
@@ -408,6 +413,11 @@ impl WalletQueue {
                 }
                 WalletCommand::EstimateFee { params_json, respond_to } => {
                     let result = library.estimate_fee(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::ValidatePassphrase { params_json, respond_to } => {
+                    let result = library.validate_passphrase(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -862,6 +872,25 @@ impl WalletQueue {
         .await
         .map_err(|e| format!("Task join error: {}", e))?
     }
+
+    /// Validate a BIP39 passphrase by comparing derived address with stored address.
+    pub async fn validate_passphrase(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::ValidatePassphrase {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
 }
 
 /// Lazy-initialized WalletQueue wrapper
@@ -1004,5 +1033,10 @@ impl LazyWalletQueue {
     /// Estimate transaction fees for the specified chain
     pub async fn estimate_fee(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().estimate_fee(params_json).await
+    }
+
+    /// Validate a BIP39 passphrase by comparing derived address with stored address
+    pub async fn validate_passphrase(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().validate_passphrase(params_json).await
     }
 }

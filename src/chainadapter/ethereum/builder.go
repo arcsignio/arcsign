@@ -152,7 +152,7 @@ func (tb *TransactionBuilder) Build(
 		ID:             txID,
 		ChainID:        fmt.Sprintf("ethereum-%d", tb.chainID.Int64()),
 		From:           req.From,
-		To:             req.To,
+		To:             req.To,  // Logical recipient (for display)
 		Amount:         req.Amount,
 		Fee:            fee,
 		Nonce:          &nonce,
@@ -165,6 +165,8 @@ func (tb *TransactionBuilder) Build(
 			"max_fee_per_gas":          maxFeePerGas.String(),
 			"max_priority_fee_per_gas": maxPriorityFeePerGas.String(),
 			"data":                     data,
+			"tx_to":                    toAddr.Hex(),  // Actual transaction target (token contract for ERC-20)
+			"tx_value":                 value.String(), // Actual transaction value (0 for ERC-20)
 		},
 		CreatedAt: time.Now(),
 	}

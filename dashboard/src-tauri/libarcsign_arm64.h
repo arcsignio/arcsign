@@ -475,6 +475,32 @@ extern char* GetTokenBalances(char* params);
 // Returns: {"success": true, "data": {"transfers": [...], "pageKey": "..."}}
 extern char* GetAssetTransfers(char* params);
 
+// ValidatePassphrase validates a BIP39 passphrase by deriving an Ethereum address
+// and comparing it with the stored address in the wallet's AddressBook.
+// Feature: Passphrase validation for wallets with BIP39 passphrase
+//
+// This is used during wallet unlock flow:
+// 1. User enters wallet password (validated via unlock_wallet)
+// 2. If wallet has_passphrase=true, user is prompted for passphrase
+// 3. This function validates the passphrase by comparing derived address
+//
+// Input JSON: {
+//   "walletId": "uuid-xxx",
+//   "password": "user-password",
+//   "passphrase": "bip39-passphrase",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "valid": true,
+//     "derivedAddress": "0x...",
+//     "expectedAddress": "0x..."
+//   }
+// }
+extern char* ValidatePassphrase(char* params);
+
 #ifdef __cplusplus
 }
 #endif
