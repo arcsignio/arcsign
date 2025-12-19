@@ -115,6 +115,33 @@ function formatEth(wei: string): string {
   return eth.toFixed(4);
 }
 
+/**
+ * Convert human-readable amount to smallest unit (wei for 18 decimals)
+ * Example: "1.5" with 18 decimals -> "1500000000000000000"
+ */
+function toSmallestUnit(amount: string, decimals: number): string {
+  // Handle empty or invalid input
+  if (!amount || isNaN(parseFloat(amount))) {
+    return "0";
+  }
+
+  // Split into integer and decimal parts
+  const parts = amount.split(".");
+  const integerPart = parts[0] || "0";
+  let decimalPart = parts[1] || "";
+
+  // Pad or truncate decimal part to match token decimals
+  if (decimalPart.length < decimals) {
+    decimalPart = decimalPart.padEnd(decimals, "0");
+  } else if (decimalPart.length > decimals) {
+    decimalPart = decimalPart.slice(0, decimals);
+  }
+
+  // Combine and remove leading zeros
+  const result = (integerPart + decimalPart).replace(/^0+/, "") || "0";
+  return result;
+}
+
 // Helper to shorten address
 function shortenAddress(address: string): string {
   if (!address || address.length < 10) return address;
@@ -223,12 +250,23 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
     setError(null);
 
     try {
-      console.log("🔧 Building transaction...");
+      // Convert human-readable amount to smallest unit (wei)
+      // e.g., "1" LINK (18 decimals) -> "1000000000000000000"
+      const decimals = selectedToken.decimals || 18;
+      const amountInSmallestUnit = toSmallestUnit(amount, decimals);
+
+      console.log("🔧 Building transaction...", {
+        amount,
+        decimals,
+        amountInSmallestUnit,
+        tokenSymbol: selectedToken.tokenSymbol,
+      });
+
       const result = await tauriApi.buildTransaction({
         chainId,
         from: selectedToken.fromAddress,
         to: toAddress,
-        amount,
+        amount: amountInSmallestUnit,  // Send in smallest unit (wei)
         feeSpeed,
         usbPath,
         appPassword,
