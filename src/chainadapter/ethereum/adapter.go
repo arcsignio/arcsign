@@ -3,6 +3,7 @@ package ethereum
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"math/big"
 	"os"
@@ -296,10 +297,23 @@ func (e *EthereumAdapter) Sign(ctx context.Context, unsigned *chainadapter.Unsig
 	maxPriorityFeePerGas.SetString(maxPriorityFeePerGasStr, 10)
 
 	// Get transaction data (for ERC-20 or memo)
+	// Note: Go's json.Marshal encodes []byte as base64 string, so we need to handle that
 	var data []byte
 	if dataRaw, ok := chainSpecific["data"].([]byte); ok {
+		// Direct []byte (rare, only if not serialized through JSON)
 		data = dataRaw
+	} else if dataStr, ok := chainSpecific["data"].(string); ok && dataStr != "" {
+		// Base64-encoded string (Go's default for []byte in JSON)
+		var err error
+		data, err = base64.StdEncoding.DecodeString(dataStr)
+		if err != nil {
+			// Not base64, try as hex string (0x prefixed)
+			if len(dataStr) >= 2 && dataStr[:2] == "0x" {
+				data = common.FromHex(dataStr)
+			}
+		}
 	} else if dataInterface, ok := chainSpecific["data"].([]interface{}); ok {
+		// Array of numbers (JSON number array, each element is float64)
 		data = make([]byte, len(dataInterface))
 		for i, v := range dataInterface {
 			if f, ok := v.(float64); ok {
