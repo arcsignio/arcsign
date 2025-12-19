@@ -277,10 +277,17 @@ export function WalletDetail({
   const formatBalance = (balance: string): string => {
     const num = parseFloat(balance);
     if (num === 0) return "0";
-    if (num < 0.000001) return num.toFixed(10);
-    if (num < 0.01) return num.toFixed(8);
-    if (num < 1000) return num.toFixed(6);  // Show 6 decimals for better precision
-    return num.toFixed(4);
+
+    // Truncate instead of rounding (floor to N decimal places)
+    const truncate = (n: number, decimals: number): string => {
+      const factor = Math.pow(10, decimals);
+      return (Math.floor(n * factor) / factor).toFixed(decimals);
+    };
+
+    if (num < 0.000001) return truncate(num, 10);
+    if (num < 0.01) return truncate(num, 8);
+    if (num < 1000) return truncate(num, 6);
+    return truncate(num, 4);
   };
 
   // Refresh token balances
