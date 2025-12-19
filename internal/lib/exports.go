@@ -84,6 +84,37 @@ func zeroString(s *string) {
 	*s = ""
 }
 
+// alchemyNetworkEndpoints maps chainId to Alchemy RPC base URLs
+var alchemyNetworkEndpoints = map[string]string{
+	// Mainnets
+	"ethereum":         "https://eth-mainnet.g.alchemy.com/v2",
+	"ethereum-mainnet": "https://eth-mainnet.g.alchemy.com/v2",
+	"polygon":          "https://polygon-mainnet.g.alchemy.com/v2",
+	"polygon-mainnet":  "https://polygon-mainnet.g.alchemy.com/v2",
+	"arbitrum":         "https://arb-mainnet.g.alchemy.com/v2",
+	"arbitrum-mainnet": "https://arb-mainnet.g.alchemy.com/v2",
+	"optimism":         "https://opt-mainnet.g.alchemy.com/v2",
+	"optimism-mainnet": "https://opt-mainnet.g.alchemy.com/v2",
+	"base":             "https://base-mainnet.g.alchemy.com/v2",
+	"base-mainnet":     "https://base-mainnet.g.alchemy.com/v2",
+	// Testnets
+	"ethereum-sepolia": "https://eth-sepolia.g.alchemy.com/v2",
+	"polygon-amoy":     "https://polygon-amoy.g.alchemy.com/v2",
+	"arbitrum-sepolia": "https://arb-sepolia.g.alchemy.com/v2",
+	"optimism-sepolia": "https://opt-sepolia.g.alchemy.com/v2",
+	"base-sepolia":     "https://base-sepolia.g.alchemy.com/v2",
+}
+
+// buildAlchemyRPCEndpoint constructs the full Alchemy RPC URL for a given chain
+func buildAlchemyRPCEndpoint(chainID, apiKey string) string {
+	baseURL, ok := alchemyNetworkEndpoints[chainID]
+	if !ok {
+		// Default to Ethereum mainnet if chain not found
+		baseURL = "https://eth-mainnet.g.alchemy.com/v2"
+	}
+	return baseURL + "/" + apiKey
+}
+
 //export GoFree
 // GoFree frees memory allocated by Go and returned to Rust.
 // CRITICAL: Rust MUST call this function on every pointer returned by FFI exports.
@@ -723,13 +754,16 @@ func ListWallets(params *C.char) *C.char {
 // Feature: 006-chain-adapter - ChainAdapter Transaction FFI
 //
 // Input JSON: {
-//   "chainId": "bitcoin" | "ethereum",
+//   "chainId": "bitcoin" | "ethereum" | "ethereum-sepolia",
 //   "from": "address",
 //   "to": "address",
 //   "asset": "BTC" | "ETH",
 //   "amount": "1000000",  // string representation of big.Int
 //   "feeSpeed": "slow" | "normal" | "fast",
-//   "memo": "optional"
+//   "memo": "optional",
+//   "tokenAddress": "optional ERC-20 contract address",
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "app-password"
 // }
 //
 // Output JSON: {
@@ -772,13 +806,34 @@ func BuildTransaction(params *C.char) *C.char {
 		FeeSpeed     string `json:"feeSpeed"`     // "slow", "normal", "fast"
 		Memo         string `json:"memo"`         // optional
 		TokenAddress string `json:"tokenAddress"` // optional: ERC-20 token contract address
-		RPCConfig    string `json:"rpcConfig"`    // optional RPC endpoint
+		USBPath      string `json:"usbPath"`      // USB path for provider config
+		AppPassword  string `json:"appPassword"`  // App password for decryption
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
 		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
+	}
+
+	// Zero sensitive data after function returns
+	defer zeroString(&input.AppPassword)
+
+	// Build RPC endpoint from provider configuration
+	rpcEndpoint := ""
+	if input.USBPath != "" && input.AppPassword != "" {
+		// Load provider config to get Alchemy API key
+		configPath := input.USBPath + "/provider_config.enc"
+		store, err := provider.NewProviderConfigStore(configPath, input.AppPassword)
+		if err == nil {
+			// Try to get best provider for this chain (using "ethereum" for all EVM chains)
+			providerChainID := "ethereum"
+			config, err := store.GetBestProvider(providerChainID)
+			if err == nil && config.APIKey != "" {
+				// Build Alchemy RPC URL based on chain
+				rpcEndpoint = buildAlchemyRPCEndpoint(input.ChainID, config.APIKey)
+			}
+		}
 	}
 
 	// Initialize ChainAdapter service
@@ -824,7 +879,7 @@ func BuildTransaction(params *C.char) *C.char {
 
 	// Build unsigned transaction
 	ctx := context.Background()
-	unsigned, err := svc.BuildTransaction(ctx, input.ChainID, req, input.RPCConfig)
+	unsigned, err := svc.BuildTransaction(ctx, input.ChainID, req, rpcEndpoint)
 	if err != nil {
 		response := NewErrorResponse(ErrTransactionBuildFailed, fmt.Sprintf("Failed to build transaction: %v", err))
 		jsonBytes, _ := json.Marshal(response)

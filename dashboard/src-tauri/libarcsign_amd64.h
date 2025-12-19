@@ -173,13 +173,16 @@ extern char* ListWallets(char* params);
 // Feature: 006-chain-adapter - ChainAdapter Transaction FFI
 //
 // Input JSON: {
-//   "chainId": "bitcoin" | "ethereum",
+//   "chainId": "bitcoin" | "ethereum" | "ethereum-sepolia",
 //   "from": "address",
 //   "to": "address",
 //   "asset": "BTC" | "ETH",
 //   "amount": "1000000",  // string representation of big.Int
 //   "feeSpeed": "slow" | "normal" | "fast",
-//   "memo": "optional"
+//   "memo": "optional",
+//   "tokenAddress": "optional ERC-20 contract address",
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "app-password"
 // }
 //
 // Output JSON: {
