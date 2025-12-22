@@ -69,6 +69,7 @@
         "signingIdentity": null
       },
       "resources": [
+        "libarcsign.*"
       ],
       "shortDescription": "ArcSign HD Wallet Dashboard",
       "targets": "all",

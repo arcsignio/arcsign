@@ -422,13 +422,38 @@ impl WalletLibrary {
     /// Get platform-specific search paths for the wallet library (T047, T048).
     ///
     /// Search order (highest priority first):
-    /// 1. Current directory (development builds)
-    /// 2. User-specific application directory
-    /// 3. System-wide application directory
+    /// 1. Executable directory (portable USB apps)
+    /// 2. App bundle Resources directory (macOS .app bundles)
+    /// 3. Current directory (development builds)
+    /// 4. User-specific application directory
+    /// 5. System-wide application directory
     ///
     /// Returns: Vec<String> of absolute paths to try
     fn get_search_paths(lib_name: &str) -> Vec<String> {
         let mut paths = Vec::new();
+
+        // Priority 0: Executable directory (for portable USB apps)
+        // This allows the library to be placed next to the executable
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                // Direct sibling of executable (Windows/Linux portable)
+                paths.push(exe_dir.join(lib_name).to_string_lossy().to_string());
+
+                // macOS app bundle: Contents/MacOS/../Resources = Contents/Resources
+                #[cfg(target_os = "macos")]
+                {
+                    let resources_dir = exe_dir.join("../Resources");
+                    paths.push(resources_dir.join(lib_name).to_string_lossy().to_string());
+                }
+
+                // Linux: lib subdirectory
+                #[cfg(target_os = "linux")]
+                {
+                    let lib_dir = exe_dir.join("lib");
+                    paths.push(lib_dir.join(lib_name).to_string_lossy().to_string());
+                }
+            }
+        }
 
         // Priority 1: Current directory (for development and bundled apps)
         paths.push(lib_name.to_string());
