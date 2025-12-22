@@ -75,6 +75,13 @@ pub enum ErrorCode {
     FfiEncryptionError,   // ENCRYPTION_ERROR from Go
     FfiLibraryPanic,      // LIBRARY_PANIC from Go
 
+    // Network errors
+    NetworkError,
+    ContractError,
+
+    // Membership errors
+    InvalidInput,
+
     // Internal errors
     InternalError,
     SerializationError,
@@ -203,6 +210,13 @@ impl AppError {
             ErrorCode::FfiStorageError => "Storage device not accessible. Please ensure your USB drive is properly connected.",
             ErrorCode::FfiEncryptionError => "Encryption operation failed. Your data is secure, but the operation could not complete.",
             ErrorCode::FfiLibraryPanic => "An unexpected error occurred in the wallet library. Please restart the application.",
+
+            // Network errors
+            ErrorCode::NetworkError => "Network request failed. Please check your internet connection.",
+            ErrorCode::ContractError => "Smart contract call failed.",
+
+            // Membership errors
+            ErrorCode::InvalidInput => "Invalid input provided.",
 
             ErrorCode::InternalError => "An internal error occurred. Please contact support.",
             ErrorCode::SerializationError => "Data serialization error.",

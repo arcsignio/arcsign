@@ -4,6 +4,7 @@
  */
 
 pub mod app;
+pub mod membership;
 pub mod provider;
 pub mod security;
 pub mod swap;

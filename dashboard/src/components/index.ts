@@ -15,3 +15,4 @@ export { LoadingSpinner } from './LoadingSpinner';
 export { LibraryCrashDialog } from './LibraryCrashDialog';
 export { AppUnlock } from './AppUnlock';
 export { ProviderSettings } from './ProviderSettings';
+export { MembershipStatus } from './MembershipStatus';

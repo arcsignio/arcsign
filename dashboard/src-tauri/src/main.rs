@@ -23,6 +23,7 @@ mod ffi;  // T017: Add FFI module
 mod models;
 
 use commands::app::{is_first_time_setup, initialize_app, unlock_app};
+use commands::membership::{check_membership, get_membership_tier, can_create_wallet, get_wallet_limit};
 use commands::security::{
     clear_sensitive_memory, disable_screenshot_protection, enable_screenshot_protection,
 };
@@ -239,6 +240,11 @@ fn main() {
             get_swap_approval,
             check_swap_allowance,
             get_native_token_address,
+            // Membership commands (NFT verification)
+            check_membership,
+            get_membership_tier,
+            can_create_wallet,
+            get_wallet_limit,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

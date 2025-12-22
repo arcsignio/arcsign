@@ -11,6 +11,20 @@ import type { Address, AddressFilter } from '@/types/address';
 import { Category } from '@/types/address';
 
 /**
+ * Membership status for Pro tier verification
+ */
+interface MembershipState {
+  /** Whether user is a Pro member */
+  isPro: boolean;
+  /** BSC address used for membership check */
+  membershipAddress: string | null;
+  /** Days remaining until membership expires */
+  daysRemaining: number;
+  /** Wallet creation limit (null = unlimited) */
+  walletLimit: number | null;
+}
+
+/**
  * Dashboard application state
  * SECURITY: Never store sensitive data (mnemonics, passwords) in this store
  */
@@ -24,6 +38,10 @@ interface DashboardState {
 
   /** Addresses for currently selected wallet */
   addresses: Address[];
+
+  // Membership state
+  /** Current membership status */
+  membership: MembershipState;
 
   // UI state
   /** Address filter criteria */
@@ -80,14 +98,28 @@ interface DashboardState {
   /** Set error message */
   setError: (error: string | null) => void;
 
+  /** Set membership status */
+  setMembership: (membership: Partial<MembershipState>) => void;
+
+  /** Check if wallet creation is allowed */
+  canCreateWallet: () => boolean;
+
   /** Clear all state (logout) */
   reset: () => void;
 }
+
+const initialMembership: MembershipState = {
+  isPro: false,
+  membershipAddress: null,
+  daysRemaining: 0,
+  walletLimit: 5, // Free tier default
+};
 
 const initialState = {
   wallets: [],
   selectedWalletId: null,
   addresses: [],
+  membership: initialMembership,
   filter: {},
   searchQuery: '',
   isLoadingWallets: false,
@@ -143,6 +175,20 @@ export const useDashboardStore = create<DashboardState>()(
       setLoadingAddresses: (loading) => set({ isLoadingAddresses: loading }),
 
       setError: (error) => set({ error }),
+
+      setMembership: (membershipUpdates) => {
+        const { membership } = get();
+        set({ membership: { ...membership, ...membershipUpdates } });
+      },
+
+      canCreateWallet: () => {
+        const { wallets, membership } = get();
+        if (membership.isPro) {
+          return true; // Pro members: unlimited wallets
+        }
+        const limit = membership.walletLimit ?? 5;
+        return wallets.length < limit;
+      },
 
       reset: () => set(initialState),
     }),
@@ -232,3 +278,24 @@ export const useHasWallets = () =>
 /** Check if addresses are loaded for selected wallet */
 export const useHasAddresses = () =>
   useDashboardStore((state) => state.addresses.length > 0);
+
+/** Get current membership status */
+export const useMembershipStatus = () =>
+  useDashboardStore((state) => state.membership);
+
+/** Check if user is Pro member */
+export const useIsPro = () =>
+  useDashboardStore((state) => state.membership.isPro);
+
+/** Check if wallet creation is allowed */
+export const useCanCreateWallet = () =>
+  useDashboardStore((state) => state.canCreateWallet());
+
+/** Get wallet count and limit info */
+export const useWalletLimitInfo = () =>
+  useDashboardStore((state) => ({
+    current: state.wallets.length,
+    limit: state.membership.walletLimit,
+    isPro: state.membership.isPro,
+    canCreate: state.canCreateWallet(),
+  }));

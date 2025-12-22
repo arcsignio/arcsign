@@ -11,7 +11,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { invoke } from '@tauri-apps/api';
 import { walletCreateSchema, type WalletCreateFormData } from '@/validation/password';
-import { useDashboardStore } from '@/stores/dashboardStore';
+import { useDashboardStore, useWalletLimitInfo } from '@/stores/dashboardStore';
 import tauriApi, { type UsbDevice, type AppError } from '@/services/tauri-api';
 import type { WalletCreateResponse } from '@/types/wallet';
 import { MnemonicDisplay } from './MnemonicDisplay';
@@ -32,8 +32,10 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
     mnemonic: string;
   } | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
   const { addWallet } = useDashboardStore();
+  const walletLimitInfo = useWalletLimitInfo();
 
   const {
     register,
@@ -69,6 +71,12 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
   }, [setValue]);
 
   const onSubmit = async (data: WalletCreateFormData) => {
+    // Check wallet limit before creating
+    if (!walletLimitInfo.canCreate) {
+      setShowUpgradePrompt(true);
+      return;
+    }
+
     setIsCreating(true);
     setError(null);
 
@@ -162,6 +170,43 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
   return (
     <div className="wallet-create">
       <h2>Create New Wallet</h2>
+
+      {/* Wallet Limit Info */}
+      {!walletLimitInfo.isPro && (
+        <div className="wallet-limit-info" style={{
+          padding: '0.75rem 1rem',
+          marginBottom: '1rem',
+          borderRadius: '8px',
+          backgroundColor: walletLimitInfo.canCreate ? '#e8f5e9' : '#fff3e0',
+          border: `1px solid ${walletLimitInfo.canCreate ? '#4caf50' : '#ff9800'}`,
+          fontSize: '0.9rem'
+        }}>
+          <span style={{ fontWeight: 500 }}>
+            {walletLimitInfo.canCreate
+              ? `Wallets: ${walletLimitInfo.current}/${walletLimitInfo.limit} (Free Tier)`
+              : `Wallet limit reached (${walletLimitInfo.current}/${walletLimitInfo.limit})`
+            }
+          </span>
+          {!walletLimitInfo.canCreate && (
+            <button
+              type="button"
+              onClick={() => setShowUpgradePrompt(true)}
+              style={{
+                marginLeft: '1rem',
+                padding: '0.25rem 0.75rem',
+                backgroundColor: '#f0b90b',
+                color: '#000',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              Upgrade to Pro
+            </button>
+          )}
+        </div>
+      )}
 
       {error && (
         <div className="error-message" role="alert">
@@ -314,6 +359,22 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
         confirmVariant="danger"
         onConfirm={confirmCancel}
         onCancel={cancelCancel}
+      />
+
+      {/* Upgrade to Pro Prompt Dialog */}
+      <ConfirmationDialog
+        isOpen={showUpgradePrompt}
+        title="Wallet Limit Reached"
+        message={`You have reached the maximum of ${walletLimitInfo.limit} wallets on the Free tier. Upgrade to ArcSign Pro for unlimited wallets!`}
+        confirmLabel="Learn More"
+        cancelLabel="Close"
+        confirmVariant="primary"
+        onConfirm={() => {
+          setShowUpgradePrompt(false);
+          // Open mint page in browser
+          window.open('https://arcsign.io/mint', '_blank');
+        }}
+        onCancel={() => setShowUpgradePrompt(false)}
       />
     </div>
   );
