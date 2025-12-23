@@ -8,7 +8,7 @@
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::ffi::LazyWalletQueue; // T032: Add FFI queue import (using LazyWalletQueue for deferred initialization)
 use crate::models::address::{Address, AddressListResponse, Category, KeyType};
-use crate::models::wallet::{Wallet, WalletCreateResponse, WalletImportResponse};
+use crate::models::wallet::{Wallet, WalletAddress, WalletCreateResponse, WalletImportResponse};
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -193,6 +193,7 @@ pub async fn create_wallet(
         updated_at: created_at,
         has_passphrase,
         address_count: 54, // All 54 addresses will be generated
+        addresses: None, // Addresses loaded separately
     };
 
     let response = WalletCreateResponse {
@@ -367,6 +368,7 @@ pub async fn import_wallet(
             updated_at: dup_created,
             has_passphrase,
             address_count: 0,
+            addresses: None,
         };
 
         return Ok(WalletImportResponse {
@@ -459,6 +461,7 @@ pub async fn import_wallet(
         updated_at: created_at,
         has_passphrase,
         address_count: 0, // Will be populated when addresses are loaded
+        addresses: None,
     };
 
     let response = WalletImportResponse {
@@ -732,7 +735,27 @@ pub async fn list_wallets(
             .get("hasPassphrase")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
-        let address_count = 0;
+
+        // Parse addresses from FFI response (public data, no password needed)
+        let addresses: Option<Vec<WalletAddress>> = wallet_data
+            .get("addresses")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|addr| {
+                        Some(WalletAddress {
+                            symbol: addr.get("symbol")?.as_str()?.to_string(),
+                            coin_name: addr.get("coinName")?.as_str()?.to_string(),
+                            coin_type: addr.get("coinType")?.as_u64()? as u32,
+                            address: addr.get("address")?.as_str()?.to_string(),
+                            derivation_path: addr.get("derivationPath")?.as_str()?.to_string(),
+                            category: addr.get("category")?.as_str()?.to_string(),
+                        })
+                    })
+                    .collect()
+            });
+
+        let address_count = addresses.as_ref().map(|a| a.len() as u32).unwrap_or(0);
 
         wallets.push(Wallet {
             id: wallet_id,
@@ -741,6 +764,7 @@ pub async fn list_wallets(
             updated_at,
             has_passphrase,
             address_count,
+            addresses,
         });
 
         tracing::info!("Found wallet via FFI: {}", name);
@@ -855,6 +879,7 @@ pub async fn rename_wallet(
         updated_at: renamed_at,
         has_passphrase: false, // Actual implementation would preserve this
         address_count: 0, // Actual implementation would preserve this
+        addresses: None,
     };
 
     // T038: Log performance metrics

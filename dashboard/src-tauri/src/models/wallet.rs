@@ -7,6 +7,23 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Public address from AddressBook (no sensitive data)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WalletAddress {
+    /// Ticker symbol (e.g., "BTC", "ETH", "BNB")
+    pub symbol: String,
+    /// Full coin name
+    pub coin_name: String,
+    /// SLIP-44 coin type
+    pub coin_type: u32,
+    /// Blockchain address (public)
+    pub address: String,
+    /// BIP44 derivation path
+    pub derivation_path: String,
+    /// Blockchain category
+    pub category: String,
+}
+
 /// Hierarchical Deterministic Wallet
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Wallet {
@@ -27,6 +44,10 @@ pub struct Wallet {
 
     /// Number of derived addresses (always 54 for v0.3.0)
     pub address_count: u32,
+
+    /// Public addresses from AddressBook (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub addresses: Option<Vec<WalletAddress>>,
 }
 
 /// Wallet creation response (includes mnemonic)
@@ -65,6 +86,27 @@ impl Wallet {
             updated_at: created_at,
             has_passphrase,
             address_count: 54, // Fixed for v0.3.0
+            addresses: None,
+        }
+    }
+
+    /// Create wallet with addresses
+    pub fn with_addresses(
+        id: String,
+        name: String,
+        created_at: String,
+        has_passphrase: bool,
+        addresses: Vec<WalletAddress>,
+    ) -> Self {
+        let address_count = addresses.len() as u32;
+        Self {
+            id,
+            name,
+            created_at: created_at.clone(),
+            updated_at: created_at,
+            has_passphrase,
+            address_count,
+            addresses: Some(addresses),
         }
     }
 

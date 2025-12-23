@@ -5,6 +5,24 @@
  */
 
 /**
+ * Public address from AddressBook (no sensitive data)
+ */
+export interface WalletAddress {
+  /** Ticker symbol (e.g., "BTC", "ETH", "BNB") */
+  symbol: string;
+  /** Full coin name (e.g., "Bitcoin", "Ethereum") */
+  coinName: string;
+  /** SLIP-44 coin type */
+  coinType: number;
+  /** Blockchain address (public, no password needed) */
+  address: string;
+  /** BIP44 derivation path */
+  derivationPath: string;
+  /** Blockchain category */
+  category: string;
+}
+
+/**
  * Represents a hierarchical deterministic wallet
  * Contains mnemonic seed (encrypted on USB), metadata, and derived addresses
  */
@@ -26,6 +44,9 @@ export interface Wallet {
 
   /** Number of derived addresses (always 54 for v0.3.0) */
   address_count: number;
+
+  /** Public addresses from AddressBook (optional, loaded with wallet list) */
+  addresses?: WalletAddress[];
 }
 
 /**

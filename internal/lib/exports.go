@@ -730,17 +730,35 @@ func ListWallets(params *C.char) *C.char {
 	wallets := make([]map[string]interface{}, 0, len(walletObjs))
 	for _, w := range walletObjs {
 		addressCount := 0
+		var addresses []map[string]interface{}
 		if w.AddressBook != nil {
 			addressCount = len(w.AddressBook.Addresses)
+			// Include public addresses (no sensitive data)
+			addresses = make([]map[string]interface{}, 0, len(w.AddressBook.Addresses))
+			for _, addr := range w.AddressBook.Addresses {
+				addresses = append(addresses, map[string]interface{}{
+					"symbol":         addr.Symbol,
+					"coinName":       addr.CoinName,
+					"coinType":       addr.CoinType,
+					"address":        addr.Address,
+					"derivationPath": addr.DerivationPath,
+					"category":       string(addr.Category),
+				})
+			}
 		}
 
-		wallets = append(wallets, map[string]interface{}{
+		walletData := map[string]interface{}{
 			"walletId":      w.ID,
 			"walletName":    w.Name,
 			"createdAt":     w.CreatedAt.Format(time.RFC3339),
 			"addressCount":  addressCount,
 			"hasPassphrase": w.UsesPassphrase,
-		})
+		}
+		// Only include addresses if available
+		if addresses != nil {
+			walletData["addresses"] = addresses
+		}
+		wallets = append(wallets, walletData)
 	}
 
 	data := map[string]interface{}{

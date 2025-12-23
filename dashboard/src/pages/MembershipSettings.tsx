@@ -8,7 +8,7 @@
  * 3. Check membership validity and expiration
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
 import { useDashboardStore, useMembershipStatus, usePrimaryMembershipAddress } from '@/stores/dashboardStore';
 
@@ -43,6 +43,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack }
   const { wallets, setMembership } = useDashboardStore();
 
   // Load all BSC addresses from all wallets on mount
+  // Addresses are now included in wallet data (public, no password needed)
   useEffect(() => {
     loadBscAddresses();
   }, [wallets]);
@@ -54,29 +55,27 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack }
     }
   }, [primaryAddress]);
 
-  const loadBscAddresses = async () => {
+  const loadBscAddresses = () => {
     setIsLoading(true);
     setError(null);
     const addresses: BscAddress[] = [];
 
     try {
+      // Addresses are now included in wallet list (public data from AddressBook)
       for (const wallet of wallets) {
-        // Load addresses for this wallet
-        const result = await invoke<{ addresses: Array<{ symbol: string; address: string }> }>('load_addresses', {
-          input: { wallet_id: wallet.id },
-        });
+        if (wallet.addresses) {
+          // Find BSC address (BNB symbol with EVM key type)
+          const bscAddr = wallet.addresses.find(
+            (addr) => addr.symbol === 'BNB' || addr.symbol === 'BSC'
+          );
 
-        // Find BSC address (BNB symbol with EVM key type)
-        const bscAddr = result.addresses.find(
-          (addr) => addr.symbol === 'BNB' || addr.symbol === 'BSC'
-        );
-
-        if (bscAddr) {
-          addresses.push({
-            walletId: wallet.id,
-            walletName: wallet.name,
-            address: bscAddr.address,
-          });
+          if (bscAddr) {
+            addresses.push({
+              walletId: wallet.id,
+              walletName: wallet.name,
+              address: bscAddr.address,
+            });
+          }
         }
       }
 
