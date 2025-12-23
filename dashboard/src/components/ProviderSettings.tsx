@@ -141,6 +141,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
       <p className="description">
         Configure blockchain API providers (Alchemy, Infura, QuickNode) to
         enable balance queries, fee estimation, and transaction broadcasting.
+        For token swap functionality, add your 1inch API key.
       </p>
 
       {error && <div className="alert alert-error">{error}</div>}
@@ -167,9 +168,12 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
               <option value={PROVIDER_TYPES.QUICKNODE}>
                 QuickNode (Coming Soon)
               </option>
+              <option value={PROVIDER_TYPES.ONEINCH}>1inch (DEX Swap)</option>
             </select>
             <small className="form-hint">
-              This API key will be used for all supported blockchains
+              {formData.providerType === PROVIDER_TYPES.ONEINCH
+                ? 'Required for token swap functionality'
+                : 'This API key will be used for all supported blockchains'}
             </small>
           </div>
 

@@ -131,6 +131,7 @@ export const PROVIDER_TYPES = {
   ALCHEMY: 'alchemy',
   INFURA: 'infura',
   QUICKNODE: 'quicknode',
+  ONEINCH: '1inch',
 } as const;
 
 /**

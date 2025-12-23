@@ -70,6 +70,30 @@ const POPULAR_TOKENS: Record<string, Array<{
     { address: "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9", symbol: "USDT", name: "Tether USD", decimals: 6, logoURI: "https://assets.coingecko.com/coins/images/325/small/Tether.png" },
     { address: "0xaf88d065e77c8cc2239327c5edb3a432268e5831", symbol: "USDC", name: "USD Coin", decimals: 6, logoURI: "https://assets.coingecko.com/coins/images/6319/small/usdc.png" },
   ],
+  "bnb": [
+    { address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", symbol: "BNB", name: "BNB", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png" },
+    { address: "0x55d398326f99059ff775485246999027b3197955", symbol: "USDT", name: "Tether USD", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/325/small/Tether.png" },
+    { address: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d", symbol: "USDC", name: "USD Coin", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/6319/small/usdc.png" },
+    { address: "0xe9e7cea3dedca5984780bafc599bd69add087d56", symbol: "BUSD", name: "Binance USD", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/9576/small/BUSD.png" },
+    { address: "0x2170ed0880ac9a755fd29b2688956bd959f933f8", symbol: "ETH", name: "Ethereum Token", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/279/small/ethereum.png" },
+    { address: "0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c", symbol: "BTCB", name: "Bitcoin BEP2", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/14108/small/Binance-bitcoin.png" },
+    { address: "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", symbol: "WBNB", name: "Wrapped BNB", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png" },
+    { address: "0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82", symbol: "CAKE", name: "PancakeSwap", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/12632/small/pancakeswap-cake-logo.png" },
+  ],
+  "optimism": [
+    { address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", symbol: "ETH", name: "Ethereum", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/279/small/ethereum.png" },
+    { address: "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58", symbol: "USDT", name: "Tether USD", decimals: 6, logoURI: "https://assets.coingecko.com/coins/images/325/small/Tether.png" },
+    { address: "0x0b2c639c533813f4aa9d7837caf62653d097ff85", symbol: "USDC", name: "USD Coin", decimals: 6, logoURI: "https://assets.coingecko.com/coins/images/6319/small/usdc.png" },
+    { address: "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1", symbol: "DAI", name: "Dai Stablecoin", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png" },
+    { address: "0x4200000000000000000000000000000000000006", symbol: "WETH", name: "Wrapped Ether", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/2518/small/weth.png" },
+    { address: "0x4200000000000000000000000000000000000042", symbol: "OP", name: "Optimism", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/25244/small/Optimism.png" },
+  ],
+  "base": [
+    { address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", symbol: "ETH", name: "Ethereum", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/279/small/ethereum.png" },
+    { address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", symbol: "USDC", name: "USD Coin", decimals: 6, logoURI: "https://assets.coingecko.com/coins/images/6319/small/usdc.png" },
+    { address: "0x50c5725949a6f0c72e6c4a641f24049a917db0cb", symbol: "DAI", name: "Dai Stablecoin", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png" },
+    { address: "0x4200000000000000000000000000000000000006", symbol: "WETH", name: "Wrapped Ether", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/2518/small/weth.png" },
+  ],
 };
 
 // Map network to chainId for backend
