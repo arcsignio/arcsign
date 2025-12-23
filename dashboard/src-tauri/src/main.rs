@@ -21,6 +21,7 @@ mod commands;
 mod error;
 mod ffi;  // T017: Add FFI module
 mod models;
+mod websocket;  // WebSocket server for mint-page integration
 
 use commands::app::{is_first_time_setup, initialize_app, unlock_app};
 use commands::membership::{check_membership, get_membership_tier, can_create_wallet, get_wallet_limit};
@@ -43,6 +44,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant; // T045: Startup time logging
 use ffi::{WalletLibrary, LazyWalletQueue};  // T017: Import FFI types (use LazyWalletQueue)
 use tauri::Manager;  // For app.manage() in setup hook
+use websocket::WebSocketServer;  // WebSocket server for external connections
+use tokio::sync::mpsc;
 
 fn main() {
     // T045: Start startup timer
@@ -183,6 +186,25 @@ fn main() {
             } else {
                 tracing::warn!("⚠ FFI queue not available - commands will use CLI fallback");
             }
+
+            // Start WebSocket server for mint-page integration
+            let (pending_tx_sender, pending_tx_receiver) = mpsc::unbounded_channel();
+            let mut ws_server = WebSocketServer::new(pending_tx_sender.clone());
+
+            // Store sender in app state for UI to receive pending transactions
+            app.manage(Arc::new(Mutex::new(pending_tx_receiver)));
+            app.manage(Arc::new(tokio::sync::RwLock::new(ws_server)));
+
+            // Start WebSocket server in background
+            let ws_server_clone = Arc::new(tokio::sync::RwLock::new(WebSocketServer::new(pending_tx_sender)));
+            let ws_handle = ws_server_clone.clone();
+            tauri::async_runtime::spawn(async move {
+                let mut server = ws_handle.write().await;
+                if let Err(e) = server.start().await {
+                    tracing::error!("Failed to start WebSocket server: {}", e);
+                }
+            });
+            tracing::info!("✓ WebSocket server starting on ws://127.0.0.1:9527");
 
             // T045: Log total startup time
             let startup_duration = startup_start.elapsed();

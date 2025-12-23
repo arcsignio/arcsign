@@ -16,3 +16,4 @@ export { LibraryCrashDialog } from './LibraryCrashDialog';
 export { AppUnlock } from './AppUnlock';
 export { ProviderSettings } from './ProviderSettings';
 export { MembershipStatus } from './MembershipStatus';
+export { TransactionSignDialog } from './TransactionSignDialog';
