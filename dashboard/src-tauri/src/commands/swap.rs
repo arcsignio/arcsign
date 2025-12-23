@@ -273,3 +273,48 @@ pub async fn get_native_token_address(
     let result = queue.get_native_token_address().await?;
     Ok(result)
 }
+
+/// Input for getting swap tokens
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetSwapTokensInput {
+    /// Chain identifier
+    pub chain_id: String,
+    /// USB path for provider config
+    pub usb_path: String,
+    /// App password for provider config decryption
+    pub app_password: String,
+}
+
+/// Get all available swap tokens for a chain from 1inch API.
+///
+/// Returns a list of tokens that can be swapped on the specified chain.
+#[tauri::command]
+pub async fn get_swap_tokens(
+    queue: State<'_, LazyWalletQueue>,
+    input: GetSwapTokensInput,
+) -> Result<serde_json::Value, String> {
+    let start = Instant::now();
+    tracing::info!(
+        "[swap::get_swap_tokens] Getting tokens for chain {}",
+        input.chain_id
+    );
+
+    let mut app_password = input.app_password;
+    let ffi_params = json!({
+        "chainId": input.chain_id,
+        "usbPath": input.usb_path,
+        "appPassword": app_password
+    });
+
+    app_password.zeroize();
+
+    let result = queue.get_swap_tokens(ffi_params.to_string()).await?;
+
+    tracing::info!(
+        "[swap::get_swap_tokens] Tokens retrieved in {:?}",
+        start.elapsed()
+    );
+
+    Ok(result)
+}

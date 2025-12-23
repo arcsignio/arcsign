@@ -118,6 +118,11 @@ type SwapTransaction struct {
 	ChainID  int       `json:"chainId"`
 }
 
+// TokensResponse from 1inch /tokens endpoint
+type TokensResponse struct {
+	Tokens map[string]TokenInfo `json:"tokens"` // address -> TokenInfo
+}
+
 // Error codes
 const (
 	ErrInsufficientLiquidity = "INSUFFICIENT_LIQUIDITY"

@@ -34,7 +34,7 @@ use commands::transaction::{
 };
 use commands::swap::{
     get_swap_quote, build_swap_transaction, get_swap_approval,
-    check_swap_allowance, get_native_token_address,
+    check_swap_allowance, get_native_token_address, get_swap_tokens,
 };
 use commands::usb::detect_usb;
 use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, rename_wallet, delete_wallet, get_token_balances, validate_passphrase, update_websocket_accounts, AddressCache};
@@ -270,6 +270,7 @@ fn main() {
             get_swap_approval,
             check_swap_allowance,
             get_native_token_address,
+            get_swap_tokens,
             // Membership commands (NFT verification)
             check_membership,
             get_membership_tier,

@@ -128,3 +128,12 @@ func SupportedChains() []int {
 	}
 	return chains
 }
+
+// GetTokens fetches all available tokens for swap on a chain from 1inch API
+func (a *Aggregator) GetTokens(ctx context.Context, chainID int) ([]oneinch.TokenInfo, error) {
+	if !oneinch.IsChainSupported(chainID) {
+		return nil, fmt.Errorf("chain %d is not supported for swap", chainID)
+	}
+
+	return a.oneinchClient.GetTokens(ctx, chainID)
+}

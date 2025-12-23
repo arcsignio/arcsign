@@ -20,6 +20,11 @@ import tauriApi, {
   type AppError,
 } from "@/services/tauri-api";
 import type { SendableToken } from "./SendTransaction";
+import {
+  getTokensForChain,
+  type ChainKey,
+  type NormalizedToken,
+} from "@/services/tokenList";
 
 // Swap steps
 type SwapStep =

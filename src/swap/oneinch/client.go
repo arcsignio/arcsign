@@ -335,6 +335,108 @@ func (c *Client) BuildSwapQuote(ctx context.Context, req *SwapRequest, gasPrice 
 	}, nil
 }
 
+// GetTokens fetches all available tokens for swap on a chain
+func (c *Client) GetTokens(ctx context.Context, chainID int) ([]TokenInfo, error) {
+	if !IsChainSupported(chainID) {
+		return nil, fmt.Errorf("unsupported chain: %d", chainID)
+	}
+
+	// Use swap API v6.0 tokens endpoint
+	urlStr := fmt.Sprintf("%s/%d/tokens", c.baseURL, chainID)
+
+	body, err := c.doRequest(ctx, http.MethodGet, urlStr)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp TokensResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse tokens response: %w", err)
+	}
+
+	// Convert map to slice and add native token at the beginning
+	tokens := make([]TokenInfo, 0, len(resp.Tokens)+1)
+
+	// Add native token first
+	nativeToken := getNativeTokenForChain(chainID)
+	tokens = append(tokens, nativeToken)
+
+	// Add all other tokens
+	for addr, token := range resp.Tokens {
+		// Set address from map key if not set
+		if token.Address == "" {
+			token.Address = addr
+		}
+		// Skip native token if already in map (avoid duplicates)
+		if token.Address != NativeTokenAddress {
+			tokens = append(tokens, token)
+		}
+	}
+
+	return tokens, nil
+}
+
+// getNativeTokenForChain returns the native token info for a chain
+func getNativeTokenForChain(chainID int) TokenInfo {
+	switch chainID {
+	case 1: // Ethereum
+		return TokenInfo{
+			Symbol:   "ETH",
+			Name:     "Ethereum",
+			Address:  NativeTokenAddress,
+			Decimals: 18,
+			LogoURI:  "https://tokens.1inch.io/0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.png",
+		}
+	case 56: // BNB Chain
+		return TokenInfo{
+			Symbol:   "BNB",
+			Name:     "BNB",
+			Address:  NativeTokenAddress,
+			Decimals: 18,
+			LogoURI:  "https://tokens.1inch.io/0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c.png",
+		}
+	case 137: // Polygon
+		return TokenInfo{
+			Symbol:   "MATIC",
+			Name:     "Polygon",
+			Address:  NativeTokenAddress,
+			Decimals: 18,
+			LogoURI:  "https://tokens.1inch.io/0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0.png",
+		}
+	case 42161: // Arbitrum
+		return TokenInfo{
+			Symbol:   "ETH",
+			Name:     "Ethereum",
+			Address:  NativeTokenAddress,
+			Decimals: 18,
+			LogoURI:  "https://tokens.1inch.io/0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.png",
+		}
+	case 10: // Optimism
+		return TokenInfo{
+			Symbol:   "ETH",
+			Name:     "Ethereum",
+			Address:  NativeTokenAddress,
+			Decimals: 18,
+			LogoURI:  "https://tokens.1inch.io/0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.png",
+		}
+	case 8453: // Base
+		return TokenInfo{
+			Symbol:   "ETH",
+			Name:     "Ethereum",
+			Address:  NativeTokenAddress,
+			Decimals: 18,
+			LogoURI:  "https://tokens.1inch.io/0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.png",
+		}
+	default:
+		return TokenInfo{
+			Symbol:   "ETH",
+			Name:     "Native Token",
+			Address:  NativeTokenAddress,
+			Decimals: 18,
+		}
+	}
+}
+
 // BuildSwapTransaction creates a complete SwapTransaction ready for signing
 func (c *Client) BuildSwapTransaction(ctx context.Context, req *SwapRequest, gasPrice *big.Int) (*SwapTransaction, error) {
 	// Get quote

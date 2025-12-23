@@ -271,6 +271,11 @@ pub enum WalletCommand {
     GetNativeTokenAddress {
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Get available swap tokens for a chain
+    GetSwapTokens {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
 }
 
 /// WalletQueue serializes all wallet operations through a single-threaded queue.
@@ -471,6 +476,11 @@ impl WalletQueue {
                 }
                 WalletCommand::GetNativeTokenAddress { respond_to } => {
                     let result = library.get_native_token_address();
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::GetSwapTokens { params_json, respond_to } => {
+                    let result = library.get_swap_tokens(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -1042,6 +1052,25 @@ impl WalletQueue {
         .await
         .map_err(|e| format!("Task join error: {}", e))?
     }
+
+    /// Get all available swap tokens for a chain from 1inch API.
+    pub async fn get_swap_tokens(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::GetSwapTokens {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
 }
 
 /// Lazy-initialized WalletQueue wrapper
@@ -1218,5 +1247,10 @@ impl LazyWalletQueue {
     /// Get native token address for 1inch API
     pub async fn get_native_token_address(&self) -> Result<serde_json::Value, String> {
         self.get_or_init().get_native_token_address().await
+    }
+
+    /// Get all available swap tokens for a chain from 1inch API
+    pub async fn get_swap_tokens(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().get_swap_tokens(params_json).await
     }
 }

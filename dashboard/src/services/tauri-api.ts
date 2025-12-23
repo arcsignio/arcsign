@@ -921,6 +921,41 @@ export async function getNativeTokenAddress(): Promise<string> {
   }
 }
 
+export interface GetSwapTokensParams {
+  chainId: string;
+  usbPath: string;
+  appPassword: string;
+}
+
+export interface GetSwapTokensResponse {
+  tokens: SwapTokenInfo[];
+}
+
+export async function getSwapTokens(
+  params: GetSwapTokensParams
+): Promise<GetSwapTokensResponse> {
+  console.log("🔄 [tauri-api] getSwapTokens called:", {
+    chainId: params.chainId,
+  });
+
+  try {
+    const result = await invoke<GetSwapTokensResponse>("get_swap_tokens", {
+      input: {
+        chainId: params.chainId,
+        usbPath: params.usbPath,
+        appPassword: params.appPassword,
+      },
+    });
+    console.log("🔄 [tauri-api] getSwapTokens response:", {
+      tokenCount: result.tokens?.length || 0,
+    });
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] getSwapTokens error:", error);
+    throw parseError(error);
+  }
+}
+
 // ============================================================================
 // WebSocket Pending Transaction API (for mint-page integration)
 // ============================================================================
@@ -1036,6 +1071,7 @@ export const tauriApi = {
   getSwapApproval,
   checkSwapAllowance,
   getNativeTokenAddress,
+  getSwapTokens,
 
   // Security
   enableScreenshotProtection,

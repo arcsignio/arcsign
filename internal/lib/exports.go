@@ -3080,6 +3080,102 @@ func GetNativeTokenAddress() *C.char {
 	return C.CString(string(jsonBytes))
 }
 
+//export GetSwapTokens
+// GetSwapTokens fetches all available tokens for swap on a chain from 1inch API.
+// Feature: Token Swap
+//
+// Input JSON: {
+//
+//	"chainId": "56",  // Chain ID as string
+//	"usbPath": "/Volumes/USB/...",
+//	"appPassword": "password123"
+//
+// }
+//
+// Output JSON: {
+//
+//	"success": true,
+//	"data": {
+//	  "tokens": [
+//	    {
+//	      "symbol": "BNB",
+//	      "name": "BNB",
+//	      "address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+//	      "decimals": 18,
+//	      "logoURI": "https://..."
+//	    },
+//	    ...
+//	  ]
+//	}
+//
+// }
+func GetSwapTokens(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		debugLog(fmt.Sprintf("GetSwapTokens completed in %v", elapsed))
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		ChainID     string `json:"chainId"`
+		USBPath     string `json:"usbPath"`
+		AppPassword string `json:"appPassword"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	// Get 1inch API key from provider config
+	oneInchAPIKey := ""
+	if input.USBPath != "" && input.AppPassword != "" {
+		configPath := input.USBPath + "/provider_config.enc"
+		store, err := provider.NewProviderConfigStore(configPath, input.AppPassword)
+		if err == nil {
+			config, err := store.GetBestProvider("1inch")
+			if err == nil && config != nil && config.APIKey != "" {
+				oneInchAPIKey = config.APIKey
+			}
+		}
+	}
+
+	// Initialize swap aggregator
+	aggregator := initSwapAggregator(oneInchAPIKey)
+
+	// Get tokens
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	tokens, err := aggregator.GetTokens(ctx, chainIDToInt(input.ChainID))
+	if err != nil {
+		response := NewErrorResponse(ErrSwapQuoteFailed, fmt.Sprintf("Failed to get swap tokens: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	output := map[string]interface{}{
+		"tokens": tokens,
+	}
+
+	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
 // main is required for buildmode=c-shared but should remain empty.
 // All functionality is exposed through //export functions.
 func main() {

@@ -115,6 +115,9 @@ type CheckSwapAllowanceFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for GetNativeTokenAddress: char* GetNativeTokenAddress()
 type GetNativeTokenAddressFn = unsafe extern "C" fn() -> *mut c_char;
 
+/// Function signature for GetSwapTokens: char* GetSwapTokens(char* params)
+type GetSwapTokensFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 // ============================================================================
 // WalletLibrary - Dynamic Library Wrapper (T016, T017)
 // ============================================================================
@@ -169,6 +172,7 @@ pub struct WalletLibrary {
     get_swap_approval: Symbol<'static, GetSwapApprovalFn>,
     check_swap_allowance: Symbol<'static, CheckSwapAllowanceFn>,
     get_native_token_address: Symbol<'static, GetNativeTokenAddressFn>,
+    get_swap_tokens: Symbol<'static, GetSwapTokensFn>,
 }
 
 impl WalletLibrary {
@@ -351,6 +355,10 @@ impl WalletLibrary {
                 .get(b"GetNativeTokenAddress")
                 .map_err(|e| format!("GetNativeTokenAddress symbol not found: {}", e))?;
 
+            let get_swap_tokens: Symbol<GetSwapTokensFn> = lib
+                .get(b"GetSwapTokens")
+                .map_err(|e| format!("GetSwapTokens symbol not found: {}", e))?;
+
             // Extend symbol lifetime to 'static (safe because Library lives for program duration)
             let go_free: Symbol<'static, GoFreeFn> = std::mem::transmute(go_free);
             let get_version: Symbol<'static, GetVersionFn> = std::mem::transmute(get_version);
@@ -382,6 +390,7 @@ impl WalletLibrary {
             let get_swap_approval: Symbol<'static, GetSwapApprovalFn> = std::mem::transmute(get_swap_approval);
             let check_swap_allowance: Symbol<'static, CheckSwapAllowanceFn> = std::mem::transmute(check_swap_allowance);
             let get_native_token_address: Symbol<'static, GetNativeTokenAddressFn> = std::mem::transmute(get_native_token_address);
+            let get_swap_tokens: Symbol<'static, GetSwapTokensFn> = std::mem::transmute(get_swap_tokens);
 
             Ok(WalletLibrary {
                 lib: Arc::new(lib),
@@ -415,6 +424,7 @@ impl WalletLibrary {
                 get_swap_approval,
                 check_swap_allowance,
                 get_native_token_address,
+                get_swap_tokens,
             })
         }
     }
@@ -1004,6 +1014,20 @@ impl WalletLibrary {
     /// Get the native token address used by 1inch API.
     pub fn get_native_token_address(&self) -> Result<serde_json::Value, String> {
         self.call_ffi_json(*self.get_native_token_address)
+    }
+
+    /// Get all available swap tokens for a chain from 1inch API.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "chainId": "56",
+    ///   "usbPath": "/path/to/usb",
+    ///   "appPassword": "password"
+    /// }
+    /// ```
+    pub fn get_swap_tokens(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.get_swap_tokens, params_json)
     }
 }
 
