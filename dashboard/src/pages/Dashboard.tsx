@@ -17,6 +17,7 @@ import { WalletImport } from "@/components/WalletImport";
 import { AddressList } from "@/components/AddressList";
 import { ProviderSettings } from "@/components/ProviderSettings";
 import { Settings } from "@/pages/Settings";
+import { MembershipSettings } from "@/pages/MembershipSettings";
 import { WalletDetail } from "@/components/WalletDetail";
 import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -25,7 +26,7 @@ import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import type { Address } from "@/types/address";
 import type { Wallet } from "@/types/wallet";
 
-type View = "list" | "create" | "import" | "addresses" | "settings" | "api-settings" | "detail";
+type View = "list" | "create" | "import" | "addresses" | "settings" | "api-settings" | "membership" | "detail";
 
 export function Dashboard() {
   const [currentView, setCurrentView] = useState<View>("list");
@@ -299,6 +300,8 @@ export function Dashboard() {
   const handleSettingsNavigate = (view: string) => {
     if (view === "api-settings") {
       setCurrentView("api-settings");
+    } else if (view === "membership") {
+      setCurrentView("membership");
     }
   };
 
@@ -310,6 +313,15 @@ export function Dashboard() {
           onBack={handleBackToList}
           onNavigate={handleSettingsNavigate}
         />
+      </div>
+    );
+  }
+
+  // Show membership settings
+  if (currentView === "membership") {
+    return (
+      <div className="dashboard">
+        <MembershipSettings onBack={() => setCurrentView("settings")} />
       </div>
     );
   }

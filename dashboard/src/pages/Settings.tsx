@@ -19,6 +19,12 @@ interface SettingItem {
 
 const SETTING_ITEMS: SettingItem[] = [
   {
+    id: 'membership',
+    title: 'Membership',
+    description: 'View membership status and set primary verification address',
+    icon: '⭐',
+  },
+  {
     id: 'api-settings',
     title: 'API Provider Settings',
     description: 'Configure blockchain API providers (Alchemy, Infura, QuickNode)',

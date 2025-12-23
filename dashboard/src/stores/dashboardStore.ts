@@ -18,6 +18,8 @@ interface MembershipState {
   isPro: boolean;
   /** BSC address used for membership check */
   membershipAddress: string | null;
+  /** User-selected primary BSC address for membership verification (persisted) */
+  primaryMembershipAddress: string | null;
   /** Days remaining until membership expires */
   daysRemaining: number;
   /** Wallet creation limit (null = unlimited) */
@@ -111,6 +113,7 @@ interface DashboardState {
 const initialMembership: MembershipState = {
   isPro: false,
   membershipAddress: null,
+  primaryMembershipAddress: null,
   daysRemaining: 0,
   walletLimit: 5, // Free tier default
 };
@@ -200,6 +203,10 @@ export const useDashboardStore = create<DashboardState>()(
         filter: state.filter,
         searchQuery: state.searchQuery,
         usbPath: state.usbPath,
+        // Persist primary membership address selection
+        membership: {
+          primaryMembershipAddress: state.membership.primaryMembershipAddress,
+        },
       }),
     }
   )
@@ -299,3 +306,7 @@ export const useWalletLimitInfo = () =>
     isPro: state.membership.isPro,
     canCreate: state.canCreateWallet(),
   }));
+
+/** Get primary membership address */
+export const usePrimaryMembershipAddress = () =>
+  useDashboardStore((state) => state.membership.primaryMembershipAddress);
