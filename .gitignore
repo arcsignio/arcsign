@@ -114,3 +114,15 @@ dashboard/*.tsbuildinfo
 # dashboard/package-lock.json
 # dashboard/yarn.lock
 # dashboard/pnpm-lock.yaml
+
+# ============================================
+# Smart Contracts (Hardhat)
+# ============================================
+
+# Cache (auto-generated)
+contracts/cache/
+
+# Build info (large files, can be regenerated)
+contracts/artifacts/build-info/
+
+# Keep contract ABIs (artifacts/contracts/) - these are tracked
