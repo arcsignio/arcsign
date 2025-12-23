@@ -10,12 +10,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
 
-/// BSC Mainnet RPC endpoint
-const BSC_RPC_URL: &str = "https://bsc-dataseed.binance.org/";
+/// BSC Testnet RPC endpoint (for development)
+const BSC_TESTNET_RPC_URL: &str = "https://bsc-testnet-rpc.publicnode.com";
 
-/// ArcSign Pro NFT contract address (update after deployment)
-/// This is a placeholder - will be updated with actual deployed address
-const ARCSIGN_PRO_CONTRACT: &str = "0x0000000000000000000000000000000000000000";
+/// BSC Mainnet RPC endpoint (for production)
+const BSC_MAINNET_RPC_URL: &str = "https://bsc-dataseed.binance.org/";
+
+/// Use testnet for now (switch to mainnet after NFT contract is deployed on mainnet)
+const BSC_RPC_URL: &str = BSC_TESTNET_RPC_URL;
+
+/// ArcSign Pro NFT contract address on BSC Testnet
+/// Deployed: 2025-12-22
+const ARCSIGN_PRO_CONTRACT: &str = "0x6CB59d29BE5b618eeca9Bc5374648477256f109A";
 
 /// Membership status response
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -149,18 +155,7 @@ pub async fn check_membership(
         ));
     }
 
-    // If contract is not deployed yet (placeholder address), return free tier
-    if ARCSIGN_PRO_CONTRACT == "0x0000000000000000000000000000000000000000" {
-        tracing::warn!("NFT contract not deployed yet, returning free tier status");
-        return Ok(MembershipStatus {
-            is_pro: false,
-            nft_count: 0,
-            token_ids: vec![],
-            expirations: vec![],
-            days_remaining: 0,
-            wallet_limit: Some(5), // Free tier: 5 wallets
-        });
-    }
+    tracing::info!("Checking membership on contract: {}", ARCSIGN_PRO_CONTRACT);
 
     // Create HTTP client
     let client = reqwest::Client::new();

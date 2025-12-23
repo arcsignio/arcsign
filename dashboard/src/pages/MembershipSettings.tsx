@@ -10,6 +10,7 @@
 
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
+import { open } from '@tauri-apps/api/shell';
 import { useDashboardStore, useMembershipStatus, usePrimaryMembershipAddress } from '@/stores/dashboardStore';
 
 interface MembershipSettingsProps {
@@ -127,9 +128,15 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack }
     }
   };
 
-  const handleUpgrade = () => {
-    // Open mint page - use localhost for dev or production URL
-    window.open('http://localhost:8591', '_blank');
+  const handleUpgrade = async () => {
+    try {
+      // Open mint page in default browser using Tauri shell API
+      await open('http://localhost:8591');
+    } catch (err) {
+      console.error('Failed to open mint page:', err);
+      // Fallback to window.open if shell API fails
+      window.open('http://localhost:8591', '_blank');
+    }
   };
 
   const formatAddress = (addr: string) => {
