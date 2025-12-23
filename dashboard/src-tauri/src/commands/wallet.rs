@@ -1203,3 +1203,18 @@ pub async fn validate_passphrase(
 
     Ok(ffi_response)
 }
+
+/// Update WebSocket server with BSC addresses from wallets
+/// Called by frontend after wallet list is loaded
+#[tauri::command]
+pub async fn update_websocket_accounts(
+    accounts: Vec<String>,
+    ws_server: State<'_, std::sync::Arc<tokio::sync::RwLock<crate::websocket::WebSocketServer>>>,
+) -> Result<(), String> {
+    tracing::info!("Updating WebSocket accounts with {} addresses", accounts.len());
+
+    let server = ws_server.read().await;
+    server.update_accounts(accounts).await;
+
+    Ok(())
+}

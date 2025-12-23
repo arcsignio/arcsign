@@ -9,22 +9,15 @@
 
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
+import type { PendingTransactionInfo } from '@/services/tauri-api';
 
-export interface PendingTransaction {
-  request_id: number;
-  from: string;
-  to: string;
-  data: string;
-  value: string;
-  chain_id: number;
-  description: string;
-  broadcast: boolean;
-}
+// Re-export for backward compatibility
+export type PendingTransaction = PendingTransactionInfo;
 
 interface TransactionSignDialogProps {
-  transaction: PendingTransaction | null;
-  onConfirm: (requestId: number, password: string) => void;
-  onReject: (requestId: number) => void;
+  transaction: PendingTransactionInfo | null;
+  onConfirm: (requestId: number, password: string) => Promise<void>;
+  onReject: (requestId: number) => Promise<void> | void;
 }
 
 export function TransactionSignDialog({
@@ -71,18 +64,20 @@ export function TransactionSignDialog({
     setError(null);
 
     try {
-      onConfirm(transaction!.request_id, password);
+      await onConfirm(transaction!.request_id, password);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to sign transaction');
-    } finally {
       setIsLoading(false);
     }
+    // Note: Don't reset isLoading here - the parent component will close the dialog
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
+    // Call onReject but don't wait - just clean up local state
     onReject(transaction!.request_id);
     setPassword('');
     setError(null);
+    setIsLoading(false);
   };
 
   if (!transaction) return null;

@@ -79,12 +79,13 @@ func (s *SimpleSigner) Sign(payload []byte, address string) ([]byte, error) {
 		privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), s.privateKey)
 		signature, _ := btcec.SignCompact(btcec.S256(), privKey, payload, false)
 		return signature, nil
-	} else if s.chainID == "ethereum" || s.chainID == "ethereum-goerli" || s.chainID == "ethereum-sepolia" {
-		// Ethereum signature (ECDSA secp256k1 with recovery)
+	} else if s.isEVMChain() {
+		// EVM-compatible signature (ECDSA secp256k1 with recovery)
+		// Supports: Ethereum, BSC, Polygon, Arbitrum, Optimism, Base, etc.
 		privKey, _ := ethcrypto.ToECDSA(s.privateKey)
 		signature, err := ethcrypto.Sign(payload, privKey)
 		if err != nil {
-			return nil, fmt.Errorf("Ethereum signing failed: %w", err)
+			return nil, fmt.Errorf("EVM signing failed: %w", err)
 		}
 		return signature, nil
 	}
@@ -95,6 +96,41 @@ func (s *SimpleSigner) Sign(payload []byte, address string) ([]byte, error) {
 // GetAddress returns the address controlled by this signer.
 func (s *SimpleSigner) GetAddress() string {
 	return s.address
+}
+
+// isEVMChain checks if the chainID is an EVM-compatible chain.
+// All EVM chains use the same ECDSA secp256k1 signature scheme.
+func (s *SimpleSigner) isEVMChain() bool {
+	evmChains := map[string]bool{
+		// Ethereum
+		"ethereum":         true,
+		"ethereum-mainnet": true,
+		"ethereum-goerli":  true,
+		"ethereum-sepolia": true,
+		// BSC / BNB Smart Chain
+		"bsc":         true,
+		"bsc-mainnet": true,
+		"bsc-testnet": true,
+		"bnb":         true,
+		"bnb-testnet": true,
+		// Polygon
+		"polygon":         true,
+		"polygon-mainnet": true,
+		"polygon-amoy":    true,
+		// Arbitrum
+		"arbitrum":         true,
+		"arbitrum-mainnet": true,
+		"arbitrum-sepolia": true,
+		// Optimism
+		"optimism":         true,
+		"optimism-mainnet": true,
+		"optimism-sepolia": true,
+		// Base
+		"base":         true,
+		"base-mainnet": true,
+		"base-sepolia": true,
+	}
+	return evmChains[s.chainID]
 }
 
 // Zeroize clears the private key from memory.

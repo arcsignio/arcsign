@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/arcsign/chainadapter"
@@ -18,6 +20,49 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
+
+// extractRevertReason extracts a human-readable revert reason from an error message.
+// It handles various RPC provider formats for revert errors.
+func extractRevertReason(errMsg string) string {
+	// Common patterns for revert reasons:
+	// 1. "execution reverted: Insufficient payment"
+	// 2. "execution reverted: BEP20: transfer amount exceeds balance: 0x08c379a0..."
+	// 3. "Error: VM Exception while processing transaction: revert Insufficient payment"
+
+	// Pattern 1: Match "BEP20: <reason>" or "ERC20: <reason>" - stop at colon or hex data
+	bepPattern := regexp.MustCompile(`(BEP20|ERC20):\s*([^:0x]+)`)
+	if matches := bepPattern.FindStringSubmatch(errMsg); len(matches) > 2 {
+		reason := strings.TrimSpace(matches[1] + ": " + matches[2])
+		return reason
+	}
+
+	// Pattern 2: Match common error messages directly
+	commonErrors := []string{
+		"transfer amount exceeds balance",
+		"transfer amount exceeds allowance",
+		"insufficient balance",
+		"insufficient allowance",
+		"Insufficient payment",
+	}
+	lowerMsg := strings.ToLower(errMsg)
+	for _, errText := range commonErrors {
+		if strings.Contains(lowerMsg, strings.ToLower(errText)) {
+			return errText
+		}
+	}
+
+	// Pattern 3: Try to extract from "execution reverted: <reason>"
+	// But stop before hex data (0x...) or nested error info
+	revertPattern := regexp.MustCompile(`execution reverted:\s*([^:]+?)(?::|0x|\(|$)`)
+	if matches := revertPattern.FindStringSubmatch(errMsg); len(matches) > 1 {
+		reason := strings.TrimSpace(matches[1])
+		if reason != "" && len(reason) < 100 { // Sanity check - not too long
+			return reason
+		}
+	}
+
+	return ""
+}
 
 // EthereumAdapter implements ChainAdapter for Ethereum blockchain.
 type EthereumAdapter struct {
@@ -118,17 +163,80 @@ func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.Transacti
 	// Step 2: Estimate gas for the transaction
 	var data []byte
 	if req.Memo != "" {
-		data = []byte(req.Memo)
+		// Check if memo is hex-encoded (contract call data)
+		if len(req.Memo) >= 2 && req.Memo[:2] == "0x" {
+			data = common.FromHex(req.Memo)
+		} else {
+			// Plain text memo
+			data = []byte(req.Memo)
+		}
 	}
 
 	gasLimit, err := e.rpcHelper.EstimateGas(ctx, req.From, req.To, req.Amount, data)
 	if err != nil {
-		// Use default gas limit if estimation fails
-		gasLimit = 21000 // Standard ETH transfer
+		// Log the estimation error for debugging
+		fmt.Fprintf(os.Stderr, "[ETH Build] Gas estimation failed: %v\n", err)
+
+		errStr := strings.ToLower(err.Error())
+
+		// Check if this is a contract revert error - these should NOT be ignored
+		// Common revert patterns from different RPC providers:
+		// - "execution reverted" (standard)
+		// - "reverted" (some providers)
+		// - "revert" (some providers)
+		// - "insufficient" (balance/allowance errors)
+		// - "transfer amount exceeds" (ERC20 balance errors)
+		// - "exceeds balance" (balance errors)
+		isRevertError := strings.Contains(errStr, "execution reverted") ||
+			strings.Contains(errStr, "reverted") ||
+			strings.Contains(errStr, "revert") ||
+			strings.Contains(errStr, "insufficient") ||
+			strings.Contains(errStr, "transfer amount exceeds") ||
+			strings.Contains(errStr, "exceeds balance") ||
+			strings.Contains(errStr, "exceeds allowance")
+
+		if isRevertError {
+			// Extract revert reason if available for user-friendly error message
+			revertReason := extractRevertReason(err.Error())
+			if revertReason != "" {
+				return nil, chainadapter.NewNonRetryableError(
+					chainadapter.ErrCodeContractRevert,
+					fmt.Sprintf("Transaction will fail: %s", revertReason),
+					err,
+				)
+			}
+			return nil, chainadapter.NewNonRetryableError(
+				chainadapter.ErrCodeContractRevert,
+				fmt.Sprintf("Transaction will fail: %v", err),
+				err,
+			)
+		}
+
+		// For non-revert errors (e.g., RPC connection issues), use fallback gas limit
+		if len(data) > 0 {
+			// Contract call - use higher default
+			// NFT mints typically need 150k-300k, approvals need ~50k
+			gasLimit = 300000 // Safe default for most contract interactions
+			fmt.Fprintf(os.Stderr, "[ETH Build] Using fallback gas limit: %d (contract call)\n", gasLimit)
+		} else {
+			gasLimit = 21000 // Standard ETH transfer
+			fmt.Fprintf(os.Stderr, "[ETH Build] Using fallback gas limit: %d (ETH transfer)\n", gasLimit)
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "[ETH Build] Gas estimated: %d\n", gasLimit)
 	}
 
-	// Add 10% buffer to gas estimate
-	gasLimit = gasLimit * 110 / 100
+	// Add 50% buffer to gas estimate for safety (contract calls can vary significantly)
+	// This is especially important for NFT mints which may have variable storage costs
+	originalGasLimit := gasLimit
+	gasLimit = gasLimit * 150 / 100
+	fmt.Fprintf(os.Stderr, "[ETH Build] Gas with 50%% buffer: %d (original: %d)\n", gasLimit, originalGasLimit)
+
+	// Ensure minimum gas limit for contract calls
+	if len(data) > 0 && gasLimit < 150000 {
+		gasLimit = 150000 // Minimum for contract interactions
+		fmt.Fprintf(os.Stderr, "[ETH Build] Applied minimum gas limit: %d\n", gasLimit)
+	}
 
 	// Step 3: Get EIP-1559 fee parameters
 	baseFee, err := e.rpcHelper.GetBaseFee(ctx)
@@ -141,6 +249,17 @@ func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.Transacti
 	if err != nil {
 		// Fallback to default priority fee
 		priorityFee = big.NewInt(2e9) // 2 Gwei
+	}
+
+	// BSC networks require minimum 1 Gwei priority fee (100000000 wei = 0.1 Gwei is absolute minimum)
+	// Set a safe minimum of 1 Gwei (1000000000 wei) for BSC chains
+	minPriorityFee := big.NewInt(1e9) // 1 Gwei default minimum
+	if e.networkID == 56 || e.networkID == 97 {
+		// BSC Mainnet (56) or BSC Testnet (97)
+		minPriorityFee = big.NewInt(1e9) // 1 Gwei minimum for BSC
+	}
+	if priorityFee.Cmp(minPriorityFee) < 0 {
+		priorityFee = minPriorityFee
 	}
 
 	// Calculate maxFeePerGas based on FeeSpeed

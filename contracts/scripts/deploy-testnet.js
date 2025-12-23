@@ -59,7 +59,7 @@ async function main() {
   console.log("ArcSignPro:", arcSignProAddress);
   console.log("USDT:", TESTNET_USDT);
   console.log("Treasury:", treasuryAddress);
-  console.log("Price: 30 USDT");
+  console.log("Price: 5 USDT (testnet - change contract to 30 USDT for mainnet!)");
   console.log("Duration: 365 days");
   console.log("");
   console.log("Block Explorer:");

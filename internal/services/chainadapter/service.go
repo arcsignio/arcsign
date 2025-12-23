@@ -109,6 +109,24 @@ func (s *Service) GetAdapter(ctx context.Context, chainId string, rpcEndpoint st
 		adapter, err = ethereum.NewEthereumAdapter(rpcClient, s.txStore, 5, nil)
 	case "ethereum-sepolia":
 		adapter, err = ethereum.NewEthereumAdapter(rpcClient, s.txStore, 11155111, nil)
+	case "bsc", "bsc-mainnet", "bnb":
+		// BSC Mainnet - uses same EVM-compatible adapter as Ethereum
+		adapter, err = ethereum.NewEthereumAdapter(rpcClient, s.txStore, 56, nil)
+	case "bsc-testnet", "bnb-testnet":
+		// BSC Testnet - chain ID 97
+		adapter, err = ethereum.NewEthereumAdapter(rpcClient, s.txStore, 97, nil)
+	case "polygon", "polygon-mainnet":
+		// Polygon Mainnet
+		adapter, err = ethereum.NewEthereumAdapter(rpcClient, s.txStore, 137, nil)
+	case "arbitrum", "arbitrum-mainnet":
+		// Arbitrum One
+		adapter, err = ethereum.NewEthereumAdapter(rpcClient, s.txStore, 42161, nil)
+	case "optimism", "optimism-mainnet":
+		// Optimism
+		adapter, err = ethereum.NewEthereumAdapter(rpcClient, s.txStore, 10, nil)
+	case "base", "base-mainnet":
+		// Base
+		adapter, err = ethereum.NewEthereumAdapter(rpcClient, s.txStore, 8453, nil)
 	default:
 		return nil, fmt.Errorf("unsupported chainId: %s", chainId)
 	}
@@ -176,12 +194,32 @@ func (s *Service) QueryTransactionStatus(ctx context.Context, chainId string, tx
 // getDefaultRPCEndpoint returns the default RPC endpoint for a chainId.
 func getDefaultRPCEndpoint(chainId string) string {
 	defaults := map[string]string{
-		"bitcoin":           "http://127.0.0.1:8332",
-		"bitcoin-testnet":   "http://127.0.0.1:18332",
-		"bitcoin-regtest":   "http://127.0.0.1:18443",
-		"ethereum":          "http://127.0.0.1:8545",
-		"ethereum-goerli":   "http://127.0.0.1:8545",
-		"ethereum-sepolia":  "http://127.0.0.1:8545",
+		// Bitcoin networks
+		"bitcoin":         "http://127.0.0.1:8332",
+		"bitcoin-testnet": "http://127.0.0.1:18332",
+		"bitcoin-regtest": "http://127.0.0.1:18443",
+
+		// Ethereum networks
+		"ethereum":         "https://eth.llamarpc.com",
+		"ethereum-goerli":  "https://rpc.ankr.com/eth_goerli",
+		"ethereum-sepolia": "https://rpc.sepolia.org",
+
+		// BSC (BNB Chain) networks
+		"bsc":         "https://bsc-dataseed1.binance.org",
+		"bsc-mainnet": "https://bsc-dataseed1.binance.org",
+		"bnb":         "https://bsc-dataseed1.binance.org",
+		"bsc-testnet": "https://bsc-testnet-rpc.publicnode.com",
+		"bnb-testnet": "https://bsc-testnet-rpc.publicnode.com",
+
+		// Other EVM networks
+		"polygon":          "https://polygon-rpc.com",
+		"polygon-mainnet":  "https://polygon-rpc.com",
+		"arbitrum":         "https://arb1.arbitrum.io/rpc",
+		"arbitrum-mainnet": "https://arb1.arbitrum.io/rpc",
+		"optimism":         "https://mainnet.optimism.io",
+		"optimism-mainnet": "https://mainnet.optimism.io",
+		"base":             "https://mainnet.base.org",
+		"base-mainnet":     "https://mainnet.base.org",
 	}
 
 	if endpoint, ok := defaults[chainId]; ok {

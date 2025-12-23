@@ -37,8 +37,9 @@ use commands::swap::{
     check_swap_allowance, get_native_token_address,
 };
 use commands::usb::detect_usb;
-use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, rename_wallet, delete_wallet, get_token_balances, validate_passphrase, AddressCache};
+use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, rename_wallet, delete_wallet, get_token_balances, validate_passphrase, update_websocket_accounts, AddressCache};
 use commands::provider::{set_provider_config, get_provider_config, list_provider_configs, delete_provider_config, get_asset_transfers};
+use commands::websocket_commands::{get_pending_transaction, respond_to_transaction, cancel_pending_transaction, PendingTxReceiverState, CurrentPendingTxState};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant; // T045: Startup time logging
@@ -189,22 +190,28 @@ fn main() {
 
             // Start WebSocket server for mint-page integration
             let (pending_tx_sender, pending_tx_receiver) = mpsc::unbounded_channel();
-            let mut ws_server = WebSocketServer::new(pending_tx_sender.clone());
 
-            // Store sender in app state for UI to receive pending transactions
-            app.manage(Arc::new(Mutex::new(pending_tx_receiver)));
-            app.manage(Arc::new(tokio::sync::RwLock::new(ws_server)));
+            // Store receiver in app state for UI to receive pending transactions
+            let receiver_state: PendingTxReceiverState = Arc::new(Mutex::new(pending_tx_receiver));
+            app.manage(receiver_state);
+
+            // Store current pending transaction state (for response channel)
+            let current_pending_state: CurrentPendingTxState = Arc::new(Mutex::new(None));
+            app.manage(current_pending_state);
+
+            // Create and start WebSocket server
+            let ws_server = Arc::new(tokio::sync::RwLock::new(WebSocketServer::new(pending_tx_sender)));
+            app.manage(ws_server.clone());
 
             // Start WebSocket server in background
-            let ws_server_clone = Arc::new(tokio::sync::RwLock::new(WebSocketServer::new(pending_tx_sender)));
-            let ws_handle = ws_server_clone.clone();
             tauri::async_runtime::spawn(async move {
-                let mut server = ws_handle.write().await;
+                let mut server = ws_server.write().await;
                 if let Err(e) = server.start().await {
                     tracing::error!("Failed to start WebSocket server: {}", e);
+                } else {
+                    tracing::info!("✓ WebSocket server successfully started on ws://127.0.0.1:9527");
                 }
             });
-            tracing::info!("✓ WebSocket server starting on ws://127.0.0.1:9527");
 
             // T045: Log total startup time
             let startup_duration = startup_start.elapsed();
@@ -239,6 +246,7 @@ fn main() {
             delete_wallet,
             get_token_balances,
             validate_passphrase,
+            update_websocket_accounts,
             // Security commands
             enable_screenshot_protection,
             disable_screenshot_protection,
@@ -267,6 +275,10 @@ fn main() {
             get_membership_tier,
             can_create_wallet,
             get_wallet_limit,
+            // WebSocket commands (pending transactions from mint-page)
+            get_pending_transaction,
+            respond_to_transaction,
+            cancel_pending_transaction,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -5,7 +5,7 @@
  * Only accepts connections from localhost for security.
  */
 
-use super::handler::{handle_request, HandlerContext, PendingTxSender, SignResult};
+use super::handler::{handle_request, HandlerContext, PendingTxSender};
 use super::protocol::{WsRequest, WsResponse};
 use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;

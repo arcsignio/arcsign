@@ -41,6 +41,10 @@ pub struct BuildTransactionInput {
     /// ERC-20 token contract address (optional, empty for native token)
     #[serde(default)]
     pub token_address: Option<String>,
+    /// Contract call data (optional, hex-encoded)
+    /// Used for smart contract interactions
+    #[serde(default)]
+    pub data: Option<String>,
     /// USB path for provider config
     pub usb_path: String,
     /// App password for provider config decryption
@@ -165,6 +169,14 @@ pub async fn build_transaction(
         }
     }
 
+    // Add data as memo for smart contract calls
+    if let Some(ref data) = input.data {
+        if !data.is_empty() {
+            params["memo"] = json!(data);
+            tracing::info!("Contract call: data={}", &data[..std::cmp::min(20, data.len())]);
+        }
+    }
+
     let params_json = serde_json::to_string(&params)
         .map_err(|e| format!("Failed to serialize params: {}", e))?;
 
@@ -188,6 +200,29 @@ pub async fn build_transaction(
                 AppError::new(
                     ErrorCode::CliExecutionFailed,
                     "Invalid address format",
+                )
+            } else if e.contains("ERR_CONTRACT_REVERT") || e.contains("Transaction will fail") {
+                // Contract revert errors - extract user-friendly message
+                let user_msg = if e.to_lowercase().contains("transfer amount exceeds balance") {
+                    "Insufficient USDT balance. Please ensure you have enough USDT in your wallet."
+                } else if e.to_lowercase().contains("transfer amount exceeds allowance") {
+                    "USDT allowance not set. Please approve USDT spending first."
+                } else if e.to_lowercase().contains("insufficient") {
+                    "Insufficient balance for this transaction."
+                } else if let Some(start) = e.find("Transaction will fail:") {
+                    // Try to extract the reason from "Transaction will fail: <reason>"
+                    let after_prefix = &e[start + 22..];
+                    if let Some(end) = after_prefix.find(|c: char| c == ':' || c == '(' || c == '\n') {
+                        after_prefix[..end].trim()
+                    } else {
+                        after_prefix.trim()
+                    }
+                } else {
+                    "Transaction will fail due to contract conditions not being met."
+                };
+                AppError::new(
+                    ErrorCode::CliExecutionFailed,
+                    user_msg,
                 )
             } else {
                 AppError::with_details(

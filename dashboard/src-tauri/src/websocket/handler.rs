@@ -4,31 +4,16 @@
  * Processes incoming WebSocket requests and routes to appropriate handlers.
  */
 
-use super::protocol::{WsRequest, WsResponse, WsMethod, SignTransactionParams, PendingTransaction};
+use super::protocol::{
+    WsRequest, WsResponse, WsMethod, SignTransactionParams, PendingTransaction,
+    TransactionResult, PendingTransactionWithChannel,
+};
 use serde_json::{json, Value};
-use std::sync::Arc;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 
-/// Channel for sending pending transactions to the UI
-pub type PendingTxSender = mpsc::UnboundedSender<PendingTransaction>;
-pub type PendingTxReceiver = mpsc::UnboundedReceiver<PendingTransaction>;
-
-/// Channel for receiving signed transaction results from the UI
-pub type SignResultSender = mpsc::UnboundedSender<SignResult>;
-pub type SignResultReceiver = mpsc::UnboundedReceiver<SignResult>;
-
-/// Result from signing UI
-#[derive(Debug, Clone)]
-pub struct SignResult {
-    pub request_id: u64,
-    pub success: bool,
-    /// Signed transaction hex (on success)
-    pub signed_tx: Option<String>,
-    /// Transaction hash after broadcast (if broadcast was requested)
-    pub tx_hash: Option<String>,
-    /// Error message (on failure)
-    pub error: Option<String>,
-}
+/// Channel for sending pending transactions to the UI (with response channel)
+pub type PendingTxSender = mpsc::UnboundedSender<PendingTransactionWithChannel>;
+pub type PendingTxReceiver = mpsc::UnboundedReceiver<PendingTransactionWithChannel>;
 
 /// Handler context with access to app state
 pub struct HandlerContext {
@@ -147,17 +132,49 @@ async fn handle_sign_transaction(
         broadcast,
     };
 
+    // Create oneshot channel for receiving the result from UI
+    let (response_sender, response_receiver) = oneshot::channel::<TransactionResult>();
+
+    // Create pending transaction with channel
+    let pending_with_channel = PendingTransactionWithChannel {
+        transaction: pending_tx,
+        response_sender,
+    };
+
     // Send to UI for confirmation
-    if let Err(e) = context.pending_tx_sender.send(pending_tx) {
+    if let Err(e) = context.pending_tx_sender.send(pending_with_channel) {
         return WsResponse::error(id, format!("Failed to queue transaction: {}", e));
     }
 
-    // Return immediately - the actual response will be sent when user confirms/rejects
-    // This is a "pending" response indicating the transaction is waiting for user action
-    WsResponse::success(id, json!({
-        "status": "pending",
-        "message": "Please confirm the transaction in ArcSign Wallet"
-    }))
+    tracing::info!("Transaction {} queued for user confirmation, waiting...", id);
+
+    // Wait for user confirmation (with 5 minute timeout)
+    match tokio::time::timeout(
+        std::time::Duration::from_secs(300),
+        response_receiver,
+    ).await {
+        Ok(Ok(result)) => {
+            if result.success {
+                tracing::info!("Transaction {} confirmed by user", id);
+                WsResponse::success(id, json!({
+                    "status": "success",
+                    "tx_hash": result.tx_hash,
+                    "signed_tx": result.signed_tx,
+                }))
+            } else {
+                tracing::info!("Transaction {} rejected by user: {:?}", id, result.error);
+                WsResponse::error(id, result.error.unwrap_or_else(|| "Transaction rejected".to_string()))
+            }
+        }
+        Ok(Err(_)) => {
+            tracing::warn!("Transaction {} response channel closed", id);
+            WsResponse::error(id, "Transaction cancelled")
+        }
+        Err(_) => {
+            tracing::warn!("Transaction {} timed out waiting for user confirmation", id);
+            WsResponse::error(id, "Transaction confirmation timed out (5 minutes)")
+        }
+    }
 }
 
 /// Parse transaction data to create human-readable description

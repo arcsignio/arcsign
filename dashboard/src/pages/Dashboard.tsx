@@ -5,13 +5,13 @@
  * Generated: 2025-10-17
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   useDashboardStore,
   useSelectedWallet,
   useHasWallets,
 } from "@/stores/dashboardStore";
-import tauriApi, { type AppError } from "@/services/tauri-api";
+import tauriApi, { type AppError, type PendingTransactionInfo } from "@/services/tauri-api";
 import { WalletCreate } from "@/components/WalletCreate";
 import { WalletImport } from "@/components/WalletImport";
 import { AddressList } from "@/components/AddressList";
@@ -22,6 +22,7 @@ import { WalletDetail } from "@/components/WalletDetail";
 import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { DeleteWalletDialog } from "@/components/DeleteWalletDialog";
+import { TransactionSignDialog } from "@/components/TransactionSignDialog";
 import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import type { Address } from "@/types/address";
 import type { Wallet } from "@/types/wallet";
@@ -49,6 +50,11 @@ export function Dashboard() {
   const [isDeletingWallet, setIsDeletingWallet] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Pending transaction state (for mint-page integration)
+  const [pendingTransaction, setPendingTransaction] = useState<PendingTransactionInfo | null>(null);
+  const [isSigningTransaction, setIsSigningTransaction] = useState(false);
+  const [rejectCooldown, setRejectCooldown] = useState(false); // Prevent immediate re-polling after reject
+
   const {
     wallets,
     usbPath,
@@ -73,6 +79,174 @@ export function Dashboard() {
       },
     });
 
+  // Poll for pending transactions from mint-page
+  useEffect(() => {
+    const pollPendingTransactions = async () => {
+      // Don't poll if we're already handling a transaction or in cooldown
+      if (isSigningTransaction || pendingTransaction || rejectCooldown) return;
+
+      try {
+        const tx = await tauriApi.getPendingTransaction();
+        if (tx) {
+          console.log("📥 Pending transaction received:", tx);
+          setPendingTransaction(tx);
+        }
+      } catch (err) {
+        // Silently ignore polling errors (channel might be disconnected briefly)
+        console.debug("Polling error (non-critical):", err);
+      }
+    };
+
+    // Poll every 500ms for pending transactions
+    const interval = setInterval(pollPendingTransactions, 500);
+    return () => clearInterval(interval);
+  }, [isSigningTransaction, pendingTransaction, rejectCooldown]);
+
+  // Helper: Convert hex value to decimal wei string
+  const hexToDecimalWei = (hexValue: string): string => {
+    if (!hexValue || hexValue === "0x0" || hexValue === "0") return "0";
+    // Remove 0x prefix if present
+    const hex = hexValue.startsWith("0x") ? hexValue.slice(2) : hexValue;
+    // Convert hex to decimal BigInt and return as string
+    return BigInt("0x" + hex).toString();
+  };
+
+  // Handle transaction confirmation
+  const handleTransactionConfirm = useCallback(async (requestId: number, password: string) => {
+    if (!usbPath || !pendingTransaction) return;
+
+    setIsSigningTransaction(true);
+
+    try {
+      // Find the wallet that owns this address
+      const wallet = wallets.find((w) =>
+        w.addresses?.some((addr) =>
+          addr.address.toLowerCase() === pendingTransaction.from.toLowerCase()
+        )
+      );
+
+      if (!wallet) {
+        throw new Error("No wallet found for the specified address");
+      }
+
+      // Map chain_id to chainId string for our transaction API
+      const chainId = pendingTransaction.chain_id === 97 ? "bsc-testnet" :
+                      pendingTransaction.chain_id === 56 ? "bsc" :
+                      pendingTransaction.chain_id === 1 ? "ethereum" : "bsc";
+
+      console.log("🔐 Signing transaction for wallet:", wallet.name);
+      console.log("📋 Transaction details:", {
+        from: pendingTransaction.from,
+        to: pendingTransaction.to,
+        value: pendingTransaction.value,
+        data: pendingTransaction.data?.substring(0, 20) + "...",
+        chainId,
+      });
+
+      // Get app password from session (stored in session storage after unlock)
+      const appPassword = sessionStorage.getItem("appPassword") || password;
+
+      // Convert hex value to decimal for our API
+      const valueInWei = hexToDecimalWei(pendingTransaction.value);
+      console.log("💰 Value in wei:", valueInWei);
+
+      // For contract calls, we need to use a different approach
+      // The pending transaction already has the encoded data
+      // We need to build a raw transaction with this data
+
+      // Build the transaction using our ChainAdapter
+      // Note: For contract calls, amount is just for native token transfer
+      // The actual call data is in pendingTransaction.data
+      const unsignedTx = await tauriApi.buildTransaction({
+        chainId,
+        from: pendingTransaction.from,
+        to: pendingTransaction.to,
+        amount: valueInWei, // Use converted decimal value
+        data: pendingTransaction.data, // Contract call data (hex-encoded)
+        usbPath,
+        appPassword,
+      });
+
+      // Sign the transaction
+      const signedTx = await tauriApi.signTransaction({
+        chainId,
+        walletId: wallet.id,
+        password,
+        fromAddress: pendingTransaction.from,
+        unsignedTx,
+        usbPath,
+        appPassword,
+      });
+
+      let txHash: string | undefined;
+
+      // Broadcast if requested
+      if (pendingTransaction.broadcast) {
+        const broadcastResult = await tauriApi.broadcastTransaction({
+          chainId,
+          signedTx,
+          usbPath,
+          appPassword,
+        });
+        txHash = broadcastResult.txHash;
+        console.log("📡 Transaction broadcasted:", txHash);
+      }
+
+      // Send success response back to WebSocket
+      try {
+        await tauriApi.respondToTransaction({
+          requestId,
+          success: true,
+          txHash,
+          signedTx: signedTx.serializedTx,
+        });
+        console.log("✅ Transaction completed successfully");
+      } catch (respondErr) {
+        console.warn("Failed to send success response:", respondErr);
+      }
+    } catch (err) {
+      console.error("❌ Transaction failed:", err);
+      const errorMessage = err instanceof Error ? err.message : "Transaction failed";
+
+      // Send error response back to WebSocket (ignore errors if already responded)
+      try {
+        await tauriApi.respondToTransaction({
+          requestId,
+          success: false,
+          error: errorMessage,
+        });
+      } catch (respondErr) {
+        console.warn("Failed to send error response (may have already responded):", respondErr);
+      }
+    } finally {
+      setIsSigningTransaction(false);
+      setPendingTransaction(null);
+    }
+  }, [usbPath, pendingTransaction, wallets]);
+
+  // Handle transaction rejection
+  const handleTransactionReject = useCallback(async (requestId: number) => {
+    // Clear UI state FIRST to ensure dialog closes immediately
+    setPendingTransaction(null);
+    setIsSigningTransaction(false);
+
+    // Enable cooldown to prevent immediate re-polling (2 seconds)
+    setRejectCooldown(true);
+    setTimeout(() => setRejectCooldown(false), 2000);
+
+    // Then try to notify WebSocket (non-blocking)
+    try {
+      await tauriApi.respondToTransaction({
+        requestId,
+        success: false,
+        error: "Transaction rejected by user",
+      });
+    } catch (err) {
+      // Ignore errors - the important thing is closing the dialog
+      console.warn("Failed to send rejection (non-critical):", err);
+    }
+  }, []);
+
   // Load USB path and wallets on mount
   useEffect(() => {
     const loadWallets = async () => {
@@ -95,6 +269,22 @@ export function Dashboard() {
         // Load wallets from USB
         const walletList = await tauriApi.listWallets(usbDevice.path);
         setWallets(walletList);
+
+        // Update WebSocket server with BSC addresses for mint-page integration
+        const bscAddresses: string[] = [];
+        for (const wallet of walletList) {
+          if (wallet.addresses) {
+            const bscAddr = wallet.addresses.find(
+              (addr) => addr.symbol === 'BNB' || addr.symbol === 'BSC'
+            );
+            if (bscAddr) {
+              bscAddresses.push(bscAddr.address);
+            }
+          }
+        }
+        if (bscAddresses.length > 0) {
+          tauriApi.updateWebsocketAccounts(bscAddresses);
+        }
 
         // Auto-select first wallet if none selected
         if (walletList.length > 0 && !selectedWalletId) {
@@ -319,9 +509,14 @@ export function Dashboard() {
 
   // Show membership settings
   if (currentView === "membership") {
+    const storedAppPassword = sessionStorage.getItem("appPassword") || "";
     return (
       <div className="dashboard">
-        <MembershipSettings onBack={() => setCurrentView("settings")} />
+        <MembershipSettings
+          onBack={() => setCurrentView("settings")}
+          usbPath={usbPath || ""}
+          appPassword={storedAppPassword}
+        />
       </div>
     );
   }
@@ -542,6 +737,13 @@ export function Dashboard() {
         onConfirm={handleConfirmDelete}
         isDeleting={isDeletingWallet}
         error={deleteError}
+      />
+
+      {/* Transaction Sign Dialog (for mint-page integration) */}
+      <TransactionSignDialog
+        transaction={pendingTransaction}
+        onConfirm={handleTransactionConfirm}
+        onReject={handleTransactionReject}
       />
     </div>
   );

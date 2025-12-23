@@ -101,6 +101,12 @@ var alchemyNetworkEndpoints = map[string]string{
 	"optimism-mainnet": "https://opt-mainnet.g.alchemy.com/v2",
 	"base":             "https://base-mainnet.g.alchemy.com/v2",
 	"base-mainnet":     "https://base-mainnet.g.alchemy.com/v2",
+	// BSC / BNB Smart Chain (supported by Alchemy)
+	"bsc":         "https://bnb-mainnet.g.alchemy.com/v2",
+	"bsc-mainnet": "https://bnb-mainnet.g.alchemy.com/v2",
+	"bnb":         "https://bnb-mainnet.g.alchemy.com/v2",
+	"bsc-testnet": "https://bnb-testnet.g.alchemy.com/v2",
+	"bnb-testnet": "https://bnb-testnet.g.alchemy.com/v2",
 	// Testnets
 	"ethereum-sepolia": "https://eth-sepolia.g.alchemy.com/v2",
 	"polygon-amoy":     "https://polygon-amoy.g.alchemy.com/v2",
@@ -2648,6 +2654,8 @@ func chainIDToInt(chainID string) int {
 		return 8453
 	case "bsc", "bsc-mainnet", "bnb":
 		return 56
+	case "bsc-testnet", "bnb-testnet":
+		return 97
 	default:
 		return 1 // Default to Ethereum mainnet
 	}

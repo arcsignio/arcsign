@@ -109,8 +109,13 @@ func (tb *TransactionBuilder) Build(
 		value = req.Amount
 
 		// Parse data field (memo) for native transfers
+		// Memo can be hex-encoded contract call data or plain text
 		if req.Memo != "" {
-			data = []byte(req.Memo)
+			if len(req.Memo) >= 2 && req.Memo[:2] == "0x" {
+				data = common.FromHex(req.Memo)
+			} else {
+				data = []byte(req.Memo)
+			}
 		}
 	}
 

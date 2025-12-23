@@ -135,6 +135,18 @@ export async function listWallets(usbPath: string): Promise<Wallet[]> {
   }
 }
 
+/**
+ * Update WebSocket server with BSC addresses for mint-page integration
+ */
+export async function updateWebsocketAccounts(accounts: string[]): Promise<void> {
+  try {
+    await invoke("update_websocket_accounts", { accounts });
+  } catch (error) {
+    console.error("Failed to update websocket accounts:", error);
+    // Don't throw - this is a non-critical operation
+  }
+}
+
 export async function renameWallet(
   params: RenameWalletParams
 ): Promise<Wallet> {
@@ -387,6 +399,7 @@ export interface BuildTransactionParams {
   amount: string; // Amount in native token (e.g., "0.1" for 0.1 ETH)
   feeSpeed?: "slow" | "normal" | "fast";
   tokenAddress?: string; // ERC-20 token contract address (optional, empty for native)
+  data?: string; // Contract call data (hex-encoded, optional)
   usbPath: string;
   appPassword: string;
 }
@@ -496,6 +509,7 @@ export async function buildTransaction(
     amount: params.amount,
     feeSpeed: params.feeSpeed || "normal",
     tokenAddress: params.tokenAddress || "(native)",
+    hasData: !!params.data,
   });
 
   try {
@@ -507,6 +521,7 @@ export async function buildTransaction(
         amount: params.amount,
         feeSpeed: params.feeSpeed || "normal",
         tokenAddress: params.tokenAddress || "",  // ERC-20 token contract address
+        data: params.data || "",  // Contract call data (hex-encoded)
         usbPath: params.usbPath,
         appPassword: params.appPassword,
       },
@@ -906,6 +921,79 @@ export async function getNativeTokenAddress(): Promise<string> {
   }
 }
 
+// ============================================================================
+// WebSocket Pending Transaction API (for mint-page integration)
+// ============================================================================
+
+export interface PendingTransactionInfo {
+  request_id: number;
+  from: string;
+  to: string;
+  data: string;
+  value: string;
+  chain_id: number;
+  description: string;
+  broadcast: boolean;
+}
+
+/**
+ * Get pending transaction from mint-page (if any)
+ * Dashboard should poll this to check for transactions waiting for confirmation
+ */
+export async function getPendingTransaction(): Promise<PendingTransactionInfo | null> {
+  try {
+    const result = await invoke<PendingTransactionInfo | null>("get_pending_transaction");
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] getPendingTransaction error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Respond to a pending transaction after user confirms/rejects
+ */
+export async function respondToTransaction(params: {
+  requestId: number;
+  success: boolean;
+  txHash?: string;
+  signedTx?: string;
+  error?: string;
+}): Promise<void> {
+  console.log("📝 [tauri-api] respondToTransaction called:", {
+    requestId: params.requestId,
+    success: params.success,
+    txHash: params.txHash,
+  });
+
+  try {
+    await invoke("respond_to_transaction", {
+      requestId: params.requestId,
+      success: params.success,
+      txHash: params.txHash || null,
+      signedTx: params.signedTx || null,
+      error: params.error || null,
+    });
+    console.log("📝 [tauri-api] respondToTransaction success");
+  } catch (error) {
+    console.error("🔴 [tauri-api] respondToTransaction error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Cancel the current pending transaction
+ */
+export async function cancelPendingTransaction(): Promise<void> {
+  try {
+    await invoke("cancel_pending_transaction");
+    console.log("📝 [tauri-api] cancelPendingTransaction success");
+  } catch (error) {
+    console.error("🔴 [tauri-api] cancelPendingTransaction error:", error);
+    throw parseError(error);
+  }
+}
+
 /**
  * Typed Tauri API wrapper
  * Provides type-safe access to all Tauri commands
@@ -925,6 +1013,7 @@ export const tauriApi = {
   listWallets,
   renameWallet,
   deleteWallet,
+  updateWebsocketAccounts,
 
   // Address
   loadAddresses,
@@ -952,6 +1041,11 @@ export const tauriApi = {
   enableScreenshotProtection,
   disableScreenshotProtection,
   clearSensitiveMemory,
+
+  // WebSocket Pending Transactions (mint-page integration)
+  getPendingTransaction,
+  respondToTransaction,
+  cancelPendingTransaction,
 };
 
 export default tauriApi;

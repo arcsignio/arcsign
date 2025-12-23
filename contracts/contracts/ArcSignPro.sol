@@ -29,8 +29,9 @@ contract ArcSignPro is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
     /// @notice Membership duration: 1 year
     uint256 public constant DURATION = 365 days;
 
-    /// @notice Membership price: 30 USDT (18 decimals)
-    uint256 public constant PRICE = 30 * 10**18;
+    /// @notice Membership price: 5 USDT (18 decimals) for testnet, 30 USDT for mainnet
+    /// @dev Change to 30 * 10**18 before mainnet deployment!
+    uint256 public constant PRICE = 5 * 10**18;
 
     /// @notice USDT contract address on BSC
     IERC20 public immutable paymentToken;

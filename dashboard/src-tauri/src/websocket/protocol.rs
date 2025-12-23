@@ -115,3 +115,18 @@ pub struct PendingTransaction {
     /// Should broadcast after signing
     pub broadcast: bool,
 }
+
+/// Transaction result from UI confirmation
+#[derive(Debug, Clone)]
+pub struct TransactionResult {
+    pub success: bool,
+    pub tx_hash: Option<String>,
+    pub signed_tx: Option<String>,
+    pub error: Option<String>,
+}
+
+/// Pending transaction with response channel (internal use)
+pub struct PendingTransactionWithChannel {
+    pub transaction: PendingTransaction,
+    pub response_sender: tokio::sync::oneshot::Sender<TransactionResult>,
+}

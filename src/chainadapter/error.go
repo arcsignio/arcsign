@@ -72,6 +72,7 @@ const (
 	ErrCodeAddressMismatch    = "ERR_ADDRESS_MISMATCH"
 	ErrCodeInvalidPath        = "ERR_INVALID_DERIVATION_PATH"
 	ErrCodeTxNotFound         = "ERR_TX_NOT_FOUND"
+	ErrCodeContractRevert     = "ERR_CONTRACT_REVERT"
 
 	// UserIntervention error codes
 	ErrCodeFeeTooLow           = "ERR_FEE_TOO_LOW"
