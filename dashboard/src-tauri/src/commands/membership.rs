@@ -157,51 +157,17 @@ pub async fn check_membership(
 
     tracing::info!("Checking membership on contract: {}", ARCSIGN_PRO_CONTRACT);
 
-    // Create HTTP client
-    let client = reqwest::Client::new();
-
-    // Call isValidMember(address)
-    let is_valid_request = JsonRpcRequest {
-        jsonrpc: "2.0",
-        method: "eth_call",
-        params: vec![
-            create_is_valid_member_call(ARCSIGN_PRO_CONTRACT, &input.address),
-            serde_json::json!("latest"),
-        ],
-        id: 1,
-    };
-
-    let response = client
-        .post(BSC_RPC_URL)
-        .json(&is_valid_request)
-        .send()
-        .await
+    // Create HTTP client with timeout
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
         .map_err(|e| Error::new(
             crate::error::ErrorCode::NetworkError,
-            format!("Failed to query BSC: {}", e),
+            format!("Failed to create HTTP client: {}", e),
         ))?;
 
-    let rpc_response: JsonRpcResponse = response
-        .json()
-        .await
-        .map_err(|e| Error::new(
-            crate::error::ErrorCode::SerializationError,
-            format!("Failed to parse RPC response: {}", e),
-        ))?;
-
-    if let Some(error) = rpc_response.error {
-        return Err(Error::new(
-            crate::error::ErrorCode::ContractError,
-            format!("Contract call failed: {}", error.message),
-        ));
-    }
-
-    let is_pro = rpc_response
-        .result
-        .map(|r| parse_bool_result(&r))
-        .unwrap_or(false);
-
-    // Call balanceOf(address) to get NFT count
+    // Call balanceOf(address) to check NFT ownership
+    // This is simpler and more reliable than isValidMember
     let balance_request = JsonRpcRequest {
         jsonrpc: "2.0",
         method: "eth_call",
@@ -209,46 +175,70 @@ pub async fn check_membership(
             create_balance_of_call(ARCSIGN_PRO_CONTRACT, &input.address),
             serde_json::json!("latest"),
         ],
-        id: 2,
+        id: 1,
     };
 
-    let balance_response = client
+    tracing::info!("Sending balanceOf request to {}", BSC_RPC_URL);
+
+    let response = client
         .post(BSC_RPC_URL)
         .json(&balance_request)
         .send()
         .await
-        .map_err(|e| Error::new(
-            crate::error::ErrorCode::NetworkError,
-            format!("Failed to query NFT balance: {}", e),
-        ))?;
+        .map_err(|e| {
+            tracing::error!("RPC request failed: {}", e);
+            Error::new(
+                crate::error::ErrorCode::NetworkError,
+                format!("Failed to query BSC testnet: {}", e),
+            )
+        })?;
 
-    let balance_rpc: JsonRpcResponse = balance_response
+    tracing::info!("RPC response status: {}", response.status());
+
+    let rpc_response: JsonRpcResponse = response
         .json()
         .await
-        .map_err(|e| Error::new(
-            crate::error::ErrorCode::SerializationError,
-            format!("Failed to parse balance response: {}", e),
-        ))?;
+        .map_err(|e| {
+            tracing::error!("Failed to parse RPC response: {}", e);
+            Error::new(
+                crate::error::ErrorCode::SerializationError,
+                format!("Failed to parse RPC response: {}", e),
+            )
+        })?;
 
-    let nft_count = balance_rpc
+    tracing::info!("RPC response: result={:?}, error={:?}", rpc_response.result, rpc_response.error);
+
+    if let Some(error) = rpc_response.error {
+        tracing::error!("Contract call failed: {}", error.message);
+        return Err(Error::new(
+            crate::error::ErrorCode::ContractError,
+            format!("Contract call failed: {}", error.message),
+        ));
+    }
+
+    // Parse NFT balance
+    let nft_count = rpc_response
         .result
-        .map(|r| parse_uint256_result(&r))
+        .as_ref()
+        .map(|r| parse_uint256_result(r))
         .unwrap_or(0);
+
+    tracing::info!("NFT balance for {}: {}", input.address, nft_count);
+
+    // User is Pro if they own at least 1 NFT
+    let is_pro = nft_count > 0;
 
     // For now, we'll use simplified logic
     // In production, we'd call getMemberships to get full details
-    let (token_ids, expirations, days_remaining) = if is_pro && nft_count > 0 {
-        // Placeholder: would need to call getMemberships for real data
-        (vec![], vec![], 365u64)
-    } else {
-        (vec![], vec![], 0u64)
-    };
+    let days_remaining = if is_pro { 365u64 } else { 0u64 };
+
+    tracing::info!("Membership check complete: is_pro={}, nft_count={}", is_pro, nft_count);
 
     Ok(MembershipStatus {
         is_pro,
         nft_count,
-        token_ids,
-        expirations,
+        token_ids: vec![],
+        expirations: vec![],
         days_remaining,
         wallet_limit: if is_pro { None } else { Some(5) }, // Pro: unlimited, Free: 5
     })
