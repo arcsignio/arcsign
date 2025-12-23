@@ -508,6 +508,10 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
                     <span className="value status-active">Active</span>
                   </div>
                   <div className="detail-row">
+                    <span className="label">NFTs Owned</span>
+                    <span className="value">{membership.nftCount ?? 1}</span>
+                  </div>
+                  <div className="detail-row">
                     <span className="label">Expires in</span>
                     <span className="value">
                       {membership.daysRemaining > 0
@@ -517,7 +521,11 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
                   </div>
                   <div className="detail-row">
                     <span className="label">Wallet Limit</span>
-                    <span className="value">Unlimited</span>
+                    <span className="value">{membership.walletLimit ?? 10} wallets</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Current Usage</span>
+                    <span className="value">{wallets.length} / {membership.walletLimit ?? 10}</span>
                   </div>
                 </>
               ) : (
@@ -669,6 +677,9 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         <div className="password-overlay">
           <div className="password-dialog">
             <h3>Enter Wallet Password</h3>
+            <p className="wallet-name-hint">
+              Wallet: <strong>{getSelectedWallet()?.walletName || 'Unknown'}</strong>
+            </p>
             <p className="password-hint">
               {pendingAction === 'approve'
                 ? 'Your password is required to sign the USDT approval transaction.'
@@ -1273,6 +1284,19 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         .password-dialog h3 {
           margin: 0 0 8px;
           font-size: 20px;
+          color: #111827;
+        }
+
+        .wallet-name-hint {
+          margin: 0 0 12px;
+          padding: 8px 12px;
+          background: #f3f4f6;
+          border-radius: 6px;
+          font-size: 14px;
+          color: #374151;
+        }
+
+        .wallet-name-hint strong {
           color: #111827;
         }
 

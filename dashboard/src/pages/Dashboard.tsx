@@ -10,6 +10,7 @@ import {
   useDashboardStore,
   useSelectedWallet,
   useHasWallets,
+  useWalletLimitInfo,
 } from "@/stores/dashboardStore";
 import tauriApi, { type AppError, type PendingTransactionInfo } from "@/services/tauri-api";
 import { WalletCreate } from "@/components/WalletCreate";
@@ -66,6 +67,7 @@ export function Dashboard() {
 
   const selectedWallet = useSelectedWallet();
   const hasWallets = useHasWallets();
+  const walletLimitInfo = useWalletLimitInfo();
 
   // Auto-logout after 15 minutes of inactivity (SEC-006, T092)
   // continueUsing: locks app and requires password re-entry
@@ -567,8 +569,13 @@ export function Dashboard() {
           >
             {isLoadingWallets ? "↻ Reloading..." : "↻ Reload"}
           </button>
-          <button onClick={handleCreateWallet} className="primary-button">
-            + Create New Wallet
+          <button
+            onClick={handleCreateWallet}
+            className="primary-button"
+            disabled={!walletLimitInfo.canCreate}
+            title={!walletLimitInfo.canCreate ? `Wallet limit reached (${walletLimitInfo.current}/${walletLimitInfo.limit})` : undefined}
+          >
+            + Create New Wallet {walletLimitInfo.limit && `(${walletLimitInfo.current}/${walletLimitInfo.limit})`}
           </button>
           <button onClick={handleImportWallet} className="secondary-button">
             Import Wallet

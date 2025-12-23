@@ -172,41 +172,39 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
       <h2>Create New Wallet</h2>
 
       {/* Wallet Limit Info */}
-      {!walletLimitInfo.isPro && (
-        <div className="wallet-limit-info" style={{
-          padding: '0.75rem 1rem',
-          marginBottom: '1rem',
-          borderRadius: '8px',
-          backgroundColor: walletLimitInfo.canCreate ? '#e8f5e9' : '#fff3e0',
-          border: `1px solid ${walletLimitInfo.canCreate ? '#4caf50' : '#ff9800'}`,
-          fontSize: '0.9rem'
-        }}>
-          <span style={{ fontWeight: 500 }}>
-            {walletLimitInfo.canCreate
-              ? `Wallets: ${walletLimitInfo.current}/${walletLimitInfo.limit} (Free Tier)`
-              : `Wallet limit reached (${walletLimitInfo.current}/${walletLimitInfo.limit})`
-            }
-          </span>
-          {!walletLimitInfo.canCreate && (
-            <button
-              type="button"
-              onClick={() => setShowUpgradePrompt(true)}
-              style={{
-                marginLeft: '1rem',
-                padding: '0.25rem 0.75rem',
-                backgroundColor: '#f0b90b',
-                color: '#000',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 600
-              }}
-            >
-              Upgrade to Pro
-            </button>
-          )}
-        </div>
-      )}
+      <div className="wallet-limit-info" style={{
+        padding: '0.75rem 1rem',
+        marginBottom: '1rem',
+        borderRadius: '8px',
+        backgroundColor: walletLimitInfo.canCreate ? '#e8f5e9' : '#fff3e0',
+        border: `1px solid ${walletLimitInfo.canCreate ? '#4caf50' : '#ff9800'}`,
+        fontSize: '0.9rem'
+      }}>
+        <span style={{ fontWeight: 500 }}>
+          {walletLimitInfo.canCreate
+            ? `Wallets: ${walletLimitInfo.current}/${walletLimitInfo.limit} (${walletLimitInfo.isPro ? 'Pro' : 'Free'})`
+            : `Wallet limit reached (${walletLimitInfo.current}/${walletLimitInfo.limit})`
+          }
+        </span>
+        {!walletLimitInfo.canCreate && (
+          <button
+            type="button"
+            onClick={() => setShowUpgradePrompt(true)}
+            style={{
+              marginLeft: '1rem',
+              padding: '0.25rem 0.75rem',
+              backgroundColor: '#f0b90b',
+              color: '#000',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 600
+            }}
+          >
+            {walletLimitInfo.isPro ? 'Get More NFTs' : 'Upgrade to Pro'}
+          </button>
+        )}
+      </div>
 
       {error && (
         <div className="error-message" role="alert">
@@ -365,7 +363,7 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
       <ConfirmationDialog
         isOpen={showUpgradePrompt}
         title="Wallet Limit Reached"
-        message={`You have reached the maximum of ${walletLimitInfo.limit} wallets on the Free tier. Upgrade to ArcSign Pro for unlimited wallets!`}
+        message={`You have reached your wallet limit (${walletLimitInfo.current}/${walletLimitInfo.limit}). ${walletLimitInfo.isPro ? 'Purchase additional ArcSign Pro NFTs to increase your limit (+5 wallets per NFT).' : 'Upgrade to ArcSign Pro to increase your limit (+5 wallets per NFT).'}`}
         confirmLabel="Learn More"
         cancelLabel="Close"
         confirmVariant="primary"

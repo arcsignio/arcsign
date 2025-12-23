@@ -234,13 +234,19 @@ pub async fn check_membership(
 
     tracing::info!("Membership check complete: is_pro={}, nft_count={}", is_pro, nft_count);
 
+    // Calculate wallet limit based on NFT count
+    // Free: 5 wallets
+    // Pro: 5 + (nft_count * 5) wallets per NFT
+    // e.g., 1 NFT = 10 wallets, 2 NFTs = 15 wallets
+    let wallet_limit = 5 + (nft_count * 5);
+
     Ok(MembershipStatus {
         is_pro,
         nft_count,
         token_ids: vec![],
         expirations: vec![],
         days_remaining,
-        wallet_limit: if is_pro { None } else { Some(5) }, // Pro: unlimited, Free: 5
+        wallet_limit: Some(wallet_limit), // Always has a limit now
     })
 }
 
@@ -255,23 +261,18 @@ pub fn get_membership_tier(is_pro: bool) -> String {
 }
 
 /// Check if wallet creation is allowed based on membership
+/// Now uses nft_count to calculate limit: 5 + (nft_count * 5)
 #[tauri::command]
-pub fn can_create_wallet(current_wallet_count: u64, is_pro: bool) -> bool {
-    if is_pro {
-        true // Pro members: unlimited wallets
-    } else {
-        current_wallet_count < 5 // Free tier: max 5 wallets
-    }
+pub fn can_create_wallet(current_wallet_count: u64, nft_count: u64) -> bool {
+    let limit = 5 + (nft_count * 5);
+    current_wallet_count < limit
 }
 
-/// Get wallet limit for membership tier
+/// Get wallet limit based on NFT count
+/// Formula: 5 + (nft_count * 5)
 #[tauri::command]
-pub fn get_wallet_limit(is_pro: bool) -> Option<u64> {
-    if is_pro {
-        None // Unlimited
-    } else {
-        Some(5) // Free tier limit
-    }
+pub fn get_wallet_limit(nft_count: u64) -> u64 {
+    5 + (nft_count * 5)
 }
 
 #[cfg(test)]
@@ -300,20 +301,27 @@ mod tests {
 
     #[test]
     fn test_can_create_wallet() {
-        // Pro: always allowed
-        assert!(can_create_wallet(0, true));
-        assert!(can_create_wallet(100, true));
+        // Free (0 NFTs): max 5
+        assert!(can_create_wallet(0, 0));
+        assert!(can_create_wallet(4, 0));
+        assert!(!can_create_wallet(5, 0));
+        assert!(!can_create_wallet(10, 0));
 
-        // Free: max 5
-        assert!(can_create_wallet(0, false));
-        assert!(can_create_wallet(4, false));
-        assert!(!can_create_wallet(5, false));
-        assert!(!can_create_wallet(10, false));
+        // 1 NFT: max 10 (5 + 5)
+        assert!(can_create_wallet(0, 1));
+        assert!(can_create_wallet(9, 1));
+        assert!(!can_create_wallet(10, 1));
+
+        // 2 NFTs: max 15 (5 + 10)
+        assert!(can_create_wallet(14, 2));
+        assert!(!can_create_wallet(15, 2));
     }
 
     #[test]
     fn test_get_wallet_limit() {
-        assert_eq!(get_wallet_limit(true), None);
-        assert_eq!(get_wallet_limit(false), Some(5));
+        assert_eq!(get_wallet_limit(0), 5);   // Free: 5
+        assert_eq!(get_wallet_limit(1), 10);  // 1 NFT: 10
+        assert_eq!(get_wallet_limit(2), 15);  // 2 NFTs: 15
+        assert_eq!(get_wallet_limit(5), 30);  // 5 NFTs: 30
     }
 }

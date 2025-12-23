@@ -16,13 +16,15 @@ import { Category } from '@/types/address';
 interface MembershipState {
   /** Whether user is a Pro member */
   isPro: boolean;
+  /** Number of NFTs owned */
+  nftCount: number;
   /** BSC address used for membership check */
   membershipAddress: string | null;
   /** User-selected primary BSC address for membership verification (persisted) */
   primaryMembershipAddress: string | null;
   /** Days remaining until membership expires */
   daysRemaining: number;
-  /** Wallet creation limit (null = unlimited) */
+  /** Wallet creation limit: 5 + (nftCount * 5) */
   walletLimit: number | null;
 }
 
@@ -112,10 +114,11 @@ interface DashboardState {
 
 const initialMembership: MembershipState = {
   isPro: false,
+  nftCount: 0,
   membershipAddress: null,
   primaryMembershipAddress: null,
   daysRemaining: 0,
-  walletLimit: 5, // Free tier default
+  walletLimit: 5, // Free tier default: 5 + (0 * 5) = 5
 };
 
 const initialState = {
@@ -186,9 +189,8 @@ export const useDashboardStore = create<DashboardState>()(
 
       canCreateWallet: () => {
         const { wallets, membership } = get();
-        if (membership.isPro) {
-          return true; // Pro members: unlimited wallets
-        }
+        // All users have a limit now: 5 + (nftCount * 5)
+        // walletLimit is calculated by backend based on nftCount
         const limit = membership.walletLimit ?? 5;
         return wallets.length < limit;
       },
