@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -278,6 +279,16 @@ func (c *Client) BuildSwapQuote(ctx context.Context, req *SwapRequest) (*SwapQuo
 	// Check if approval is needed (for non-native tokens)
 	needsApproval := req.FromTokenAddress != NativeTokenAddress
 
+	// Handle price impact - OpenOcean returns format like "-0.17%"
+	// We need to strip the % sign for frontend consistency
+	priceImpact := quoteResp.PriceImpact
+	if priceImpact == "" || priceImpact == "0" {
+		priceImpact = "N/A"
+	} else {
+		// Remove % suffix if present (e.g., "-0.17%" -> "-0.17")
+		priceImpact = strings.TrimSuffix(priceImpact, "%")
+	}
+
 	return &SwapQuote{
 		Dex: "OpenOcean",
 		FromToken: TokenInfo{
@@ -298,7 +309,7 @@ func (c *Client) BuildSwapQuote(ctx context.Context, req *SwapRequest) (*SwapQuo
 		ToAmount:        quoteResp.OutAmount,
 		ToAmountMin:     toAmountMin.String(),
 		ExchangeRate:    fmt.Sprintf("%.6f", exchangeRateStr),
-		PriceImpact:     quoteResp.PriceImpact,
+		PriceImpact:     priceImpact,
 		EstimatedGas:    quoteResp.EstimatedGas,
 		GasCostETH:      fmt.Sprintf("%.6f", gasCostETHStr),
 		Route:           route,

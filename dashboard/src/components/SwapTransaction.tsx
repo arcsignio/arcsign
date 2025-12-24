@@ -901,8 +901,12 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
               </div>
               <div className="quote-row">
                 <span className="quote-label">Price Impact</span>
-                <span className={`quote-value ${parseFloat(quote.priceImpact) > 3 ? "warning" : ""}`}>
-                  {quote.priceImpact}%
+                <span className={`quote-value ${
+                  quote.priceImpact !== "N/A" && parseFloat(quote.priceImpact) > 3 ? "warning" : ""
+                }`}>
+                  {quote.priceImpact === "N/A" || quote.priceImpact === "" || quote.priceImpact === "0"
+                    ? "N/A"
+                    : `${quote.priceImpact}%`}
                 </span>
               </div>
               <div className="quote-row">

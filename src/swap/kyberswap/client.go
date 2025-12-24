@@ -214,6 +214,12 @@ func (c *Client) BuildSwapQuote(ctx context.Context, chainID int, fromToken, toT
 	// Check if approval is needed (for non-native tokens)
 	needsApproval := fromToken != NativeTokenAddress
 
+	// Calculate price impact based on USD values if available
+	// Price impact = (expected output - actual output) / expected output * 100
+	// Since KyberSwap doesn't return price impact directly, we estimate it as "N/A"
+	// A more accurate calculation would require oracle prices
+	priceImpact := "N/A"
+
 	return &SwapQuote{
 		Dex: "KyberSwap",
 		FromToken: TokenInfo{
@@ -228,7 +234,7 @@ func (c *Client) BuildSwapQuote(ctx context.Context, chainID int, fromToken, toT
 		ToAmount:        summary.AmountOut,
 		ToAmountMin:     toAmountMin.String(),
 		ExchangeRate:    fmt.Sprintf("%.6f", exchangeRateStr),
-		PriceImpact:     "0", // KyberSwap doesn't return price impact in routes
+		PriceImpact:     priceImpact,
 		EstimatedGas:    summary.Gas,
 		GasCostETH:      fmt.Sprintf("%.6f", gasCostETHStr),
 		Route:           route,

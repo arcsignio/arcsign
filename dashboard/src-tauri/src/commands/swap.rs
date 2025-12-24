@@ -123,8 +123,10 @@ pub async fn get_swap_quote(
     input: GetSwapQuoteInput,
 ) -> Result<serde_json::Value, String> {
     let start = Instant::now();
+    let provider = if input.provider.is_empty() { "openocean" } else { &input.provider };
     tracing::info!(
-        "[swap::get_swap_quote] Getting quote: {} -> {} on {}",
+        "[swap::get_swap_quote] Getting quote via {}: {} -> {} on {}",
+        provider,
         input.from_token_address,
         input.to_token_address,
         input.chain_id
@@ -167,8 +169,10 @@ pub async fn build_swap_transaction(
     input: BuildSwapTransactionInput,
 ) -> Result<serde_json::Value, String> {
     let start = Instant::now();
+    let provider = if input.provider.is_empty() { "openocean" } else { &input.provider };
     tracing::info!(
-        "[swap::build_swap_transaction] Building swap tx: {} -> {} on {}",
+        "[swap::build_swap_transaction] Building swap tx via {}: {} -> {} on {}",
+        provider,
         input.from_token_address,
         input.to_token_address,
         input.chain_id

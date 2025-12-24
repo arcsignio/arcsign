@@ -82,8 +82,9 @@ type QuoteResponse struct {
 	InAmount     string     `json:"inAmount"`
 	OutAmount    string     `json:"outAmount"`
 	EstimatedGas string     `json:"estimatedGas"`
-	PriceImpact  string     `json:"priceImpact"`
-	To           string     `json:"to"` // Router address
+	PriceImpact  string     `json:"price_impact"` // OpenOcean uses snake_case
+	To           string     `json:"to"`           // Router address (exchange field in response)
+	Exchange     string     `json:"exchange"`     // Router address
 }
 
 // SwapResponse is the response from the swap endpoint

@@ -2694,9 +2694,10 @@ func chainIDToInt(chainID string) int {
 // }
 func GetSwapQuote(params *C.char) *C.char {
 	start := time.Now()
+	var provider string = "openocean" // will be updated from input
 	defer func() {
 		elapsed := time.Since(start)
-		debugLog(fmt.Sprintf("GetSwapQuote completed in %v", elapsed))
+		debugLog(fmt.Sprintf("GetSwapQuote via %s completed in %v", provider, elapsed))
 	}()
 
 	defer func() {
@@ -2725,6 +2726,11 @@ func GetSwapQuote(params *C.char) *C.char {
 		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
+	}
+
+	// Update provider for debug log
+	if input.Provider != "" {
+		provider = input.Provider
 	}
 
 	defer zeroString(&input.AppPassword)
@@ -2792,9 +2798,10 @@ func GetSwapQuote(params *C.char) *C.char {
 // }
 func BuildSwapTransaction(params *C.char) *C.char {
 	start := time.Now()
+	var provider string = "openocean" // will be updated from input
 	defer func() {
 		elapsed := time.Since(start)
-		debugLog(fmt.Sprintf("BuildSwapTransaction completed in %v", elapsed))
+		debugLog(fmt.Sprintf("BuildSwapTransaction via %s completed in %v", provider, elapsed))
 	}()
 
 	defer func() {
@@ -2823,6 +2830,11 @@ func BuildSwapTransaction(params *C.char) *C.char {
 		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
+	}
+
+	// Update provider for debug log
+	if input.Provider != "" {
+		provider = input.Provider
 	}
 
 	defer zeroString(&input.AppPassword)
