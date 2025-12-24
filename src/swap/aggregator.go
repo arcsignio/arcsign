@@ -259,8 +259,26 @@ func (a *Aggregator) GetTokens(ctx context.Context, provider Provider, chainID i
 		return result, nil
 
 	case ProviderKyberSwap:
-		// KyberSwap doesn't have token list API
-		return []TokenInfo{}, nil
+		// KyberSwap doesn't have token list API, fallback to OpenOcean token list
+		// since tokens are the same across DEXes on the same chain
+		if !openocean.IsChainSupported(chainID) {
+			return nil, fmt.Errorf("chain %d is not supported", chainID)
+		}
+		tokens, err := a.openoceanClient.GetTokenList(ctx, chainID)
+		if err != nil {
+			return nil, err
+		}
+		result := make([]TokenInfo, len(tokens))
+		for i, t := range tokens {
+			result[i] = TokenInfo{
+				Symbol:   t.Symbol,
+				Name:     t.Name,
+				Address:  t.Address,
+				Decimals: t.Decimals,
+				LogoURI:  t.LogoURI,
+			}
+		}
+		return result, nil
 
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", p)

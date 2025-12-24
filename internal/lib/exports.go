@@ -2716,6 +2716,7 @@ func GetSwapQuote(params *C.char) *C.char {
 		Amount           string  `json:"amount"`
 		FromAddress      string  `json:"fromAddress"`
 		Slippage         float64 `json:"slippage"`
+		Provider         string  `json:"provider"` // DEX provider: "openocean" | "kyberswap"
 		USBPath          string  `json:"usbPath"`
 		AppPassword      string  `json:"appPassword"`
 	}
@@ -2748,6 +2749,7 @@ func GetSwapQuote(params *C.char) *C.char {
 	defer cancel()
 
 	quote, err := aggregator.GetQuote(ctx, &swap.QuoteParams{
+		Provider:         swap.Provider(input.Provider), // Pass provider from frontend
 		ChainID:          chainIDToInt(input.ChainID),
 		FromTokenAddress: input.FromTokenAddress,
 		ToTokenAddress:   input.ToTokenAddress,
@@ -2812,6 +2814,7 @@ func BuildSwapTransaction(params *C.char) *C.char {
 		Amount           string  `json:"amount"`
 		FromAddress      string  `json:"fromAddress"`
 		Slippage         float64 `json:"slippage"`
+		Provider         string  `json:"provider"` // DEX provider: "openocean" | "kyberswap"
 		USBPath          string  `json:"usbPath"`
 		AppPassword      string  `json:"appPassword"`
 	}
@@ -2844,6 +2847,7 @@ func BuildSwapTransaction(params *C.char) *C.char {
 	defer cancel()
 
 	swapTx, err := aggregator.BuildSwapTransaction(ctx, &swap.QuoteParams{
+		Provider:         swap.Provider(input.Provider), // Pass provider from frontend
 		ChainID:          chainIDToInt(input.ChainID),
 		FromTokenAddress: input.FromTokenAddress,
 		ToTokenAddress:   input.ToTokenAddress,
@@ -3077,6 +3081,7 @@ func GetSwapTokens(params *C.char) *C.char {
 	paramsJSON := C.GoString(params)
 	var input struct {
 		ChainID     string `json:"chainId"`
+		Provider    string `json:"provider"` // DEX provider: "openocean" | "kyberswap"
 		USBPath     string `json:"usbPath"`
 		AppPassword string `json:"appPassword"`
 	}
@@ -3096,7 +3101,7 @@ func GetSwapTokens(params *C.char) *C.char {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	tokens, err := aggregator.GetTokens(ctx, "", chainIDToInt(input.ChainID))
+	tokens, err := aggregator.GetTokens(ctx, swap.Provider(input.Provider), chainIDToInt(input.ChainID))
 	if err != nil {
 		response := NewErrorResponse(ErrSwapQuoteFailed, fmt.Sprintf("Failed to get swap tokens: %v", err))
 		jsonBytes, _ := json.Marshal(response)

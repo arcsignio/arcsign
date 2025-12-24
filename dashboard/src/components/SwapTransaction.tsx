@@ -46,8 +46,10 @@ interface SwapTransactionProps {
   onSuccess?: (txHash: string) => void;
 }
 
-// Token list cache for each chain (loaded from 1inch API)
-// Key is chainId (e.g., "ethereum", "bnb"), value is array of tokens
+// Token list cache for each chain (chain-specific, not provider-specific)
+// Key is chainId only (e.g., "ethereum", "bnb"), value is array of tokens
+// This follows cold wallet security best practice: token registry is chain-specific,
+// provider only affects quote/route/build operations
 type TokenCache = Record<string, SwapTokenInfo[]>;
 
 // Map network to chainId for backend
@@ -240,38 +242,46 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
   // Get chainId for backend API
   const chainId = fromToken ? networkToChainId(fromToken.network) : "";
 
-  // Cache key includes provider and chainId for proper isolation
-  const tokenCacheKey = `${selectedProvider}-${chainId}`;
+  // Cache key is chain-specific only (not provider-specific)
+  // Token list is unified per-chain, provider only affects quote/route/build
+  const tokenCacheKey = chainId;
 
-  // Fetch tokens from DEX provider API when source token or provider changes
+  // Fetch tokens from unified Token Registry (chain-specific, not provider-specific)
+  // Token list is always fetched from OpenOcean as the registry source
+  // This follows cold wallet security best practice: token registry is static per-chain
   useEffect(() => {
     if (!fromToken || !chainId) return;
 
-    // Check if we already have cached tokens for this provider+chain
+    // Check if we already have cached tokens for this chain
     if (tokenCache[tokenCacheKey]) {
-      console.log(`[SwapTransaction] Using cached tokens for ${tokenCacheKey}`);
+      console.log(`[SwapTransaction] Using cached tokens for chain: ${tokenCacheKey}`);
       return;
     }
 
     const fetchTokens = async () => {
       setLoadingTokens(true);
       try {
-        console.log(`[SwapTransaction] Fetching tokens from ${selectedProvider} API for chain: ${chainId}`);
+        // Always use OpenOcean as token registry source (chain-specific)
+        // Provider selection only affects quote/route/build, not token list
+        const registryProvider = "openocean";
+        console.log(`[SwapTransaction] Fetching token registry for chain: ${chainId} (source: ${registryProvider})`);
+
         const response = await tauriApi.getSwapTokens({
           chainId,
+          provider: registryProvider, // Fixed registry source
           usbPath,
           appPassword,
         });
 
-        console.log(`[SwapTransaction] Loaded ${response.tokens.length} tokens from ${selectedProvider} API`);
+        console.log(`[SwapTransaction] Loaded ${response.tokens.length} tokens for chain: ${chainId}`);
 
-        // Cache the tokens with provider-specific key
+        // Cache the tokens with chain-specific key
         setTokenCache(prev => ({
           ...prev,
           [tokenCacheKey]: response.tokens,
         }));
       } catch (err) {
-        console.error(`[SwapTransaction] Failed to fetch tokens from ${selectedProvider}:`, err);
+        console.error(`[SwapTransaction] Failed to fetch token registry for chain ${chainId}:`, err);
         // Don't set error - we can still use user's existing tokens
       } finally {
         setLoadingTokens(false);
@@ -279,15 +289,16 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     };
 
     fetchTokens();
-  }, [fromToken, chainId, selectedProvider, tokenCacheKey, usbPath, appPassword, tokenCache]);
+  }, [fromToken, chainId, tokenCacheKey, usbPath, appPassword, tokenCache]);
 
   // Get destination token options based on selected source token's chain
-  // Now uses tokens from DEX provider API instead of hardcoded tokens
+  // Uses unified Token Registry (chain-specific) + user's wallet tokens
+  // Three-layer strategy: 1) Registry, 2) Wallet tokens, 3) Custom token (future)
   const getDestinationTokens = useCallback(() => {
     if (!fromToken) return [];
 
-    // Get tokens from current provider's API cache
-    const apiTokens = tokenCache[tokenCacheKey] || [];
+    // Get tokens from chain-specific Token Registry cache
+    const registryTokens = tokenCache[tokenCacheKey] || [];
 
     // Combine API tokens with user's tokens on same network
     const userTokensOnChain = availableTokens.filter(t => t.network === fromToken.network);
@@ -317,16 +328,16 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       }
     });
 
-    // Add 1inch API tokens that aren't already in the list
-    apiTokens.forEach(apiToken => {
-      const exists = allTokens.some(t => t.address.toLowerCase() === apiToken.address.toLowerCase());
-      if (!exists && apiToken.address.toLowerCase() !== (fromToken.tokenAddress || "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee").toLowerCase()) {
+    // Add registry tokens that aren't already in the list (from user's wallet)
+    registryTokens.forEach(regToken => {
+      const exists = allTokens.some(t => t.address.toLowerCase() === regToken.address.toLowerCase());
+      if (!exists && regToken.address.toLowerCase() !== (fromToken.tokenAddress || "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee").toLowerCase()) {
         allTokens.push({
-          address: apiToken.address,
-          symbol: apiToken.symbol,
-          name: apiToken.name,
-          decimals: apiToken.decimals,
-          logoURI: apiToken.logoURI,
+          address: regToken.address,
+          symbol: regToken.symbol,
+          name: regToken.name,
+          decimals: regToken.decimals,
+          logoURI: regToken.logoURI,
         });
       }
     });
@@ -373,6 +384,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         amount: amountWei,
         fromAddress: fromToken.fromAddress,
         slippage,
+        provider: selectedProvider,
         usbPath,
         appPassword,
       });
@@ -386,7 +398,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [fromToken, toToken, amount, chainId, slippage, usbPath, appPassword]);
+  }, [fromToken, toToken, amount, chainId, slippage, selectedProvider, usbPath, appPassword]);
 
   // Debounced quote fetch
   useEffect(() => {
@@ -436,6 +448,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         amount: amountWei,
         fromAddress: fromToken.fromAddress,
         slippage,
+        provider: selectedProvider,
         usbPath,
         appPassword,
       });
@@ -724,14 +737,14 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
           {loadingTokens && (
             <div className="token-loading">
               <div className="token-loading-spinner"></div>
-              <span>Loading tokens from {currentProvider.name}...</span>
+              <span>Loading token registry...</span>
             </div>
           )}
 
           {/* Token Count Info */}
           {!loadingTokens && tokenCache[tokenCacheKey] && (
             <div className="token-count-info">
-              {getDestinationTokens().length} tokens available from {currentProvider.name}
+              {getDestinationTokens().length} tokens available
               {tokenSearchQuery && ` (filtered)`}
             </div>
           )}

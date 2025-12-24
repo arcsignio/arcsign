@@ -38,6 +38,9 @@ pub struct GetSwapQuoteInput {
     /// Slippage tolerance percentage (e.g., 0.5 for 0.5%)
     #[serde(default = "default_slippage")]
     pub slippage: f64,
+    /// DEX provider: "openocean" | "kyberswap"
+    #[serde(default)]
+    pub provider: String,
     /// USB path for provider config
     pub usb_path: String,
     /// App password for provider config decryption
@@ -65,6 +68,9 @@ pub struct BuildSwapTransactionInput {
     /// Slippage tolerance percentage
     #[serde(default = "default_slippage")]
     pub slippage: f64,
+    /// DEX provider: "openocean" | "kyberswap"
+    #[serde(default)]
+    pub provider: String,
     /// USB path
     pub usb_path: String,
     /// App password
@@ -133,6 +139,7 @@ pub async fn get_swap_quote(
         "amount": input.amount,
         "fromAddress": input.from_address,
         "slippage": input.slippage,
+        "provider": input.provider,
         "usbPath": input.usb_path,
         "appPassword": app_password
     });
@@ -175,6 +182,7 @@ pub async fn build_swap_transaction(
         "amount": input.amount,
         "fromAddress": input.from_address,
         "slippage": input.slippage,
+        "provider": input.provider,
         "usbPath": input.usb_path,
         "appPassword": app_password
     });
@@ -280,6 +288,9 @@ pub async fn get_native_token_address(
 pub struct GetSwapTokensInput {
     /// Chain identifier
     pub chain_id: String,
+    /// DEX provider: "openocean" | "kyberswap"
+    #[serde(default)]
+    pub provider: String,
     /// USB path for provider config
     pub usb_path: String,
     /// App password for provider config decryption
@@ -303,6 +314,7 @@ pub async fn get_swap_tokens(
     let mut app_password = input.app_password;
     let ffi_params = json!({
         "chainId": input.chain_id,
+        "provider": input.provider,
         "usbPath": input.usb_path,
         "appPassword": app_password
     });

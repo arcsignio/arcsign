@@ -710,6 +710,7 @@ export interface GetSwapQuoteParams {
   amount: string; // Amount in wei/smallest unit
   fromAddress: string;
   slippage?: number; // Default 0.5 (0.5%)
+  provider?: string; // DEX provider: "openocean" | "kyberswap"
   usbPath: string;
   appPassword: string;
 }
@@ -739,6 +740,7 @@ export interface BuildSwapTransactionParams {
   amount: string;
   fromAddress: string;
   slippage?: number;
+  provider?: string; // DEX provider: "openocean" | "kyberswap"
   usbPath: string;
   appPassword: string;
 }
@@ -809,6 +811,7 @@ export async function getSwapQuote(
         amount: params.amount,
         fromAddress: params.fromAddress,
         slippage: params.slippage ?? 0.5,
+        provider: params.provider || "openocean",
         usbPath: params.usbPath,
         appPassword: params.appPassword,
       },
@@ -842,6 +845,7 @@ export async function buildSwapTransaction(
           amount: params.amount,
           fromAddress: params.fromAddress,
           slippage: params.slippage ?? 0.5,
+          provider: params.provider || "openocean",
           usbPath: params.usbPath,
           appPassword: params.appPassword,
         },
@@ -923,6 +927,7 @@ export async function getNativeTokenAddress(): Promise<string> {
 
 export interface GetSwapTokensParams {
   chainId: string;
+  provider?: string; // DEX provider: "openocean" | "kyberswap"
   usbPath: string;
   appPassword: string;
 }
@@ -942,6 +947,7 @@ export async function getSwapTokens(
     const result = await invoke<GetSwapTokensResponse>("get_swap_tokens", {
       input: {
         chainId: params.chainId,
+        provider: params.provider || "openocean",
         usbPath: params.usbPath,
         appPassword: params.appPassword,
       },
