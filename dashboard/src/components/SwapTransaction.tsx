@@ -240,35 +240,38 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
   // Get chainId for backend API
   const chainId = fromToken ? networkToChainId(fromToken.network) : "";
 
-  // Fetch tokens from 1inch API when source token changes
+  // Cache key includes provider and chainId for proper isolation
+  const tokenCacheKey = `${selectedProvider}-${chainId}`;
+
+  // Fetch tokens from DEX provider API when source token or provider changes
   useEffect(() => {
     if (!fromToken || !chainId) return;
 
-    // Check if we already have cached tokens for this chain
-    if (tokenCache[chainId]) {
-      console.log(`[SwapTransaction] Using cached tokens for ${chainId}`);
+    // Check if we already have cached tokens for this provider+chain
+    if (tokenCache[tokenCacheKey]) {
+      console.log(`[SwapTransaction] Using cached tokens for ${tokenCacheKey}`);
       return;
     }
 
     const fetchTokens = async () => {
       setLoadingTokens(true);
       try {
-        console.log(`[SwapTransaction] Fetching tokens from 1inch API for chain: ${chainId}`);
+        console.log(`[SwapTransaction] Fetching tokens from ${selectedProvider} API for chain: ${chainId}`);
         const response = await tauriApi.getSwapTokens({
           chainId,
           usbPath,
           appPassword,
         });
 
-        console.log(`[SwapTransaction] Loaded ${response.tokens.length} tokens from 1inch API`);
+        console.log(`[SwapTransaction] Loaded ${response.tokens.length} tokens from ${selectedProvider} API`);
 
-        // Cache the tokens
+        // Cache the tokens with provider-specific key
         setTokenCache(prev => ({
           ...prev,
-          [chainId]: response.tokens,
+          [tokenCacheKey]: response.tokens,
         }));
       } catch (err) {
-        console.error("[SwapTransaction] Failed to fetch tokens from 1inch:", err);
+        console.error(`[SwapTransaction] Failed to fetch tokens from ${selectedProvider}:`, err);
         // Don't set error - we can still use user's existing tokens
       } finally {
         setLoadingTokens(false);
@@ -276,15 +279,15 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     };
 
     fetchTokens();
-  }, [fromToken, chainId, usbPath, appPassword, tokenCache]);
+  }, [fromToken, chainId, selectedProvider, tokenCacheKey, usbPath, appPassword, tokenCache]);
 
   // Get destination token options based on selected source token's chain
-  // Now uses tokens from 1inch API instead of hardcoded POPULAR_TOKENS
+  // Now uses tokens from DEX provider API instead of hardcoded tokens
   const getDestinationTokens = useCallback(() => {
     if (!fromToken) return [];
 
-    // Get tokens from 1inch API cache
-    const apiTokens = tokenCache[chainId] || [];
+    // Get tokens from current provider's API cache
+    const apiTokens = tokenCache[tokenCacheKey] || [];
 
     // Combine API tokens with user's tokens on same network
     const userTokensOnChain = availableTokens.filter(t => t.network === fromToken.network);
@@ -339,7 +342,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     }
 
     return allTokens;
-  }, [fromToken, chainId, availableTokens, tokenCache, tokenSearchQuery]);
+  }, [fromToken, tokenCacheKey, availableTokens, tokenCache, tokenSearchQuery]);
 
   // Validate amount
   const isValidAmount = (value: string): boolean => {
@@ -721,14 +724,14 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
           {loadingTokens && (
             <div className="token-loading">
               <div className="token-loading-spinner"></div>
-              <span>Loading tokens from 1inch...</span>
+              <span>Loading tokens from {currentProvider.name}...</span>
             </div>
           )}
 
           {/* Token Count Info */}
-          {!loadingTokens && tokenCache[chainId] && (
+          {!loadingTokens && tokenCache[tokenCacheKey] && (
             <div className="token-count-info">
-              {getDestinationTokens().length} tokens available
+              {getDestinationTokens().length} tokens available from {currentProvider.name}
               {tokenSearchQuery && ` (filtered)`}
             </div>
           )}
