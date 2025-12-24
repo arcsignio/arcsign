@@ -18,13 +18,9 @@ import tauriApi, {
   type SwapQuoteResponse,
   type BuildSwapTransactionResponse,
   type AppError,
+  type SwapTokenInfo,
 } from "@/services/tauri-api";
 import type { SendableToken } from "./SendTransaction";
-import {
-  getTokensForChain,
-  type ChainKey,
-  type NormalizedToken,
-} from "@/services/tokenList";
 
 // Swap steps
 type SwapStep =
@@ -50,56 +46,9 @@ interface SwapTransactionProps {
   onSuccess?: (txHash: string) => void;
 }
 
-// Popular tokens for swap destination (when user doesn't have them)
-const POPULAR_TOKENS: Record<string, Array<{
-  address: string;
-  symbol: string;
-  name: string;
-  decimals: number;
-  logoURI: string;
-}>> = {
-  "ethereum": [
-    { address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", symbol: "ETH", name: "Ethereum", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/279/small/ethereum.png" },
-    { address: "0xdac17f958d2ee523a2206206994597c13d831ec7", symbol: "USDT", name: "Tether USD", decimals: 6, logoURI: "https://assets.coingecko.com/coins/images/325/small/Tether.png" },
-    { address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", symbol: "USDC", name: "USD Coin", decimals: 6, logoURI: "https://assets.coingecko.com/coins/images/6319/small/usdc.png" },
-    { address: "0x6b175474e89094c44da98b954eedeac495271d0f", symbol: "DAI", name: "Dai Stablecoin", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png" },
-    { address: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599", symbol: "WBTC", name: "Wrapped Bitcoin", decimals: 8, logoURI: "https://assets.coingecko.com/coins/images/7598/small/wrapped_bitcoin_wbtc.png" },
-  ],
-  "polygon": [
-    { address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", symbol: "MATIC", name: "Polygon", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/4713/small/polygon.png" },
-    { address: "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", symbol: "USDT", name: "Tether USD", decimals: 6, logoURI: "https://assets.coingecko.com/coins/images/325/small/Tether.png" },
-    { address: "0x2791bca1f2de4661ed88a30c99a7a9449aa84174", symbol: "USDC", name: "USD Coin", decimals: 6, logoURI: "https://assets.coingecko.com/coins/images/6319/small/usdc.png" },
-  ],
-  "arbitrum": [
-    { address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", symbol: "ETH", name: "Ethereum", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/279/small/ethereum.png" },
-    { address: "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9", symbol: "USDT", name: "Tether USD", decimals: 6, logoURI: "https://assets.coingecko.com/coins/images/325/small/Tether.png" },
-    { address: "0xaf88d065e77c8cc2239327c5edb3a432268e5831", symbol: "USDC", name: "USD Coin", decimals: 6, logoURI: "https://assets.coingecko.com/coins/images/6319/small/usdc.png" },
-  ],
-  "bnb": [
-    { address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", symbol: "BNB", name: "BNB", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png" },
-    { address: "0x55d398326f99059ff775485246999027b3197955", symbol: "USDT", name: "Tether USD", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/325/small/Tether.png" },
-    { address: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d", symbol: "USDC", name: "USD Coin", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/6319/small/usdc.png" },
-    { address: "0xe9e7cea3dedca5984780bafc599bd69add087d56", symbol: "BUSD", name: "Binance USD", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/9576/small/BUSD.png" },
-    { address: "0x2170ed0880ac9a755fd29b2688956bd959f933f8", symbol: "ETH", name: "Ethereum Token", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/279/small/ethereum.png" },
-    { address: "0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c", symbol: "BTCB", name: "Bitcoin BEP2", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/14108/small/Binance-bitcoin.png" },
-    { address: "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", symbol: "WBNB", name: "Wrapped BNB", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png" },
-    { address: "0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82", symbol: "CAKE", name: "PancakeSwap", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/12632/small/pancakeswap-cake-logo.png" },
-  ],
-  "optimism": [
-    { address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", symbol: "ETH", name: "Ethereum", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/279/small/ethereum.png" },
-    { address: "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58", symbol: "USDT", name: "Tether USD", decimals: 6, logoURI: "https://assets.coingecko.com/coins/images/325/small/Tether.png" },
-    { address: "0x0b2c639c533813f4aa9d7837caf62653d097ff85", symbol: "USDC", name: "USD Coin", decimals: 6, logoURI: "https://assets.coingecko.com/coins/images/6319/small/usdc.png" },
-    { address: "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1", symbol: "DAI", name: "Dai Stablecoin", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png" },
-    { address: "0x4200000000000000000000000000000000000006", symbol: "WETH", name: "Wrapped Ether", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/2518/small/weth.png" },
-    { address: "0x4200000000000000000000000000000000000042", symbol: "OP", name: "Optimism", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/25244/small/Optimism.png" },
-  ],
-  "base": [
-    { address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", symbol: "ETH", name: "Ethereum", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/279/small/ethereum.png" },
-    { address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", symbol: "USDC", name: "USD Coin", decimals: 6, logoURI: "https://assets.coingecko.com/coins/images/6319/small/usdc.png" },
-    { address: "0x50c5725949a6f0c72e6c4a641f24049a917db0cb", symbol: "DAI", name: "Dai Stablecoin", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png" },
-    { address: "0x4200000000000000000000000000000000000006", symbol: "WETH", name: "Wrapped Ether", decimals: 18, logoURI: "https://assets.coingecko.com/coins/images/2518/small/weth.png" },
-  ],
-};
+// Token list cache for each chain (loaded from 1inch API)
+// Key is chainId (e.g., "ethereum", "bnb"), value is array of tokens
+type TokenCache = Record<string, SwapTokenInfo[]>;
 
 // Map network to chainId for backend
 function networkToChainId(network: string): string {
@@ -158,11 +107,33 @@ function toSmallestUnit(amount: string, decimals: number): string {
 // Convert smallest unit to human-readable
 function fromSmallestUnit(amount: string, decimals: number): string {
   if (!amount || amount === "0") return "0";
-  const padded = amount.padStart(decimals + 1, "0");
-  const intPart = padded.slice(0, -decimals) || "0";
-  const decPart = padded.slice(-decimals);
-  const trimmed = decPart.replace(/0+$/, "");
+  // Default to 18 decimals if not specified
+  const dec = decimals || 18;
+  const padded = amount.padStart(dec + 1, "0");
+  const intPart = padded.slice(0, -dec) || "0";
+  const decPart = padded.slice(-dec);
+  // Limit decimal places to 8 for readability
+  const trimmed = decPart.slice(0, 8).replace(/0+$/, "");
   return trimmed ? `${intPart}.${trimmed}` : intPart;
+}
+
+// Get native token symbol for a network
+function getNativeTokenSymbol(network: string): string {
+  const mapping: Record<string, string> = {
+    "eth-mainnet": "ETH",
+    "polygon-mainnet": "MATIC",
+    "arb-mainnet": "ETH",
+    "opt-mainnet": "ETH",
+    "base-mainnet": "ETH",
+    "bnb-mainnet": "BNB",
+    "ethereum": "ETH",
+    "polygon": "MATIC",
+    "arbitrum": "ETH",
+    "optimism": "ETH",
+    "base": "ETH",
+    "bsc": "BNB",
+  };
+  return mapping[network] || "ETH";
 }
 
 // Helper to shorten address
@@ -187,6 +158,35 @@ function formatBalance(balance: string): string {
 
 // Supported chains for swap
 const SUPPORTED_SWAP_CHAINS = ["eth-mainnet", "polygon-mainnet", "arb-mainnet", "opt-mainnet", "base-mainnet", "bnb-mainnet"];
+
+// DEX Provider types (matching backend)
+type SwapProvider = "openocean" | "kyberswap";
+
+interface ProviderInfo {
+  id: SwapProvider;
+  name: string;
+  description: string;
+  logoUrl: string;
+  website: string;
+}
+
+// Available DEX providers (static list matching backend)
+const AVAILABLE_PROVIDERS: ProviderInfo[] = [
+  {
+    id: "openocean",
+    name: "OpenOcean",
+    description: "Cross-chain DEX aggregator with best rates",
+    logoUrl: "https://openocean.finance/favicon.ico",
+    website: "https://openocean.finance",
+  },
+  {
+    id: "kyberswap",
+    name: "KyberSwap",
+    description: "Multi-chain DEX aggregator by Kyber Network",
+    logoUrl: "https://kyberswap.com/favicon.ico",
+    website: "https://kyberswap.com",
+  },
+];
 
 export const SwapTransaction: React.FC<SwapTransactionProps> = ({
   walletId,
@@ -225,19 +225,68 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
   const [swapTx, setSwapTx] = useState<BuildSwapTransactionResponse | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
 
+  // 1inch Token List state
+  const [tokenCache, setTokenCache] = useState<TokenCache>({});
+  const [loadingTokens, setLoadingTokens] = useState(false);
+  const [tokenSearchQuery, setTokenSearchQuery] = useState("");
+
+  // DEX Provider state
+  const [selectedProvider, setSelectedProvider] = useState<SwapProvider>("openocean");
+  const [showProviderDropdown, setShowProviderDropdown] = useState(false);
+
   // Filter tokens to supported chains only
   const swappableTokens = availableTokens.filter(t => SUPPORTED_SWAP_CHAINS.includes(t.network));
 
   // Get chainId for backend API
   const chainId = fromToken ? networkToChainId(fromToken.network) : "";
 
+  // Fetch tokens from 1inch API when source token changes
+  useEffect(() => {
+    if (!fromToken || !chainId) return;
+
+    // Check if we already have cached tokens for this chain
+    if (tokenCache[chainId]) {
+      console.log(`[SwapTransaction] Using cached tokens for ${chainId}`);
+      return;
+    }
+
+    const fetchTokens = async () => {
+      setLoadingTokens(true);
+      try {
+        console.log(`[SwapTransaction] Fetching tokens from 1inch API for chain: ${chainId}`);
+        const response = await tauriApi.getSwapTokens({
+          chainId,
+          usbPath,
+          appPassword,
+        });
+
+        console.log(`[SwapTransaction] Loaded ${response.tokens.length} tokens from 1inch API`);
+
+        // Cache the tokens
+        setTokenCache(prev => ({
+          ...prev,
+          [chainId]: response.tokens,
+        }));
+      } catch (err) {
+        console.error("[SwapTransaction] Failed to fetch tokens from 1inch:", err);
+        // Don't set error - we can still use user's existing tokens
+      } finally {
+        setLoadingTokens(false);
+      }
+    };
+
+    fetchTokens();
+  }, [fromToken, chainId, usbPath, appPassword, tokenCache]);
+
   // Get destination token options based on selected source token's chain
+  // Now uses tokens from 1inch API instead of hardcoded POPULAR_TOKENS
   const getDestinationTokens = useCallback(() => {
     if (!fromToken) return [];
 
-    const chainTokens = POPULAR_TOKENS[chainId] || [];
+    // Get tokens from 1inch API cache
+    const apiTokens = tokenCache[chainId] || [];
 
-    // Combine popular tokens with user's tokens on same network
+    // Combine API tokens with user's tokens on same network
     const userTokensOnChain = availableTokens.filter(t => t.network === fromToken.network);
 
     // Create unified list, filtering out the source token
@@ -265,16 +314,32 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       }
     });
 
-    // Add popular tokens that aren't already in the list
-    chainTokens.forEach(pt => {
-      const exists = allTokens.some(t => t.address.toLowerCase() === pt.address.toLowerCase());
-      if (!exists && pt.address.toLowerCase() !== (fromToken.tokenAddress || "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee").toLowerCase()) {
-        allTokens.push(pt);
+    // Add 1inch API tokens that aren't already in the list
+    apiTokens.forEach(apiToken => {
+      const exists = allTokens.some(t => t.address.toLowerCase() === apiToken.address.toLowerCase());
+      if (!exists && apiToken.address.toLowerCase() !== (fromToken.tokenAddress || "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee").toLowerCase()) {
+        allTokens.push({
+          address: apiToken.address,
+          symbol: apiToken.symbol,
+          name: apiToken.name,
+          decimals: apiToken.decimals,
+          logoURI: apiToken.logoURI,
+        });
       }
     });
 
+    // Apply search filter if query exists
+    if (tokenSearchQuery.trim()) {
+      const query = tokenSearchQuery.toLowerCase().trim();
+      return allTokens.filter(t =>
+        t.symbol.toLowerCase().includes(query) ||
+        t.name.toLowerCase().includes(query) ||
+        t.address.toLowerCase().includes(query)
+      );
+    }
+
     return allTokens;
-  }, [fromToken, chainId, availableTokens]);
+  }, [fromToken, chainId, availableTokens, tokenCache, tokenSearchQuery]);
 
   // Validate amount
   const isValidAmount = (value: string): boolean => {
@@ -334,12 +399,14 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     setToToken(null);
     setAmount("");
     setQuote(null);
+    setTokenSearchQuery(""); // Clear search query when selecting source token
     setStep("selectTo");
   };
 
   // Handle destination token selection
   const handleSelectToToken = (token: { address: string; symbol: string; name: string; decimals: number; logoURI?: string }) => {
     setToToken({ ...token, network: fromToken?.network });
+    setTokenSearchQuery(""); // Clear search query after selecting destination token
     setStep("input");
   };
 
@@ -492,6 +559,17 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     }
   };
 
+  // Get current provider info
+  const currentProvider = AVAILABLE_PROVIDERS.find(p => p.id === selectedProvider) || AVAILABLE_PROVIDERS[0];
+
+  // Handle provider selection
+  const handleProviderSelect = (provider: SwapProvider) => {
+    setSelectedProvider(provider);
+    setShowProviderDropdown(false);
+    // Reset quote when provider changes
+    setQuote(null);
+  };
+
   return (
     <div className="swap-transaction">
       <header className="swap-header">
@@ -499,12 +577,53 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
           <span>&larr;</span> Back
         </button>
         <h2>Swap Tokens</h2>
-        {fromToken && (
-          <div className="chain-badge">
-            <span className="chain-icon">{getNetworkIcon(fromToken.network)}</span>
-            {fromToken.networkLabel}
+        <div className="header-badges">
+          {/* DEX Provider Selector */}
+          <div className="provider-selector">
+            <button
+              className="provider-badge"
+              onClick={() => setShowProviderDropdown(!showProviderDropdown)}
+            >
+              <img
+                src={currentProvider.logoUrl}
+                alt={currentProvider.name}
+                className="provider-logo"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+              <span className="provider-name">{currentProvider.name}</span>
+              <span className="dropdown-arrow">{showProviderDropdown ? '▲' : '▼'}</span>
+            </button>
+            {showProviderDropdown && (
+              <div className="provider-dropdown">
+                {AVAILABLE_PROVIDERS.map(provider => (
+                  <button
+                    key={provider.id}
+                    className={`provider-option ${provider.id === selectedProvider ? 'selected' : ''}`}
+                    onClick={() => handleProviderSelect(provider.id)}
+                  >
+                    <img
+                      src={provider.logoUrl}
+                      alt={provider.name}
+                      className="provider-logo"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                    <div className="provider-info">
+                      <span className="provider-name">{provider.name}</span>
+                      <span className="provider-desc">{provider.description}</span>
+                    </div>
+                    {provider.id === selectedProvider && <span className="check-mark">✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+          {fromToken && (
+            <div className="chain-badge">
+              <span className="chain-icon">{getNetworkIcon(fromToken.network)}</span>
+              {fromToken.networkLabel}
+            </div>
+          )}
+        </div>
       </header>
 
       {/* Error Display */}
@@ -579,32 +698,75 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
             Swapping from {fromToken.tokenSymbol} on {fromToken.networkLabel}
           </p>
 
-          <div className="token-list">
-            {getDestinationTokens().map((token, idx) => (
+          {/* Search Input */}
+          <div className="token-search-wrapper">
+            <input
+              type="text"
+              placeholder="Search by name, symbol, or address..."
+              value={tokenSearchQuery}
+              onChange={(e) => setTokenSearchQuery(e.target.value)}
+              className="token-search-input"
+            />
+            {tokenSearchQuery && (
               <button
-                key={`${token.address}-${idx}`}
-                className="token-option"
-                onClick={() => handleSelectToToken(token)}
+                className="search-clear-btn"
+                onClick={() => setTokenSearchQuery("")}
               >
-                <div className="token-icon">
-                  {token.logoURI ? (
-                    <img src={token.logoURI} alt={token.symbol} />
-                  ) : (
-                    <span className="token-icon-fallback">{token.symbol.slice(0, 2)}</span>
-                  )}
-                </div>
-                <div className="token-info">
-                  <span className="token-symbol">{token.symbol}</span>
-                  <span className="token-name">{token.name}</span>
-                </div>
-                {token.balance && (
-                  <div className="token-balance">
-                    <span className="balance-amount">{formatBalance(token.balance)}</span>
-                  </div>
-                )}
-                <span className="token-arrow">→</span>
+                ✕
               </button>
-            ))}
+            )}
+          </div>
+
+          {/* Loading State */}
+          {loadingTokens && (
+            <div className="token-loading">
+              <div className="token-loading-spinner"></div>
+              <span>Loading tokens from 1inch...</span>
+            </div>
+          )}
+
+          {/* Token Count Info */}
+          {!loadingTokens && tokenCache[chainId] && (
+            <div className="token-count-info">
+              {getDestinationTokens().length} tokens available
+              {tokenSearchQuery && ` (filtered)`}
+            </div>
+          )}
+
+          <div className="token-list">
+            {getDestinationTokens().length === 0 && !loadingTokens ? (
+              <div className="no-tokens-found">
+                {tokenSearchQuery
+                  ? `No tokens found matching "${tokenSearchQuery}"`
+                  : "No tokens available"}
+              </div>
+            ) : (
+              getDestinationTokens().map((token, idx) => (
+                <button
+                  key={`${token.address}-${idx}`}
+                  className="token-option"
+                  onClick={() => handleSelectToToken(token)}
+                >
+                  <div className="token-icon">
+                    {token.logoURI ? (
+                      <img src={token.logoURI} alt={token.symbol} />
+                    ) : (
+                      <span className="token-icon-fallback">{token.symbol.slice(0, 2)}</span>
+                    )}
+                  </div>
+                  <div className="token-info">
+                    <span className="token-symbol">{token.symbol}</span>
+                    <span className="token-name">{token.name}</span>
+                  </div>
+                  {token.balance && (
+                    <div className="token-balance">
+                      <span className="balance-amount">{formatBalance(token.balance)}</span>
+                    </div>
+                  )}
+                  <span className="token-arrow">→</span>
+                </button>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -729,7 +891,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
               </div>
               <div className="quote-row">
                 <span className="quote-label">Estimated Gas</span>
-                <span className="quote-value">{quote.gasCostETH} ETH</span>
+                <span className="quote-value">{quote.gasCostETH} {getNativeTokenSymbol(fromToken.network)}</span>
               </div>
               <div className="quote-row">
                 <span className="quote-label">Route</span>
@@ -958,6 +1120,92 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
   font-size: 12px;
   color: #9ca3af;
   margin-bottom: 20px !important;
+}
+
+/* Token Search */
+.token-search-wrapper {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.token-search-input {
+  width: 100%;
+  padding: 12px 40px 12px 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #111827;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.token-search-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.token-search-input::placeholder {
+  color: #9ca3af;
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e5e7eb;
+  border: none;
+  border-radius: 50%;
+  color: #6b7280;
+  font-size: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.search-clear-btn:hover {
+  background: #d1d5db;
+}
+
+/* Token Loading State */
+.token-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.token-loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Token Count Info */
+.token-count-info {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 12px;
+  padding-left: 4px;
+}
+
+/* No Tokens Found */
+.no-tokens-found {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+  font-size: 14px;
 }
 
 /* Network Group */
@@ -1325,6 +1573,120 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
   align-items: center;
   gap: 12px;
   margin-bottom: 24px;
+}
+
+.swap-header h2 {
+  flex: 1;
+}
+
+.header-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Provider Selector */
+.provider-selector {
+  position: relative;
+}
+
+.provider-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #374151;
+  transition: all 0.2s;
+}
+
+.provider-badge:hover {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+.provider-logo {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+}
+
+.provider-badge .provider-name {
+  font-weight: 500;
+}
+
+.dropdown-arrow {
+  font-size: 10px;
+  color: #9ca3af;
+  margin-left: 2px;
+}
+
+.provider-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 280px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.provider-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  background: white;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.provider-option:hover {
+  background: #f9fafb;
+}
+
+.provider-option.selected {
+  background: #eff6ff;
+}
+
+.provider-option .provider-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.provider-option .provider-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.provider-option .provider-name {
+  font-weight: 500;
+  color: #111827;
+  font-size: 14px;
+}
+
+.provider-option .provider-desc {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.check-mark {
+  color: #3b82f6;
+  font-weight: bold;
 }
 
 .back-button {

@@ -42,7 +42,6 @@ import (
 	"github.com/yourusername/arcsign/internal/services/hdkey"
 	"github.com/yourusername/arcsign/internal/services/wallet"
 	"github.com/yourusername/arcsign/src/swap"
-	"github.com/yourusername/arcsign/src/swap/oneinch"
 )
 
 // Global ChainAdapter service instance (initialized on first use)
@@ -2622,19 +2621,18 @@ func ValidatePassphrase(params *C.char) *C.char {
 }
 
 // ============================================================================
-// Swap FFI Functions (1inch DEX Aggregator)
-// Feature: Token Swap via 1inch API
+// Swap FFI Functions (OpenOcean DEX Aggregator - FREE, No KYC required)
+// Feature: Token Swap via OpenOcean API
 // ============================================================================
 
 // Global swap aggregator instance (lazy initialization)
 var swapAggregator *swap.Aggregator
 
-// initSwapAggregator initializes the global swap aggregator with API key from provider config
-func initSwapAggregator(oneInchAPIKey string) *swap.Aggregator {
-	if swapAggregator == nil || oneInchAPIKey != "" {
-		swapAggregator = swap.NewAggregator(&swap.Config{
-			OneInchAPIKey: oneInchAPIKey,
-		})
+// initSwapAggregator initializes the global swap aggregator
+// OpenOcean doesn't require API key!
+func initSwapAggregator() *swap.Aggregator {
+	if swapAggregator == nil {
+		swapAggregator = swap.NewAggregator(&swap.Config{})
 	}
 	return swapAggregator
 }
@@ -2662,8 +2660,8 @@ func chainIDToInt(chainID string) int {
 }
 
 //export GetSwapQuote
-// GetSwapQuote fetches a swap quote from 1inch DEX aggregator.
-// Feature: Token Swap
+// GetSwapQuote fetches a swap quote from OpenOcean DEX aggregator.
+// Feature: Token Swap (OpenOcean - FREE, No KYC required)
 //
 // Input JSON: {
 //   "chainId": "ethereum" | "polygon" | "arbitrum" | etc.,
@@ -2679,7 +2677,7 @@ func chainIDToInt(chainID string) int {
 // Output JSON: {
 //   "success": true,
 //   "data": {
-//     "dex": "1inch",
+//     "dex": "OpenOcean",
 //     "fromToken": {...},
 //     "toToken": {...},
 //     "fromAmount": "...",
@@ -2689,7 +2687,7 @@ func chainIDToInt(chainID string) int {
 //     "estimatedGas": "...",
 //     "gasCostETH": "...",
 //     "route": ["ETH", "USDC"],
-//     "protocols": ["Uniswap V3"],
+//     "protocols": ["OpenOcean"],
 //     "needsApproval": true,
 //     "approvalAddress": "0x..."
 //   }
@@ -2735,22 +2733,8 @@ func GetSwapQuote(params *C.char) *C.char {
 		input.Slippage = 0.5
 	}
 
-	// Get 1inch API key from provider config
-	oneInchAPIKey := ""
-	if input.USBPath != "" && input.AppPassword != "" {
-		configPath := input.USBPath + "/provider_config.enc"
-		store, err := provider.NewProviderConfigStore(configPath, input.AppPassword)
-		if err == nil {
-			// Try to get 1inch provider config
-			config, err := store.GetBestProvider("1inch")
-			if err == nil && config != nil && config.APIKey != "" {
-				oneInchAPIKey = config.APIKey
-			}
-		}
-	}
-
-	// Initialize swap aggregator
-	aggregator := initSwapAggregator(oneInchAPIKey)
+	// Initialize swap aggregator (OpenOcean - no API key needed!)
+	aggregator := initSwapAggregator()
 
 	// Parse amount
 	amount := new(big.Int)
@@ -2770,7 +2754,8 @@ func GetSwapQuote(params *C.char) *C.char {
 		Amount:           amount,
 		FromAddress:      input.FromAddress,
 		Slippage:         input.Slippage,
-	}, gasPrice)
+		GasPrice:         gasPrice,
+	})
 
 	if err != nil {
 		response := NewErrorResponse(ErrSwapQuoteFailed, fmt.Sprintf("Failed to get swap quote: %v", err))
@@ -2844,21 +2829,8 @@ func BuildSwapTransaction(params *C.char) *C.char {
 		input.Slippage = 0.5
 	}
 
-	// Get 1inch API key from provider config
-	oneInchAPIKey := ""
-	if input.USBPath != "" && input.AppPassword != "" {
-		configPath := input.USBPath + "/provider_config.enc"
-		store, err := provider.NewProviderConfigStore(configPath, input.AppPassword)
-		if err == nil {
-			config, err := store.GetBestProvider("1inch")
-			if err == nil && config != nil && config.APIKey != "" {
-				oneInchAPIKey = config.APIKey
-			}
-		}
-	}
-
-	// Initialize swap aggregator
-	aggregator := initSwapAggregator(oneInchAPIKey)
+	// Initialize swap aggregator (OpenOcean - no API key needed!)
+	aggregator := initSwapAggregator()
 
 	// Parse amount
 	amount := new(big.Int)
@@ -2878,7 +2850,8 @@ func BuildSwapTransaction(params *C.char) *C.char {
 		Amount:           amount,
 		FromAddress:      input.FromAddress,
 		Slippage:         input.Slippage,
-	}, gasPrice)
+		GasPrice:         gasPrice,
+	})
 
 	if err != nil {
 		response := NewErrorResponse(ErrSwapBuildFailed, fmt.Sprintf("Failed to build swap transaction: %v", err))
@@ -2944,20 +2917,8 @@ func GetSwapApproval(params *C.char) *C.char {
 
 	defer zeroString(&input.AppPassword)
 
-	// Get 1inch API key
-	oneInchAPIKey := ""
-	if input.USBPath != "" && input.AppPassword != "" {
-		configPath := input.USBPath + "/provider_config.enc"
-		store, err := provider.NewProviderConfigStore(configPath, input.AppPassword)
-		if err == nil {
-			config, err := store.GetBestProvider("1inch")
-			if err == nil && config != nil && config.APIKey != "" {
-				oneInchAPIKey = config.APIKey
-			}
-		}
-	}
-
-	aggregator := initSwapAggregator(oneInchAPIKey)
+	// Initialize swap aggregator (OpenOcean - no API key needed!)
+	aggregator := initSwapAggregator()
 
 	// Parse amount (nil = unlimited)
 	var amount *big.Int
@@ -2969,7 +2930,7 @@ func GetSwapApproval(params *C.char) *C.char {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	approval, err := aggregator.GetApprovalTransaction(ctx, chainIDToInt(input.ChainID), input.TokenAddress, amount)
+	approval, err := aggregator.GetApprovalTransaction(ctx, "", chainIDToInt(input.ChainID), input.TokenAddress, amount)
 	if err != nil {
 		response := NewErrorResponse(ErrSwapApprovalFailed, fmt.Sprintf("Failed to get approval: %v", err))
 		jsonBytes, _ := json.Marshal(response)
@@ -3033,25 +2994,13 @@ func CheckSwapAllowance(params *C.char) *C.char {
 
 	defer zeroString(&input.AppPassword)
 
-	// Get 1inch API key
-	oneInchAPIKey := ""
-	if input.USBPath != "" && input.AppPassword != "" {
-		configPath := input.USBPath + "/provider_config.enc"
-		store, err := provider.NewProviderConfigStore(configPath, input.AppPassword)
-		if err == nil {
-			config, err := store.GetBestProvider("1inch")
-			if err == nil && config != nil && config.APIKey != "" {
-				oneInchAPIKey = config.APIKey
-			}
-		}
-	}
-
-	aggregator := initSwapAggregator(oneInchAPIKey)
+	// Initialize swap aggregator (OpenOcean - no API key needed!)
+	aggregator := initSwapAggregator()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	allowance, err := aggregator.CheckAllowance(ctx, chainIDToInt(input.ChainID), input.TokenAddress, input.WalletAddress)
+	allowance, err := aggregator.CheckAllowance(ctx, "", chainIDToInt(input.ChainID), input.TokenAddress, input.WalletAddress)
 	if err != nil {
 		response := NewErrorResponse(ErrSwapAllowanceFailed, fmt.Sprintf("Failed to check allowance: %v", err))
 		jsonBytes, _ := json.Marshal(response)
@@ -3069,10 +3018,10 @@ func CheckSwapAllowance(params *C.char) *C.char {
 }
 
 //export GetNativeTokenAddress
-// GetNativeTokenAddress returns the standard native token address for 1inch API.
-// Native tokens (ETH, MATIC, etc.) use this special address in 1inch API calls.
+// GetNativeTokenAddress returns the standard native token address for DEX APIs.
+// Native tokens (ETH, MATIC, BNB, etc.) use this special address in API calls.
 func GetNativeTokenAddress() *C.char {
-	address := oneinch.NativeTokenAddress
+	address := swap.GetNativeTokenAddress()
 	response := NewSuccessResponse(map[string]string{
 		"address": address,
 	})
@@ -3081,8 +3030,8 @@ func GetNativeTokenAddress() *C.char {
 }
 
 //export GetSwapTokens
-// GetSwapTokens fetches all available tokens for swap on a chain from 1inch API.
-// Feature: Token Swap
+// GetSwapTokens fetches all available tokens for swap on a chain from OpenOcean API.
+// Feature: Token Swap (OpenOcean - FREE, No KYC required)
 //
 // Input JSON: {
 //
@@ -3140,27 +3089,14 @@ func GetSwapTokens(params *C.char) *C.char {
 
 	defer zeroString(&input.AppPassword)
 
-	// Get 1inch API key from provider config
-	oneInchAPIKey := ""
-	if input.USBPath != "" && input.AppPassword != "" {
-		configPath := input.USBPath + "/provider_config.enc"
-		store, err := provider.NewProviderConfigStore(configPath, input.AppPassword)
-		if err == nil {
-			config, err := store.GetBestProvider("1inch")
-			if err == nil && config != nil && config.APIKey != "" {
-				oneInchAPIKey = config.APIKey
-			}
-		}
-	}
-
-	// Initialize swap aggregator
-	aggregator := initSwapAggregator(oneInchAPIKey)
+	// Initialize swap aggregator (OpenOcean - no API key needed!)
+	aggregator := initSwapAggregator()
 
 	// Get tokens
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	tokens, err := aggregator.GetTokens(ctx, chainIDToInt(input.ChainID))
+	tokens, err := aggregator.GetTokens(ctx, "", chainIDToInt(input.ChainID))
 	if err != nil {
 		response := NewErrorResponse(ErrSwapQuoteFailed, fmt.Sprintf("Failed to get swap tokens: %v", err))
 		jsonBytes, _ := json.Marshal(response)

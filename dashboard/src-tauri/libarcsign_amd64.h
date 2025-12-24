@@ -501,8 +501,8 @@ extern char* GetAssetTransfers(char* params);
 // }
 extern char* ValidatePassphrase(char* params);
 
-// GetSwapQuote fetches a swap quote from 1inch DEX aggregator.
-// Feature: Token Swap
+// GetSwapQuote fetches a swap quote from OpenOcean DEX aggregator.
+// Feature: Token Swap (OpenOcean - FREE, No KYC required)
 //
 // Input JSON: {
 //   "chainId": "ethereum" | "polygon" | "arbitrum" | etc.,
@@ -518,7 +518,7 @@ extern char* ValidatePassphrase(char* params);
 // Output JSON: {
 //   "success": true,
 //   "data": {
-//     "dex": "1inch",
+//     "dex": "OpenOcean",
 //     "fromToken": {...},
 //     "toToken": {...},
 //     "fromAmount": "...",
@@ -528,7 +528,7 @@ extern char* ValidatePassphrase(char* params);
 //     "estimatedGas": "...",
 //     "gasCostETH": "...",
 //     "route": ["ETH", "USDC"],
-//     "protocols": ["Uniswap V3"],
+//     "protocols": ["OpenOcean"],
 //     "needsApproval": true,
 //     "approvalAddress": "0x..."
 //   }
@@ -597,9 +597,39 @@ extern char* GetSwapApproval(char* params);
 // }
 extern char* CheckSwapAllowance(char* params);
 
-// GetNativeTokenAddress returns the standard native token address for 1inch API.
-// Native tokens (ETH, MATIC, etc.) use this special address in 1inch API calls.
+// GetNativeTokenAddress returns the standard native token address for DEX APIs.
+// Native tokens (ETH, MATIC, BNB, etc.) use this special address in API calls.
 extern char* GetNativeTokenAddress(void);
+
+// GetSwapTokens fetches all available tokens for swap on a chain from OpenOcean API.
+// Feature: Token Swap (OpenOcean - FREE, No KYC required)
+//
+// Input JSON: {
+//
+//	"chainId": "56",  // Chain ID as string
+//	"usbPath": "/Volumes/USB/...",
+//	"appPassword": "password123"
+//
+// }
+//
+// Output JSON: {
+//
+//	"success": true,
+//	"data": {
+//	  "tokens": [
+//	    {
+//	      "symbol": "BNB",
+//	      "name": "BNB",
+//	      "address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+//	      "decimals": 18,
+//	      "logoURI": "https://..."
+//	    },
+//	    ...
+//	  ]
+//	}
+//
+// }
+extern char* GetSwapTokens(char* params);
 
 #ifdef __cplusplus
 }
