@@ -114,8 +114,26 @@ var alchemyNetworkEndpoints = map[string]string{
 	"base-sepolia":     "https://base-sepolia.g.alchemy.com/v2",
 }
 
+// freePublicRPCEndpoints maps chainId to free public RPC endpoints
+// These are used for chains where Alchemy requires special subscription or doesn't support well
+var freePublicRPCEndpoints = map[string]string{
+	// BSC / BNB Smart Chain - Alchemy BSC often requires special subscription
+	// Use Binance's official free RPC endpoints instead
+	"bsc":         "https://bsc-dataseed1.binance.org",
+	"bsc-mainnet": "https://bsc-dataseed1.binance.org",
+	"bnb":         "https://bsc-dataseed1.binance.org",
+	"bsc-testnet": "https://bsc-testnet-rpc.publicnode.com",
+	"bnb-testnet": "https://bsc-testnet-rpc.publicnode.com",
+}
+
 // buildAlchemyRPCEndpoint constructs the full Alchemy RPC URL for a given chain
+// For chains where Alchemy requires special subscription (like BSC), returns free public RPC
 func buildAlchemyRPCEndpoint(chainID, apiKey string) string {
+	// First check if this chain should use free public RPC
+	if freeRPC, ok := freePublicRPCEndpoints[chainID]; ok {
+		return freeRPC
+	}
+
 	baseURL, ok := alchemyNetworkEndpoints[chainID]
 	if !ok {
 		// Default to Ethereum mainnet if chain not found
