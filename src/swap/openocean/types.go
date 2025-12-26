@@ -1,7 +1,45 @@
 // Package openocean provides types for OpenOcean DEX aggregator API
 package openocean
 
-import "math/big"
+import (
+	"encoding/json"
+	"fmt"
+	"math/big"
+)
+
+// FlexString is a type that can unmarshal from both string and number JSON values
+type FlexString string
+
+// UnmarshalJSON implements json.Unmarshaler for FlexString
+func (f *FlexString) UnmarshalJSON(data []byte) error {
+	// Try to unmarshal as string first
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		*f = FlexString(s)
+		return nil
+	}
+
+	// Try to unmarshal as number
+	var n json.Number
+	if err := json.Unmarshal(data, &n); err == nil {
+		*f = FlexString(n.String())
+		return nil
+	}
+
+	// Try to unmarshal as float64 (fallback)
+	var num float64
+	if err := json.Unmarshal(data, &num); err == nil {
+		*f = FlexString(fmt.Sprintf("%.0f", num))
+		return nil
+	}
+
+	return fmt.Errorf("cannot unmarshal %s into FlexString", string(data))
+}
+
+// String returns the string value
+func (f FlexString) String() string {
+	return string(f)
+}
 
 // APIError represents an error from the OpenOcean API
 type APIError struct {
@@ -88,13 +126,14 @@ type QuoteResponse struct {
 }
 
 // SwapResponse is the response from the swap endpoint
+// Note: estimatedGas can be returned as either string or number by the API
 type SwapResponse struct {
-	From         string `json:"from"`
-	To           string `json:"to"`
-	Data         string `json:"data"`
-	Value        string `json:"value"`
-	GasPrice     string `json:"gasPrice"`
-	EstimatedGas string `json:"estimatedGas"`
+	From         string     `json:"from"`
+	To           string     `json:"to"`
+	Data         string     `json:"data"`
+	Value        string     `json:"value"`
+	GasPrice     FlexString `json:"gasPrice"`
+	EstimatedGas FlexString `json:"estimatedGas"`
 }
 
 // TokenInfo represents a token with its metadata

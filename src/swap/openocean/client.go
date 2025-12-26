@@ -341,8 +341,8 @@ func (c *Client) BuildSwapTransaction(ctx context.Context, req *SwapRequest) (*S
 			To:       swapResp.To,
 			Data:     swapResp.Data,
 			Value:    swapResp.Value,
-			Gas:      swapResp.EstimatedGas,
-			GasPrice: swapResp.GasPrice,
+			Gas:      swapResp.EstimatedGas.String(),
+			GasPrice: swapResp.GasPrice.String(),
 		},
 		ChainID: req.ChainID,
 	}, nil
