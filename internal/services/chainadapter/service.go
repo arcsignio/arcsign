@@ -15,8 +15,9 @@ import (
 	"github.com/arcsign/chainadapter"
 	"github.com/arcsign/chainadapter/bitcoin"
 	"github.com/arcsign/chainadapter/ethereum"
-	"github.com/arcsign/chainadapter/rpc"
+	caRPC "github.com/arcsign/chainadapter/rpc"
 	"github.com/arcsign/chainadapter/storage"
+	"github.com/yourusername/arcsign/internal/rpc"
 )
 
 // Service manages ChainAdapter instances for different blockchains.
@@ -89,7 +90,7 @@ func (s *Service) GetAdapter(ctx context.Context, chainId string, rpcEndpoint st
 
 	// Create RPC client
 	// Note: rpcEndpoint is already resolved at the beginning of this function
-	rpcClient, err := rpc.NewHTTPRPCClient([]string{rpcEndpoint}, 30*time.Second, nil)
+	rpcClient, err := caRPC.NewHTTPRPCClient([]string{rpcEndpoint}, 30*time.Second, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RPC client: %w", err)
 	}
@@ -192,41 +193,14 @@ func (s *Service) QueryTransactionStatus(ctx context.Context, chainId string, tx
 }
 
 // getDefaultRPCEndpoint returns the default RPC endpoint for a chainId.
+// Uses the unified RPC Registry for all endpoint resolution.
 func getDefaultRPCEndpoint(chainId string) string {
-	defaults := map[string]string{
-		// Bitcoin networks
-		"bitcoin":         "http://127.0.0.1:8332",
-		"bitcoin-testnet": "http://127.0.0.1:18332",
-		"bitcoin-regtest": "http://127.0.0.1:18443",
-
-		// Ethereum networks
-		"ethereum":         "https://eth.llamarpc.com",
-		"ethereum-goerli":  "https://rpc.ankr.com/eth_goerli",
-		"ethereum-sepolia": "https://rpc.sepolia.org",
-
-		// BSC (BNB Chain) networks
-		"bsc":         "https://bsc-dataseed1.binance.org",
-		"bsc-mainnet": "https://bsc-dataseed1.binance.org",
-		"bnb":         "https://bsc-dataseed1.binance.org",
-		"bsc-testnet": "https://bsc-testnet-rpc.publicnode.com",
-		"bnb-testnet": "https://bsc-testnet-rpc.publicnode.com",
-
-		// Other EVM networks
-		"polygon":          "https://polygon-rpc.com",
-		"polygon-mainnet":  "https://polygon-rpc.com",
-		"arbitrum":         "https://arb1.arbitrum.io/rpc",
-		"arbitrum-mainnet": "https://arb1.arbitrum.io/rpc",
-		"optimism":         "https://mainnet.optimism.io",
-		"optimism-mainnet": "https://mainnet.optimism.io",
-		"base":             "https://mainnet.base.org",
-		"base-mainnet":     "https://mainnet.base.org",
+	endpoint, err := rpc.GetRPC(chainId)
+	if err != nil {
+		// Fallback to localhost for unknown chains
+		return "http://127.0.0.1:8545"
 	}
-
-	if endpoint, ok := defaults[chainId]; ok {
-		return endpoint
-	}
-
-	return "http://127.0.0.1:8545"
+	return endpoint
 }
 
 // ParseAmount parses a string amount to *big.Int.

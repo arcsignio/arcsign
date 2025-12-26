@@ -37,6 +37,7 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/yourusername/arcsign/internal/app"
 	"github.com/yourusername/arcsign/internal/provider"
+	"github.com/yourusername/arcsign/internal/rpc"
 	"github.com/yourusername/arcsign/internal/services/bip39service"
 	chainadapterService "github.com/yourusername/arcsign/internal/services/chainadapter"
 	"github.com/yourusername/arcsign/internal/services/hdkey"
@@ -87,59 +88,36 @@ func zeroString(s *string) {
 	*s = ""
 }
 
-// alchemyNetworkEndpoints maps chainId to Alchemy RPC base URLs
-var alchemyNetworkEndpoints = map[string]string{
-	// Mainnets
-	"ethereum":         "https://eth-mainnet.g.alchemy.com/v2",
-	"ethereum-mainnet": "https://eth-mainnet.g.alchemy.com/v2",
-	"polygon":          "https://polygon-mainnet.g.alchemy.com/v2",
-	"polygon-mainnet":  "https://polygon-mainnet.g.alchemy.com/v2",
-	"arbitrum":         "https://arb-mainnet.g.alchemy.com/v2",
-	"arbitrum-mainnet": "https://arb-mainnet.g.alchemy.com/v2",
-	"optimism":         "https://opt-mainnet.g.alchemy.com/v2",
-	"optimism-mainnet": "https://opt-mainnet.g.alchemy.com/v2",
-	"base":             "https://base-mainnet.g.alchemy.com/v2",
-	"base-mainnet":     "https://base-mainnet.g.alchemy.com/v2",
-	// BSC / BNB Smart Chain (supported by Alchemy)
-	"bsc":         "https://bnb-mainnet.g.alchemy.com/v2",
-	"bsc-mainnet": "https://bnb-mainnet.g.alchemy.com/v2",
-	"bnb":         "https://bnb-mainnet.g.alchemy.com/v2",
-	"bsc-testnet": "https://bnb-testnet.g.alchemy.com/v2",
-	"bnb-testnet": "https://bnb-testnet.g.alchemy.com/v2",
-	// Testnets
-	"ethereum-sepolia": "https://eth-sepolia.g.alchemy.com/v2",
-	"polygon-amoy":     "https://polygon-amoy.g.alchemy.com/v2",
-	"arbitrum-sepolia": "https://arb-sepolia.g.alchemy.com/v2",
-	"optimism-sepolia": "https://opt-sepolia.g.alchemy.com/v2",
-	"base-sepolia":     "https://base-sepolia.g.alchemy.com/v2",
+// getRPCEndpoint returns the appropriate RPC endpoint for a chain.
+// Uses the unified RPC Registry for all endpoint resolution.
+// For transaction operations, always uses free public RPC (no API key required).
+// For Alchemy-specific operations, constructs Alchemy URL with API key.
+func getRPCEndpoint(chainID, apiKey string) string {
+	// Use RPC Registry for free public endpoints (preferred for transactions)
+	endpoint, err := rpc.GetRPC(chainID)
+	if err == nil {
+		return endpoint
+	}
+	// Fallback to Ethereum mainnet if chain not found
+	return "https://eth.llamarpc.com"
 }
 
-// freePublicRPCEndpoints maps chainId to free public RPC endpoints
-// These are used for chains where Alchemy requires special subscription or doesn't support well
-var freePublicRPCEndpoints = map[string]string{
-	// BSC / BNB Smart Chain - Alchemy BSC often requires special subscription
-	// Use Binance's official free RPC endpoints instead
-	"bsc":         "https://bsc-dataseed1.binance.org",
-	"bsc-mainnet": "https://bsc-dataseed1.binance.org",
-	"bnb":         "https://bsc-dataseed1.binance.org",
-	"bsc-testnet": "https://bsc-testnet-rpc.publicnode.com",
-	"bnb-testnet": "https://bsc-testnet-rpc.publicnode.com",
+// getAlchemyRPCEndpoint constructs the Alchemy RPC URL for enhanced API calls.
+// Returns empty string if chain doesn't support Alchemy.
+// Use this only for Alchemy-specific APIs (token balances, asset transfers, etc.)
+func getAlchemyRPCEndpoint(chainID, apiKey string) string {
+	endpoint, err := rpc.GetAlchemyRPC(chainID, apiKey)
+	if err != nil {
+		// Chain doesn't support Alchemy, return free RPC as fallback
+		return getRPCEndpoint(chainID, apiKey)
+	}
+	return endpoint
 }
 
-// buildAlchemyRPCEndpoint constructs the full Alchemy RPC URL for a given chain
-// For chains where Alchemy requires special subscription (like BSC), returns free public RPC
+// Deprecated: buildAlchemyRPCEndpoint is kept for backward compatibility.
+// Use getRPCEndpoint for transactions and getAlchemyRPCEndpoint for Alchemy APIs.
 func buildAlchemyRPCEndpoint(chainID, apiKey string) string {
-	// First check if this chain should use free public RPC
-	if freeRPC, ok := freePublicRPCEndpoints[chainID]; ok {
-		return freeRPC
-	}
-
-	baseURL, ok := alchemyNetworkEndpoints[chainID]
-	if !ok {
-		// Default to Ethereum mainnet if chain not found
-		baseURL = "https://eth-mainnet.g.alchemy.com/v2"
-	}
-	return baseURL + "/" + apiKey
+	return getRPCEndpoint(chainID, apiKey)
 }
 
 //export GoFree
