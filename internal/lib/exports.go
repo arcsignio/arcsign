@@ -1258,7 +1258,12 @@ func BroadcastTransaction(params *C.char) *C.char {
 			}
 			if err == nil && config != nil && config.APIKey != "" {
 				rpcEndpoint = buildAlchemyRPCEndpoint(input.ChainID, config.APIKey)
-				fmt.Fprintf(os.Stderr, "[Go BroadcastTx] Built RPC endpoint for chain %s: %s\n", input.ChainID, rpcEndpoint[:50]+"...")
+				// Safe string truncation for logging
+				logEndpoint := rpcEndpoint
+				if len(logEndpoint) > 50 {
+					logEndpoint = logEndpoint[:50] + "..."
+				}
+				fmt.Fprintf(os.Stderr, "[Go BroadcastTx] Built RPC endpoint for chain %s: %s\n", input.ChainID, logEndpoint)
 			}
 		}
 	}

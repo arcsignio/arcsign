@@ -308,6 +308,14 @@ func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.Transacti
 		maxPriorityFeePerGas = new(big.Int).Mul(priorityFee, big.NewInt(2))
 	}
 
+	// EIP-1559 constraint: maxPriorityFeePerGas MUST NOT exceed maxFeePerGas
+	// This can happen on low-baseFee chains like BSC where baseFee ≈ 0
+	if maxPriorityFeePerGas.Cmp(maxFeePerGas) > 0 {
+		fmt.Fprintf(os.Stderr, "[ETH Build] Capping maxPriorityFeePerGas from %s to %s (must not exceed maxFeePerGas)\n",
+			maxPriorityFeePerGas.String(), maxFeePerGas.String())
+		maxPriorityFeePerGas = new(big.Int).Set(maxFeePerGas)
+	}
+
 	// Step 4: Build the unsigned transaction
 	unsigned, err := e.builder.Build(
 		ctx,
