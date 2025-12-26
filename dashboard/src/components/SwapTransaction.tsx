@@ -952,7 +952,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         <div className="approve-form">
           <h3>Approve Token Spending</h3>
           <p className="approve-description">
-            To swap {fromToken?.tokenSymbol}, you need to approve the 1inch router to spend your tokens.
+            To swap {fromToken?.tokenSymbol}, you need to approve the DEX router to spend your tokens.
           </p>
 
           <div className="approval-details">

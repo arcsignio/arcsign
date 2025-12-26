@@ -277,7 +277,8 @@ func (c *Client) BuildSwapQuote(ctx context.Context, req *SwapRequest) (*SwapQuo
 	route = append(route, quoteResp.OutToken.Symbol)
 
 	// Check if approval is needed (for non-native tokens)
-	needsApproval := req.FromTokenAddress != NativeTokenAddress
+	// Use case-insensitive comparison as frontend may use lowercase
+	needsApproval := !strings.EqualFold(req.FromTokenAddress, NativeTokenAddress)
 
 	// Handle price impact - OpenOcean returns format like "-0.17%"
 	// We need to strip the % sign for frontend consistency
