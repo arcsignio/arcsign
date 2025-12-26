@@ -20,8 +20,8 @@ const BSC_MAINNET_RPC_URL: &str = "https://bsc-dataseed.binance.org/";
 const BSC_RPC_URL: &str = BSC_TESTNET_RPC_URL;
 
 /// ArcSign Pro NFT contract address on BSC Testnet
-/// Deployed: 2025-12-22
-const ARCSIGN_PRO_CONTRACT: &str = "0x6CB59d29BE5b618eeca9Bc5374648477256f109A";
+/// Deployed: 2025-12-26 (using correct USDT: 0x337610d27c682E347C9cD60BD4b3b107C9d34dDd)
+const ARCSIGN_PRO_CONTRACT: &str = "0x401b0D7D9Ae46fDF75d92d8F218b1F15Dd2DFEc1";
 
 /// Membership status response
 #[derive(Debug, Clone, Serialize, Deserialize)]

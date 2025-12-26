@@ -28,8 +28,9 @@ async function main() {
     return;
   }
 
-  // BSC Testnet USDT (official from faucet)
-  const TESTNET_USDT = "0x7ef95a0fee0dd31b22626fa2e10ee6a223f8a684";
+  // BSC Testnet USDT - using the USDT contract where user has balance
+  // Note: 0x337610... is the BNB Chain faucet USDT, 0x7ef95a... was incorrect
+  const TESTNET_USDT = "0x337610d27c682E347C9cD60BD4b3b107C9d34dDd";
 
   // Treasury address - your provided address
   const treasuryAddress = "0x2e26cbd533ac3e98d3b650c7f89406ebb6f2f634";

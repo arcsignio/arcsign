@@ -1,9 +1,9 @@
 {
   "network": "bscTestnet",
   "chainId": 97,
-  "arcSignProAddress": "0x496700A939d341523967070b292B4f7FE7e3FC58",
-  "usdtAddress": "0x7ef95a0fee0dd31b22626fa2e10ee6a223f8a684",
+  "arcSignProAddress": "0x401b0D7D9Ae46fDF75d92d8F218b1F15Dd2DFEc1",
+  "usdtAddress": "0x337610d27c682E347C9cD60BD4b3b107C9d34dDd",
   "treasuryAddress": "0x2e26cbd533ac3e98d3b650c7f89406ebb6f2f634",
-  "deployedAt": "2025-12-23T07:19:23.295Z",
+  "deployedAt": "2025-12-26T00:47:19.822Z",
   "deployer": "0x2e26cbD533Ac3E98d3B650c7f89406EbB6f2f634"
 }
