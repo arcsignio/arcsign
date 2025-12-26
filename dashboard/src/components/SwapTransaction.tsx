@@ -999,6 +999,30 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
                 {getNetworkIcon(fromToken.network)} {fromToken.networkLabel}
               </span>
             </div>
+            <div className="swap-summary-row">
+              <span className="summary-label">Exchange Rate</span>
+              <span className="summary-value">
+                1 {fromToken.tokenSymbol} ≈ {swapTx.quote.exchangeRate} {toToken.symbol}
+              </span>
+            </div>
+            <div className="swap-summary-row">
+              <span className="summary-label">Price Impact</span>
+              <span className="summary-value" style={{ color: parseFloat(swapTx.quote.priceImpact || '0') < -1 ? '#ef4444' : '#10b981' }}>
+                {swapTx.quote.priceImpact}%
+              </span>
+            </div>
+            <div className="swap-summary-row">
+              <span className="summary-label">Estimated Gas Fee</span>
+              <span className="summary-value">
+                ~{swapTx.quote.gasCostETH} {fromToken.network === 'bsc' ? 'BNB' : 'ETH'}
+              </span>
+            </div>
+            <div className="swap-summary-row">
+              <span className="summary-label">Minimum Received</span>
+              <span className="summary-value">
+                {fromSmallestUnit(swapTx.quote.toAmountMin, toToken.decimals)} {toToken.symbol}
+              </span>
+            </div>
           </div>
 
           <div className="form-group">
