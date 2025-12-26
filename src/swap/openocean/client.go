@@ -128,9 +128,17 @@ func (c *Client) GetQuote(ctx context.Context, req *QuoteRequest) (*QuoteRespons
 	params.Set("inTokenAddress", req.FromTokenAddress)
 	params.Set("outTokenAddress", req.ToTokenAddress)
 	params.Set("amountDecimals", req.Amount.String()) // Use amountDecimals instead of amount
-	// Convert gasPrice from wei to gwei (divide by 1e9)
-	gasPriceGwei := new(big.Int).Div(req.GasPrice, big.NewInt(1e9))
-	params.Set("gasPrice", gasPriceGwei.String())
+	// Convert gasPrice from wei to gwei using float for precision
+	// OpenOcean accepts decimal gasPrice (e.g., "0.055" for BSC)
+	gasPriceFloat := new(big.Float).SetInt(req.GasPrice)
+	gasPriceGwei := new(big.Float).Quo(gasPriceFloat, big.NewFloat(1e9))
+	gasPriceStr := gasPriceGwei.Text('f', 6) // 6 decimal places
+	// Trim trailing zeros for cleaner URL
+	gasPriceStr = strings.TrimRight(strings.TrimRight(gasPriceStr, "0"), ".")
+	if gasPriceStr == "" || gasPriceStr == "0" {
+		gasPriceStr = "1" // Minimum 1 gwei fallback
+	}
+	params.Set("gasPrice", gasPriceStr)
 	params.Set("slippage", fmt.Sprintf("%.2f", req.Slippage))
 	urlStr += "?" + params.Encode()
 
@@ -167,9 +175,17 @@ func (c *Client) GetSwap(ctx context.Context, req *SwapRequest) (*SwapResponse, 
 	params.Set("inTokenAddress", req.FromTokenAddress)
 	params.Set("outTokenAddress", req.ToTokenAddress)
 	params.Set("amountDecimals", req.Amount.String()) // Use amountDecimals instead of amount
-	// Convert gasPrice from wei to gwei (divide by 1e9)
-	gasPriceGwei := new(big.Int).Div(req.GasPrice, big.NewInt(1e9))
-	params.Set("gasPrice", gasPriceGwei.String())
+	// Convert gasPrice from wei to gwei using float for precision
+	// OpenOcean accepts decimal gasPrice (e.g., "0.055" for BSC)
+	gasPriceFloat := new(big.Float).SetInt(req.GasPrice)
+	gasPriceGwei := new(big.Float).Quo(gasPriceFloat, big.NewFloat(1e9))
+	gasPriceStr := gasPriceGwei.Text('f', 6) // 6 decimal places
+	// Trim trailing zeros for cleaner URL
+	gasPriceStr = strings.TrimRight(strings.TrimRight(gasPriceStr, "0"), ".")
+	if gasPriceStr == "" || gasPriceStr == "0" {
+		gasPriceStr = "1" // Minimum 1 gwei fallback
+	}
+	params.Set("gasPrice", gasPriceStr)
 	params.Set("slippage", fmt.Sprintf("%.2f", req.Slippage))
 	params.Set("account", req.FromAddress)
 

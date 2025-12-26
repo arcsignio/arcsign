@@ -6,6 +6,7 @@
 import { useState, useEffect } from "react";
 import {
   getCommonTokens,
+  getAllTokens,
   searchTokenBySymbol,
   findTokenByAddress,
   getTopTokens,
@@ -54,6 +55,51 @@ export function useCommonTokens(perChain: number = 15) {
       mounted = false;
     };
   }, [perChain]);
+
+  return { tokens, isLoading, error };
+}
+
+/**
+ * Hook to load ALL tokens across all chains (for logo lookup by address)
+ * This loads the complete token lists, not just top N
+ */
+export function useAllTokens() {
+  const [tokens, setTokens] = useState<Map<ChainKey, NormalizedToken[]>>(
+    new Map()
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadTokens = async () => {
+      try {
+        setIsLoading(true);
+        const allTokens = await getAllTokens();
+        if (mounted) {
+          setTokens(allTokens);
+          setError(null);
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(
+            err instanceof Error ? err.message : "Failed to load all tokens"
+          );
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadTokens();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return { tokens, isLoading, error };
 }

@@ -2748,8 +2748,12 @@ func GetSwapQuote(params *C.char) *C.char {
 	amount := new(big.Int)
 	amount.SetString(input.Amount, 10)
 
-	// Get gas price (use default estimate)
-	gasPrice := big.NewInt(30000000000) // 30 Gwei default
+	// Get dynamic gas price from RPC (with chain-specific fallback)
+	gasPrice, _ := rpc.GetGasPrice(input.ChainID)
+	if gasPrice == nil {
+		gasPrice = big.NewInt(1e9) // 1 Gwei fallback
+	}
+	debugLog(fmt.Sprintf("GetSwapQuote: Using gas price %s wei for chain %s", gasPrice.String(), input.ChainID))
 
 	// Get quote
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -2852,8 +2856,12 @@ func BuildSwapTransaction(params *C.char) *C.char {
 	amount := new(big.Int)
 	amount.SetString(input.Amount, 10)
 
-	// Get gas price
-	gasPrice := big.NewInt(30000000000) // 30 Gwei default
+	// Get dynamic gas price from RPC (with chain-specific fallback)
+	gasPrice, _ := rpc.GetGasPrice(input.ChainID)
+	if gasPrice == nil {
+		gasPrice = big.NewInt(1e9) // 1 Gwei fallback
+	}
+	debugLog(fmt.Sprintf("BuildSwapTransaction: Using gas price %s wei for chain %s", gasPrice.String(), input.ChainID))
 
 	// Build swap transaction
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

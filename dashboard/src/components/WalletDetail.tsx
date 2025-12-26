@@ -16,7 +16,8 @@ import {
   isNativeTokenAddress,
   getNetworkKey,
 } from "@/constants/nativeTokens";
-import { usePriorityTokens } from "@/hooks/useTokenList";
+import { usePriorityTokens, useAllTokens } from "@/hooks/useTokenList";
+import type { ChainKey } from "@/services/tokenList";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { SendTransaction, type SendableToken } from "@/components/SendTransaction";
 import SwapTransaction from "@/components/SwapTransaction";
@@ -87,6 +88,10 @@ export function WalletDetail({
   // Load priority tokens from CoinGecko token lists
   const { tokens: priorityTokens, isLoading: isLoadingPriority } =
     usePriorityTokens();
+
+  // Load ALL tokens from local token lists for logo lookup (supports BSC, etc.)
+  // This loads the complete token lists, not just top N
+  const { tokens: allTokensByChain } = useAllTokens();
 
   const handleLoadBalances = async () => {
     if (!password || !appPassword) {
@@ -394,6 +399,33 @@ export function WalletDetail({
         }
       }
 
+      // PRIORITY: Use local token-list logo over Alchemy's response
+      // Only fallback to Alchemy's logo if local token-list doesn't have it
+      if (token.tokenAddress && allTokensByChain.size > 0) {
+        // Map networkLabel to chain key
+        const chainKeyMap: Record<string, ChainKey> = {
+          "Ethereum": "ethereum",
+          "BNB Chain": "bsc",
+          "Polygon": "polygon",
+          "Arbitrum": "arbitrum",
+          "Optimism": "optimism",
+          "Base": "base",
+        };
+        const chainKey = chainKeyMap[token.networkLabel];
+        if (chainKey) {
+          const chainTokens = allTokensByChain.get(chainKey);
+          if (chainTokens) {
+            const matchedToken = chainTokens.find(
+              (t) => t.address.toLowerCase() === token.tokenAddress.toLowerCase()
+            );
+            if (matchedToken?.logoURI) {
+              // Always use local token-list logo (priority over Alchemy)
+              token.tokenLogo = matchedToken.logoURI;
+            }
+          }
+        }
+      }
+
       const key = `${token.network}-${
         token.tokenSymbol
       }-${token.tokenAddress.toLowerCase()}`;
@@ -437,7 +469,7 @@ export function WalletDetail({
     );
 
     return result;
-  }, [tokens, priorityTokens, isLoadingPriority]);
+  }, [tokens, priorityTokens, isLoadingPriority, allTokensByChain]);
 
   // Group tokens by network (prepared for future use in network grouping view)
   const _tokensByNetwork = displayTokens.reduce((acc, token) => {

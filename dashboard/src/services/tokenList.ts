@@ -74,6 +74,12 @@ export const CHAIN_CONFIG = {
     file: "/token-lists/bsc.json",
     coingeckoId: "binance-smart-chain",
   },
+  base: {
+    id: 8453,
+    name: "Base",
+    file: "/token-lists/base.json",
+    coingeckoId: "base",
+  },
 } as const;
 
 export type ChainKey = keyof typeof CHAIN_CONFIG;
@@ -167,6 +173,7 @@ export async function getAllTokens(): Promise<
     "polygon",
     "optimism",
     "bsc",
+    "base",
   ];
   const results = new Map<ChainKey, NormalizedToken[]>();
 
@@ -261,6 +268,7 @@ export async function getCommonTokens(
     "polygon",
     "optimism",
     "bsc",
+    "base",
   ];
   const results = new Map<ChainKey, NormalizedToken[]>();
 

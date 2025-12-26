@@ -261,55 +261,117 @@ func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.Transacti
 		fmt.Fprintf(os.Stderr, "[ETH Build] Applied minimum gas limit: %d\n", gasLimit)
 	}
 
-	// Step 3: Get EIP-1559 fee parameters
-	baseFee, err := e.rpcHelper.GetBaseFee(ctx)
-	if err != nil {
-		// Fallback to default base fee
-		baseFee = big.NewInt(30e9) // 30 Gwei
-	}
+	// Step 3: Get fee parameters based on chain type
+	// Different chains require different fee calculation strategies:
+	// - Legacy chains (BSC, Fantom): Use eth_gasPrice
+	// - EIP-1559 chains (ETH, Polygon): Use eth_feeHistory + baseFee
+	// - L2 chains (Arbitrum, Optimism, Base): Use EIP-1559 with L2-specific handling
+	var maxFeePerGas, maxPriorityFeePerGas *big.Int
 
-	priorityFee, err := e.rpcHelper.GetFeeHistory(ctx, 10)
-	if err != nil {
-		// Fallback to default priority fee
-		priorityFee = big.NewInt(2e9) // 2 Gwei
-	}
+	isLegacyChain := e.networkID == 56 || e.networkID == 97 || e.networkID == 250 // BSC, BSC Testnet, Fantom
 
-	// BSC networks require minimum 1 Gwei priority fee (100000000 wei = 0.1 Gwei is absolute minimum)
-	// Set a safe minimum of 1 Gwei (1000000000 wei) for BSC chains
-	minPriorityFee := big.NewInt(1e9) // 1 Gwei default minimum
-	if e.networkID == 56 || e.networkID == 97 {
-		// BSC Mainnet (56) or BSC Testnet (97)
-		minPriorityFee = big.NewInt(1e9) // 1 Gwei minimum for BSC
-	}
-	if priorityFee.Cmp(minPriorityFee) < 0 {
-		priorityFee = minPriorityFee
-	}
+	if isLegacyChain {
+		// Legacy strategy: Use eth_gasPrice for chains without proper EIP-1559
+		fmt.Fprintf(os.Stderr, "[ETH Build] Using Legacy gas price strategy for chain %d\n", e.networkID)
 
-	// Calculate maxFeePerGas based on FeeSpeed
-	var multiplier int64
-	switch req.FeeSpeed {
-	case chainadapter.FeeSpeedFast:
-		multiplier = 3 // 3x base fee
-	case chainadapter.FeeSpeedNormal:
-		multiplier = 2 // 2x base fee
-	case chainadapter.FeeSpeedSlow:
-		multiplier = 1 // 1x base fee + buffer
-	default:
-		multiplier = 2
-	}
+		gasPrice, err := e.rpcHelper.GetGasPrice(ctx)
+		if err != nil {
+			// Fallback to default gas price
+			gasPrice = big.NewInt(3e9) // 3 Gwei for BSC default
+			fmt.Fprintf(os.Stderr, "[ETH Build] Using fallback gasPrice: %s\n", gasPrice.String())
+		}
 
-	maxFeePerGas := new(big.Int).Mul(baseFee, big.NewInt(multiplier))
-	maxFeePerGas.Add(maxFeePerGas, priorityFee)
+		// Apply speed multiplier to gasPrice
+		// BSC gasPrice is typically stable, so multipliers are conservative
+		var multiplier int64
+		switch req.FeeSpeed {
+		case chainadapter.FeeSpeedFast:
+			multiplier = 120 // 1.2x for fast
+		case chainadapter.FeeSpeedNormal:
+			multiplier = 100 // 1.0x for normal
+		case chainadapter.FeeSpeedSlow:
+			multiplier = 80 // 0.8x for slow (may get stuck during congestion)
+		default:
+			multiplier = 100
+		}
 
-	maxPriorityFeePerGas := priorityFee
+		// For Legacy chains, set maxFeePerGas = maxPriorityFeePerGas = gasPrice * multiplier / 100
+		// This ensures the transaction uses legacy-style pricing
+		adjustedGasPrice := new(big.Int).Mul(gasPrice, big.NewInt(multiplier))
+		adjustedGasPrice.Div(adjustedGasPrice, big.NewInt(100))
 
-	// Adjust priority fee based on speed
-	if req.FeeSpeed == chainadapter.FeeSpeedFast {
-		maxPriorityFeePerGas = new(big.Int).Mul(priorityFee, big.NewInt(2))
+		// BSC minimum gas price is 1 Gwei
+		minGasPrice := big.NewInt(1e9)
+		if adjustedGasPrice.Cmp(minGasPrice) < 0 {
+			adjustedGasPrice = minGasPrice
+		}
+
+		maxFeePerGas = adjustedGasPrice
+		maxPriorityFeePerGas = adjustedGasPrice
+
+		fmt.Fprintf(os.Stderr, "[ETH Build] Legacy gasPrice: base=%s, adjusted=%s (speed=%s)\n",
+			gasPrice.String(), adjustedGasPrice.String(), req.FeeSpeed)
+
+	} else {
+		// EIP-1559 strategy: Use baseFee + priorityFee
+		fmt.Fprintf(os.Stderr, "[ETH Build] Using EIP-1559 strategy for chain %d\n", e.networkID)
+
+		baseFee, err := e.rpcHelper.GetBaseFee(ctx)
+		if err != nil {
+			// Fallback to default base fee
+			baseFee = big.NewInt(30e9) // 30 Gwei
+			fmt.Fprintf(os.Stderr, "[ETH Build] Using fallback baseFee: %s\n", baseFee.String())
+		}
+
+		priorityFee, err := e.rpcHelper.GetFeeHistory(ctx, 10)
+		if err != nil {
+			// Fallback to default priority fee
+			priorityFee = big.NewInt(2e9) // 2 Gwei
+			fmt.Fprintf(os.Stderr, "[ETH Build] Using fallback priorityFee: %s\n", priorityFee.String())
+		}
+
+		// Minimum priority fee (1 Gwei for most chains)
+		minPriorityFee := big.NewInt(1e9)
+		if priorityFee.Cmp(minPriorityFee) < 0 {
+			priorityFee = minPriorityFee
+		}
+
+		// Calculate maxFeePerGas based on FeeSpeed
+		// Using more conservative multipliers (like MetaMask):
+		// - Fast: baseFee * 1.5 + priorityFee * 1.5
+		// - Normal: baseFee * 1.25 + priorityFee
+		// - Slow: baseFee * 1.1 + priorityFee
+		var baseMult, priorityMult int64
+		switch req.FeeSpeed {
+		case chainadapter.FeeSpeedFast:
+			baseMult = 150   // 1.5x base fee
+			priorityMult = 150 // 1.5x priority fee
+		case chainadapter.FeeSpeedNormal:
+			baseMult = 125   // 1.25x base fee
+			priorityMult = 100 // 1x priority fee
+		case chainadapter.FeeSpeedSlow:
+			baseMult = 110   // 1.1x base fee
+			priorityMult = 100 // 1x priority fee
+		default:
+			baseMult = 125
+			priorityMult = 100
+		}
+
+		// maxFeePerGas = (baseFee * baseMult / 100) + (priorityFee * priorityMult / 100)
+		adjustedBaseFee := new(big.Int).Mul(baseFee, big.NewInt(baseMult))
+		adjustedBaseFee.Div(adjustedBaseFee, big.NewInt(100))
+
+		adjustedPriorityFee := new(big.Int).Mul(priorityFee, big.NewInt(priorityMult))
+		adjustedPriorityFee.Div(adjustedPriorityFee, big.NewInt(100))
+
+		maxFeePerGas = new(big.Int).Add(adjustedBaseFee, adjustedPriorityFee)
+		maxPriorityFeePerGas = adjustedPriorityFee
+
+		fmt.Fprintf(os.Stderr, "[ETH Build] EIP-1559: baseFee=%s, priorityFee=%s, maxFee=%s, maxPriority=%s\n",
+			baseFee.String(), priorityFee.String(), maxFeePerGas.String(), maxPriorityFeePerGas.String())
 	}
 
 	// EIP-1559 constraint: maxPriorityFeePerGas MUST NOT exceed maxFeePerGas
-	// This can happen on low-baseFee chains like BSC where baseFee ≈ 0
 	if maxPriorityFeePerGas.Cmp(maxFeePerGas) > 0 {
 		fmt.Fprintf(os.Stderr, "[ETH Build] Capping maxPriorityFeePerGas from %s to %s (must not exceed maxFeePerGas)\n",
 			maxPriorityFeePerGas.String(), maxFeePerGas.String())

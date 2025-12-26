@@ -217,6 +217,40 @@ func (r *RPCHelper) GetFeeHistory(ctx context.Context, blockCount int) (*big.Int
 	return avgPriorityFee, nil
 }
 
+// GetGasPrice retrieves the current gas price using eth_gasPrice (Legacy method).
+// This is used for chains that don't properly support EIP-1559 (e.g., BSC, Fantom).
+func (r *RPCHelper) GetGasPrice(ctx context.Context) (*big.Int, error) {
+	result, err := r.client.Call(ctx, "eth_gasPrice", nil)
+	if err != nil {
+		return nil, chainadapter.NewRetryableError(
+			chainadapter.ErrCodeRPCUnavailable,
+			"eth_gasPrice RPC failed",
+			nil,
+			err,
+		)
+	}
+
+	var gasPriceHex string
+	if err := json.Unmarshal(result, &gasPriceHex); err != nil {
+		return nil, chainadapter.NewNonRetryableError(
+			"ERR_RPC_PARSE",
+			"failed to parse gas price",
+			err,
+		)
+	}
+
+	gasPrice, err := hexutil.DecodeBig(gasPriceHex)
+	if err != nil {
+		return nil, chainadapter.NewNonRetryableError(
+			"ERR_RPC_PARSE",
+			"failed to decode gas price hex",
+			err,
+		)
+	}
+
+	return gasPrice, nil
+}
+
 // GetBlockNumber retrieves the current block number
 func (r *RPCHelper) GetBlockNumber(ctx context.Context) (uint64, error) {
 	result, err := r.client.Call(ctx, "eth_blockNumber", nil)

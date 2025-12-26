@@ -1019,7 +1019,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
             <div className="swap-summary-row">
               <span className="summary-label">Estimated Gas Fee</span>
               <span className="summary-value">
-                ~{swapTx.quote.gasCostETH} {fromToken.network === 'bsc' ? 'BNB' : 'ETH'}
+                ~{swapTx.quote.gasCostETH} {getNativeTokenSymbol(fromToken.network)}
               </span>
             </div>
             <div className="swap-summary-row">
