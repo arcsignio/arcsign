@@ -132,6 +132,7 @@ export const PROVIDER_TYPES = {
   INFURA: 'infura',
   QUICKNODE: 'quicknode',
   ONEINCH: '1inch',
+  NODEREAL: 'nodereal',
 } as const;
 
 /**

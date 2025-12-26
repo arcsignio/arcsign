@@ -284,8 +284,15 @@ var networkToRPCEndpoint = map[string]string{
 }
 
 // GetAssetTransfers queries transaction history for an address using Alchemy API
-// Supports Ethereum, Polygon, Arbitrum, Optimism, Base
+// Supports Ethereum, Polygon, Arbitrum, Optimism, Base, and BSC (via BSCTrace/NodeReal)
 func (c *AlchemyClient) GetAssetTransfers(address, network string, maxCount int, pageKey string) ([]AssetTransfer, string, error) {
+	// Special handling for BSC - use BSCTrace (NodeReal) API instead of Alchemy
+	// Note: BscScan API was deprecated on 2025/12/18, replaced by BSCTrace
+	if network == "bnb-mainnet" || network == NetworkBnbMainnet {
+		bscTraceClient := NewBSCTraceClient("")
+		return bscTraceClient.GetAssetTransfersBSC(address, maxCount, pageKey)
+	}
+
 	// Get RPC endpoint for network
 	baseURL, ok := networkToRPCEndpoint[network]
 	if !ok {
@@ -333,7 +340,7 @@ func (c *AlchemyClient) GetAssetTransfers(address, network string, maxCount int,
 	uniqueTransfers := deduplicateTransfers(allTransfers)
 
 	// Sort by block number (descending - newest first)
-	sortTransfersByBlock(uniqueTransfers)
+	SortTransfersByBlock(uniqueTransfers)
 
 	// Limit to maxCount
 	if len(uniqueTransfers) > maxCount {
@@ -427,8 +434,9 @@ func deduplicateTransfers(transfers []AssetTransfer) []AssetTransfer {
 	return result
 }
 
-// sortTransfersByBlock sorts transfers by block number (descending)
-func sortTransfersByBlock(transfers []AssetTransfer) {
+// SortTransfersByBlock sorts transfers by block number (descending)
+// Exported for use by other packages that need to merge and sort transfers
+func SortTransfersByBlock(transfers []AssetTransfer) {
 	// Simple bubble sort (good enough for small lists)
 	for i := 0; i < len(transfers); i++ {
 		for j := i + 1; j < len(transfers); j++ {

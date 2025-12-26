@@ -2419,18 +2419,63 @@ func GetAssetTransfers(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Query Alchemy Asset Transfers API
-	alchemyClient := provider.NewAlchemyClient(providerConfig.APIKey)
-
 	// Default max count
 	maxCount := input.MaxCount
 	if maxCount <= 0 {
 		maxCount = 50
 	}
 
-	transfers, pageKey, err := alchemyClient.GetAssetTransfers(input.Address, input.Network, maxCount, input.PageKey)
+	var transfers []provider.AssetTransfer
+	var pageKey string
+
+	// Step 1: Get transfers from Alchemy (supports ETH, Polygon, Arbitrum, Optimism, Base)
+	// Note: Alchemy doesn't support alchemy_getAssetTransfers for BSC
+	alchemyClient := provider.NewAlchemyClient(providerConfig.APIKey)
+	transfers, pageKey, err = alchemyClient.GetAssetTransfers(input.Address, input.Network, maxCount, input.PageKey)
 	if err != nil {
-		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Alchemy API error: %v", err))
+		// Log error but continue - we might still get BSC data
+		fmt.Printf("Alchemy API error (non-fatal): %v\n", err)
+	}
+
+	// Step 2: If user has BSCTrace API key configured, also fetch BSC history and merge
+	// This allows showing BSC transactions alongside other chains
+	nodeRealAPIKey := ""
+	nodeRealConfig, nodeRealErr := providerStore.Get("global", "nodereal")
+	if nodeRealErr == nil && nodeRealConfig != nil && nodeRealConfig.Enabled && nodeRealConfig.APIKey != "" {
+		nodeRealAPIKey = nodeRealConfig.APIKey
+	} else {
+		// Try bsctrace as alias
+		bscTraceConfig, bscTraceErr := providerStore.Get("global", "bsctrace")
+		if bscTraceErr == nil && bscTraceConfig != nil && bscTraceConfig.Enabled && bscTraceConfig.APIKey != "" {
+			nodeRealAPIKey = bscTraceConfig.APIKey
+		}
+	}
+
+	// If BSCTrace API key is available, fetch BSC history and merge
+	if nodeRealAPIKey != "" {
+		bscTraceClient := provider.NewBSCTraceClient(nodeRealAPIKey)
+		bscTransfers, bscPageKey, bscErr := bscTraceClient.GetAssetTransfersBSC(input.Address, maxCount, input.PageKey)
+		if bscErr != nil {
+			fmt.Printf("BSCTrace API error (non-fatal): %v\n", bscErr)
+		} else if len(bscTransfers) > 0 {
+			// Merge BSC transfers with Alchemy transfers
+			transfers = append(transfers, bscTransfers...)
+			// Sort combined results by block number (descending)
+			provider.SortTransfersByBlock(transfers)
+			// Limit to maxCount
+			if len(transfers) > maxCount {
+				transfers = transfers[:maxCount]
+			}
+			// Use BSC page key if Alchemy has none
+			if pageKey == "" && bscPageKey != "" {
+				pageKey = bscPageKey
+			}
+		}
+	}
+
+	// If no transfers at all and we had errors, return the error
+	if len(transfers) == 0 && err != nil {
+		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("API error: %v", err))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}

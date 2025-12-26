@@ -18,7 +18,7 @@ interface TransactionHistoryProps {
 }
 
 // Supported EVM chains for display
-const SUPPORTED_EVM_CHAINS = "Ethereum, Polygon, Arbitrum, Optimism, Base";
+const SUPPORTED_EVM_CHAINS = "Ethereum, Polygon, Arbitrum, Optimism, Base, BSC";
 
 // Category display names and colors
 const CATEGORY_STYLES: Record<string, { label: string; color: string }> = {

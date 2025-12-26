@@ -352,6 +352,12 @@ func ValidateAPIKey(config *ProviderConfig) error {
 		if config.CustomEndpoint == "" {
 			return fmt.Errorf("QuickNode requires custom_endpoint")
 		}
+	case "nodereal", "bsctrace":
+		// NodeReal/BSCTrace API keys are typically 32 characters hex
+		// Get free API key at https://dashboard.nodereal.io
+		if len(config.APIKey) < 20 {
+			return fmt.Errorf("NodeReal API key appears too short (get one at https://dashboard.nodereal.io)")
+		}
 	}
 
 	return nil

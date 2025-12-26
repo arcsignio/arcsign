@@ -164,6 +164,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
               required
             >
               <option value={PROVIDER_TYPES.ALCHEMY}>Alchemy</option>
+              <option value={PROVIDER_TYPES.NODEREAL}>NodeReal</option>
               <option value={PROVIDER_TYPES.INFURA}>Infura (Coming Soon)</option>
               <option value={PROVIDER_TYPES.QUICKNODE}>
                 QuickNode (Coming Soon)
@@ -171,9 +172,13 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
               <option value={PROVIDER_TYPES.ONEINCH}>1inch (DEX Swap)</option>
             </select>
             <small className="form-hint">
-              {formData.providerType === PROVIDER_TYPES.ONEINCH
-                ? 'Required for token swap functionality'
-                : 'This API key will be used for all supported blockchains'}
+              {formData.providerType === PROVIDER_TYPES.ALCHEMY
+                ? 'Blockchain API provider for ETH, Polygon, Arbitrum, Optimism, Base. Get free API key at alchemy.com'
+                : formData.providerType === PROVIDER_TYPES.NODEREAL
+                ? 'Blockchain API provider for BSC. Get free API key at dashboard.nodereal.io'
+                : formData.providerType === PROVIDER_TYPES.ONEINCH
+                ? 'DEX aggregator for token swaps. Get API key at portal.1inch.dev'
+                : 'API key for this provider'}
             </small>
           </div>
 
