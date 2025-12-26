@@ -491,28 +491,33 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     setError(null);
 
     try {
-      console.log("✍️ Signing swap transaction...");
+      console.log("🔨 Building swap transaction...");
 
-      // Build unsigned tx format for signing
-      const unsignedTx = {
-        id: `swap-${Date.now()}`,
+      // Step 1: Build transaction using the swap data from OpenOcean
+      // The buildTransaction call calculates the correct signingPayload (tx hash)
+      // Note: OpenOcean provides gas estimates but backend will recalculate for safety
+      const buildResult = await tauriApi.buildTransaction({
         chainId,
         from: fromToken.fromAddress,
         to: swapTx.txData.to,
-        amount: swapTx.txData.value,
-        fee: String(swapTx.txData.gas),
-        signingPayload: swapTx.txData.data,
-        humanReadable: JSON.stringify(swapTx),
-        buildTimestamp: new Date().toISOString(),
-      };
+        amount: swapTx.txData.value || "0",
+        data: swapTx.txData.data || "",
+        feeSpeed: "fast", // Use fast for swap tx to ensure they go through
+        usbPath,
+        appPassword,
+      });
 
+      console.log("✅ Build result:", buildResult);
+      console.log("✍️ Signing swap transaction...");
+
+      // Step 2: Sign transaction with the proper unsigned tx from buildTransaction
       const signResult = await tauriApi.signTransaction({
         chainId,
         walletId,
         password: walletPassword,
         passphrase: preValidatedPassphrase || "",
         fromAddress: fromToken.fromAddress,
-        unsignedTx,
+        unsignedTx: buildResult,
         usbPath,
         appPassword,
       });
