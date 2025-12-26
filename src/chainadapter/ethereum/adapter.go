@@ -64,12 +64,39 @@ func extractRevertReason(errMsg string) string {
 	return ""
 }
 
+// networkIDToChainID maps EVM network IDs to chainID strings used by frontend.
+// This ensures consistency between frontend chainId and backend adapter chainID.
+func networkIDToChainID(networkID int64) string {
+	switch networkID {
+	case 1:
+		return "ethereum"
+	case 5:
+		return "ethereum-goerli"
+	case 11155111:
+		return "ethereum-sepolia"
+	case 56:
+		return "bnb" // BSC Mainnet - frontend uses "bnb"
+	case 97:
+		return "bnb-testnet" // BSC Testnet
+	case 137:
+		return "polygon" // Polygon Mainnet
+	case 42161:
+		return "arbitrum" // Arbitrum One
+	case 10:
+		return "optimism" // Optimism
+	case 8453:
+		return "base" // Base
+	default:
+		return "ethereum" // Default fallback
+	}
+}
+
 // EthereumAdapter implements ChainAdapter for Ethereum blockchain.
 type EthereumAdapter struct {
 	rpcClient    rpc.RPCClient
 	txStore      storage.TransactionStateStore
-	chainID      string   // "ethereum", "ethereum-goerli", "ethereum-sepolia"
-	networkID    int64    // Network ID (1 for mainnet, 5 for goerli, etc.)
+	chainID      string   // Chain identifier (e.g., "ethereum", "bnb", "polygon")
+	networkID    int64    // Network ID (1 for mainnet, 56 for BSC, etc.)
 	builder      *TransactionBuilder
 	rpcHelper    *RPCHelper
 	feeEstimator *FeeEstimator
@@ -84,12 +111,8 @@ type EthereumAdapter struct {
 // - networkID: Ethereum network ID (1 for mainnet, 5 for goerli, 11155111 for sepolia)
 // - metricsRecorder: Optional metrics recorder (pass nil to disable metrics)
 func NewEthereumAdapter(rpcClient rpc.RPCClient, txStore storage.TransactionStateStore, networkID int64, metricsRecorder metrics.ChainMetrics) (*EthereumAdapter, error) {
-	chainID := "ethereum"
-	if networkID == 5 {
-		chainID = "ethereum-goerli"
-	} else if networkID == 11155111 {
-		chainID = "ethereum-sepolia"
-	}
+	// Map networkID to chainID string that frontend uses
+	chainID := networkIDToChainID(networkID)
 
 	// Wrap RPC client with metrics if recorder provided
 	if metricsRecorder != nil {
