@@ -131,11 +131,11 @@ func (c *BSCTraceClient) GetAssetTransfersBSC(address string, maxCount int, page
 	var allTransfers []AssetTransfer
 
 	// Query incoming transfers (to address)
+	// Note: Don't specify FromBlock/ToBlock - let API use defaults to avoid
+	// "from must be less than to" error with 0x0 and latest
 	inParams := assetTransfersParams{
 		Category:         []string{"external", "internal", "20", "721", "1155"},
 		ToAddress:        address,
-		FromBlock:        "0x0",
-		ToBlock:          "latest",
 		Order:            "desc",
 		MaxCount:         fmt.Sprintf("0x%x", maxCount),
 		ExcludeZeroValue: true,
@@ -157,8 +157,6 @@ func (c *BSCTraceClient) GetAssetTransfersBSC(address string, maxCount int, page
 	outParams := assetTransfersParams{
 		Category:         []string{"external", "internal", "20", "721", "1155"},
 		FromAddress:      address,
-		FromBlock:        "0x0",
-		ToBlock:          "latest",
 		Order:            "desc",
 		MaxCount:         fmt.Sprintf("0x%x", maxCount),
 		ExcludeZeroValue: true,
