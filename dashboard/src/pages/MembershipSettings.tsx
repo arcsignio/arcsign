@@ -3,19 +3,23 @@
  * Feature: ArcSign Pro NFT Membership System
  *
  * Allows users to:
- * 1. Select a primary BSC address for membership verification
- * 2. View current membership status (Free/Pro)
- * 3. Check membership validity and expiration
- * 4. Mint Pro NFT directly (integrated, no WebSocket needed)
+ * 1. View aggregated membership status across ALL BSC addresses
+ * 2. See NFT breakdown by address
+ * 3. Mint Pro NFT directly (integrated, no WebSocket needed)
+ *
+ * Wallet limit formula: 5 + (totalNftCount * 5)
+ * - Free (0 NFT): 5 wallets
+ * - 1 NFT: 10 wallets
+ * - 2 NFTs: 15 wallets, etc.
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
-import { useDashboardStore, useMembershipStatus, usePrimaryMembershipAddress } from '@/stores/dashboardStore';
+import { useDashboardStore, useMembershipStatus } from '@/stores/dashboardStore';
 import tauriApi, {
   type BuildTransactionResponse,
   type SignTransactionResponse,
   type QueryTransactionStatusResponse,
+  type AggregatedMembershipStatus,
 } from '@/services/tauri-api';
 
 interface MembershipSettingsProps {
@@ -29,15 +33,6 @@ interface BscAddress {
   walletName: string;
   address: string;
   hasPassphrase?: boolean;
-}
-
-interface MembershipCheckResult {
-  isPro: boolean;
-  nftCount: number;
-  tokenIds: number[];
-  expirations: number[];
-  daysRemaining: number;
-  walletLimit: number | null;
 }
 
 // Contract addresses - same as mint-page config
@@ -115,7 +110,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Mint state
+  // Mint state - for minting from a selected address
   const [mintStep, setMintStep] = useState<MintStep>('idle');
   const [mintError, setMintError] = useState<string | null>(null);
   const [walletPassword, setWalletPassword] = useState('');
@@ -124,40 +119,32 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   const [txHash, setTxHash] = useState<string | null>(null);
   const [approveTxHash, setApproveTxHash] = useState<string | null>(null);
   const [confirmationProgress, setConfirmationProgress] = useState<string>('');
+  // Selected address for minting (temporary, not persisted)
+  const [selectedMintAddress, setSelectedMintAddress] = useState<string | null>(null);
 
   const membership = useMembershipStatus();
-  const primaryAddress = usePrimaryMembershipAddress();
   const { wallets, setMembership } = useDashboardStore();
 
-  // Get selected wallet info
+  // Get selected wallet info for minting
   const getSelectedWallet = useCallback(() => {
-    if (!primaryAddress) return null;
-    return bscAddresses.find(addr => addr.address === primaryAddress) || null;
-  }, [primaryAddress, bscAddresses]);
+    if (!selectedMintAddress) return null;
+    return bscAddresses.find(addr => addr.address === selectedMintAddress) || null;
+  }, [selectedMintAddress, bscAddresses]);
 
-  // Load all BSC addresses from all wallets on mount
-  // Addresses are now included in wallet data (public, no password needed)
+  // Load all BSC addresses and check membership on mount
   useEffect(() => {
-    loadBscAddresses();
+    loadBscAddressesAndCheckMembership();
   }, [wallets]);
 
-  // Auto-check membership when primary address is set
-  useEffect(() => {
-    if (primaryAddress) {
-      checkMembership(primaryAddress);
-    }
-  }, [primaryAddress]);
-
-  const loadBscAddresses = () => {
+  const loadBscAddressesAndCheckMembership = async () => {
     setIsLoading(true);
     setError(null);
     const addresses: BscAddress[] = [];
 
     try {
-      // Addresses are now included in wallet list (public data from AddressBook)
+      // Extract all BSC addresses from all wallets
       for (const wallet of wallets) {
         if (wallet.addresses) {
-          // Find BSC address (BNB symbol with EVM key type)
           const bscAddr = wallet.addresses.find(
             (addr) => addr.symbol === 'BNB' || addr.symbol === 'BSC'
           );
@@ -173,6 +160,11 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       }
 
       setBscAddresses(addresses);
+
+      // Auto-check membership across ALL addresses
+      if (addresses.length > 0) {
+        await checkAllMemberships(addresses.map(a => a.address));
+      }
     } catch (err) {
       console.error('Failed to load BSC addresses:', err);
       setError('Failed to load wallet addresses');
@@ -181,24 +173,24 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
     }
   };
 
-  const checkMembership = async (address: string) => {
+  // Check membership across ALL BSC addresses
+  const checkAllMemberships = async (addresses: string[]) => {
     setIsChecking(true);
     setError(null);
 
     try {
-      const result = await invoke<MembershipCheckResult>('check_membership', {
-        input: { address },
-      });
+      const result: AggregatedMembershipStatus = await tauriApi.checkAllMemberships(addresses);
 
       setMembership({
         isPro: result.isPro,
-        membershipAddress: address,
+        nftCount: result.totalNftCount,
         daysRemaining: result.daysRemaining,
         walletLimit: result.walletLimit,
+        addressNftCounts: result.addressNftCounts,
       });
 
       if (result.isPro) {
-        setSuccessMessage('Pro membership verified!');
+        setSuccessMessage(`Pro membership verified! Total NFTs: ${result.totalNftCount}`);
         setTimeout(() => setSuccessMessage(null), 3000);
       }
     } catch (err) {
@@ -209,14 +201,9 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
     }
   };
 
-  const handleSelectAddress = async (address: string) => {
-    setMembership({ primaryMembershipAddress: address });
-    await checkMembership(address);
-  };
-
   const handleRefresh = () => {
-    if (primaryAddress) {
-      checkMembership(primaryAddress);
+    if (bscAddresses.length > 0) {
+      checkAllMemberships(bscAddresses.map(a => a.address));
     }
   };
 
@@ -286,8 +273,8 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
     description: string
   ): Promise<{ success: boolean; txHash?: string; error?: string }> => {
     const selectedWallet = getSelectedWallet();
-    if (!selectedWallet || !primaryAddress) {
-      return { success: false, error: 'No wallet selected' };
+    if (!selectedWallet || !selectedMintAddress) {
+      return { success: false, error: 'No wallet selected for minting' };
     }
 
     try {
@@ -296,7 +283,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       // Step 1: Build transaction
       const buildResult: BuildTransactionResponse = await tauriApi.buildTransaction({
         chainId: CHAIN_ID,
-        from: primaryAddress,
+        from: selectedMintAddress,
         to: to,
         amount: '0', // No native token value for ERC-20 calls
         data: data,
@@ -313,7 +300,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         walletId: selectedWallet.walletId,
         password: walletPassword,
         passphrase: '', // TODO: Support passphrase if wallet uses it
-        fromAddress: primaryAddress,
+        fromAddress: selectedMintAddress,
         unsignedTx: buildResult,
         usbPath,
         appPassword,
@@ -350,12 +337,9 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
     }
   };
 
-  // Start the upgrade/mint process
-  const handleUpgrade = () => {
-    if (!primaryAddress) {
-      setMintError('Please select a BSC address first');
-      return;
-    }
+  // Start the upgrade/mint process - requires selecting an address first
+  const handleUpgrade = (address: string) => {
+    setSelectedMintAddress(address);
     setMintStep('approve');
     setMintError(null);
     setTxHash(null);
@@ -435,8 +419,8 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       setTxHash(result.txHash || null);
       setMintStep('success');
       // Refresh membership status after successful mint
-      if (primaryAddress) {
-        setTimeout(() => checkMembership(primaryAddress), 2000);
+      if (bscAddresses.length > 0) {
+        setTimeout(() => checkAllMemberships(bscAddresses.map(a => a.address)), 2000);
       }
     } else {
       setMintError(result.error || 'Mint failed');
@@ -469,7 +453,8 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       <header className="page-header">
         <h1>Membership</h1>
         <p className="page-description">
-          Select your primary BSC address for Pro membership verification
+          Your Pro membership is calculated from NFTs across all your BSC addresses.
+          Each NFT adds 5 wallets to your limit.
         </p>
       </header>
 
@@ -483,7 +468,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
           <h2>Current Status</h2>
           <button
             onClick={handleRefresh}
-            disabled={isChecking || !primaryAddress}
+            disabled={isChecking || bscAddresses.length === 0}
             className="refresh-btn"
           >
             {isChecking ? '...' : '↻ Refresh'}
@@ -495,62 +480,58 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
             {membership.isPro ? '⭐ Pro Member' : 'Free Tier'}
           </div>
 
-          {primaryAddress ? (
-            <div className="status-details">
-              <div className="detail-row">
-                <span className="label">Verification Address</span>
-                <span className="value">{formatAddress(primaryAddress)}</span>
-              </div>
-              {membership.isPro ? (
-                <>
-                  <div className="detail-row">
-                    <span className="label">Status</span>
-                    <span className="value status-active">Active</span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="label">NFTs Owned</span>
-                    <span className="value">{membership.nftCount ?? 1}</span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="label">Expires in</span>
-                    <span className="value">
-                      {membership.daysRemaining > 0
-                        ? `${membership.daysRemaining} days`
-                        : 'Expired'}
-                    </span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="label">Wallet Limit</span>
-                    <span className="value">{membership.walletLimit ?? 10} wallets</span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="label">Current Usage</span>
-                    <span className="value">{wallets.length} / {membership.walletLimit ?? 10}</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="detail-row">
-                    <span className="label">Wallet Limit</span>
-                    <span className="value">{membership.walletLimit ?? 5} wallets</span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="label">Current Usage</span>
-                    <span className="value">{wallets.length} / {membership.walletLimit ?? 5}</span>
-                  </div>
-                </>
-              )}
+          <div className="status-details">
+            <div className="detail-row">
+              <span className="label">Total NFTs Owned</span>
+              <span className="value">{membership.nftCount}</span>
             </div>
-          ) : (
-            <p className="no-address-hint">
-              Select a BSC address below to check your membership status
-            </p>
+            <div className="detail-row">
+              <span className="label">Wallet Limit</span>
+              <span className="value">{membership.walletLimit} wallets</span>
+            </div>
+            <div className="detail-row">
+              <span className="label">Current Usage</span>
+              <span className="value">{wallets.length} / {membership.walletLimit}</span>
+            </div>
+            {membership.isPro && (
+              <div className="detail-row">
+                <span className="label">Status</span>
+                <span className="value status-active">Active</span>
+              </div>
+            )}
+          </div>
+
+          {/* NFT breakdown by address */}
+          {membership.addressNftCounts && membership.addressNftCounts.length > 0 && (
+            <div className="nft-breakdown">
+              <h4>NFT Breakdown by Address</h4>
+              {membership.addressNftCounts.map((item) => (
+                <div key={item.address} className="breakdown-row">
+                  <span className="breakdown-address">{formatAddress(item.address)}</span>
+                  <span className="breakdown-count">{item.nftCount} NFT{item.nftCount !== 1 ? 's' : ''}</span>
+                </div>
+              ))}
+            </div>
           )}
 
-          {!membership.isPro && mintStep === 'idle' && (
-            <button onClick={handleUpgrade} className="upgrade-btn" disabled={!primaryAddress}>
-              Upgrade to Pro - 30 USDT/year
-            </button>
+          {/* Show upgrade options if not Pro */}
+          {!membership.isPro && mintStep === 'idle' && bscAddresses.length > 0 && (
+            <div className="upgrade-section">
+              <p className="upgrade-hint">Select an address to mint a Pro NFT:</p>
+              <div className="mint-address-list">
+                {bscAddresses.map((item) => (
+                  <button
+                    key={item.address}
+                    className="mint-address-btn"
+                    onClick={() => handleUpgrade(item.address)}
+                  >
+                    <span className="wallet-name">{item.walletName}</span>
+                    <span className="address">{formatAddress(item.address)}</span>
+                    <span className="mint-label">Mint NFT →</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Mint Flow UI */}
@@ -711,41 +692,19 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         </div>
       )}
 
-      {/* Address Selection */}
-      <section className="address-section">
-        <h2>Select Primary Address</h2>
-        <p className="section-description">
-          Choose which BSC address to use for membership verification.
-          This should be the address where you minted your Pro NFT.
-        </p>
-
-        {isLoading ? (
+      {/* Your BSC Addresses */}
+      {isLoading ? (
+        <section className="address-section">
           <div className="loading">Loading addresses...</div>
-        ) : bscAddresses.length === 0 ? (
+        </section>
+      ) : bscAddresses.length === 0 ? (
+        <section className="address-section">
           <div className="no-addresses">
             <p>No BSC addresses found.</p>
             <p className="hint">Create a wallet first to get your BSC address.</p>
           </div>
-        ) : (
-          <div className="address-list">
-            {bscAddresses.map((item) => (
-              <button
-                key={item.address}
-                className={`address-item ${primaryAddress === item.address ? 'selected' : ''}`}
-                onClick={() => handleSelectAddress(item.address)}
-              >
-                <div className="address-info">
-                  <span className="wallet-name">{item.walletName}</span>
-                  <span className="address">{formatAddress(item.address)}</span>
-                </div>
-                {primaryAddress === item.address && (
-                  <span className="selected-indicator">✓ Selected</span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
+        </section>
+      ) : null}
 
       {/* Pro Benefits */}
       <section className="benefits-section">
@@ -928,6 +887,93 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
 
         .status-active {
           color: #10b981 !important;
+        }
+
+        /* NFT Breakdown */
+        .nft-breakdown {
+          margin-top: 16px;
+          padding-top: 16px;
+          border-top: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .nft-breakdown h4 {
+          margin: 0 0 12px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #374151;
+        }
+
+        .breakdown-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 6px 0;
+          font-size: 13px;
+        }
+
+        .breakdown-address {
+          font-family: monospace;
+          color: #6b7280;
+        }
+
+        .breakdown-count {
+          font-weight: 500;
+          color: #f0b90b;
+        }
+
+        /* Upgrade Section */
+        .upgrade-section {
+          margin-top: 20px;
+          padding-top: 16px;
+          border-top: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .upgrade-hint {
+          margin: 0 0 12px;
+          font-size: 14px;
+          color: #374151;
+        }
+
+        .mint-address-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .mint-address-btn {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 16px;
+          background: white;
+          border: 2px solid #e5e7eb;
+          border-radius: 10px;
+          cursor: pointer;
+          text-align: left;
+          width: 100%;
+          transition: all 0.2s;
+        }
+
+        .mint-address-btn:hover {
+          border-color: #f0b90b;
+          background: #fffbeb;
+        }
+
+        .mint-address-btn .wallet-name {
+          font-weight: 600;
+          color: #111827;
+        }
+
+        .mint-address-btn .address {
+          font-family: monospace;
+          font-size: 12px;
+          color: #6b7280;
+        }
+
+        .mint-address-btn .mint-label {
+          color: #f0b90b;
+          font-weight: 500;
+          font-size: 13px;
         }
 
         .no-address-hint {

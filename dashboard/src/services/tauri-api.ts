@@ -1088,6 +1088,33 @@ export const tauriApi = {
   getPendingTransaction,
   respondToTransaction,
   cancelPendingTransaction,
+
+  // Membership (NFT verification)
+  checkAllMemberships,
 };
+
+/**
+ * Aggregated membership status response
+ */
+export interface AggregatedMembershipStatus {
+  totalNftCount: number;
+  isPro: boolean;
+  daysRemaining: number;
+  walletLimit: number;
+  addressNftCounts: { address: string; nftCount: number }[];
+}
+
+/**
+ * Check membership NFT count across ALL BSC addresses
+ */
+export async function checkAllMemberships(addresses: string[]): Promise<AggregatedMembershipStatus> {
+  try {
+    return await invoke<AggregatedMembershipStatus>("check_all_memberships", {
+      input: { addresses },
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
 
 export default tauriApi;

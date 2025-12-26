@@ -12,20 +12,20 @@ import { Category } from '@/types/address';
 
 /**
  * Membership status for Pro tier verification
+ * NFT count is aggregated across ALL BSC addresses in all wallets
+ * Wallet limit formula: 5 + (totalNftCount * 5)
  */
 interface MembershipState {
-  /** Whether user is a Pro member */
+  /** Whether user is a Pro member (owns at least 1 NFT) */
   isPro: boolean;
-  /** Number of NFTs owned */
+  /** Total NFTs owned across all BSC addresses */
   nftCount: number;
-  /** BSC address used for membership check */
-  membershipAddress: string | null;
-  /** User-selected primary BSC address for membership verification (persisted) */
-  primaryMembershipAddress: string | null;
   /** Days remaining until membership expires */
   daysRemaining: number;
   /** Wallet creation limit: 5 + (nftCount * 5) */
-  walletLimit: number | null;
+  walletLimit: number;
+  /** NFT count breakdown by address */
+  addressNftCounts: { address: string; nftCount: number }[];
 }
 
 /**
@@ -115,10 +115,9 @@ interface DashboardState {
 const initialMembership: MembershipState = {
   isPro: false,
   nftCount: 0,
-  membershipAddress: null,
-  primaryMembershipAddress: null,
   daysRemaining: 0,
   walletLimit: 5, // Free tier default: 5 + (0 * 5) = 5
+  addressNftCounts: [],
 };
 
 const initialState = {
@@ -205,10 +204,7 @@ export const useDashboardStore = create<DashboardState>()(
         filter: state.filter,
         searchQuery: state.searchQuery,
         usbPath: state.usbPath,
-        // Persist primary membership address selection
-        membership: {
-          primaryMembershipAddress: state.membership.primaryMembershipAddress,
-        },
+        // Membership is now calculated from all wallets, no need to persist address selection
       }),
     }
   )
@@ -309,6 +305,6 @@ export const useWalletLimitInfo = () =>
     canCreate: state.canCreateWallet(),
   }));
 
-/** Get primary membership address */
-export const usePrimaryMembershipAddress = () =>
-  useDashboardStore((state) => state.membership.primaryMembershipAddress);
+/** Get NFT count breakdown by address */
+export const useAddressNftCounts = () =>
+  useDashboardStore((state) => state.membership.addressNftCounts);

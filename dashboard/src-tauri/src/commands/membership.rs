@@ -41,12 +41,44 @@ pub struct MembershipStatus {
     pub wallet_limit: Option<u64>,
 }
 
-/// Check membership input
+/// Check membership input (single address)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckMembershipInput {
     /// BSC wallet address to check
     pub address: String,
+}
+
+/// Check membership input (multiple addresses)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckAllMembershipsInput {
+    /// List of BSC wallet addresses to check
+    pub addresses: Vec<String>,
+}
+
+/// Aggregated membership status for all wallets
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AggregatedMembershipStatus {
+    /// Total NFTs owned across all addresses
+    pub total_nft_count: u64,
+    /// Whether any address has Pro membership
+    pub is_pro: bool,
+    /// Days until earliest expiration (0 if no NFT)
+    pub days_remaining: u64,
+    /// Wallet limit based on total NFTs: 5 + (total_nft_count * 5)
+    pub wallet_limit: u64,
+    /// Individual address NFT counts
+    pub address_nft_counts: Vec<AddressNftCount>,
+}
+
+/// NFT count for a single address
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddressNftCount {
+    pub address: String,
+    pub nft_count: u64,
 }
 
 /// JSON-RPC request structure
@@ -247,6 +279,116 @@ pub async fn check_membership(
         expirations: vec![],
         days_remaining,
         wallet_limit: Some(wallet_limit), // Always has a limit now
+    })
+}
+
+/// Get NFT balance for a single address (internal helper)
+async fn get_nft_balance(client: &reqwest::Client, address: &str) -> Result<u64, Error> {
+    let balance_request = JsonRpcRequest {
+        jsonrpc: "2.0",
+        method: "eth_call",
+        params: vec![
+            create_balance_of_call(ARCSIGN_PRO_CONTRACT, address),
+            serde_json::json!("latest"),
+        ],
+        id: 1,
+    };
+
+    let response = client
+        .post(BSC_RPC_URL)
+        .json(&balance_request)
+        .send()
+        .await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::NetworkError,
+            format!("Failed to query BSC: {}", e),
+        ))?;
+
+    let rpc_response: JsonRpcResponse = response
+        .json()
+        .await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::SerializationError,
+            format!("Failed to parse RPC response: {}", e),
+        ))?;
+
+    if let Some(error) = rpc_response.error {
+        return Err(Error::new(
+            crate::error::ErrorCode::ContractError,
+            format!("Contract call failed: {}", error.message),
+        ));
+    }
+
+    Ok(rpc_response
+        .result
+        .as_ref()
+        .map(|r| parse_uint256_result(r))
+        .unwrap_or(0))
+}
+
+/// Check membership across ALL BSC addresses (Tauri command)
+/// Returns aggregated NFT count and wallet limit
+#[tauri::command]
+pub async fn check_all_memberships(
+    input: CheckAllMembershipsInput,
+) -> Result<AggregatedMembershipStatus, Error> {
+    tracing::info!("check_all_memberships: {} addresses", input.addresses.len());
+
+    // Create HTTP client with timeout
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::NetworkError,
+            format!("Failed to create HTTP client: {}", e),
+        ))?;
+
+    let mut total_nft_count = 0u64;
+    let mut address_nft_counts = Vec::new();
+
+    // Check each address
+    for address in &input.addresses {
+        // Validate address format
+        if !address.starts_with("0x") || address.len() != 42 {
+            tracing::warn!("Skipping invalid address: {}", address);
+            continue;
+        }
+
+        match get_nft_balance(&client, address).await {
+            Ok(nft_count) => {
+                tracing::info!("Address {} has {} NFTs", address, nft_count);
+                total_nft_count += nft_count;
+                address_nft_counts.push(AddressNftCount {
+                    address: address.clone(),
+                    nft_count,
+                });
+            }
+            Err(e) => {
+                tracing::warn!("Failed to check address {}: {}", address, e);
+                // Continue checking other addresses
+                address_nft_counts.push(AddressNftCount {
+                    address: address.clone(),
+                    nft_count: 0,
+                });
+            }
+        }
+    }
+
+    let is_pro = total_nft_count > 0;
+    let days_remaining = if is_pro { 365u64 } else { 0u64 };
+    let wallet_limit = 5 + (total_nft_count * 5);
+
+    tracing::info!(
+        "Aggregated membership: total_nft_count={}, is_pro={}, wallet_limit={}",
+        total_nft_count, is_pro, wallet_limit
+    );
+
+    Ok(AggregatedMembershipStatus {
+        total_nft_count,
+        is_pro,
+        days_remaining,
+        wallet_limit,
+        address_nft_counts,
     })
 }
 

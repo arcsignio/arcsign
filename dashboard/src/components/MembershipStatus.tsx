@@ -48,9 +48,10 @@ export function MembershipStatus({ bscAddress, compact = false }: MembershipStat
 
       setMembership({
         isPro: result.isPro,
-        membershipAddress: address,
+        nftCount: result.nftCount,
         daysRemaining: result.daysRemaining,
-        walletLimit: result.walletLimit,
+        walletLimit: result.walletLimit ?? 5,
+        addressNftCounts: [],
       });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to check membership';
@@ -141,11 +142,11 @@ export function MembershipStatus({ bscAddress, compact = false }: MembershipStat
             <>
               <div style={styles.detailRow}>
                 <span style={styles.detailLabel}>Wallet Limit</span>
-                <span style={styles.detailValue}>{membership.walletLimit ?? 5} wallets</span>
+                <span style={styles.detailValue}>{membership.walletLimit} wallets</span>
               </div>
               <div style={styles.detailRow}>
                 <span style={styles.detailLabel}>Current Usage</span>
-                <span style={styles.detailValue}>{wallets.length} / {membership.walletLimit ?? 5}</span>
+                <span style={styles.detailValue}>{wallets.length} / {membership.walletLimit}</span>
               </div>
             </>
           )}
