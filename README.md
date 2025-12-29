@@ -2,7 +2,7 @@
 
 **Secure Hierarchical Deterministic (HD) Wallet with USB-Only Storage**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)]()
 [![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org/dl/)
 [![Tests](https://img.shields.io/badge/tests-72%20passing-brightgreen.svg)]()
 [![Version](https://img.shields.io/badge/version-0.4.2-blue.svg)]()
@@ -1802,55 +1802,52 @@ addresses/:     0700 (僅所有者訪問)
 
 ---
 
-## 貢獻
-
-歡迎貢獻! 在提交PR之前請閱讀我們的貢獻指南。
+## 技術支援
 
 ### 報告問題
 
-- 安全漏洞: security@example.com
-- Bug報告: GitHub Issues
-- 功能請求: GitHub Issues
+- 安全漏洞: security@arcsign.io
+- 技術支援: support@arcsign.io
+- 功能建議: feedback@arcsign.io
 
-### 開發
+### 開發技術
 
 - 語言: Go 1.21+ (共享庫), Rust 1.75+ (Tauri), TypeScript 5.0+ (前端)
-- 測試: `go test ./tests/... -v`, `cd src/chainadapter && make test-unit`
+- 測試: 72+ 單元測試覆蓋核心功能
 - 代碼風格: `gofmt`, `golint`
 
 ---
 
 ## 許可證
 
-本項目根據MIT許可證授權 - 有關詳細信息, 請參閱 [LICENSE](LICENSE) 文件。
+本軟體為專有軟體 (Proprietary Software)。未經授權不得複製、修改或分發。
 
 ---
 
 ## 安全披露
 
-如果您發現安全漏洞, 請發送電子郵件至 security@example.com。請勿打開公開issue。
+如果您發現安全漏洞, 請發送電子郵件至 security@arcsign.io。請勿公開披露。
 
 ---
 
 ## 致謝
 
-### 開源庫
+### 第三方函式庫
 
-- [tyler-smith/go-bip39](https://github.com/tyler-smith/go-bip39) - BIP39實現
-- [btcsuite/btcd](https://github.com/btcsuite/btcd) - Bitcoin庫
-- [ethereum/go-ethereum](https://github.com/ethereum/go-ethereum) - Ethereum庫
-- [golang/crypto](https://golang.org/x/crypto) - 加密原語
+- go-bip39 - BIP39 助記詞實現
+- btcsuite/btcd - Bitcoin 協議庫
+- go-ethereum - Ethereum 協議庫
+- golang/crypto - 加密原語
 
-### 標準
+### 遵循標準
 
-- Bitcoin改進提案 (BIPs)
-- OWASP密碼存儲備忘單
-- NIST加密標準
+- Bitcoin 改進提案 (BIPs)
+- OWASP 密碼存儲備忘單
+- NIST 加密標準
 
-### 社區
+### 感謝
 
-- Bitcoin和Ethereum開發者社區
-- 開源貢獻者
+- Bitcoin 和 Ethereum 開發者社區
 - 安全研究人員
 
 ---
@@ -1874,5 +1871,5 @@ addresses/:     0700 (僅所有者訪問)
 **Go Version**: 1.25.0
 **Rust Version**: 1.75+
 **Node Version**: 18+
-**License**: MIT
-**Repository**: <https://github.com/yourusername/arcsign>
+**License**: Proprietary
+**Website**: https://arcsign.io
