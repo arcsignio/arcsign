@@ -85,6 +85,8 @@ pub struct GetSwapApprovalInput {
     pub chain_id: String,
     /// Token contract address to approve
     pub token_address: String,
+    /// DEX router address (spender) - from quote.approvalAddress
+    pub spender_address: String,
     /// Amount to approve (empty for unlimited)
     #[serde(default)]
     pub amount: String,
@@ -213,8 +215,9 @@ pub async fn get_swap_approval(
 ) -> Result<serde_json::Value, String> {
     let start = Instant::now();
     tracing::info!(
-        "[swap::get_swap_approval] Getting approval tx for {} on {}",
+        "[swap::get_swap_approval] Building approval tx for {} to spender {} on {}",
         input.token_address,
+        input.spender_address,
         input.chain_id
     );
 
@@ -222,6 +225,7 @@ pub async fn get_swap_approval(
     let ffi_params = json!({
         "chainId": input.chain_id,
         "tokenAddress": input.token_address,
+        "spenderAddress": input.spender_address,
         "amount": input.amount,
         "usbPath": input.usb_path,
         "appPassword": app_password
@@ -232,7 +236,7 @@ pub async fn get_swap_approval(
     let result = queue.get_swap_approval(ffi_params.to_string()).await?;
 
     tracing::info!(
-        "[swap::get_swap_approval] Approval tx retrieved in {:?}",
+        "[swap::get_swap_approval] Approval tx built in {:?}",
         start.elapsed()
     );
 

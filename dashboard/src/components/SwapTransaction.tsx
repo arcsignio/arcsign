@@ -24,16 +24,18 @@ import type { SendableToken } from "./SendTransaction";
 
 // Swap steps
 type SwapStep =
-  | "selectFrom"    // Select source token
-  | "selectTo"      // Select destination token
-  | "input"         // Enter amount
-  | "quote"         // Review quote
-  | "approve"       // Approve token (if needed)
-  | "password"      // Enter wallet password
-  | "signing"       // Signing in progress
-  | "broadcasting"  // Broadcasting in progress
-  | "success"       // Transaction submitted
-  | "error";        // Error occurred
+  | "selectFrom"         // Select source token
+  | "selectTo"           // Select destination token
+  | "input"              // Enter amount
+  | "quote"              // Review quote
+  | "approve"            // Show approval needed (if needed)
+  | "approvalPassword"   // Enter password for approval tx
+  | "approving"          // Approval tx in progress
+  | "password"           // Enter wallet password for swap
+  | "signing"            // Signing in progress
+  | "broadcasting"       // Broadcasting in progress
+  | "success"            // Transaction submitted
+  | "error";             // Error occurred
 
 interface SwapTransactionProps {
   walletId: string;
@@ -216,6 +218,12 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
   const [amount, setAmount] = useState("");
   const [slippage, setSlippage] = useState(0.5);
   const [walletPassword, setWalletPassword] = useState("");
+
+  // Approval state
+  const [approvalAmount, setApprovalAmount] = useState(""); // Approval amount in human-readable format
+  const [isUnlimitedApproval, setIsUnlimitedApproval] = useState(false);
+  const [currentAllowance, setCurrentAllowance] = useState<string | null>(null); // Current on-chain allowance
+  const [approvalTxHash, setApprovalTxHash] = useState<string | null>(null);
 
   // Transaction state
   const [step, setStep] = useState<SwapStep>("selectFrom");
@@ -425,7 +433,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     setStep("input");
   };
 
-  // Build swap transaction
+  // Build swap transaction - first check allowance, then decide if approval is needed
   const handleBuildSwapTx = async () => {
     if (!fromToken || !toToken || !quote) {
       setError("Missing required data");
@@ -438,6 +446,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     try {
       const amountWei = toSmallestUnit(amount, fromToken.decimals);
       const fromAddr = fromToken.tokenAddress || "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+      const isNativeToken = !fromToken.tokenAddress || fromToken.tokenAddress === "";
 
       console.log("🔧 Building swap transaction...");
 
@@ -455,10 +464,44 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 
       setSwapTx(result);
 
-      // Check if approval is needed
-      if (quote.needsApproval) {
-        setStep("approve");
+      // For ERC-20 tokens, check actual on-chain allowance
+      if (!isNativeToken) {
+        console.log("🔍 Checking current allowance...");
+        try {
+          const allowanceResult = await tauriApi.checkSwapAllowance({
+            chainId,
+            tokenAddress: fromToken.tokenAddress,
+            walletAddress: fromToken.fromAddress,
+            usbPath,
+            appPassword,
+          });
+
+          setCurrentAllowance(allowanceResult.allowance);
+          console.log(`✅ Current allowance: ${allowanceResult.allowance}`);
+
+          // Compare allowance with swap amount
+          const allowanceBN = BigInt(allowanceResult.allowance || "0");
+          const amountBN = BigInt(amountWei);
+
+          if (allowanceBN >= amountBN) {
+            // Sufficient allowance, skip approval step
+            console.log("✅ Sufficient allowance, skipping approval");
+            setStep("password");
+          } else {
+            // Need approval - set default approval amount to swap amount
+            console.log("⚠️ Insufficient allowance, need approval");
+            setApprovalAmount(amount); // Default to swap amount
+            setIsUnlimitedApproval(false);
+            setStep("approve");
+          }
+        } catch (allowanceErr) {
+          console.warn("⚠️ Failed to check allowance, assuming approval needed:", allowanceErr);
+          setApprovalAmount(amount);
+          setIsUnlimitedApproval(false);
+          setStep("approve");
+        }
       } else {
+        // Native token doesn't need approval
         setStep("password");
       }
     } catch (err) {
@@ -469,10 +512,147 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     }
   };
 
-  // Handle approval (simplified - in reality would sign and broadcast approval tx)
+  // Handle approval - navigate to approval password step
   const handleApprove = async () => {
-    // For now, skip to password step - approval would be a separate tx
-    setStep("password");
+    // Navigate to approval password step to get user's password for signing approval tx
+    setStep("approvalPassword");
+  };
+
+  // Execute the approval transaction (sign and broadcast)
+  const handleExecuteApproval = async () => {
+    if (!walletPassword) {
+      setError("Please enter your wallet password");
+      return;
+    }
+    if (!fromToken || !quote || !swapTx) {
+      setError("Missing token, quote, or swap transaction data");
+      return;
+    }
+
+    setStep("approving");
+    setIsLoading(true);
+    setError(null);
+    setApprovalTxHash(null);
+
+    try {
+      // Determine approval amount: unlimited or specific amount
+      let approvalAmountWei = "";
+      if (!isUnlimitedApproval && approvalAmount) {
+        approvalAmountWei = toSmallestUnit(approvalAmount, fromToken.decimals);
+        console.log(`🔐 Getting approval for specific amount: ${approvalAmount} (${approvalAmountWei} wei)`);
+      } else {
+        console.log("🔐 Getting unlimited approval...");
+      }
+
+      // Step 1: Get approval transaction data from backend
+      // Use swapTx.txData.to as the spender (DEX router address)
+      // Note: quote.approvalAddress may be empty for some DEX providers (e.g., OpenOcean)
+      // The swap transaction's "to" field is the DEX router that needs approval
+      const spenderAddress = quote.approvalAddress || swapTx.txData.to;
+      console.log(`🔐 Spender address: ${spenderAddress}`);
+
+      const approvalData = await tauriApi.getSwapApproval({
+        chainId,
+        tokenAddress: fromToken.tokenAddress,
+        spenderAddress, // DEX router address
+        amount: approvalAmountWei, // Empty = unlimited, otherwise specific amount
+        usbPath,
+        appPassword,
+      });
+
+      console.log("✅ Approval data received:", approvalData);
+
+      // Step 2: Build the approval transaction
+      console.log("🔨 Building approval transaction...");
+      const buildResult = await tauriApi.buildTransaction({
+        chainId,
+        from: fromToken.fromAddress,
+        to: approvalData.to, // Token contract address
+        amount: "0", // Approval doesn't transfer value
+        data: approvalData.data, // approve() calldata
+        feeSpeed: "fast",
+        usbPath,
+        appPassword,
+      });
+
+      console.log("✅ Approval tx built:", buildResult);
+
+      // Step 3: Sign the approval transaction
+      console.log("✍️ Signing approval transaction...");
+      const signResult = await tauriApi.signTransaction({
+        chainId,
+        walletId,
+        password: walletPassword,
+        passphrase: preValidatedPassphrase || "",
+        fromAddress: fromToken.fromAddress,
+        unsignedTx: buildResult,
+        usbPath,
+        appPassword,
+      });
+
+      console.log("✅ Approval tx signed");
+
+      // Step 4: Broadcast the approval transaction
+      console.log("📡 Broadcasting approval transaction...");
+      const broadcastResult = await tauriApi.broadcastTransaction({
+        chainId,
+        signedTx: signResult,
+        usbPath,
+        appPassword,
+      });
+
+      console.log("✅ Approval tx broadcast:", broadcastResult.txHash);
+      setApprovalTxHash(broadcastResult.txHash);
+
+      // Step 5: Poll for transaction confirmation (max 60 seconds)
+      console.log("⏳ Waiting for approval confirmation...");
+      const maxAttempts = 20; // 20 attempts * 3 seconds = 60 seconds max
+      let confirmed = false;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds between checks
+
+        try {
+          const statusResult = await tauriApi.queryTransactionStatus({
+            chainId,
+            txHash: broadcastResult.txHash,
+            usbPath,
+            appPassword,
+          });
+
+          console.log(`🔍 Tx status (attempt ${attempt + 1}):`, statusResult.status);
+
+          if (statusResult.status === "confirmed") {
+            confirmed = true;
+            console.log("✅ Approval transaction confirmed!");
+            break;
+          } else if (statusResult.status === "failed") {
+            throw new Error("Approval transaction failed on-chain");
+          }
+          // Continue polling if still pending
+        } catch (statusErr) {
+          console.warn(`⚠️ Status check failed (attempt ${attempt + 1}):`, statusErr);
+          // Continue polling - status check might fail temporarily
+        }
+      }
+
+      if (!confirmed) {
+        throw new Error("Approval transaction confirmation timeout. Please check the transaction status manually.");
+      }
+
+      // Success! Now proceed to swap password step
+      console.log("✅ Approval complete, proceeding to swap...");
+      setWalletPassword(""); // Clear password for security, user will re-enter for swap
+      setStep("password");
+
+    } catch (err) {
+      const appErr = err as AppError;
+      console.error("🔴 Approval failed:", appErr);
+      setError(appErr.message || "Failed to approve token");
+      setStep("approve"); // Go back to approve step to retry
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Sign and broadcast swap
@@ -575,6 +755,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       case "input": return () => { setToToken(null); setStep("selectTo"); };
       case "quote": return () => setStep("input");
       case "approve": return () => setStep("input");
+      case "approvalPassword": return () => { setWalletPassword(""); setStep("approve"); };
       case "password": return () => setStep("input");
       default: return handleReset;
     }
@@ -953,30 +1134,193 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       )}
 
       {/* Approval Step */}
-      {step === "approve" && quote && (
+      {step === "approve" && quote && fromToken && (
         <div className="approve-form">
           <h3>Approve Token Spending</h3>
           <p className="approve-description">
-            To swap {fromToken?.tokenSymbol}, you need to approve the DEX router to spend your tokens.
+            To swap {fromToken.tokenSymbol}, you need to approve the DEX router to spend your tokens.
           </p>
 
           <div className="approval-details">
             <div className="approval-row">
               <span className="approval-label">Token</span>
-              <span className="approval-value">{fromToken?.tokenSymbol}</span>
+              <span className="approval-value">{fromToken.tokenSymbol}</span>
             </div>
             <div className="approval-row">
               <span className="approval-label">Spender</span>
-              <span className="approval-value address">{shortenAddress(quote.approvalAddress)}</span>
+              <span className="approval-value address">{shortenAddress(quote.approvalAddress || swapTx?.txData.to || "")}</span>
+            </div>
+            {currentAllowance && (
+              <div className="approval-row">
+                <span className="approval-label">Current Allowance</span>
+                <span className="approval-value">
+                  {fromSmallestUnit(currentAllowance, fromToken.decimals)} {fromToken.tokenSymbol}
+                </span>
+              </div>
+            )}
+            <div className="approval-row">
+              <span className="approval-label">Swap Amount</span>
+              <span className="approval-value">{amount} {fromToken.tokenSymbol}</span>
             </div>
           </div>
 
+          {/* Approval Amount Settings */}
+          <div className="approval-amount-section">
+            <div className="approval-type-toggle">
+              <button
+                className={`toggle-button ${!isUnlimitedApproval ? 'active' : ''}`}
+                onClick={() => setIsUnlimitedApproval(false)}
+              >
+                Specific Amount
+              </button>
+              <button
+                className={`toggle-button ${isUnlimitedApproval ? 'active' : ''}`}
+                onClick={() => setIsUnlimitedApproval(true)}
+              >
+                Unlimited
+              </button>
+            </div>
+
+            {!isUnlimitedApproval && (
+              <div className="form-group">
+                <label>Approval Amount</label>
+                <div className="input-with-suffix">
+                  <input
+                    type="text"
+                    value={approvalAmount}
+                    onChange={(e) => setApprovalAmount(e.target.value)}
+                    placeholder={`e.g., ${amount}`}
+                  />
+                  <span className="input-suffix">{fromToken.tokenSymbol}</span>
+                </div>
+                <div className="approval-amount-presets">
+                  <button
+                    className="preset-button"
+                    onClick={() => setApprovalAmount(amount)}
+                  >
+                    Swap Amount ({amount})
+                  </button>
+                  <button
+                    className="preset-button"
+                    onClick={() => {
+                      const doubled = (parseFloat(amount) * 2).toString();
+                      setApprovalAmount(doubled);
+                    }}
+                  >
+                    2x ({(parseFloat(amount) * 2).toFixed(6)})
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {isUnlimitedApproval && (
+              <div className="unlimited-warning">
+                <span className="warning-icon">&#9888;</span>
+                <span>Unlimited approval allows the DEX to spend all your {fromToken.tokenSymbol}. This is convenient but carries higher risk if the DEX is compromised.</span>
+              </div>
+            )}
+          </div>
+
+          {error && <div className="error-message">{error}</div>}
+
           <button className="primary-button" onClick={handleApprove}>
-            Approve {fromToken?.tokenSymbol}
+            {isUnlimitedApproval
+              ? `Approve Unlimited ${fromToken.tokenSymbol}`
+              : `Approve ${approvalAmount || amount} ${fromToken.tokenSymbol}`}
           </button>
           <button className="secondary-button" onClick={() => setStep("input")}>
             Cancel
           </button>
+        </div>
+      )}
+
+      {/* Approval Password Step */}
+      {step === "approvalPassword" && fromToken && quote && (
+        <div className="password-form">
+          <h3>Enter Password to Approve</h3>
+          <p className="approve-description">
+            Sign the approval transaction to allow the DEX router to spend your {fromToken.tokenSymbol}.
+          </p>
+
+          <div className="approval-details">
+            <div className="approval-row">
+              <span className="approval-label">Token</span>
+              <span className="approval-value">{fromToken.tokenSymbol}</span>
+            </div>
+            <div className="approval-row">
+              <span className="approval-label">Spender</span>
+              <span className="approval-value address">{shortenAddress(quote.approvalAddress || swapTx?.txData.to || "")}</span>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Wallet Password</label>
+            <input
+              type="password"
+              value={walletPassword}
+              onChange={(e) => setWalletPassword(e.target.value)}
+              placeholder="Enter your wallet password"
+              disabled={isLoading}
+            />
+          </div>
+
+          {error && <div className="error-message">{error}</div>}
+
+          <button
+            className="primary-button"
+            onClick={handleExecuteApproval}
+            disabled={isLoading || !walletPassword}
+          >
+            {isLoading ? "Processing..." : `Sign & Approve ${fromToken.tokenSymbol}`}
+          </button>
+          <button
+            className="secondary-button"
+            onClick={() => { setWalletPassword(""); setStep("approve"); }}
+            disabled={isLoading}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Approving Step (in progress) */}
+      {step === "approving" && fromToken && (
+        <div className="approving-form">
+          <div className="approving-spinner" />
+          <h3>Approving {fromToken.tokenSymbol}...</h3>
+          <p className="approving-description">
+            {approvalTxHash
+              ? "Waiting for on-chain confirmation..."
+              : "Signing and broadcasting approval transaction..."
+            }
+          </p>
+
+          {approvalTxHash && (
+            <div className="approval-tx-info">
+              <div className="tx-hash-display">
+                <span className="tx-label">Approval Transaction</span>
+                <a
+                  href={getExplorerUrl(fromToken.network, approvalTxHash)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="tx-hash-link"
+                >
+                  {shortenAddress(approvalTxHash)} ↗
+                </a>
+              </div>
+              <div className="confirmation-status">
+                <div className="status-indicator pulsing" />
+                <span>Confirming on {fromToken.networkLabel}...</span>
+              </div>
+            </div>
+          )}
+
+          <p className="approving-note">
+            {approvalTxHash
+              ? "This typically takes 15-60 seconds depending on network congestion."
+              : "Please wait while we prepare your transaction."
+            }
+          </p>
         </div>
       )}
 
@@ -2518,6 +2862,204 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 .error-message {
   font-size: 14px;
   color: #991b1b;
+}
+
+/* Approval Amount Section */
+.approval-amount-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 12px;
+}
+
+.approval-type-toggle {
+  display: flex;
+  gap: 8px;
+  padding: 4px;
+  background: #e5e7eb;
+  border-radius: 8px;
+}
+
+.toggle-button {
+  flex: 1;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggle-button:hover {
+  color: #374151;
+}
+
+.toggle-button.active {
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.input-with-suffix {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.input-with-suffix input {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  color: #111827;
+  outline: none;
+}
+
+.input-with-suffix input::placeholder {
+  color: #9ca3af;
+}
+
+.input-suffix {
+  padding: 12px 16px;
+  background: #f3f4f6;
+  border-left: 1px solid #e5e7eb;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.approval-amount-presets {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.preset-button {
+  flex: 1;
+  padding: 8px 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #2563eb;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.preset-button:hover {
+  background: #dbeafe;
+}
+
+.unlimited-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #92400e;
+  line-height: 1.4;
+}
+
+.warning-icon {
+  color: #f59e0b;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* Approving Form (in progress) */
+.approving-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.approving-form h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.approving-description {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.approving-spinner {
+  width: 56px;
+  height: 56px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.approval-tx-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.approval-tx-info .tx-hash-display {
+  padding: 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.confirmation-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #16a34a;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+}
+
+.status-indicator.pulsing {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+.approving-note {
+  font-size: 12px;
+  color: #9ca3af;
+  margin: 8px 0 0 0;
+  max-width: 280px;
 }
       `}</style>
     </div>

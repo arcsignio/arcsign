@@ -1008,9 +1008,15 @@ export function WalletDetail({
         availableTokens={availableTokensForSend}
         usbPath={usbPath}
         appPassword={appPassword}
-        onBack={() => setShowSwapTransaction(false)}
+        onBack={() => {
+          setShowSwapTransaction(false);
+          // Refresh balances after returning from swap
+          handleRefreshBalances();
+        }}
         onSuccess={(txHash) => {
           console.log("✅ Swap transaction submitted:", txHash);
+          // Refresh balances after successful swap
+          handleRefreshBalances();
         }}
       />
     );

@@ -763,6 +763,7 @@ export interface BuildSwapTransactionResponse {
 export interface GetSwapApprovalParams {
   chainId: string;
   tokenAddress: string;
+  spenderAddress: string; // DEX router address (from quote.approvalAddress)
   amount?: string; // Amount to approve (empty = unlimited)
   usbPath: string;
   appPassword: string;
@@ -865,6 +866,8 @@ export async function getSwapApproval(
   console.log("🔄 [tauri-api] getSwapApproval called:", {
     chainId: params.chainId,
     tokenAddress: params.tokenAddress,
+    spenderAddress: params.spenderAddress,
+    amount: params.amount,
   });
 
   try {
@@ -872,6 +875,7 @@ export async function getSwapApproval(
       input: {
         chainId: params.chainId,
         tokenAddress: params.tokenAddress,
+        spenderAddress: params.spenderAddress,
         amount: params.amount || "",
         usbPath: params.usbPath,
         appPassword: params.appPassword,

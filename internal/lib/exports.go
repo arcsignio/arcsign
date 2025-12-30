@@ -2951,13 +2951,15 @@ func BuildSwapTransaction(params *C.char) *C.char {
 }
 
 //export GetSwapApproval
-// GetSwapApproval gets the approval transaction data for ERC-20 token swap.
+// GetSwapApproval builds the ERC-20 approve transaction data locally.
+// This does NOT call any external API - it just encodes the approve(spender, amount) call.
 // Feature: Token Swap - Approval Flow
 //
 // Input JSON: {
 //   "chainId": "ethereum",
-//   "tokenAddress": "0x...",  // Token to approve
-//   "amount": "1000000000000000000",  // Amount to approve (optional, empty = unlimited)
+//   "tokenAddress": "0x...",  // Token contract to call approve() on
+//   "spenderAddress": "0x...", // DEX router address (from quote.approvalAddress)
+//   "amount": "1000000000000000000",  // Amount to approve (optional, empty = unlimited = MaxUint256)
 //   "usbPath": "/path/to/usb",
 //   "appPassword": "password"
 // }
@@ -2966,7 +2968,7 @@ func BuildSwapTransaction(params *C.char) *C.char {
 //   "success": true,
 //   "data": {
 //     "to": "0x...",  // Token contract address
-//     "data": "0x...",  // Encoded approve call
+//     "data": "0x...",  // Encoded approve(spender, amount) call
 //     "value": "0"
 //   }
 // }
@@ -2988,11 +2990,12 @@ func GetSwapApproval(params *C.char) *C.char {
 
 	paramsJSON := C.GoString(params)
 	var input struct {
-		ChainID      string `json:"chainId"`
-		TokenAddress string `json:"tokenAddress"`
-		Amount       string `json:"amount"` // Optional: empty = unlimited
-		USBPath      string `json:"usbPath"`
-		AppPassword  string `json:"appPassword"`
+		ChainID        string `json:"chainId"`
+		TokenAddress   string `json:"tokenAddress"`
+		SpenderAddress string `json:"spenderAddress"` // DEX router address
+		Amount         string `json:"amount"`         // Optional: empty = unlimited
+		USBPath        string `json:"usbPath"`
+		AppPassword    string `json:"appPassword"`
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -3003,29 +3006,95 @@ func GetSwapApproval(params *C.char) *C.char {
 
 	defer zeroString(&input.AppPassword)
 
-	// Initialize swap aggregator (OpenOcean - no API key needed!)
-	aggregator := initSwapAggregator()
-
-	// Parse amount (nil = unlimited)
-	var amount *big.Int
-	if input.Amount != "" {
-		amount = new(big.Int)
-		amount.SetString(input.Amount, 10)
+	// Validate required fields
+	if input.TokenAddress == "" {
+		response := NewErrorResponse(ErrInvalidInput, "tokenAddress is required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	approval, err := aggregator.GetApprovalTransaction(ctx, "", chainIDToInt(input.ChainID), input.TokenAddress, amount)
-	if err != nil {
-		response := NewErrorResponse(ErrSwapApprovalFailed, fmt.Sprintf("Failed to get approval: %v", err))
+	if input.SpenderAddress == "" {
+		response := NewErrorResponse(ErrInvalidInput, "spenderAddress is required")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
+	// Parse amount: empty = MaxUint256 (unlimited approval)
+	var amount *big.Int
+	if input.Amount != "" && input.Amount != "0" {
+		amount = new(big.Int)
+		if _, ok := amount.SetString(input.Amount, 10); !ok {
+			response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid amount: %s", input.Amount))
+			jsonBytes, _ := json.Marshal(response)
+			return C.CString(string(jsonBytes))
+		}
+	} else {
+		// MaxUint256 = 2^256 - 1 (unlimited approval)
+		amount = new(big.Int)
+		amount.Exp(big.NewInt(2), big.NewInt(256), nil)
+		amount.Sub(amount, big.NewInt(1))
+	}
+
+	// Build ERC-20 approve(address spender, uint256 amount) calldata
+	// Function selector: keccak256("approve(address,uint256)")[:4] = 0x095ea7b3
+	// Followed by: spender address (32 bytes, left-padded) + amount (32 bytes, left-padded)
+	approveSelector := []byte{0x09, 0x5e, 0xa7, 0xb3}
+
+	// Parse spender address (remove 0x prefix if present)
+	spenderHex := strings.TrimPrefix(input.SpenderAddress, "0x")
+	spenderBytes, err := hexToBytes(spenderHex)
+	if err != nil || len(spenderBytes) != 20 {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid spender address: %s", input.SpenderAddress))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Build calldata: 4 bytes selector + 32 bytes spender + 32 bytes amount = 68 bytes
+	calldata := make([]byte, 68)
+	copy(calldata[0:4], approveSelector)
+	copy(calldata[16:36], spenderBytes) // spender at bytes 4-35 (left-padded to 32 bytes)
+	amountBytes := amount.Bytes()
+	copy(calldata[68-len(amountBytes):68], amountBytes) // amount at bytes 36-67 (left-padded to 32 bytes)
+
+	// Return approval transaction data
+	approval := map[string]string{
+		"to":    input.TokenAddress,
+		"data":  "0x" + bytesToHex(calldata),
+		"value": "0",
+	}
+
+	debugLog(fmt.Sprintf("Built approve calldata: to=%s, spender=%s, amount=%s",
+		input.TokenAddress, input.SpenderAddress, amount.String()))
+
 	response := NewSuccessResponse(approval)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
+}
+
+// hexToBytes converts a hex string to bytes
+func hexToBytes(s string) ([]byte, error) {
+	if len(s)%2 != 0 {
+		s = "0" + s
+	}
+	result := make([]byte, len(s)/2)
+	for i := 0; i < len(result); i++ {
+		var b byte
+		_, err := fmt.Sscanf(s[i*2:i*2+2], "%02x", &b)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = b
+	}
+	return result, nil
+}
+
+// bytesToHex converts bytes to a hex string
+func bytesToHex(b []byte) string {
+	result := make([]byte, len(b)*2)
+	for i, v := range b {
+		result[i*2] = "0123456789abcdef"[v>>4]
+		result[i*2+1] = "0123456789abcdef"[v&0x0f]
+	}
+	return string(result)
 }
 
 //export CheckSwapAllowance
