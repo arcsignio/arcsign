@@ -17,6 +17,8 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * - 1 year validity period
  * - Renewable before or after expiry
  * - Transferable (can sell on secondary market)
+ * - Device binding: each NFT can be bound to a USB deviceId
+ * - Transfer clears device binding (buyer can rebind)
  *
  * Chain: BNB Chain (BSC)
  * USDT Address: 0x55d398326f99059fF775485246999027B3197955
@@ -44,6 +46,9 @@ contract ArcSignPro is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
     /// @notice Expiration timestamp for each token
     mapping(uint256 => uint256) public expiresAt;
 
+    /// @notice Device binding for each token: tokenId => keccak256(deviceId)
+    mapping(uint256 => bytes32) public deviceBindings;
+
     /// @notice Base URI for token metadata
     string private _baseTokenURI;
 
@@ -54,6 +59,8 @@ contract ArcSignPro is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
 
     event MembershipMinted(address indexed owner, uint256 indexed tokenId, uint256 expiresAt);
     event MembershipRenewed(uint256 indexed tokenId, uint256 newExpiresAt);
+    event DeviceBound(uint256 indexed tokenId, bytes32 deviceHash, address indexed owner);
+    event DeviceUnbound(uint256 indexed tokenId);
     event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
     event BaseURIUpdated(string newBaseURI);
     event Withdrawn(address indexed token, address indexed to, uint256 amount);
@@ -186,6 +193,69 @@ contract ArcSignPro is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
         return expiry - block.timestamp;
     }
 
+    // ============ Device Binding Functions ============
+
+    /**
+     * @notice Bind a USB device to a token (one-time per ownership)
+     * @param tokenId Token ID to bind
+     * @param deviceHash keccak256(deviceId) from USB
+     * @dev Can only be called by token owner
+     * @dev Each token can only be bound once per ownership (transfer clears binding)
+     */
+    function bindDevice(uint256 tokenId, bytes32 deviceHash) external {
+        require(ownerOf(tokenId) == msg.sender, "Not owner");
+        require(deviceBindings[tokenId] == bytes32(0), "Already bound");
+        require(deviceHash != bytes32(0), "Invalid device hash");
+
+        deviceBindings[tokenId] = deviceHash;
+        emit DeviceBound(tokenId, deviceHash, msg.sender);
+    }
+
+    /**
+     * @notice Check if a token is bound to a device
+     * @param tokenId Token ID to check
+     * @return True if bound to a device
+     */
+    function isBound(uint256 tokenId) external view returns (bool) {
+        return deviceBindings[tokenId] != bytes32(0);
+    }
+
+    /**
+     * @notice Verify if a device hash matches the bound device
+     * @param tokenId Token ID to verify
+     * @param deviceHash Device hash to check
+     * @return True if the device hash matches
+     */
+    function verifyDevice(uint256 tokenId, bytes32 deviceHash) external view returns (bool) {
+        return deviceBindings[tokenId] == deviceHash;
+    }
+
+    /**
+     * @notice Get device binding info for multiple tokens
+     * @param owner Address to query
+     * @return tokenIds Array of token IDs
+     * @return bindings Array of device hashes (bytes32(0) if unbound)
+     * @return bound Array of binding status
+     */
+    function getDeviceBindings(address owner) external view returns (
+        uint256[] memory tokenIds,
+        bytes32[] memory bindings,
+        bool[] memory bound
+    ) {
+        uint256 balance = balanceOf(owner);
+
+        tokenIds = new uint256[](balance);
+        bindings = new bytes32[](balance);
+        bound = new bool[](balance);
+
+        for (uint256 i = 0; i < balance; i++) {
+            uint256 tokenId = tokenOfOwnerByIndex(owner, i);
+            tokenIds[i] = tokenId;
+            bindings[i] = deviceBindings[tokenId];
+            bound[i] = deviceBindings[tokenId] != bytes32(0);
+        }
+    }
+
     // ============ Admin Functions ============
 
     /**
@@ -239,11 +309,28 @@ contract ArcSignPro is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
 
     // ============ Required Overrides ============
 
+    /**
+     * @dev Override _update to clear device binding on transfer
+     * This ensures buyers receive an unbound NFT they can bind to their own device
+     */
     function _update(address to, uint256 tokenId, address auth)
         internal
         override(ERC721, ERC721Enumerable)
         returns (address)
     {
+        address from = _ownerOf(tokenId);
+
+        // Clear device binding on transfer (not on mint or burn)
+        // from != address(0) means not minting
+        // to != address(0) means not burning
+        // from != to means actual transfer
+        if (from != address(0) && to != address(0) && from != to) {
+            if (deviceBindings[tokenId] != bytes32(0)) {
+                delete deviceBindings[tokenId];
+                emit DeviceUnbound(tokenId);
+            }
+        }
+
         return super._update(to, tokenId, auth);
     }
 
