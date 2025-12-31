@@ -118,6 +118,16 @@ type GetNativeTokenAddressFn = unsafe extern "C" fn() -> *mut c_char;
 /// Function signature for GetSwapTokens: char* GetSwapTokens(char* params)
 type GetSwapTokensFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+// Membership management function types
+/// Function signature for GetMembershipStatus: char* GetMembershipStatus(char* params)
+type GetMembershipStatusFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for AddMembershipBinding: char* AddMembershipBinding(char* params)
+type AddMembershipBindingFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for RemoveMembershipBinding: char* RemoveMembershipBinding(char* params)
+type RemoveMembershipBindingFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 // ============================================================================
 // WalletLibrary - Dynamic Library Wrapper (T016, T017)
 // ============================================================================
@@ -173,6 +183,10 @@ pub struct WalletLibrary {
     check_swap_allowance: Symbol<'static, CheckSwapAllowanceFn>,
     get_native_token_address: Symbol<'static, GetNativeTokenAddressFn>,
     get_swap_tokens: Symbol<'static, GetSwapTokensFn>,
+    // Membership management function symbols
+    get_membership_status: Symbol<'static, GetMembershipStatusFn>,
+    add_membership_binding: Symbol<'static, AddMembershipBindingFn>,
+    remove_membership_binding: Symbol<'static, RemoveMembershipBindingFn>,
 }
 
 impl WalletLibrary {
@@ -359,6 +373,19 @@ impl WalletLibrary {
                 .get(b"GetSwapTokens")
                 .map_err(|e| format!("GetSwapTokens symbol not found: {}", e))?;
 
+            // Load Membership management symbols
+            let get_membership_status: Symbol<GetMembershipStatusFn> = lib
+                .get(b"GetMembershipStatus")
+                .map_err(|e| format!("GetMembershipStatus symbol not found: {}", e))?;
+
+            let add_membership_binding: Symbol<AddMembershipBindingFn> = lib
+                .get(b"AddMembershipBinding")
+                .map_err(|e| format!("AddMembershipBinding symbol not found: {}", e))?;
+
+            let remove_membership_binding: Symbol<RemoveMembershipBindingFn> = lib
+                .get(b"RemoveMembershipBinding")
+                .map_err(|e| format!("RemoveMembershipBinding symbol not found: {}", e))?;
+
             // Extend symbol lifetime to 'static (safe because Library lives for program duration)
             let go_free: Symbol<'static, GoFreeFn> = std::mem::transmute(go_free);
             let get_version: Symbol<'static, GetVersionFn> = std::mem::transmute(get_version);
@@ -391,6 +418,9 @@ impl WalletLibrary {
             let check_swap_allowance: Symbol<'static, CheckSwapAllowanceFn> = std::mem::transmute(check_swap_allowance);
             let get_native_token_address: Symbol<'static, GetNativeTokenAddressFn> = std::mem::transmute(get_native_token_address);
             let get_swap_tokens: Symbol<'static, GetSwapTokensFn> = std::mem::transmute(get_swap_tokens);
+            let get_membership_status: Symbol<'static, GetMembershipStatusFn> = std::mem::transmute(get_membership_status);
+            let add_membership_binding: Symbol<'static, AddMembershipBindingFn> = std::mem::transmute(add_membership_binding);
+            let remove_membership_binding: Symbol<'static, RemoveMembershipBindingFn> = std::mem::transmute(remove_membership_binding);
 
             Ok(WalletLibrary {
                 lib: Arc::new(lib),
@@ -425,6 +455,9 @@ impl WalletLibrary {
                 check_swap_allowance,
                 get_native_token_address,
                 get_swap_tokens,
+                get_membership_status,
+                add_membership_binding,
+                remove_membership_binding,
             })
         }
     }
@@ -1028,6 +1061,61 @@ impl WalletLibrary {
     /// ```
     pub fn get_swap_tokens(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.get_swap_tokens, params_json)
+    }
+
+    // ========================================================================
+    // Membership Management Operations
+    // ========================================================================
+
+    /// Get membership status including device identity and NFT bindings.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "usbPath": "/path/to/usb",
+    ///   "appPassword": "password"
+    /// }
+    /// ```
+    ///
+    /// Returns device ID, device ID hash (for contract binding), wallet limits,
+    /// and list of NFT membership bindings.
+    pub fn get_membership_status(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.get_membership_status, params_json)
+    }
+
+    /// Add a new NFT membership binding to this USB device.
+    ///
+    /// Call this after the user has bound their deviceId on the NFT contract.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "usbPath": "/path/to/usb",
+    ///   "appPassword": "password",
+    ///   "nftTokenId": "1",
+    ///   "nftContract": "0x...",
+    ///   "chainId": "bnb",
+    ///   "boundAddress": "0x...",
+    ///   "signature": "0x..."
+    /// }
+    /// ```
+    pub fn add_membership_binding(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.add_membership_binding, params_json)
+    }
+
+    /// Remove an NFT membership binding from this USB device.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "usbPath": "/path/to/usb",
+    ///   "appPassword": "password",
+    ///   "nftTokenId": "1",
+    ///   "nftContract": "0x..."
+    /// }
+    /// ```
+    pub fn remove_membership_binding(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.remove_membership_binding, params_json)
     }
 }
 

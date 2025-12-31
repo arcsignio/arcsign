@@ -276,6 +276,24 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    // ========================================================================
+    // Membership Management Operations
+    // ========================================================================
+    /// Get membership status (device ID, wallet limits, NFT bindings)
+    GetMembershipStatus {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Add NFT membership binding
+    AddMembershipBinding {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Remove NFT membership binding
+    RemoveMembershipBinding {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
 }
 
 /// WalletQueue serializes all wallet operations through a single-threaded queue.
@@ -481,6 +499,22 @@ impl WalletQueue {
                 }
                 WalletCommand::GetSwapTokens { params_json, respond_to } => {
                     let result = library.get_swap_tokens(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                // Membership Management Operations
+                WalletCommand::GetMembershipStatus { params_json, respond_to } => {
+                    let result = library.get_membership_status(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::AddMembershipBinding { params_json, respond_to } => {
+                    let result = library.add_membership_binding(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::RemoveMembershipBinding { params_json, respond_to } => {
+                    let result = library.remove_membership_binding(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -1071,6 +1105,67 @@ impl WalletQueue {
         .await
         .map_err(|e| format!("Task join error: {}", e))?
     }
+
+    // ========================================================================
+    // Membership Management Operations
+    // ========================================================================
+
+    /// Get membership status (device ID, wallet limits, NFT bindings).
+    pub async fn get_membership_status(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::GetMembershipStatus {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Add NFT membership binding.
+    pub async fn add_membership_binding(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::AddMembershipBinding {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Remove NFT membership binding.
+    pub async fn remove_membership_binding(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::RemoveMembershipBinding {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
 }
 
 /// Lazy-initialized WalletQueue wrapper
@@ -1252,5 +1347,24 @@ impl LazyWalletQueue {
     /// Get all available swap tokens for a chain from 1inch API
     pub async fn get_swap_tokens(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().get_swap_tokens(params_json).await
+    }
+
+    // ========================================================================
+    // Membership Management Operations
+    // ========================================================================
+
+    /// Get membership status (device ID, wallet limits, NFT bindings)
+    pub async fn get_membership_status(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().get_membership_status(params_json).await
+    }
+
+    /// Add NFT membership binding
+    pub async fn add_membership_binding(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().add_membership_binding(params_json).await
+    }
+
+    /// Remove NFT membership binding
+    pub async fn remove_membership_binding(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().remove_membership_binding(params_json).await
     }
 }

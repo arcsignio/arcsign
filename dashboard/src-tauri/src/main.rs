@@ -24,7 +24,10 @@ mod models;
 mod websocket;  // WebSocket server for mint-page integration
 
 use commands::app::{is_first_time_setup, initialize_app, unlock_app};
-use commands::membership::{check_membership, check_all_memberships, get_membership_tier, can_create_wallet, get_wallet_limit};
+use commands::membership::{
+    check_membership, check_all_memberships, get_membership_tier, can_create_wallet, get_wallet_limit,
+    get_device_membership_status, add_device_membership_binding, remove_device_membership_binding,
+};
 use commands::security::{
     clear_sensitive_memory, disable_screenshot_protection, enable_screenshot_protection,
 };
@@ -277,6 +280,10 @@ fn main() {
             get_membership_tier,
             can_create_wallet,
             get_wallet_limit,
+            // Device membership commands (USB identity binding)
+            get_device_membership_status,
+            add_device_membership_binding,
+            remove_device_membership_binding,
             // WebSocket commands (pending transactions from mint-page)
             get_pending_transaction,
             respond_to_transaction,

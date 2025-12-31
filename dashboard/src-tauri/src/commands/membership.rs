@@ -417,6 +417,195 @@ pub fn get_wallet_limit(nft_count: u64) -> u64 {
     5 + (nft_count * 5)
 }
 
+// ============================================================================
+// FFI-based Membership Operations (USB Device Identity)
+// ============================================================================
+
+use tauri::State;
+use crate::ffi::queue::LazyWalletQueue;
+
+/// Device membership status from USB storage
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceMembershipStatus {
+    /// Unique device ID (UUID) stored on USB
+    pub device_id: String,
+    /// keccak256(deviceId) for contract binding
+    pub device_id_hash: String,
+    /// Maximum wallets allowed (3 free + 5 per NFT)
+    pub wallet_limit: u64,
+    /// Current number of wallets
+    pub wallet_count: u64,
+    /// Whether user can create more wallets
+    pub can_create_wallet: bool,
+    /// List of NFT membership bindings
+    pub memberships: Vec<MembershipBindingInfo>,
+}
+
+/// NFT membership binding info
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MembershipBindingInfo {
+    pub nft_token_id: String,
+    pub nft_contract: String,
+    pub chain_id: String,
+    pub bound_address: String,
+    pub bound_at: i64,
+    pub is_valid: bool,
+    pub last_verified: i64,
+}
+
+/// Input for get_device_membership_status
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetDeviceMembershipInput {
+    pub usb_path: String,
+    pub app_password: String,
+}
+
+/// Input for add_device_membership_binding
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddMembershipBindingInput {
+    pub usb_path: String,
+    pub app_password: String,
+    pub nft_token_id: String,
+    pub nft_contract: String,
+    pub chain_id: String,
+    pub bound_address: String,
+    pub signature: String,
+}
+
+/// Input for remove_device_membership_binding
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoveMembershipBindingInput {
+    pub usb_path: String,
+    pub app_password: String,
+    pub nft_token_id: String,
+    pub nft_contract: String,
+}
+
+/// Get device membership status from USB storage (Tauri command)
+/// Returns device ID, device ID hash (for contract), wallet limits, and NFT bindings
+#[tauri::command]
+pub async fn get_device_membership_status(
+    input: GetDeviceMembershipInput,
+    queue: State<'_, LazyWalletQueue>,
+) -> Result<DeviceMembershipStatus, Error> {
+    tracing::info!("get_device_membership_status called");
+
+    let params = serde_json::json!({
+        "usbPath": input.usb_path,
+        "appPassword": input.app_password,
+    });
+
+    let result = queue
+        .get_membership_status(params.to_string())
+        .await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::FfiStorageError,
+            format!("Failed to get membership status: {}", e),
+        ))?;
+
+    // Parse the response
+    let device_id = result["deviceId"].as_str().unwrap_or("").to_string();
+    let device_id_hash = result["deviceIdHash"].as_str().unwrap_or("").to_string();
+    let wallet_limit = result["walletLimit"].as_u64().unwrap_or(3);
+    let wallet_count = result["walletCount"].as_u64().unwrap_or(0);
+    let can_create = result["canCreateWallet"].as_bool().unwrap_or(true);
+
+    // Parse memberships array
+    let memberships: Vec<MembershipBindingInfo> = result["memberships"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .map(|m| MembershipBindingInfo {
+                    nft_token_id: m["nftTokenId"].as_str().unwrap_or("").to_string(),
+                    nft_contract: m["nftContract"].as_str().unwrap_or("").to_string(),
+                    chain_id: m["chainId"].as_str().unwrap_or("").to_string(),
+                    bound_address: m["boundAddress"].as_str().unwrap_or("").to_string(),
+                    bound_at: m["boundAt"].as_i64().unwrap_or(0),
+                    is_valid: m["isValid"].as_bool().unwrap_or(false),
+                    last_verified: m["lastVerified"].as_i64().unwrap_or(0),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    tracing::info!(
+        "Device membership: id={}, hash={}, limit={}, count={}",
+        device_id, device_id_hash, wallet_limit, wallet_count
+    );
+
+    Ok(DeviceMembershipStatus {
+        device_id,
+        device_id_hash,
+        wallet_limit,
+        wallet_count,
+        can_create_wallet: can_create,
+        memberships,
+    })
+}
+
+/// Add NFT membership binding to USB device (Tauri command)
+/// Call this after user has bound deviceId on the NFT contract
+#[tauri::command]
+pub async fn add_device_membership_binding(
+    input: AddMembershipBindingInput,
+    queue: State<'_, LazyWalletQueue>,
+) -> Result<serde_json::Value, Error> {
+    tracing::info!("add_device_membership_binding: tokenId={}", input.nft_token_id);
+
+    let params = serde_json::json!({
+        "usbPath": input.usb_path,
+        "appPassword": input.app_password,
+        "nftTokenId": input.nft_token_id,
+        "nftContract": input.nft_contract,
+        "chainId": input.chain_id,
+        "boundAddress": input.bound_address,
+        "signature": input.signature,
+    });
+
+    let result = queue
+        .add_membership_binding(params.to_string())
+        .await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::FfiStorageError,
+            format!("Failed to add membership binding: {}", e),
+        ))?;
+
+    tracing::info!("Membership binding added successfully");
+    Ok(result)
+}
+
+/// Remove NFT membership binding from USB device (Tauri command)
+#[tauri::command]
+pub async fn remove_device_membership_binding(
+    input: RemoveMembershipBindingInput,
+    queue: State<'_, LazyWalletQueue>,
+) -> Result<serde_json::Value, Error> {
+    tracing::info!("remove_device_membership_binding: tokenId={}", input.nft_token_id);
+
+    let params = serde_json::json!({
+        "usbPath": input.usb_path,
+        "appPassword": input.app_password,
+        "nftTokenId": input.nft_token_id,
+        "nftContract": input.nft_contract,
+    });
+
+    let result = queue
+        .remove_membership_binding(params.to_string())
+        .await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::FfiStorageError,
+            format!("Failed to remove membership binding: {}", e),
+        ))?;
+
+    tracing::info!("Membership binding removed successfully");
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
