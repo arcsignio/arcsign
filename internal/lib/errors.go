@@ -43,6 +43,14 @@ const (
 	ErrSwapApprovalFailed ErrorCode = "SWAP_APPROVAL_FAILED" // Failed to get token approval
 	ErrSwapAllowanceFailed ErrorCode = "SWAP_ALLOWANCE_FAILED" // Failed to check token allowance
 	ErrChainNotSupported  ErrorCode = "CHAIN_NOT_SUPPORTED"  // Chain not supported for swap
+
+	// App config errors
+	ErrAppConfigLoad ErrorCode = "APP_CONFIG_LOAD_FAILED" // Failed to load app_config.enc
+	ErrAppConfigSave ErrorCode = "APP_CONFIG_SAVE_FAILED" // Failed to save app_config.enc
+
+	// Membership errors
+	ErrMembershipInvalid  ErrorCode = "MEMBERSHIP_INVALID"   // Membership validation failed
+	ErrMembershipNotFound ErrorCode = "MEMBERSHIP_NOT_FOUND" // Membership binding not found
 )
 
 // FFIError represents a structured error response for FFI functions

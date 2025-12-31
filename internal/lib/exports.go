@@ -3268,6 +3268,287 @@ func GetSwapTokens(params *C.char) *C.char {
 	return C.CString(string(jsonBytes))
 }
 
+// ============================================================================
+// Membership FFI Functions
+// Feature: NFT-based membership with USB device binding
+// ============================================================================
+
+//export GetMembershipStatus
+// GetMembershipStatus returns the USB device identity and membership status.
+// This also ensures the deviceId is generated if it doesn't exist.
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "deviceId": "uuid-string",
+//     "deviceIdHash": "0x...",  // keccak256(deviceId) for contract binding
+//     "walletLimit": 3,
+//     "walletCount": 1,
+//     "canCreateWallet": true,
+//     "memberships": [{
+//       "nftTokenId": "1",
+//       "nftContract": "0x...",
+//       "chainId": "bnb",
+//       "boundAddress": "0x...",
+//       "isValid": true
+//     }]
+//   }
+// }
+func GetMembershipStatus(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		debugLog(fmt.Sprintf("GetMembershipStatus completed in %v", elapsed))
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		USBPath     string `json:"usbPath"`
+		AppPassword string `json:"appPassword"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	// Load app config (password, usbPath)
+	appConfig, err := app.LoadAppConfig(input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrAppConfigLoad, fmt.Sprintf("Failed to load app config: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Ensure device identity exists (generates UUID if needed)
+	deviceId, err := appConfig.EnsureIdentity()
+	if err != nil {
+		response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Failed to ensure identity: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Save if identity was newly created (config, password, usbPath)
+	if err := app.SaveAppConfig(appConfig, input.AppPassword, input.USBPath); err != nil {
+		response := NewErrorResponse(ErrAppConfigSave, fmt.Sprintf("Failed to save app config: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Calculate deviceIdHash for contract binding (keccak256)
+	deviceIdHash := ethcrypto.Keccak256Hash([]byte(deviceId))
+
+	// Build membership list for response
+	memberships := make([]map[string]interface{}, 0)
+	for _, m := range appConfig.GetMemberships() {
+		memberships = append(memberships, map[string]interface{}{
+			"nftTokenId":   m.NftTokenId,
+			"nftContract":  m.NftContract,
+			"chainId":      m.ChainId,
+			"boundAddress": m.BoundAddress,
+			"boundAt":      m.BoundAt.Unix(),
+			"isValid":      m.IsValid,
+			"lastVerified": m.LastVerified.Unix(),
+		})
+	}
+
+	output := map[string]interface{}{
+		"deviceId":        deviceId,
+		"deviceIdHash":    "0x" + deviceIdHash.Hex()[2:], // Ensure 0x prefix
+		"walletLimit":     appConfig.GetWalletLimit(),
+		"walletCount":     len(appConfig.Wallets),
+		"canCreateWallet": appConfig.CanCreateWallet(),
+		"memberships":     memberships,
+	}
+
+	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export AddMembershipBinding
+// AddMembershipBinding adds a new NFT membership binding to this USB device.
+// Call this after the user has bound their deviceId on the NFT contract.
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password",
+//   "nftTokenId": "1",
+//   "nftContract": "0x...",
+//   "chainId": "bnb",
+//   "boundAddress": "0x...",
+//   "signature": "0x..."
+// }
+func AddMembershipBinding(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		debugLog(fmt.Sprintf("AddMembershipBinding completed in %v", elapsed))
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		USBPath      string `json:"usbPath"`
+		AppPassword  string `json:"appPassword"`
+		NftTokenId   string `json:"nftTokenId"`
+		NftContract  string `json:"nftContract"`
+		ChainId      string `json:"chainId"`
+		BoundAddress string `json:"boundAddress"`
+		Signature    string `json:"signature"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	// Validate required fields
+	if input.NftTokenId == "" || input.NftContract == "" || input.BoundAddress == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Missing required fields")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Load app config (password, usbPath)
+	appConfig, err := app.LoadAppConfig(input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrAppConfigLoad, fmt.Sprintf("Failed to load app config: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Add membership binding
+	binding := app.MembershipBinding{
+		NftTokenId:   input.NftTokenId,
+		NftContract:  input.NftContract,
+		ChainId:      input.ChainId,
+		BoundAddress: input.BoundAddress,
+		BoundAt:      time.Now(),
+		Signature:    input.Signature,
+		IsValid:      true, // Will be verified on-chain later
+	}
+
+	if err := appConfig.AddMembership(binding); err != nil {
+		response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Failed to add membership: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Save updated config (config, password, usbPath)
+	if err := app.SaveAppConfig(appConfig, input.AppPassword, input.USBPath); err != nil {
+		response := NewErrorResponse(ErrAppConfigSave, fmt.Sprintf("Failed to save app config: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	output := map[string]interface{}{
+		"success":     true,
+		"walletLimit": appConfig.GetWalletLimit(),
+	}
+
+	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export RemoveMembershipBinding
+// RemoveMembershipBinding removes an NFT membership binding from this USB device.
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password",
+//   "nftTokenId": "1",
+//   "nftContract": "0x..."
+// }
+func RemoveMembershipBinding(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		debugLog(fmt.Sprintf("RemoveMembershipBinding completed in %v", elapsed))
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		USBPath     string `json:"usbPath"`
+		AppPassword string `json:"appPassword"`
+		NftTokenId  string `json:"nftTokenId"`
+		NftContract string `json:"nftContract"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	// Load app config (password, usbPath)
+	appConfig, err := app.LoadAppConfig(input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrAppConfigLoad, fmt.Sprintf("Failed to load app config: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Remove membership binding
+	removed := appConfig.RemoveMembership(input.NftTokenId, input.NftContract)
+
+	// Save updated config (config, password, usbPath)
+	if err := app.SaveAppConfig(appConfig, input.AppPassword, input.USBPath); err != nil {
+		response := NewErrorResponse(ErrAppConfigSave, fmt.Sprintf("Failed to save app config: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	output := map[string]interface{}{
+		"removed":     removed,
+		"walletLimit": appConfig.GetWalletLimit(),
+	}
+
+	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
 // main is required for buildmode=c-shared but should remain empty.
 // All functionality is exposed through //export functions.
 func main() {

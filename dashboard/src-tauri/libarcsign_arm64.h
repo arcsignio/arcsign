@@ -633,6 +633,57 @@ extern char* GetNativeTokenAddress(void);
 // }
 extern char* GetSwapTokens(char* params);
 
+// GetMembershipStatus returns the USB device identity and membership status.
+// This also ensures the deviceId is generated if it doesn't exist.
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "deviceId": "uuid-string",
+//     "deviceIdHash": "0x...",  // keccak256(deviceId) for contract binding
+//     "walletLimit": 3,
+//     "walletCount": 1,
+//     "canCreateWallet": true,
+//     "memberships": [{
+//       "nftTokenId": "1",
+//       "nftContract": "0x...",
+//       "chainId": "bnb",
+//       "boundAddress": "0x...",
+//       "isValid": true
+//     }]
+//   }
+// }
+extern char* GetMembershipStatus(char* params);
+
+// AddMembershipBinding adds a new NFT membership binding to this USB device.
+// Call this after the user has bound their deviceId on the NFT contract.
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password",
+//   "nftTokenId": "1",
+//   "nftContract": "0x...",
+//   "chainId": "bnb",
+//   "boundAddress": "0x...",
+//   "signature": "0x..."
+// }
+extern char* AddMembershipBinding(char* params);
+
+// RemoveMembershipBinding removes an NFT membership binding from this USB device.
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password",
+//   "nftTokenId": "1",
+//   "nftContract": "0x..."
+// }
+extern char* RemoveMembershipBinding(char* params);
+
 #ifdef __cplusplus
 }
 #endif
