@@ -138,6 +138,16 @@ type ValidateSessionTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char
 /// Function signature for RevokeSessionToken: char* RevokeSessionToken(char* params)
 type RevokeSessionTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+// Wallet session management function types
+/// Function signature for CreateWalletSessionToken: char* CreateWalletSessionToken(char* params)
+type CreateWalletSessionTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for ValidateWalletSessionToken: char* ValidateWalletSessionToken(char* params)
+type ValidateWalletSessionTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for RevokeWalletSessionToken: char* RevokeWalletSessionToken(char* params)
+type RevokeWalletSessionTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 // ============================================================================
 // WalletLibrary - Dynamic Library Wrapper (T016, T017)
 // ============================================================================
@@ -201,6 +211,10 @@ pub struct WalletLibrary {
     create_session_token: Symbol<'static, CreateSessionTokenFn>,
     validate_session_token: Symbol<'static, ValidateSessionTokenFn>,
     revoke_session_token: Symbol<'static, RevokeSessionTokenFn>,
+    // Wallet session management function symbols
+    create_wallet_session_token: Symbol<'static, CreateWalletSessionTokenFn>,
+    validate_wallet_session_token: Symbol<'static, ValidateWalletSessionTokenFn>,
+    revoke_wallet_session_token: Symbol<'static, RevokeWalletSessionTokenFn>,
 }
 
 impl WalletLibrary {
@@ -413,6 +427,19 @@ impl WalletLibrary {
                 .get(b"RevokeSessionToken")
                 .map_err(|e| format!("RevokeSessionToken symbol not found: {}", e))?;
 
+            // Load Wallet Session management symbols
+            let create_wallet_session_token: Symbol<CreateWalletSessionTokenFn> = lib
+                .get(b"CreateWalletSessionToken")
+                .map_err(|e| format!("CreateWalletSessionToken symbol not found: {}", e))?;
+
+            let validate_wallet_session_token: Symbol<ValidateWalletSessionTokenFn> = lib
+                .get(b"ValidateWalletSessionToken")
+                .map_err(|e| format!("ValidateWalletSessionToken symbol not found: {}", e))?;
+
+            let revoke_wallet_session_token: Symbol<RevokeWalletSessionTokenFn> = lib
+                .get(b"RevokeWalletSessionToken")
+                .map_err(|e| format!("RevokeWalletSessionToken symbol not found: {}", e))?;
+
             // Extend symbol lifetime to 'static (safe because Library lives for program duration)
             let go_free: Symbol<'static, GoFreeFn> = std::mem::transmute(go_free);
             let get_version: Symbol<'static, GetVersionFn> = std::mem::transmute(get_version);
@@ -451,6 +478,9 @@ impl WalletLibrary {
             let create_session_token: Symbol<'static, CreateSessionTokenFn> = std::mem::transmute(create_session_token);
             let validate_session_token: Symbol<'static, ValidateSessionTokenFn> = std::mem::transmute(validate_session_token);
             let revoke_session_token: Symbol<'static, RevokeSessionTokenFn> = std::mem::transmute(revoke_session_token);
+            let create_wallet_session_token: Symbol<'static, CreateWalletSessionTokenFn> = std::mem::transmute(create_wallet_session_token);
+            let validate_wallet_session_token: Symbol<'static, ValidateWalletSessionTokenFn> = std::mem::transmute(validate_wallet_session_token);
+            let revoke_wallet_session_token: Symbol<'static, RevokeWalletSessionTokenFn> = std::mem::transmute(revoke_wallet_session_token);
 
             Ok(WalletLibrary {
                 lib: Arc::new(lib),
@@ -491,6 +521,9 @@ impl WalletLibrary {
                 create_session_token,
                 validate_session_token,
                 revoke_session_token,
+                create_wallet_session_token,
+                validate_wallet_session_token,
+                revoke_wallet_session_token,
             })
         }
     }
@@ -1211,6 +1244,71 @@ impl WalletLibrary {
     /// ```
     pub fn revoke_session_token(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.revoke_session_token, params_json)
+    }
+
+    /// Create a wallet session token by validating wallet password.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "walletId": "wallet-uuid",
+    ///   "password": "wallet-password",
+    ///   "usbPath": "/path/to/usb"
+    /// }
+    /// ```
+    ///
+    /// Returns:
+    /// ```json
+    /// {
+    ///   "token": "hex-encoded-token",
+    ///   "walletId": "wallet-uuid",
+    ///   "expiresAt": 1234567890,
+    ///   "usbPath": "/path/to/usb"
+    /// }
+    /// ```
+    pub fn create_wallet_session_token(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.create_wallet_session_token, params_json)
+    }
+
+    /// Validate a wallet session token and get session info.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "token": "hex-encoded-token"
+    /// }
+    /// ```
+    ///
+    /// Returns:
+    /// ```json
+    /// {
+    ///   "valid": true,
+    ///   "walletId": "wallet-uuid",
+    ///   "expiresAt": 1234567890,
+    ///   "usbPath": "/path/to/usb"
+    /// }
+    /// ```
+    pub fn validate_wallet_session_token(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.validate_wallet_session_token, params_json)
+    }
+
+    /// Revoke (invalidate) a wallet session token.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "token": "hex-encoded-token"
+    /// }
+    /// ```
+    ///
+    /// Returns:
+    /// ```json
+    /// {
+    ///   "revoked": true
+    /// }
+    /// ```
+    pub fn revoke_wallet_session_token(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.revoke_wallet_session_token, params_json)
     }
 }
 

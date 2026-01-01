@@ -52,6 +52,9 @@ var chainAdapterSvc *chainadapterService.Service
 // Global SessionManager instance (initialized on first use)
 var sessionManager *app.SessionManager
 
+// Global WalletSessionManager instance (initialized on first use)
+var walletSessionManager *app.WalletSessionManager
+
 // init is called automatically when the library is loaded.
 // It sets up security measures to protect sensitive data.
 func init() {
@@ -80,6 +83,14 @@ func initSessionManager() *app.SessionManager {
 		sessionManager = app.NewSessionManager()
 	}
 	return sessionManager
+}
+
+// initWalletSessionManager initializes the global WalletSessionManager (lazy initialization)
+func initWalletSessionManager() *app.WalletSessionManager {
+	if walletSessionManager == nil {
+		walletSessionManager = app.NewWalletSessionManager()
+	}
+	return walletSessionManager
 }
 
 // debugLog writes debug messages to /Volumes/arcsign/logs/go_debug.log
@@ -3730,6 +3741,138 @@ func GetDeviceMembershipStatusWithToken(params *C.char) *C.char {
 	// For now, we'll return an error and document that device operations require re-auth
 	// In a production system, we'd need to cache decrypted config in memory with the session
 	response := NewErrorResponse(ErrInvalidInput, "Device operations require authentication - use password-based API")
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export CreateWalletSessionToken
+func CreateWalletSessionToken(params *C.char) *C.char {
+	// Panic recovery
+	defer func() {
+		if r := recover(); r != nil {
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		WalletID string `json:"walletId"`
+		Password string `json:"password"`
+		USBPath  string `json:"usbPath"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Initialize wallet session manager
+	wsm := initWalletSessionManager()
+
+	// Create wallet session (validates password)
+	session, err := wsm.CreateWalletSession(input.WalletID, input.Password, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to create wallet session: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Return session info
+	result := map[string]interface{}{
+		"token":     session.Token,
+		"walletId":  session.WalletID,
+		"expiresAt": session.ExpiresAt.Unix(),
+		"usbPath":   session.UsbPath,
+	}
+
+	response := NewSuccessResponse(result)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export ValidateWalletSessionToken
+func ValidateWalletSessionToken(params *C.char) *C.char {
+	// Panic recovery
+	defer func() {
+		if r := recover(); r != nil {
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		Token string `json:"token"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Initialize wallet session manager
+	wsm := initWalletSessionManager()
+
+	// Validate token
+	session, err := wsm.ValidateWalletToken(input.Token)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid wallet token: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Return session info
+	result := map[string]interface{}{
+		"valid":     true,
+		"walletId":  session.WalletID,
+		"expiresAt": session.ExpiresAt.Unix(),
+		"usbPath":   session.UsbPath,
+	}
+
+	response := NewSuccessResponse(result)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export RevokeWalletSessionToken
+func RevokeWalletSessionToken(params *C.char) *C.char {
+	// Panic recovery
+	defer func() {
+		if r := recover(); r != nil {
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		Token string `json:"token"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Initialize wallet session manager
+	wsm := initWalletSessionManager()
+
+	// Revoke token
+	wsm.RevokeWalletToken(input.Token)
+
+	// Return success
+	result := map[string]interface{}{
+		"revoked": true,
+	}
+
+	response := NewSuccessResponse(result)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
