@@ -50,7 +50,7 @@ export function MembershipStatus({ bscAddress, compact = false }: MembershipStat
         isPro: result.isPro,
         nftCount: result.nftCount,
         daysRemaining: result.daysRemaining,
-        walletLimit: result.walletLimit ?? 5,
+        walletLimit: result.walletLimit ?? 3,
         addressNftCounts: [],
       });
     } catch (err) {

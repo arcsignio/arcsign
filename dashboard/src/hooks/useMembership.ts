@@ -54,7 +54,7 @@ export function useMembership(bscAddress: string | null) {
         tokenIds: [],
         expirations: [],
         daysRemaining: 0,
-        walletLimit: 5,
+        walletLimit: 3,
       });
     } finally {
       setIsLoading(false);
@@ -71,7 +71,7 @@ export function useMembership(bscAddress: string | null) {
     error,
     refresh: checkMembership,
     isPro: status?.isPro ?? false,
-    walletLimit: status?.walletLimit ?? 5,
+    walletLimit: status?.walletLimit ?? 3,
   };
 }
 
@@ -97,7 +97,7 @@ export function useCanCreateWallet(
       } catch (err) {
         console.error("Failed to check wallet creation permission:", err);
         // Default to tier-based logic
-        setCanCreate(isPro ? true : currentWalletCount < 5);
+        setCanCreate(isPro ? true : currentWalletCount < 3);
       } finally {
         setIsChecking(false);
       }
@@ -120,7 +120,7 @@ export function getMembershipTierName(isPro: boolean): string {
  * Get wallet limit for a tier
  */
 export function getWalletLimitForTier(isPro: boolean): number | null {
-  return isPro ? null : 5;
+  return isPro ? null : 3;
 }
 
 /**
