@@ -26,7 +26,6 @@ import tauriApi, {
 interface MembershipSettingsProps {
   onBack: () => void;
   usbPath: string;
-  appPassword: string;
 }
 
 interface BscAddress {
@@ -104,7 +103,7 @@ const formatUserFriendlyError = (errorMessage: string): string => {
   return errorMessage;
 };
 
-export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, usbPath, appPassword }) => {
+export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, usbPath }) => {
   const [bscAddresses, setBscAddresses] = useState<BscAddress[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
@@ -116,6 +115,14 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   const [isLoadingDevice, setIsLoadingDevice] = useState(false);
   const [deviceError, setDeviceError] = useState<string | null>(null);
   const [copiedDeviceHash, setCopiedDeviceHash] = useState(false);
+  // Device unlock state - password input for unlocking device info
+  const [isDeviceLocked, setIsDeviceLocked] = useState(true);
+  const [showDevicePasswordDialog, setShowDevicePasswordDialog] = useState(false);
+  const [devicePassword, setDevicePassword] = useState('');
+
+  // App password for mint transactions (cleared after use)
+  const [mintAppPassword, setMintAppPassword] = useState('');
+  const [showMintAppPasswordDialog, setShowMintAppPasswordDialog] = useState(false);
 
   // Mint state - for minting from a selected address
   const [mintStep, setMintStep] = useState<MintStep>('idle');
@@ -139,9 +146,9 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   }, [selectedMintAddress, bscAddresses]);
 
   // Load all BSC addresses and check membership on mount
+  // Device info is NOT loaded automatically - requires explicit unlock
   useEffect(() => {
     loadBscAddressesAndCheckMembership();
-    loadDeviceMembershipStatus();
   }, [wallets]);
 
   const loadBscAddressesAndCheckMembership = async () => {
@@ -213,28 +220,66 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
     if (bscAddresses.length > 0) {
       checkAllMemberships(bscAddresses.map(a => a.address));
     }
-    loadDeviceMembershipStatus();
+    // Device info refresh requires re-unlocking (for security)
   };
 
-  // Load device membership status from USB storage
-  const loadDeviceMembershipStatus = async () => {
+  // Load device membership status from USB storage - requires password
+  const loadDeviceMembershipStatus = async (password: string) => {
     setIsLoadingDevice(true);
     setDeviceError(null);
 
     try {
       const status = await tauriApi.getDeviceMembershipStatus({
         usbPath,
-        appPassword,
+        appPassword: password,
       });
       setDeviceStatus(status);
+      setIsDeviceLocked(false);
       console.log('Device membership status loaded:', status);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load device status';
-      setDeviceError(errorMessage);
+      // Check if it's a password error
+      if (errorMessage.toLowerCase().includes('password') ||
+          errorMessage.toLowerCase().includes('decrypt') ||
+          errorMessage.toLowerCase().includes('invalid')) {
+        setDeviceError('Incorrect password. Please try again.');
+      } else {
+        setDeviceError(errorMessage);
+      }
       console.error('Failed to load device membership:', err);
     } finally {
       setIsLoadingDevice(false);
     }
+  };
+
+  // Handle device unlock button click
+  const handleUnlockDevice = () => {
+    setDevicePassword('');
+    setDeviceError(null);
+    setShowDevicePasswordDialog(true);
+  };
+
+  // Execute device unlock with password
+  const executeDeviceUnlock = async () => {
+    if (!devicePassword) return;
+
+    setShowDevicePasswordDialog(false);
+    await loadDeviceMembershipStatus(devicePassword);
+    // Clear password from memory immediately after use
+    setDevicePassword('');
+  };
+
+  // Cancel device password dialog
+  const cancelDevicePasswordDialog = () => {
+    setShowDevicePasswordDialog(false);
+    setDevicePassword('');
+  };
+
+  // Lock device info (clear from memory)
+  const handleLockDevice = () => {
+    setDeviceStatus(null);
+    setIsDeviceLocked(true);
+    setDeviceError(null);
   };
 
   // Copy device hash to clipboard
@@ -282,7 +327,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
           chainId: CHAIN_ID,
           txHash: txHash,
           usbPath,
-          appPassword,
+          appPassword: mintAppPassword,
         });
 
         console.log(`Attempt ${attempt}: Transaction status:`, status);
@@ -331,7 +376,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         amount: '0', // No native token value for ERC-20 calls
         data: data,
         usbPath,
-        appPassword,
+        appPassword: mintAppPassword,
       });
 
       console.log('Build result:', buildResult);
@@ -346,7 +391,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         fromAddress: selectedMintAddress,
         unsignedTx: buildResult,
         usbPath,
-        appPassword,
+        appPassword: mintAppPassword,
       });
 
       console.log('Sign result:', signResult);
@@ -357,7 +402,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         chainId: CHAIN_ID,
         signedTx: signResult,
         usbPath,
-        appPassword,
+        appPassword: mintAppPassword,
       });
 
       console.log('Broadcast result:', broadcastResult);
@@ -381,21 +426,37 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   };
 
   // Start the upgrade/mint process - requires selecting an address first
+  // First step: request app password for transaction operations
   const handleUpgrade = (address: string) => {
     setSelectedMintAddress(address);
-    setMintStep('approve');
+    setMintAppPassword('');
+    setShowMintAppPasswordDialog(true);
     setMintError(null);
     setTxHash(null);
   };
 
-  // Request password for a specific action
+  // Execute after app password is provided
+  const proceedWithMint = () => {
+    if (!mintAppPassword) return;
+    setShowMintAppPasswordDialog(false);
+    setMintStep('approve');
+  };
+
+  // Cancel app password dialog for mint
+  const cancelMintAppPasswordDialog = () => {
+    setShowMintAppPasswordDialog(false);
+    setSelectedMintAddress(null);
+    setMintAppPassword('');
+  };
+
+  // Request wallet password for a specific action
   const requestPassword = (action: 'approve' | 'mint') => {
     setPendingAction(action);
     setWalletPassword('');
     setShowPasswordDialog(true);
   };
 
-  // Cancel password dialog
+  // Cancel wallet password dialog
   const cancelPasswordDialog = () => {
     setShowPasswordDialog(false);
     setPendingAction(null);
@@ -481,6 +542,9 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
     setWalletPassword('');
     setPendingAction(null);
     setShowPasswordDialog(false);
+    // Clear app password from memory
+    setMintAppPassword('');
+    setSelectedMintAddress(null);
   };
 
   const formatAddress = (addr: string) => {
@@ -735,6 +799,42 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         </div>
       )}
 
+      {/* App Password Dialog for Mint */}
+      {showMintAppPasswordDialog && (
+        <div className="password-overlay">
+          <div className="password-dialog">
+            <h3>Enter App Password</h3>
+            <p className="wallet-name-hint">
+              Minting from: <strong>{getSelectedWallet()?.walletName || 'Unknown'}</strong>
+            </p>
+            <p className="password-hint">
+              Your app password is required to perform transaction operations.
+            </p>
+            <input
+              type="password"
+              value={mintAppPassword}
+              onChange={(e) => setMintAppPassword(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && proceedWithMint()}
+              placeholder="App password"
+              autoFocus
+              className="password-input"
+            />
+            <div className="password-actions">
+              <button onClick={cancelMintAppPasswordDialog} className="cancel-btn">
+                Cancel
+              </button>
+              <button
+                onClick={proceedWithMint}
+                disabled={!mintAppPassword}
+                className="confirm-btn"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Device Information Section */}
       <section className="device-section">
         <h2>Device Information</h2>
@@ -746,15 +846,31 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
           <div className="device-card">
             <div className="loading">Loading device information...</div>
           </div>
-        ) : deviceError ? (
-          <div className="device-card error">
-            <p className="device-error">{deviceError}</p>
-            <button onClick={loadDeviceMembershipStatus} className="retry-btn">
-              Retry
-            </button>
+        ) : isDeviceLocked ? (
+          /* Locked State - Show unlock button */
+          <div className="device-card locked">
+            <div className="locked-content">
+              <div className="lock-icon">🔒</div>
+              <p className="locked-message">Device information is locked</p>
+              <p className="locked-hint">Enter your app password to view device details and membership bindings.</p>
+              {deviceError && (
+                <p className="device-error">{deviceError}</p>
+              )}
+              <button onClick={handleUnlockDevice} className="unlock-btn">
+                Unlock with Password
+              </button>
+            </div>
           </div>
         ) : deviceStatus ? (
+          /* Unlocked State - Show device info */
           <div className="device-card">
+            <div className="device-header">
+              <span className="unlocked-badge">🔓 Unlocked</span>
+              <button onClick={handleLockDevice} className="lock-btn" title="Lock device info">
+                Lock
+              </button>
+            </div>
+
             <div className="device-detail-row">
               <span className="device-label">Device ID</span>
               <span className="device-value mono">{deviceStatus.deviceId}</span>
@@ -819,6 +935,39 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
           </div>
         ) : null}
       </section>
+
+      {/* Device Password Dialog */}
+      {showDevicePasswordDialog && (
+        <div className="password-overlay">
+          <div className="password-dialog">
+            <h3>Unlock Device Information</h3>
+            <p className="password-hint">
+              Enter your app password to view device details and membership bindings.
+            </p>
+            <input
+              type="password"
+              value={devicePassword}
+              onChange={(e) => setDevicePassword(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && executeDeviceUnlock()}
+              placeholder="App password"
+              autoFocus
+              className="password-input"
+            />
+            <div className="password-actions">
+              <button onClick={cancelDevicePasswordDialog} className="cancel-btn">
+                Cancel
+              </button>
+              <button
+                onClick={executeDeviceUnlock}
+                disabled={!devicePassword}
+                className="confirm-btn"
+              >
+                Unlock
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Your BSC Addresses */}
       {isLoading ? (
@@ -1539,9 +1688,89 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
           border-color: #fecaca;
         }
 
+        .device-card.locked {
+          background: #f3f4f6;
+          border-color: #d1d5db;
+        }
+
+        .locked-content {
+          text-align: center;
+          padding: 24px 16px;
+        }
+
+        .lock-icon {
+          font-size: 48px;
+          margin-bottom: 16px;
+        }
+
+        .locked-message {
+          margin: 0 0 8px;
+          font-size: 18px;
+          font-weight: 600;
+          color: #374151;
+        }
+
+        .locked-hint {
+          margin: 0 0 20px;
+          font-size: 14px;
+          color: #6b7280;
+        }
+
+        .unlock-btn {
+          padding: 12px 24px;
+          background: #3b82f6;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .unlock-btn:hover {
+          background: #2563eb;
+          transform: translateY(-1px);
+        }
+
+        .device-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .unlocked-badge {
+          font-size: 14px;
+          color: #10b981;
+          font-weight: 500;
+        }
+
+        .lock-btn {
+          padding: 6px 12px;
+          background: transparent;
+          color: #6b7280;
+          border: 1px solid #d1d5db;
+          border-radius: 6px;
+          font-size: 13px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .lock-btn:hover {
+          background: #f3f4f6;
+          border-color: #9ca3af;
+        }
+
         .device-error {
           color: #dc2626;
-          margin: 0 0 12px;
+          margin: 12px 0;
+          padding: 10px 16px;
+          background: #fef2f2;
+          border-radius: 6px;
+          font-size: 14px;
         }
 
         .retry-btn {

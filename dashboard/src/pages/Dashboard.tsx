@@ -514,13 +514,11 @@ export function Dashboard() {
 
   // Show membership settings
   if (currentView === "membership") {
-    const storedAppPassword = sessionStorage.getItem("appPassword") || "";
     return (
       <div className="dashboard">
         <MembershipSettings
           onBack={() => setCurrentView("settings")}
           usbPath={usbPath || ""}
-          appPassword={storedAppPassword}
         />
       </div>
     );
