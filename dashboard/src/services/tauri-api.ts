@@ -1105,6 +1105,11 @@ export const tauriApi = {
   createSession,
   validateSession,
   revokeSession,
+
+  // Wallet Session Management
+  createWalletSession,
+  validateWalletSession,
+  revokeWalletSession,
 };
 
 /**
@@ -1342,6 +1347,95 @@ export async function revokeSession(params: {
     return result;
   } catch (error) {
     console.error("🔴 [tauri-api] revokeSession error:", error);
+    throw parseError(error);
+  }
+}
+
+// ============================================================================
+// Wallet Session Management APIs
+// ============================================================================
+
+export interface WalletSessionTokenResponse {
+  token: string;
+  walletId: string;
+  expiresAt: number;
+  usbPath: string;
+}
+
+export interface ValidateWalletTokenResponse {
+  valid: boolean;
+  walletId: string;
+  expiresAt: number;
+  usbPath: string;
+}
+
+export interface RevokeWalletTokenResponse {
+  revoked: boolean;
+}
+
+/**
+ * Create a wallet session token by validating wallet password
+ */
+export async function createWalletSession(params: {
+  walletId: string;
+  password: string;
+  usbPath: string;
+}): Promise<WalletSessionTokenResponse> {
+  console.log("🔐 [tauri-api] createWalletSession called for wallet:", params.walletId);
+  try {
+    const result = await invoke<WalletSessionTokenResponse>("create_wallet_session", {
+      input: {
+        walletId: params.walletId,
+        password: params.password,
+        usbPath: params.usbPath,
+      },
+    });
+    console.log("🔐 [tauri-api] createWalletSession success");
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] createWalletSession error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Validate a wallet session token
+ */
+export async function validateWalletSession(params: {
+  token: string;
+}): Promise<ValidateWalletTokenResponse> {
+  console.log("🔐 [tauri-api] validateWalletSession called");
+  try {
+    const result = await invoke<ValidateWalletTokenResponse>("validate_wallet_session", {
+      input: {
+        token: params.token,
+      },
+    });
+    console.log("🔐 [tauri-api] validateWalletSession success");
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] validateWalletSession error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Revoke a wallet session token
+ */
+export async function revokeWalletSession(params: {
+  token: string;
+}): Promise<RevokeWalletTokenResponse> {
+  console.log("🔐 [tauri-api] revokeWalletSession called");
+  try {
+    const result = await invoke<RevokeWalletTokenResponse>("revoke_wallet_session", {
+      input: {
+        token: params.token,
+      },
+    });
+    console.log("🔐 [tauri-api] revokeWalletSession success");
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] revokeWalletSession error:", error);
     throw parseError(error);
   }
 }
