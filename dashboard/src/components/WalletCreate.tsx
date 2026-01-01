@@ -12,7 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { invoke } from '@tauri-apps/api';
 import { walletCreateSchema, type WalletCreateFormData } from '@/validation/password';
 import { useDashboardStore, useWalletLimitInfo } from '@/stores/dashboardStore';
-import tauriApi, { type UsbDevice, type AppError } from '@/services/tauri-api';
+import tauriApi, { type UsbDevice, type AppError, type DeviceMembershipStatus } from '@/services/tauri-api';
 import type { WalletCreateResponse } from '@/types/wallet';
 import { MnemonicDisplay } from './MnemonicDisplay';
 import { ConfirmationDialog } from './ConfirmationDialog';
@@ -20,9 +20,10 @@ import { ConfirmationDialog } from './ConfirmationDialog';
 interface WalletCreateProps {
   onCancel?: () => void;
   onSuccess?: () => void;
+  appPassword?: string; // App password for device membership check
 }
 
-export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
+export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateProps = {}) {
   const [usbDevices, setUsbDevices] = useState<UsbDevice[]>([]);
   const [isLoadingUsb, setIsLoadingUsb] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -33,6 +34,8 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
   } | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [deviceStatus, setDeviceStatus] = useState<DeviceMembershipStatus | null>(null);
+  const [isCheckingDevice, setIsCheckingDevice] = useState(false);
 
   const { addWallet } = useDashboardStore();
   const walletLimitInfo = useWalletLimitInfo();
@@ -71,10 +74,39 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
   }, [setValue]);
 
   const onSubmit = async (data: WalletCreateFormData) => {
-    // Check wallet limit before creating
+    // Check wallet limit (chain-based membership)
     if (!walletLimitInfo.canCreate) {
       setShowUpgradePrompt(true);
       return;
+    }
+
+    // Check device membership limit if appPassword is available
+    if (appPassword && data.usbPath) {
+      setIsCheckingDevice(true);
+      try {
+        const deviceMembership = await tauriApi.getDeviceMembershipStatus({
+          usbPath: data.usbPath,
+          appPassword: appPassword,
+        });
+
+        setDeviceStatus(deviceMembership);
+
+        // Device-level wallet limit check
+        if (!deviceMembership.canCreateWallet) {
+          setError(
+            `Device wallet limit reached (${deviceMembership.walletCount}/${deviceMembership.walletLimit}). ` +
+            `Please upgrade to Pro or bind NFTs to this device in Settings → Membership.`
+          );
+          setIsCheckingDevice(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to check device membership:', err);
+        // Continue with wallet creation even if device check fails
+        // (fallback to chain-based membership check)
+      } finally {
+        setIsCheckingDevice(false);
+      }
     }
 
     setIsCreating(true);
@@ -319,16 +351,21 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
         <div className="form-actions">
           <button
             type="submit"
-            disabled={!isValid || isCreating || usbDevices.length === 0}
+            disabled={!isValid || isCreating || isCheckingDevice || usbDevices.length === 0}
             className="primary-button"
           >
-            {isCreating ? 'Creating Wallet...' : 'Create Wallet'}
+            {isCheckingDevice
+              ? 'Checking Device Limit...'
+              : isCreating
+              ? 'Creating Wallet...'
+              : 'Create Wallet'
+            }
           </button>
           {onCancel && (
             <button
               type="button"
               onClick={handleCancelClick}
-              disabled={isCreating}
+              disabled={isCreating || isCheckingDevice}
               className="secondary-button"
             >
               Cancel

@@ -20,6 +20,7 @@ import tauriApi, {
   type SignTransactionResponse,
   type QueryTransactionStatusResponse,
   type AggregatedMembershipStatus,
+  type DeviceMembershipStatus,
 } from '@/services/tauri-api';
 
 interface MembershipSettingsProps {
@@ -110,6 +111,12 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Device membership state
+  const [deviceStatus, setDeviceStatus] = useState<DeviceMembershipStatus | null>(null);
+  const [isLoadingDevice, setIsLoadingDevice] = useState(false);
+  const [deviceError, setDeviceError] = useState<string | null>(null);
+  const [copiedDeviceHash, setCopiedDeviceHash] = useState(false);
+
   // Mint state - for minting from a selected address
   const [mintStep, setMintStep] = useState<MintStep>('idle');
   const [mintError, setMintError] = useState<string | null>(null);
@@ -134,6 +141,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   // Load all BSC addresses and check membership on mount
   useEffect(() => {
     loadBscAddressesAndCheckMembership();
+    loadDeviceMembershipStatus();
   }, [wallets]);
 
   const loadBscAddressesAndCheckMembership = async () => {
@@ -204,6 +212,41 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   const handleRefresh = () => {
     if (bscAddresses.length > 0) {
       checkAllMemberships(bscAddresses.map(a => a.address));
+    }
+    loadDeviceMembershipStatus();
+  };
+
+  // Load device membership status from USB storage
+  const loadDeviceMembershipStatus = async () => {
+    setIsLoadingDevice(true);
+    setDeviceError(null);
+
+    try {
+      const status = await tauriApi.getDeviceMembershipStatus({
+        usbPath,
+        appPassword,
+      });
+      setDeviceStatus(status);
+      console.log('Device membership status loaded:', status);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load device status';
+      setDeviceError(errorMessage);
+      console.error('Failed to load device membership:', err);
+    } finally {
+      setIsLoadingDevice(false);
+    }
+  };
+
+  // Copy device hash to clipboard
+  const copyDeviceHash = async () => {
+    if (!deviceStatus?.deviceIdHash) return;
+
+    try {
+      await navigator.clipboard.writeText(deviceStatus.deviceIdHash);
+      setCopiedDeviceHash(true);
+      setTimeout(() => setCopiedDeviceHash(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy device hash:', err);
     }
   };
 
@@ -691,6 +734,91 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
           </div>
         </div>
       )}
+
+      {/* Device Information Section */}
+      <section className="device-section">
+        <h2>Device Information</h2>
+        <p className="section-description">
+          Your USB device has a unique ID that can be bound to NFT memberships for hardware-level security.
+        </p>
+
+        {isLoadingDevice ? (
+          <div className="device-card">
+            <div className="loading">Loading device information...</div>
+          </div>
+        ) : deviceError ? (
+          <div className="device-card error">
+            <p className="device-error">{deviceError}</p>
+            <button onClick={loadDeviceMembershipStatus} className="retry-btn">
+              Retry
+            </button>
+          </div>
+        ) : deviceStatus ? (
+          <div className="device-card">
+            <div className="device-detail-row">
+              <span className="device-label">Device ID</span>
+              <span className="device-value mono">{deviceStatus.deviceId}</span>
+            </div>
+
+            <div className="device-detail-row">
+              <span className="device-label">Device Hash (for contract binding)</span>
+              <div className="device-hash-container">
+                <span className="device-value mono hash">{deviceStatus.deviceIdHash}</span>
+                <button
+                  onClick={copyDeviceHash}
+                  className="copy-btn"
+                  title="Copy device hash"
+                >
+                  {copiedDeviceHash ? '✓ Copied' : '📋 Copy'}
+                </button>
+              </div>
+            </div>
+
+            <div className="device-detail-row">
+              <span className="device-label">Wallet Limit (USB-based)</span>
+              <span className="device-value">{deviceStatus.walletLimit} wallets</span>
+            </div>
+
+            <div className="device-detail-row">
+              <span className="device-label">Current Wallets</span>
+              <span className="device-value">{deviceStatus.walletCount} / {deviceStatus.walletLimit}</span>
+            </div>
+
+            <div className="device-detail-row">
+              <span className="device-label">Can Create More</span>
+              <span className={`device-value ${deviceStatus.canCreateWallet ? 'success' : 'warning'}`}>
+                {deviceStatus.canCreateWallet ? '✓ Yes' : '✗ Limit reached'}
+              </span>
+            </div>
+
+            {/* NFT Bindings */}
+            {deviceStatus.memberships && deviceStatus.memberships.length > 0 && (
+              <div className="device-bindings">
+                <h4>NFT Bindings on This Device</h4>
+                {deviceStatus.memberships.map((binding, index) => (
+                  <div key={index} className={`binding-row ${binding.isValid ? 'valid' : 'invalid'}`}>
+                    <div className="binding-info">
+                      <span className="binding-label">Token #{binding.nftTokenId}</span>
+                      <span className="binding-chain">{binding.chainId}</span>
+                      <span className={`binding-status ${binding.isValid ? 'valid' : 'invalid'}`}>
+                        {binding.isValid ? '✓ Valid' : '✗ Invalid'}
+                      </span>
+                    </div>
+                    <div className="binding-address mono">{formatAddress(binding.boundAddress)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {deviceStatus.memberships.length === 0 && membership.isPro && (
+              <div className="binding-hint">
+                <p>💡 <strong>Tip:</strong> You own Pro NFTs but haven't bound them to this device yet.</p>
+                <p>Binding NFTs to your USB device adds hardware-level security and prevents multi-device sharing.</p>
+              </div>
+            )}
+          </div>
+        ) : null}
+      </section>
 
       {/* Your BSC Addresses */}
       {isLoading ? (
@@ -1392,6 +1520,202 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         .confirm-btn:disabled {
           opacity: 0.5;
           cursor: not-allowed;
+        }
+
+        /* Device Information Section */
+        .device-section {
+          margin-bottom: 32px;
+        }
+
+        .device-card {
+          padding: 20px;
+          background: #f9fafb;
+          border-radius: 12px;
+          border: 2px solid #e5e7eb;
+        }
+
+        .device-card.error {
+          background: #fef2f2;
+          border-color: #fecaca;
+        }
+
+        .device-error {
+          color: #dc2626;
+          margin: 0 0 12px;
+        }
+
+        .retry-btn {
+          padding: 8px 16px;
+          background: #3b82f6;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+        }
+
+        .retry-btn:hover {
+          background: #2563eb;
+        }
+
+        .device-detail-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 0;
+          border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .device-detail-row:last-child {
+          border-bottom: none;
+        }
+
+        .device-label {
+          font-weight: 500;
+          color: #6b7280;
+          font-size: 14px;
+        }
+
+        .device-value {
+          font-weight: 500;
+          color: #111827;
+        }
+
+        .device-value.mono {
+          font-family: monospace;
+          font-size: 13px;
+        }
+
+        .device-value.success {
+          color: #10b981;
+        }
+
+        .device-value.warning {
+          color: #f59e0b;
+        }
+
+        .device-hash-container {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .device-value.hash {
+          max-width: 300px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .copy-btn {
+          padding: 6px 12px;
+          background: #3b82f6;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 12px;
+          white-space: nowrap;
+          transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+          background: #2563eb;
+        }
+
+        /* Device Bindings */
+        .device-bindings {
+          margin-top: 16px;
+          padding-top: 16px;
+          border-top: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .device-bindings h4 {
+          margin: 0 0 12px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #374151;
+        }
+
+        .binding-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 10px 12px;
+          background: white;
+          border-radius: 8px;
+          margin-bottom: 8px;
+          border: 2px solid #e5e7eb;
+        }
+
+        .binding-row.valid {
+          border-color: #86efac;
+          background: #f0fdf4;
+        }
+
+        .binding-row.invalid {
+          border-color: #fecaca;
+          background: #fef2f2;
+        }
+
+        .binding-info {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .binding-label {
+          font-weight: 600;
+          color: #111827;
+        }
+
+        .binding-chain {
+          font-size: 12px;
+          padding: 2px 8px;
+          background: #e0e7ff;
+          color: #3730a3;
+          border-radius: 10px;
+          font-weight: 500;
+        }
+
+        .binding-status {
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .binding-status.valid {
+          color: #10b981;
+        }
+
+        .binding-status.invalid {
+          color: #dc2626;
+        }
+
+        .binding-address {
+          font-family: monospace;
+          font-size: 12px;
+          color: #6b7280;
+        }
+
+        .binding-hint {
+          margin-top: 16px;
+          padding: 16px;
+          background: #fffbeb;
+          border-radius: 10px;
+          border: 1px solid #fde68a;
+        }
+
+        .binding-hint p {
+          margin: 0 0 8px;
+          font-size: 14px;
+          color: #92400e;
+        }
+
+        .binding-hint p:last-child {
+          margin-bottom: 0;
+        }
+
+        .binding-hint strong {
+          color: #78350f;
         }
       `}</style>
     </div>

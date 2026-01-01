@@ -24,6 +24,7 @@ import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { DeleteWalletDialog } from "@/components/DeleteWalletDialog";
 import { TransactionSignDialog } from "@/components/TransactionSignDialog";
+import { MembershipBadge } from "@/components/MembershipBadge";
 import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import type { Address } from "@/types/address";
 import type { Wallet } from "@/types/wallet";
@@ -413,6 +414,7 @@ export function Dashboard() {
 
   // Show wallet creation view
   if (currentView === "create") {
+    const appPassword = sessionStorage.getItem("appPassword") || "";
     return (
       <div className="dashboard">
         <WalletCreate
@@ -421,6 +423,7 @@ export function Dashboard() {
             handleReload(); // Reload wallets after creation
             handleBackToList();
           }}
+          appPassword={appPassword}
         />
       </div>
     );
@@ -552,7 +555,10 @@ export function Dashboard() {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <h1>ArcSign Dashboard</h1>
+        <div className="header-title-section">
+          <h1>ArcSign Dashboard</h1>
+          <MembershipBadge onClick={() => setCurrentView("membership")} />
+        </div>
         <div className="header-actions">
           <button
             onClick={() => setCurrentView("settings")}
