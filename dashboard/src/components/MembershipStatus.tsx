@@ -135,7 +135,11 @@ export function MembershipStatus({ bscAddress, compact = false }: MembershipStat
               </div>
               <div style={styles.detailRow}>
                 <span style={styles.detailLabel}>Wallet Limit</span>
-                <span style={styles.detailValue}>Unlimited</span>
+                <span style={styles.detailValue}>{membership.walletLimit} wallets</span>
+              </div>
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Current Usage</span>
+                <span style={styles.detailValue}>{wallets.length} / {membership.walletLimit}</span>
               </div>
             </>
           ) : (
@@ -155,7 +159,7 @@ export function MembershipStatus({ bscAddress, compact = false }: MembershipStat
         {!membership.isPro && (
           <div style={styles.upgradeSection}>
             <p style={styles.upgradeText}>
-              Upgrade to Pro for unlimited wallets and premium features!
+              Upgrade to Pro for +5 wallets per NFT and premium features!
             </p>
             <button onClick={handleUpgrade} style={styles.upgradeBtn}>
               Upgrade to Pro - 30 USDT/year
@@ -181,7 +185,7 @@ export function MembershipStatus({ bscAddress, compact = false }: MembershipStat
         <ul style={styles.benefitsList}>
           <li style={styles.benefitItem}>
             <span style={styles.checkIcon}>✓</span>
-            Unlimited wallet creation
+            +5 wallets per NFT
           </li>
           <li style={styles.benefitItem}>
             <span style={styles.checkIcon}>✓</span>
