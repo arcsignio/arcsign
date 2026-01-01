@@ -3,8 +3,9 @@
  * Feature: Asset management with Alchemy API integration + CoinGecko Token Lists
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAppPassword } from "@/contexts/AppPasswordContext";
+import { useWalletSessionStore } from "@/stores/walletSessionStore";
 import tauriApi, { type AppError } from "@/services/tauri-api";
 import type { TokenBalance, TokenBalancesResponse } from "@/types/tokens";
 import type { Wallet } from "@/types/wallet";
@@ -51,11 +52,14 @@ export function WalletDetail({
 }: WalletDetailProps) {
   void _onViewAddresses; // Suppress unused variable warning
   const { appPassword } = useAppPassword();
+  const walletSession = useWalletSessionStore();
   const [tokens, setTokens] = useState<TokenBalance[]>([]);
   const [totalUsd, setTotalUsd] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [password, setPassword] = useState("");
+
+  // Wallet session state (replaces password state)
+  const [tempPassword, setTempPassword] = useState(""); // Only used during unlock, immediately discarded
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("crypto");
   const [showPercentage, setShowPercentage] = useState(true);
@@ -93,8 +97,18 @@ export function WalletDetail({
   // This loads the complete token lists, not just top N
   const { tokens: allTokensByChain } = useAllTokens();
 
+  // Check if wallet already has a valid session on mount
+  useEffect(() => {
+    if (walletSession.isWalletSessionValid(wallet.id)) {
+      console.log("🔐 [WalletDetail] Valid session found, skipping password prompt");
+      setShowPasswordPrompt(false);
+      // Auto-load balances if session exists
+      handleRefreshBalances();
+    }
+  }, [wallet.id]);
+
   const handleLoadBalances = async () => {
-    if (!password || !appPassword) {
+    if (!tempPassword || !appPassword) {
       setError("Please enter wallet password");
       return;
     }
@@ -106,15 +120,27 @@ export function WalletDetail({
       console.log("🚀 Starting wallet unlock...", {
         walletId: wallet.id,
         usbPath,
-        hasPassword: !!password,
+        hasPassword: !!tempPassword,
         hasAppPassword: !!appPassword,
       });
 
+      // Store password in local variable for this function scope
+      const passwordForThisUnlock = tempPassword;
+
+      // Create wallet session token (this validates the password)
+      console.log("🔐 Creating wallet session token...");
+      await walletSession.createWalletSession(wallet.id, passwordForThisUnlock, usbPath);
+      console.log("✅ Wallet session created successfully");
+
+      // Password validated and token created, clear from state immediately
+      setTempPassword("");
+
       // First, load wallet addresses from AddressBook
+      // Note: Still using password for this initial unlock, but it's the last time
       console.log("📍 Loading wallet addresses...");
       const addressResponse = await tauriApi.loadAddresses({
         wallet_id: wallet.id,
-        password,
+        password: passwordForThisUnlock,
         usb_path: usbPath,
       });
       console.log("📍 Loaded addresses:", addressResponse.addresses.length);
@@ -135,7 +161,7 @@ export function WalletDetail({
       console.log("🚀 Starting getTokenBalances request...", { includeTestnets });
       const response: TokenBalancesResponse = await tauriApi.getTokenBalances({
         walletId: wallet.id,
-        password,
+        password: passwordForThisUnlock, // Using local variable
         usbPath,
         appPassword,
         includeTestnets,
@@ -621,8 +647,8 @@ export function WalletDetail({
               <input
                 type="password"
                 id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={tempPassword}
+                onChange={(e) => setTempPassword(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleLoadBalances()}
                 placeholder="Enter your password"
                 autoFocus
