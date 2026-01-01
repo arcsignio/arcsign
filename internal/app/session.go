@@ -44,7 +44,7 @@ func NewSessionManager() *SessionManager {
 // CreateSession validates credentials and creates a new session token
 func (sm *SessionManager) CreateSession(usbPath, appPassword string) (*Session, error) {
 	// Validate USB device and password
-	if err := ValidateAppPassword(usbPath, appPassword); err != nil {
+	if err := VerifyAppPassword(appPassword, usbPath); err != nil {
 		return nil, ErrInvalidAuth
 	}
 

@@ -3718,7 +3718,7 @@ func GetDeviceMembershipStatusWithToken(params *C.char) *C.char {
 	sm := initSessionManager()
 
 	// Validate token and get session
-	session, err := sm.ValidateToken(input.Token)
+	_, err := sm.ValidateToken(input.Token)
 	if err != nil {
 		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid token: %v", err))
 		jsonBytes, _ := json.Marshal(response)
