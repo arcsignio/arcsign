@@ -989,7 +989,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         <ul className="benefits-list">
           <li>
             <span className="check">✓</span>
-            Unlimited wallet creation
+            +3 wallets per NFT
           </li>
           <li>
             <span className="check">✓</span>
