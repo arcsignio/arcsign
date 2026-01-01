@@ -1095,6 +1095,16 @@ export const tauriApi = {
 
   // Membership (NFT verification)
   checkAllMemberships,
+
+  // USB Device Membership (Device Binding System)
+  getDeviceMembershipStatus,
+  addDeviceMembershipBinding,
+  removeDeviceMembershipBinding,
+
+  // Session Management
+  createSession,
+  validateSession,
+  revokeSession,
 };
 
 /**
@@ -1117,6 +1127,221 @@ export async function checkAllMemberships(addresses: string[]): Promise<Aggregat
       input: { addresses },
     });
   } catch (error) {
+    throw parseError(error);
+  }
+}
+
+// ============================================================================
+// USB Device Membership (Device Binding System)
+// ============================================================================
+
+/**
+ * NFT membership binding info for a specific token
+ */
+export interface MembershipBindingInfo {
+  nftTokenId: string;
+  nftContract: string;
+  chainId: string;
+  boundAddress: string;
+  boundAt: number;
+  isValid: boolean;
+  lastVerified: number;
+}
+
+/**
+ * Device membership status from USB storage
+ */
+export interface DeviceMembershipStatus {
+  deviceId: string;           // Unique device ID (UUID) stored on USB
+  deviceIdHash: string;       // keccak256(deviceId) for contract binding
+  walletLimit: number;        // Maximum wallets allowed (3 free + 5 per NFT)
+  walletCount: number;        // Current number of wallets
+  canCreateWallet: boolean;   // Whether user can create more wallets
+  memberships: MembershipBindingInfo[]; // List of NFT membership bindings
+}
+
+/**
+ * Get device membership status from USB storage
+ * Returns device ID, device ID hash (for contract binding), wallet limits, and NFT bindings
+ */
+export async function getDeviceMembershipStatus(params: {
+  usbPath: string;
+  appPassword: string;
+}): Promise<DeviceMembershipStatus> {
+  console.log("🔐 [tauri-api] getDeviceMembershipStatus called");
+
+  try {
+    const result = await invoke<DeviceMembershipStatus>(
+      "get_device_membership_status",
+      {
+        input: {
+          usbPath: params.usbPath,
+          appPassword: params.appPassword,
+        },
+      }
+    );
+    console.log("🔐 [tauri-api] getDeviceMembershipStatus response:", {
+      deviceId: result.deviceId,
+      walletLimit: result.walletLimit,
+      walletCount: result.walletCount,
+      bindingsCount: result.memberships.length,
+    });
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] getDeviceMembershipStatus error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Add NFT membership binding to USB device
+ * Call this after user has bound deviceId on the NFT contract
+ */
+export async function addDeviceMembershipBinding(params: {
+  usbPath: string;
+  appPassword: string;
+  nftTokenId: string;
+  nftContract: string;
+  chainId: string;
+  boundAddress: string;
+  signature: string;
+}): Promise<void> {
+  console.log("🔐 [tauri-api] addDeviceMembershipBinding called:", {
+    nftTokenId: params.nftTokenId,
+    nftContract: params.nftContract,
+    chainId: params.chainId,
+  });
+
+  try {
+    await invoke("add_device_membership_binding", {
+      input: {
+        usbPath: params.usbPath,
+        appPassword: params.appPassword,
+        nftTokenId: params.nftTokenId,
+        nftContract: params.nftContract,
+        chainId: params.chainId,
+        boundAddress: params.boundAddress,
+        signature: params.signature,
+      },
+    });
+    console.log("🔐 [tauri-api] addDeviceMembershipBinding success");
+  } catch (error) {
+    console.error("🔴 [tauri-api] addDeviceMembershipBinding error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Remove NFT membership binding from USB device
+ */
+export async function removeDeviceMembershipBinding(params: {
+  usbPath: string;
+  appPassword: string;
+  nftTokenId: string;
+  nftContract: string;
+}): Promise<void> {
+  console.log("🔐 [tauri-api] removeDeviceMembershipBinding called:", {
+    nftTokenId: params.nftTokenId,
+    nftContract: params.nftContract,
+  });
+
+  try {
+    await invoke("remove_device_membership_binding", {
+      input: {
+        usbPath: params.usbPath,
+        appPassword: params.appPassword,
+        nftTokenId: params.nftTokenId,
+        nftContract: params.nftContract,
+      },
+    });
+    console.log("🔐 [tauri-api] removeDeviceMembershipBinding success");
+  } catch (error) {
+    console.error("🔴 [tauri-api] removeDeviceMembershipBinding error:", error);
+    throw parseError(error);
+  }
+}
+
+// ============================================================
+// Session Management API
+// ============================================================
+
+export interface SessionTokenResponse {
+  token: string;
+  expiresAt: number;
+  usbPath: string;
+}
+
+export interface ValidateTokenResponse {
+  valid: boolean;
+  usbPath: string;
+  expiresAt: number;
+}
+
+export interface RevokeTokenResponse {
+  revoked: boolean;
+}
+
+/**
+ * Create a session token after validating credentials
+ */
+export async function createSession(params: {
+  usbPath: string;
+  appPassword: string;
+}): Promise<SessionTokenResponse> {
+  console.log("🔐 [tauri-api] createSession called");
+  try {
+    const result = await invoke<SessionTokenResponse>("create_session", {
+      input: {
+        usbPath: params.usbPath,
+        appPassword: params.appPassword,
+      },
+    });
+    console.log("🔐 [tauri-api] createSession success");
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] createSession error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Validate a session token
+ */
+export async function validateSession(params: {
+  token: string;
+}): Promise<ValidateTokenResponse> {
+  console.log("🔐 [tauri-api] validateSession called");
+  try {
+    const result = await invoke<ValidateTokenResponse>("validate_session", {
+      input: {
+        token: params.token,
+      },
+    });
+    console.log("🔐 [tauri-api] validateSession success");
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] validateSession error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Revoke a session token
+ */
+export async function revokeSession(params: {
+  token: string;
+}): Promise<RevokeTokenResponse> {
+  console.log("🔐 [tauri-api] revokeSession called");
+  try {
+    const result = await invoke<RevokeTokenResponse>("revoke_session", {
+      input: {
+        token: params.token,
+      },
+    });
+    console.log("🔐 [tauri-api] revokeSession success");
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] revokeSession error:", error);
     throw parseError(error);
   }
 }

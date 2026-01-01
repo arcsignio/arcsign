@@ -49,6 +49,9 @@ import (
 // Global ChainAdapter service instance (initialized on first use)
 var chainAdapterSvc *chainadapterService.Service
 
+// Global SessionManager instance (initialized on first use)
+var sessionManager *app.SessionManager
+
 // init is called automatically when the library is loaded.
 // It sets up security measures to protect sensitive data.
 func init() {
@@ -69,6 +72,14 @@ func initChainAdapterService() *chainadapterService.Service {
 		chainAdapterSvc = chainadapterService.NewService(nil) // nil = use in-memory tx store
 	}
 	return chainAdapterSvc
+}
+
+// initSessionManager initializes the global SessionManager (lazy initialization)
+func initSessionManager() *app.SessionManager {
+	if sessionManager == nil {
+		sessionManager = app.NewSessionManager()
+	}
+	return sessionManager
 }
 
 // debugLog writes debug messages to /Volumes/arcsign/logs/go_debug.log
@@ -3545,6 +3556,180 @@ func RemoveMembershipBinding(params *C.char) *C.char {
 	}
 
 	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+// ============================================================
+// Session Management FFI Exports
+// ============================================================
+
+//export CreateSessionToken
+func CreateSessionToken(params *C.char) *C.char {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		USBPath     string `json:"usbPath"`
+		AppPassword string `json:"appPassword"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	// Initialize session manager
+	sm := initSessionManager()
+
+	// Create session token
+	session, err := sm.CreateSession(input.USBPath, input.AppPassword)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Authentication failed: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	output := map[string]interface{}{
+		"token":     session.Token,
+		"expiresAt": session.ExpiresAt.Unix(),
+		"usbPath":   session.UsbPath,
+	}
+
+	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export ValidateSessionToken
+func ValidateSessionToken(params *C.char) *C.char {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		Token string `json:"token"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Initialize session manager
+	sm := initSessionManager()
+
+	// Validate token
+	session, err := sm.ValidateToken(input.Token)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid token: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	output := map[string]interface{}{
+		"valid":     true,
+		"usbPath":   session.UsbPath,
+		"expiresAt": session.ExpiresAt.Unix(),
+	}
+
+	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export RevokeSessionToken
+func RevokeSessionToken(params *C.char) *C.char {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		Token string `json:"token"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Initialize session manager
+	sm := initSessionManager()
+
+	// Revoke token
+	sm.RevokeToken(input.Token)
+
+	output := map[string]interface{}{
+		"revoked": true,
+	}
+
+	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export GetDeviceMembershipStatusWithToken
+func GetDeviceMembershipStatusWithToken(params *C.char) *C.char {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		Token string `json:"token"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Initialize session manager
+	sm := initSessionManager()
+
+	// Validate token and get session
+	session, err := sm.ValidateToken(input.Token)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid token: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Load app config using session's USB path
+	// Note: We need to temporarily get the password - this is a limitation
+	// For now, we'll return an error and document that device operations require re-auth
+	// In a production system, we'd need to cache decrypted config in memory with the session
+	response := NewErrorResponse(ErrInvalidInput, "Device operations require authentication - use password-based API")
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }

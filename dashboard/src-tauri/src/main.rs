@@ -240,6 +240,10 @@ fn main() {
             is_first_time_setup,
             initialize_app,
             unlock_app,
+            // Session management commands
+            commands::auth::create_session,
+            commands::auth::validate_session,
+            commands::auth::revoke_session,
             // Wallet commands
             create_wallet,
             import_wallet,

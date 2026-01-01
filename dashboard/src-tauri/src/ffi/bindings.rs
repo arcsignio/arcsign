@@ -128,6 +128,16 @@ type AddMembershipBindingFn = unsafe extern "C" fn(*const c_char) -> *mut c_char
 /// Function signature for RemoveMembershipBinding: char* RemoveMembershipBinding(char* params)
 type RemoveMembershipBindingFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+// Session management function types
+/// Function signature for CreateSessionToken: char* CreateSessionToken(char* params)
+type CreateSessionTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for ValidateSessionToken: char* ValidateSessionToken(char* params)
+type ValidateSessionTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for RevokeSessionToken: char* RevokeSessionToken(char* params)
+type RevokeSessionTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 // ============================================================================
 // WalletLibrary - Dynamic Library Wrapper (T016, T017)
 // ============================================================================
@@ -187,6 +197,10 @@ pub struct WalletLibrary {
     get_membership_status: Symbol<'static, GetMembershipStatusFn>,
     add_membership_binding: Symbol<'static, AddMembershipBindingFn>,
     remove_membership_binding: Symbol<'static, RemoveMembershipBindingFn>,
+    // Session management function symbols
+    create_session_token: Symbol<'static, CreateSessionTokenFn>,
+    validate_session_token: Symbol<'static, ValidateSessionTokenFn>,
+    revoke_session_token: Symbol<'static, RevokeSessionTokenFn>,
 }
 
 impl WalletLibrary {
@@ -386,6 +400,19 @@ impl WalletLibrary {
                 .get(b"RemoveMembershipBinding")
                 .map_err(|e| format!("RemoveMembershipBinding symbol not found: {}", e))?;
 
+            // Load Session management symbols
+            let create_session_token: Symbol<CreateSessionTokenFn> = lib
+                .get(b"CreateSessionToken")
+                .map_err(|e| format!("CreateSessionToken symbol not found: {}", e))?;
+
+            let validate_session_token: Symbol<ValidateSessionTokenFn> = lib
+                .get(b"ValidateSessionToken")
+                .map_err(|e| format!("ValidateSessionToken symbol not found: {}", e))?;
+
+            let revoke_session_token: Symbol<RevokeSessionTokenFn> = lib
+                .get(b"RevokeSessionToken")
+                .map_err(|e| format!("RevokeSessionToken symbol not found: {}", e))?;
+
             // Extend symbol lifetime to 'static (safe because Library lives for program duration)
             let go_free: Symbol<'static, GoFreeFn> = std::mem::transmute(go_free);
             let get_version: Symbol<'static, GetVersionFn> = std::mem::transmute(get_version);
@@ -421,6 +448,9 @@ impl WalletLibrary {
             let get_membership_status: Symbol<'static, GetMembershipStatusFn> = std::mem::transmute(get_membership_status);
             let add_membership_binding: Symbol<'static, AddMembershipBindingFn> = std::mem::transmute(add_membership_binding);
             let remove_membership_binding: Symbol<'static, RemoveMembershipBindingFn> = std::mem::transmute(remove_membership_binding);
+            let create_session_token: Symbol<'static, CreateSessionTokenFn> = std::mem::transmute(create_session_token);
+            let validate_session_token: Symbol<'static, ValidateSessionTokenFn> = std::mem::transmute(validate_session_token);
+            let revoke_session_token: Symbol<'static, RevokeSessionTokenFn> = std::mem::transmute(revoke_session_token);
 
             Ok(WalletLibrary {
                 lib: Arc::new(lib),
@@ -458,6 +488,9 @@ impl WalletLibrary {
                 get_membership_status,
                 add_membership_binding,
                 remove_membership_binding,
+                create_session_token,
+                validate_session_token,
+                revoke_session_token,
             })
         }
     }
@@ -1116,6 +1149,68 @@ impl WalletLibrary {
     /// ```
     pub fn remove_membership_binding(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.remove_membership_binding, params_json)
+    }
+
+    /// Create a new session token after validating credentials.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "usbPath": "/path/to/usb",
+    ///   "appPassword": "password"
+    /// }
+    /// ```
+    ///
+    /// Returns:
+    /// ```json
+    /// {
+    ///   "token": "hex-encoded-token",
+    ///   "expiresAt": 1234567890,
+    ///   "usbPath": "/path/to/usb"
+    /// }
+    /// ```
+    pub fn create_session_token(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.create_session_token, params_json)
+    }
+
+    /// Validate a session token and get session info.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "token": "hex-encoded-token"
+    /// }
+    /// ```
+    ///
+    /// Returns:
+    /// ```json
+    /// {
+    ///   "valid": true,
+    ///   "usbPath": "/path/to/usb",
+    ///   "expiresAt": 1234567890
+    /// }
+    /// ```
+    pub fn validate_session_token(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.validate_session_token, params_json)
+    }
+
+    /// Revoke (invalidate) a session token.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "token": "hex-encoded-token"
+    /// }
+    /// ```
+    ///
+    /// Returns:
+    /// ```json
+    /// {
+    ///   "revoked": true
+    /// }
+    /// ```
+    pub fn revoke_session_token(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.revoke_session_token, params_json)
     }
 }
 

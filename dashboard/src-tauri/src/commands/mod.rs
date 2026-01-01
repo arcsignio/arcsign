@@ -4,6 +4,7 @@
  */
 
 pub mod app;
+pub mod auth;
 pub mod membership;
 pub mod provider;
 pub mod security;
