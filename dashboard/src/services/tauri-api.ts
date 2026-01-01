@@ -1159,7 +1159,7 @@ export interface MembershipBindingInfo {
 export interface DeviceMembershipStatus {
   deviceId: string;           // Unique device ID (UUID) stored on USB
   deviceIdHash: string;       // keccak256(deviceId) for contract binding
-  walletLimit: number;        // Maximum wallets allowed (3 free + 5 per NFT)
+  walletLimit: number;        // Maximum wallets allowed (3 free + 3 per NFT)
   walletCount: number;        // Current number of wallets
   canCreateWallet: boolean;   // Whether user can create more wallets
   memberships: MembershipBindingInfo[]; // List of NFT membership bindings

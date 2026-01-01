@@ -159,7 +159,7 @@ export function MembershipStatus({ bscAddress, compact = false }: MembershipStat
         {!membership.isPro && (
           <div style={styles.upgradeSection}>
             <p style={styles.upgradeText}>
-              Upgrade to Pro for +5 wallets per NFT and premium features!
+              Upgrade to Pro for +3 wallets per NFT and premium features!
             </p>
             <button onClick={handleUpgrade} style={styles.upgradeBtn}>
               Upgrade to Pro - 30 USDT/year
@@ -185,7 +185,7 @@ export function MembershipStatus({ bscAddress, compact = false }: MembershipStat
         <ul style={styles.benefitsList}>
           <li style={styles.benefitItem}>
             <span style={styles.checkIcon}>✓</span>
-            +5 wallets per NFT
+            +3 wallets per NFT
           </li>
           <li style={styles.benefitItem}>
             <span style={styles.checkIcon}>✓</span>

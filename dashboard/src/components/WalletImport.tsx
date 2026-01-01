@@ -462,7 +462,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
       <ConfirmationDialog
         isOpen={showUpgradePrompt}
         title="Wallet Limit Reached"
-        message={`You have reached your wallet limit (${walletLimitInfo.current}/${walletLimitInfo.limit}). ${walletLimitInfo.isPro ? 'Purchase additional ArcSign Pro NFTs to increase your limit (+5 wallets per NFT).' : 'Upgrade to ArcSign Pro to increase your limit (+5 wallets per NFT).'}`}
+        message={`You have reached your wallet limit (${walletLimitInfo.current}/${walletLimitInfo.limit}). ${walletLimitInfo.isPro ? 'Purchase additional ArcSign Pro NFTs to increase your limit (+3 wallets per NFT).' : 'Upgrade to ArcSign Pro to increase your limit (+3 wallets per NFT).'}`}
         confirmLabel="Learn More"
         cancelLabel="Close"
         confirmVariant="primary"

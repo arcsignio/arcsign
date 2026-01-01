@@ -7,10 +7,10 @@
  * 2. See NFT breakdown by address
  * 3. Mint Pro NFT directly (integrated, no WebSocket needed)
  *
- * Wallet limit formula: 3 + (totalNftCount * 5)
+ * Wallet limit formula: 3 + (totalNftCount * 3)
  * - Free (0 NFT): 3 wallets
- * - 1 NFT: 8 wallets
- * - 2 NFTs: 13 wallets, etc.
+ * - 1 NFT: 6 wallets
+ * - 2 NFTs: 9 wallets, etc.
  */
 
 import { useState, useEffect, useCallback } from 'react';
