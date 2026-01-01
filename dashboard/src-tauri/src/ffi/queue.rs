@@ -312,6 +312,21 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Create a wallet session token after validating wallet password
+    CreateWalletSessionToken {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Validate a wallet session token and get session info
+    ValidateWalletSessionToken {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Revoke (invalidate) a wallet session token
+    RevokeWalletSessionToken {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
 }
 
 /// WalletQueue serializes all wallet operations through a single-threaded queue.
@@ -549,6 +564,21 @@ impl WalletQueue {
                 }
                 WalletCommand::RevokeSessionToken { params_json, respond_to } => {
                     let result = library.revoke_session_token(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::CreateWalletSessionToken { params_json, respond_to } => {
+                    let result = library.create_wallet_session_token(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::ValidateWalletSessionToken { params_json, respond_to } => {
+                    let result = library.validate_wallet_session_token(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::RevokeWalletSessionToken { params_json, respond_to } => {
+                    let result = library.revoke_wallet_session_token(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -1261,6 +1291,63 @@ impl WalletQueue {
         .await
         .map_err(|e| format!("Task join error: {}", e))?
     }
+
+    /// Create a wallet session token by validating wallet password.
+    pub async fn create_wallet_session_token(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::CreateWalletSessionToken {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Validate a wallet session token and get session info.
+    pub async fn validate_wallet_session_token(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::ValidateWalletSessionToken {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Revoke (invalidate) a wallet session token.
+    pub async fn revoke_wallet_session_token(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::RevokeWalletSessionToken {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
 }
 
 /// Lazy-initialized WalletQueue wrapper
@@ -1480,5 +1567,20 @@ impl LazyWalletQueue {
     /// Revoke (invalidate) a session token
     pub async fn revoke_session_token(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().revoke_session_token(params_json).await
+    }
+
+    /// Create a wallet session token by validating wallet password
+    pub async fn create_wallet_session_token(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().create_wallet_session_token(params_json).await
+    }
+
+    /// Validate a wallet session token and get session info
+    pub async fn validate_wallet_session_token(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().validate_wallet_session_token(params_json).await
+    }
+
+    /// Revoke (invalidate) a wallet session token
+    pub async fn revoke_wallet_session_token(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().revoke_wallet_session_token(params_json).await
     }
 }

@@ -154,3 +154,144 @@ pub async fn revoke_session(
 
     Ok(response)
 }
+
+// ============================================================================
+// Wallet Session Management Commands
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateWalletSessionInput {
+    pub wallet_id: String,
+    pub password: String,
+    pub usb_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletSessionTokenResponse {
+    pub token: String,
+    pub wallet_id: String,
+    pub expires_at: i64,
+    pub usb_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ValidateWalletTokenInput {
+    pub token: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ValidateWalletTokenResponse {
+    pub valid: bool,
+    pub wallet_id: String,
+    pub expires_at: i64,
+    pub usb_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RevokeWalletTokenInput {
+    pub token: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RevokeWalletTokenResponse {
+    pub revoked: bool,
+}
+
+/// Create a wallet session token by validating wallet password.
+///
+/// This creates a time-limited session (15 minutes) that allows wallet operations
+/// without re-entering the password each time.
+///
+/// # Arguments
+/// * `input` - Contains wallet ID, password, and USB path
+/// * `queue` - Wallet queue for FFI operations
+///
+/// # Returns
+/// Session token with expiration time
+#[tauri::command]
+pub async fn create_wallet_session(
+    input: CreateWalletSessionInput,
+    queue: State<'_, WalletQueue>,
+) -> Result<WalletSessionTokenResponse, String> {
+    let params = serde_json::json!({
+        "walletId": input.wallet_id,
+        "password": input.password,
+        "usbPath": input.usb_path,
+    });
+
+    let result = queue
+        .call_with_params("create_wallet_session_token", params.to_string())
+        .await
+        .map_err(|e| format!("Failed to create wallet session: {}", e))?;
+
+    let response: WalletSessionTokenResponse = serde_json::from_value(result)
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    Ok(response)
+}
+
+/// Validate a wallet session token and get session information.
+///
+/// Use this to check if a wallet token is still valid before operations.
+///
+/// # Arguments
+/// * `input` - Contains token to validate
+/// * `queue` - Wallet queue for FFI operations
+///
+/// # Returns
+/// Validation result with wallet ID and expiration time
+#[tauri::command]
+pub async fn validate_wallet_session(
+    input: ValidateWalletTokenInput,
+    queue: State<'_, WalletQueue>,
+) -> Result<ValidateWalletTokenResponse, String> {
+    let params = serde_json::json!({
+        "token": input.token,
+    });
+
+    let result = queue
+        .call_with_params("validate_wallet_session_token", params.to_string())
+        .await
+        .map_err(|e| format!("Failed to validate wallet session: {}", e))?;
+
+    let response: ValidateWalletTokenResponse = serde_json::from_value(result)
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    Ok(response)
+}
+
+/// Revoke (invalidate) a wallet session token.
+///
+/// Use this to explicitly end a wallet session, clearing the backend state.
+///
+/// # Arguments
+/// * `input` - Contains token to revoke
+/// * `queue` - Wallet queue for FFI operations
+///
+/// # Returns
+/// Confirmation of revocation
+#[tauri::command]
+pub async fn revoke_wallet_session(
+    input: RevokeWalletTokenInput,
+    queue: State<'_, WalletQueue>,
+) -> Result<RevokeWalletTokenResponse, String> {
+    let params = serde_json::json!({
+        "token": input.token,
+    });
+
+    let result = queue
+        .call_with_params("revoke_wallet_session_token", params.to_string())
+        .await
+        .map_err(|e| format!("Failed to revoke wallet session: {}", e))?;
+
+    let response: RevokeWalletTokenResponse = serde_json::from_value(result)
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    Ok(response)
+}

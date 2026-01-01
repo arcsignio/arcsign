@@ -244,6 +244,10 @@ fn main() {
             commands::auth::create_session,
             commands::auth::validate_session,
             commands::auth::revoke_session,
+            // Wallet session management commands
+            commands::auth::create_wallet_session,
+            commands::auth::validate_wallet_session,
+            commands::auth::revoke_wallet_session,
             // Wallet commands
             create_wallet,
             import_wallet,
