@@ -43,8 +43,18 @@ function AppContent() {
     detectUsbDrive();
   }, []);
 
-  const handleUnlockSuccess = (appConfig: AppConfig, password: string) => {
-    unlock(password, appConfig);
+  const handleUnlockSuccess = async (appConfig: AppConfig, password: string) => {
+    if (!usbPath) {
+      setUsbError('USB path not available');
+      return;
+    }
+
+    try {
+      await unlock(password, appConfig, usbPath);
+    } catch (error) {
+      setUsbError('Failed to create session. Please try again.');
+      console.error('Failed to unlock:', error);
+    }
   };
 
   // Loading USB detection

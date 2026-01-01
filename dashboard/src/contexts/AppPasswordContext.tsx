@@ -1,55 +1,92 @@
 /**
  * App password context for global authentication state
- * Feature: App-level password protection (方案 A)
+ * Feature: App-level password protection with session tokens
+ *
+ * Security Update: Now uses session tokens instead of storing passwords
  *
  * Provides:
- * - App password (for provider settings, app config)
+ * - Authentication state (via session store)
  * - App config (loaded after unlock)
  * - Lock/unlock methods
  */
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { useSessionStore } from '@/stores/sessionStore';
 import type { AppConfig } from '@/services/tauri-api';
 
 interface AppPasswordContextType {
   // Authentication state
   isUnlocked: boolean;
-  appPassword: string | null;
   appConfig: AppConfig | null;
+  usbPath: string | null;
 
   // Actions
-  unlock: (password: string, config: AppConfig) => void;
-  lock: () => void;
+  unlock: (password: string, config: AppConfig, usbPath: string) => Promise<void>;
+  lock: () => Promise<void>;
+
+  // Get session token (for operations that need authentication)
+  getSessionToken: () => string | null;
 }
 
 const AppPasswordContext = createContext<AppPasswordContextType | undefined>(undefined);
 
 export function AppPasswordProvider({ children }: { children: ReactNode }) {
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [appPassword, setAppPassword] = useState<string | null>(null);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
+  const [usbPath, setUsbPath] = useState<string | null>(null);
 
-  const unlock = (password: string, config: AppConfig) => {
-    setAppPassword(password);
-    setAppConfig(config);
-    setIsUnlocked(true);
+  const sessionStore = useSessionStore();
+
+  // Check if we have a valid session on mount
+  useEffect(() => {
+    if (sessionStore.isSessionValid()) {
+      setIsUnlocked(true);
+      setUsbPath(sessionStore.usbPath);
+    }
+  }, []);
+
+  const unlock = async (password: string, config: AppConfig, currentUsbPath: string) => {
+    try {
+      // Create session token (this validates the password)
+      await sessionStore.createSession(currentUsbPath, password);
+
+      // Password is valid and token created, unlock the app
+      setAppConfig(config);
+      setUsbPath(currentUsbPath);
+      setIsUnlocked(true);
+
+      console.log('🔐 [AppPasswordContext] Session created successfully');
+    } catch (error) {
+      console.error('🔴 [AppPasswordContext] Failed to create session:', error);
+      throw error;
+    }
   };
 
-  const lock = () => {
+  const lock = async () => {
+    // Revoke session token
+    await sessionStore.revokeSession();
+
     // Clear sensitive data
-    setAppPassword(null);
     setAppConfig(null);
+    setUsbPath(null);
     setIsUnlocked(false);
+
+    console.log('🔐 [AppPasswordContext] Session revoked and app locked');
+  };
+
+  const getSessionToken = () => {
+    return sessionStore.getToken();
   };
 
   return (
     <AppPasswordContext.Provider
       value={{
         isUnlocked,
-        appPassword,
         appConfig,
+        usbPath,
         unlock,
         lock,
+        getSessionToken,
       }}
     >
       {children}
