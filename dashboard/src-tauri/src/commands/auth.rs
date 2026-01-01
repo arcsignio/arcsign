@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use crate::ffi::queue::WalletQueue;
+use crate::ffi::queue::LazyWalletQueue;
 
 /// Input for creating a session token
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,7 +75,7 @@ pub struct RevokeTokenResponse {
 #[tauri::command]
 pub async fn create_session(
     input: CreateSessionInput,
-    queue: State<'_, WalletQueue>,
+    queue: State<'_, LazyWalletQueue>,
 ) -> Result<SessionTokenResponse, String> {
     let params = serde_json::json!({
         "usbPath": input.usb_path,
@@ -83,7 +83,7 @@ pub async fn create_session(
     });
 
     let result = queue
-        .call_with_params("create_session_token", params.to_string())
+        .create_session_token(params.to_string())
         .await
         .map_err(|e| format!("Failed to create session: {}", e))?;
 
@@ -107,14 +107,14 @@ pub async fn create_session(
 #[tauri::command]
 pub async fn validate_session(
     input: ValidateTokenInput,
-    queue: State<'_, WalletQueue>,
+    queue: State<'_, LazyWalletQueue>,
 ) -> Result<ValidateTokenResponse, String> {
     let params = serde_json::json!({
         "token": input.token,
     });
 
     let result = queue
-        .call_with_params("validate_session_token", params.to_string())
+        .validate_session_token(params.to_string())
         .await
         .map_err(|e| format!("Failed to validate session: {}", e))?;
 
@@ -138,14 +138,14 @@ pub async fn validate_session(
 #[tauri::command]
 pub async fn revoke_session(
     input: RevokeTokenInput,
-    queue: State<'_, WalletQueue>,
+    queue: State<'_, LazyWalletQueue>,
 ) -> Result<RevokeTokenResponse, String> {
     let params = serde_json::json!({
         "token": input.token,
     });
 
     let result = queue
-        .call_with_params("revoke_session_token", params.to_string())
+        .revoke_session_token(params.to_string())
         .await
         .map_err(|e| format!("Failed to revoke session: {}", e))?;
 
@@ -217,7 +217,7 @@ pub struct RevokeWalletTokenResponse {
 #[tauri::command]
 pub async fn create_wallet_session(
     input: CreateWalletSessionInput,
-    queue: State<'_, WalletQueue>,
+    queue: State<'_, LazyWalletQueue>,
 ) -> Result<WalletSessionTokenResponse, String> {
     let params = serde_json::json!({
         "walletId": input.wallet_id,
@@ -226,7 +226,7 @@ pub async fn create_wallet_session(
     });
 
     let result = queue
-        .call_with_params("create_wallet_session_token", params.to_string())
+        .create_wallet_session_token(params.to_string())
         .await
         .map_err(|e| format!("Failed to create wallet session: {}", e))?;
 
@@ -249,14 +249,14 @@ pub async fn create_wallet_session(
 #[tauri::command]
 pub async fn validate_wallet_session(
     input: ValidateWalletTokenInput,
-    queue: State<'_, WalletQueue>,
+    queue: State<'_, LazyWalletQueue>,
 ) -> Result<ValidateWalletTokenResponse, String> {
     let params = serde_json::json!({
         "token": input.token,
     });
 
     let result = queue
-        .call_with_params("validate_wallet_session_token", params.to_string())
+        .validate_wallet_session_token(params.to_string())
         .await
         .map_err(|e| format!("Failed to validate wallet session: {}", e))?;
 
@@ -279,14 +279,14 @@ pub async fn validate_wallet_session(
 #[tauri::command]
 pub async fn revoke_wallet_session(
     input: RevokeWalletTokenInput,
-    queue: State<'_, WalletQueue>,
+    queue: State<'_, LazyWalletQueue>,
 ) -> Result<RevokeWalletTokenResponse, String> {
     let params = serde_json::json!({
         "token": input.token,
     });
 
     let result = queue
-        .call_with_params("revoke_wallet_session_token", params.to_string())
+        .revoke_wallet_session_token(params.to_string())
         .await
         .map_err(|e| format!("Failed to revoke wallet session: {}", e))?;
 
