@@ -26,10 +26,27 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     }
   },
+  // Etherscan API v2 configuration (unified API key for all chains)
+  // See: https://docs.etherscan.io/v2-migration
   etherscan: {
-    apiKey: {
-      bsc: process.env.BSCSCAN_API_KEY || "",
-      bscTestnet: process.env.BSCSCAN_API_KEY || ""
-    }
+    apiKey: process.env.ETHERSCAN_API_KEY || process.env.BSCSCAN_API_KEY || "",
+    customChains: [
+      {
+        network: "bsc",
+        chainId: 56,
+        urls: {
+          apiURL: "https://api.etherscan.io/v2/api?chainid=56",
+          browserURL: "https://bscscan.com"
+        }
+      },
+      {
+        network: "bscTestnet",
+        chainId: 97,
+        urls: {
+          apiURL: "https://api.etherscan.io/v2/api?chainid=97",
+          browserURL: "https://testnet.bscscan.com"
+        }
+      }
+    ]
   }
 };
