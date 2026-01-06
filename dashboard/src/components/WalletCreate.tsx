@@ -34,7 +34,8 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
   } | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
-  const [deviceStatus, setDeviceStatus] = useState<DeviceMembershipStatus | null>(null);
+  const [_deviceStatus, setDeviceStatus] = useState<DeviceMembershipStatus | null>(null);
+  void _deviceStatus; // Reserved for future use (display device membership info)
   const [isCheckingDevice, setIsCheckingDevice] = useState(false);
 
   const { addWallet } = useDashboardStore();

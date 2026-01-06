@@ -26,6 +26,10 @@ interface AppPasswordContextType {
 
   // Get session token (for operations that need authentication)
   getSessionToken: () => string | null;
+
+  // Legacy: App password for operations that still require it
+  // TODO: Migrate all APIs to use session tokens instead
+  appPassword: string | null;
 }
 
 const AppPasswordContext = createContext<AppPasswordContextType | undefined>(undefined);
@@ -34,6 +38,9 @@ export function AppPasswordProvider({ children }: { children: ReactNode }) {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [usbPath, setUsbPath] = useState<string | null>(null);
+  // Legacy: Store password for APIs that still need it
+  // TODO: Remove this when all APIs migrate to session tokens
+  const [appPassword, setAppPassword] = useState<string | null>(null);
 
   const sessionStore = useSessionStore();
 
@@ -54,6 +61,8 @@ export function AppPasswordProvider({ children }: { children: ReactNode }) {
       setAppConfig(config);
       setUsbPath(currentUsbPath);
       setIsUnlocked(true);
+      // Legacy: Store password for APIs that still need it
+      setAppPassword(password);
 
       console.log('🔐 [AppPasswordContext] Session created successfully');
     } catch (error) {
@@ -70,6 +79,7 @@ export function AppPasswordProvider({ children }: { children: ReactNode }) {
     setAppConfig(null);
     setUsbPath(null);
     setIsUnlocked(false);
+    setAppPassword(null);
 
     console.log('🔐 [AppPasswordContext] Session revoked and app locked');
   };
@@ -87,6 +97,7 @@ export function AppPasswordProvider({ children }: { children: ReactNode }) {
         unlock,
         lock,
         getSessionToken,
+        appPassword,
       }}
     >
       {children}

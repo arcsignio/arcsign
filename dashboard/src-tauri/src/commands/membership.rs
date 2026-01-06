@@ -464,6 +464,13 @@ pub struct GetDeviceMembershipInput {
     pub app_password: String,
 }
 
+/// Input for get_device_membership_status_with_token (session-based)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetDeviceMembershipWithTokenInput {
+    pub token: String,
+}
+
 /// Input for add_device_membership_binding
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -605,6 +612,67 @@ pub async fn remove_device_membership_binding(
 
     tracing::info!("Membership binding removed successfully");
     Ok(result)
+}
+
+/// Get device membership status using session token (Tauri command)
+/// This is the preferred API - no password needed, uses session token
+#[tauri::command]
+pub async fn get_device_membership_status_with_token(
+    input: GetDeviceMembershipWithTokenInput,
+    queue: State<'_, LazyWalletQueue>,
+) -> Result<DeviceMembershipStatus, Error> {
+    tracing::info!("get_device_membership_status_with_token called");
+
+    let params = serde_json::json!({
+        "token": input.token,
+    });
+
+    let result = queue
+        .get_device_membership_status_with_token(params.to_string())
+        .await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::FfiStorageError,
+            format!("Failed to get membership status: {}", e),
+        ))?;
+
+    // Parse the response
+    let device_id = result["deviceId"].as_str().unwrap_or("").to_string();
+    let device_id_hash = result["deviceIdHash"].as_str().unwrap_or("").to_string();
+    let wallet_limit = result["walletLimit"].as_u64().unwrap_or(3);
+    let wallet_count = result["walletCount"].as_u64().unwrap_or(0);
+    let can_create = result["canCreateWallet"].as_bool().unwrap_or(true);
+
+    // Parse memberships array
+    let memberships: Vec<MembershipBindingInfo> = result["memberships"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .map(|m| MembershipBindingInfo {
+                    nft_token_id: m["nftTokenId"].as_str().unwrap_or("").to_string(),
+                    nft_contract: m["nftContract"].as_str().unwrap_or("").to_string(),
+                    chain_id: m["chainId"].as_str().unwrap_or("").to_string(),
+                    bound_address: m["boundAddress"].as_str().unwrap_or("").to_string(),
+                    bound_at: m["boundAt"].as_i64().unwrap_or(0),
+                    is_valid: m["isValid"].as_bool().unwrap_or(false),
+                    last_verified: m["lastVerified"].as_i64().unwrap_or(0),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    tracing::info!(
+        "Device membership (token-based): id={}, hash={}, limit={}, count={}",
+        device_id, device_id_hash, wallet_limit, wallet_count
+    );
+
+    Ok(DeviceMembershipStatus {
+        device_id,
+        device_id_hash,
+        wallet_limit,
+        wallet_count,
+        can_create_wallet: can_create,
+        memberships,
+    })
 }
 
 #[cfg(test)]

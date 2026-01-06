@@ -556,13 +556,15 @@ extern char* GetSwapQuote(char* params);
 // }
 extern char* BuildSwapTransaction(char* params);
 
-// GetSwapApproval gets the approval transaction data for ERC-20 token swap.
+// GetSwapApproval builds the ERC-20 approve transaction data locally.
+// This does NOT call any external API - it just encodes the approve(spender, amount) call.
 // Feature: Token Swap - Approval Flow
 //
 // Input JSON: {
 //   "chainId": "ethereum",
-//   "tokenAddress": "0x...",  // Token to approve
-//   "amount": "1000000000000000000",  // Amount to approve (optional, empty = unlimited)
+//   "tokenAddress": "0x...",  // Token contract to call approve() on
+//   "spenderAddress": "0x...", // DEX router address (from quote.approvalAddress)
+//   "amount": "1000000000000000000",  // Amount to approve (optional, empty = unlimited = MaxUint256)
 //   "usbPath": "/path/to/usb",
 //   "appPassword": "password"
 // }
@@ -571,7 +573,7 @@ extern char* BuildSwapTransaction(char* params);
 //   "success": true,
 //   "data": {
 //     "to": "0x...",  // Token contract address
-//     "data": "0x...",  // Encoded approve call
+//     "data": "0x...",  // Encoded approve(spender, amount) call
 //     "value": "0"
 //   }
 // }
@@ -630,6 +632,64 @@ extern char* GetNativeTokenAddress(void);
 //
 // }
 extern char* GetSwapTokens(char* params);
+
+// GetMembershipStatus returns the USB device identity and membership status.
+// This also ensures the deviceId is generated if it doesn't exist.
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "deviceId": "uuid-string",
+//     "deviceIdHash": "0x...",  // keccak256(deviceId) for contract binding
+//     "walletLimit": 3,
+//     "walletCount": 1,
+//     "canCreateWallet": true,
+//     "memberships": [{
+//       "nftTokenId": "1",
+//       "nftContract": "0x...",
+//       "chainId": "bnb",
+//       "boundAddress": "0x...",
+//       "isValid": true
+//     }]
+//   }
+// }
+extern char* GetMembershipStatus(char* params);
+
+// AddMembershipBinding adds a new NFT membership binding to this USB device.
+// Call this after the user has bound their deviceId on the NFT contract.
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password",
+//   "nftTokenId": "1",
+//   "nftContract": "0x...",
+//   "chainId": "bnb",
+//   "boundAddress": "0x...",
+//   "signature": "0x..."
+// }
+extern char* AddMembershipBinding(char* params);
+
+// RemoveMembershipBinding removes an NFT membership binding from this USB device.
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password",
+//   "nftTokenId": "1",
+//   "nftContract": "0x..."
+// }
+extern char* RemoveMembershipBinding(char* params);
+extern char* CreateSessionToken(char* params);
+extern char* ValidateSessionToken(char* params);
+extern char* RevokeSessionToken(char* params);
+extern char* GetDeviceMembershipStatusWithToken(char* params);
+extern char* CreateWalletSessionToken(char* params);
+extern char* ValidateWalletSessionToken(char* params);
+extern char* RevokeWalletSessionToken(char* params);
 
 #ifdef __cplusplus
 }

@@ -122,6 +122,10 @@ type GetSwapTokensFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for GetMembershipStatus: char* GetMembershipStatus(char* params)
 type GetMembershipStatusFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+/// Function signature for GetDeviceMembershipStatusWithToken: char* GetDeviceMembershipStatusWithToken(char* params)
+/// Uses session token instead of password for authentication
+type GetDeviceMembershipStatusWithTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 /// Function signature for AddMembershipBinding: char* AddMembershipBinding(char* params)
 type AddMembershipBindingFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
@@ -205,6 +209,7 @@ pub struct WalletLibrary {
     get_swap_tokens: Symbol<'static, GetSwapTokensFn>,
     // Membership management function symbols
     get_membership_status: Symbol<'static, GetMembershipStatusFn>,
+    get_device_membership_status_with_token: Symbol<'static, GetDeviceMembershipStatusWithTokenFn>,
     add_membership_binding: Symbol<'static, AddMembershipBindingFn>,
     remove_membership_binding: Symbol<'static, RemoveMembershipBindingFn>,
     // Session management function symbols
@@ -406,6 +411,10 @@ impl WalletLibrary {
                 .get(b"GetMembershipStatus")
                 .map_err(|e| format!("GetMembershipStatus symbol not found: {}", e))?;
 
+            let get_device_membership_status_with_token: Symbol<GetDeviceMembershipStatusWithTokenFn> = lib
+                .get(b"GetDeviceMembershipStatusWithToken")
+                .map_err(|e| format!("GetDeviceMembershipStatusWithToken symbol not found: {}", e))?;
+
             let add_membership_binding: Symbol<AddMembershipBindingFn> = lib
                 .get(b"AddMembershipBinding")
                 .map_err(|e| format!("AddMembershipBinding symbol not found: {}", e))?;
@@ -473,6 +482,7 @@ impl WalletLibrary {
             let get_native_token_address: Symbol<'static, GetNativeTokenAddressFn> = std::mem::transmute(get_native_token_address);
             let get_swap_tokens: Symbol<'static, GetSwapTokensFn> = std::mem::transmute(get_swap_tokens);
             let get_membership_status: Symbol<'static, GetMembershipStatusFn> = std::mem::transmute(get_membership_status);
+            let get_device_membership_status_with_token: Symbol<'static, GetDeviceMembershipStatusWithTokenFn> = std::mem::transmute(get_device_membership_status_with_token);
             let add_membership_binding: Symbol<'static, AddMembershipBindingFn> = std::mem::transmute(add_membership_binding);
             let remove_membership_binding: Symbol<'static, RemoveMembershipBindingFn> = std::mem::transmute(remove_membership_binding);
             let create_session_token: Symbol<'static, CreateSessionTokenFn> = std::mem::transmute(create_session_token);
@@ -516,6 +526,7 @@ impl WalletLibrary {
                 get_native_token_address,
                 get_swap_tokens,
                 get_membership_status,
+                get_device_membership_status_with_token,
                 add_membership_binding,
                 remove_membership_binding,
                 create_session_token,
@@ -1147,6 +1158,24 @@ impl WalletLibrary {
     /// and list of NFT membership bindings.
     pub fn get_membership_status(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.get_membership_status, params_json)
+    }
+
+    /// Get device membership status using session token (no password required).
+    ///
+    /// This is the preferred method for checking membership after login,
+    /// as it uses the session token stored during authentication.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "token": "session-token-from-login"
+    /// }
+    /// ```
+    ///
+    /// Returns device ID, device ID hash (for contract binding), wallet limits,
+    /// and list of NFT membership bindings.
+    pub fn get_device_membership_status_with_token(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.get_device_membership_status_with_token, params_json)
     }
 
     /// Add a new NFT membership binding to this USB device.

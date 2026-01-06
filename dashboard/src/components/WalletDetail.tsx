@@ -3,7 +3,7 @@
  * Feature: Asset management with Alchemy API integration + CoinGecko Token Lists
  */
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useAppPassword } from "@/contexts/AppPasswordContext";
 import { useWalletSessionStore } from "@/stores/walletSessionStore";
 import tauriApi, { type AppError } from "@/services/tauri-api";
@@ -61,6 +61,9 @@ export function WalletDetail({
   // Wallet session state (replaces password state)
   const [tempPassword, setTempPassword] = useState(""); // Only used during unlock, immediately discarded
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(true);
+  // Temporary password ref for operations that still require password
+  // TODO: Migrate all APIs to use session tokens, then remove this ref
+  const passwordRef = useRef<string>("");
   const [activeTab, setActiveTab] = useState<TabType>("crypto");
   const [showPercentage, setShowPercentage] = useState(true);
 
@@ -131,6 +134,10 @@ export function WalletDetail({
       console.log("🔐 Creating wallet session token...");
       await walletSession.createWalletSession(wallet.id, passwordForThisUnlock, usbPath);
       console.log("✅ Wallet session created successfully");
+
+      // Store password in ref for operations that still need it
+      // TODO: Remove this when all APIs migrate to session tokens
+      passwordRef.current = passwordForThisUnlock;
 
       // Password validated and token created, clear from state immediately
       setTempPassword("");
@@ -241,7 +248,7 @@ export function WalletDetail({
       console.log("🔐 Validating passphrase for wallet:", wallet.id);
       const result = await tauriApi.validatePassphrase({
         walletId: wallet.id,
-        password,
+        password: passwordRef.current,
         passphrase,
         usbPath,
       });
@@ -259,7 +266,7 @@ export function WalletDetail({
         console.log("🚀 Continuing with getTokenBalances...", { includeTestnets });
         const response: TokenBalancesResponse = await tauriApi.getTokenBalances({
           walletId: wallet.id,
-          password,
+          password: passwordRef.current,
           usbPath,
           appPassword,
           includeTestnets,
@@ -327,7 +334,7 @@ export function WalletDetail({
 
   // Refresh token balances
   const handleRefreshBalances = async () => {
-    if (!password || !appPassword) {
+    if (!passwordRef.current || !appPassword) {
       console.warn("Cannot refresh: missing password or appPassword");
       return;
     }
@@ -340,7 +347,7 @@ export function WalletDetail({
       const includeTestnets = import.meta.env.DEV;
       const response: TokenBalancesResponse = await tauriApi.getTokenBalances({
         walletId: wallet.id,
-        password,
+        password: passwordRef.current,
         usbPath,
         appPassword,
         includeTestnets,
@@ -687,11 +694,11 @@ export function WalletDetail({
 
           <button
             onClick={handleLoadBalances}
-            disabled={isLoading || !password}
+            disabled={isLoading || !tempPassword}
             style={{
               width: "100%",
               background:
-                isLoading || !password
+                isLoading || !tempPassword
                   ? "#d1d5db"
                   : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
               color: "white",
@@ -700,23 +707,23 @@ export function WalletDetail({
               borderRadius: "0.5rem",
               fontSize: "1rem",
               fontWeight: "600",
-              cursor: isLoading || !password ? "not-allowed" : "pointer",
+              cursor: isLoading || !tempPassword ? "not-allowed" : "pointer",
               transition: "all 0.2s ease",
               boxShadow:
-                isLoading || !password
+                isLoading || !tempPassword
                   ? "none"
                   : "0 4px 14px rgba(102, 126, 234, 0.4)",
-              transform: isLoading || !password ? "none" : "translateY(0)",
+              transform: isLoading || !tempPassword ? "none" : "translateY(0)",
             }}
             onMouseEnter={(e) => {
-              if (!isLoading && password) {
+              if (!isLoading && tempPassword) {
                 e.currentTarget.style.transform = "translateY(-2px)";
                 e.currentTarget.style.boxShadow =
                   "0 6px 20px rgba(102, 126, 234, 0.5)";
               }
             }}
             onMouseLeave={(e) => {
-              if (!isLoading && password) {
+              if (!isLoading && tempPassword) {
                 e.currentTarget.style.transform = "translateY(0)";
                 e.currentTarget.style.boxShadow =
                   "0 4px 14px rgba(102, 126, 234, 0.4)";
@@ -961,7 +968,8 @@ export function WalletDetail({
             onClick={() => {
               setShowPassphrasePrompt(false);
               setShowPasswordPrompt(true);
-              setPassword("");
+              setTempPassword("");
+              passwordRef.current = "";
               setPassphrase("");
               setError(null);
             }}

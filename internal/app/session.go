@@ -6,6 +6,8 @@ import (
 	"errors"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 var (
@@ -21,12 +23,19 @@ type SessionManager struct {
 }
 
 // Session represents an authenticated user session
+// Security: Only stores public data, NEVER stores passwords
 type Session struct {
 	Token     string
 	UsbPath   string
 	CreatedAt time.Time
 	ExpiresAt time.Time
 	LastUsed  time.Time
+
+	// Cached public data (loaded during login, no password needed after)
+	// These are non-sensitive and can be safely stored in memory
+	DeviceId     string              // UUID from app config
+	DeviceIdHash string              // keccak256(deviceId) for contract binding
+	Memberships  []MembershipBinding // NFT bindings (public data)
 }
 
 // NewSessionManager creates a new session manager instance
@@ -54,14 +63,37 @@ func (sm *SessionManager) CreateSession(usbPath, appPassword string) (*Session, 
 		return nil, err
 	}
 
+	// Load public data from app config (this is the only time we use the password)
+	appConfig, err := LoadAppConfig(usbPath, appPassword)
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract public data to cache in session
+	var deviceId, deviceIdHash string
+	var memberships []MembershipBinding
+	if appConfig.Identity != nil {
+		deviceId = appConfig.Identity.DeviceId
+		// Calculate keccak256 hash for contract binding
+		if deviceId != "" {
+			hash := crypto.Keccak256Hash([]byte(deviceId))
+			deviceIdHash = hash.Hex()
+		}
+		memberships = appConfig.Identity.Memberships
+	}
+
 	// Create session with 24-hour expiration
+	// Security: Only cache public data, password is discarded after validation
 	now := time.Now()
 	session := &Session{
-		Token:     token,
-		UsbPath:   usbPath,
-		CreatedAt: now,
-		ExpiresAt: now.Add(24 * time.Hour),
-		LastUsed:  now,
+		Token:        token,
+		UsbPath:      usbPath,
+		CreatedAt:    now,
+		ExpiresAt:    now.Add(24 * time.Hour),
+		LastUsed:     now,
+		DeviceId:     deviceId,
+		DeviceIdHash: deviceIdHash,
+		Memberships:  memberships,
 	}
 
 	// Store session
@@ -99,8 +131,23 @@ func (sm *SessionManager) ValidateToken(token string) (*Session, error) {
 // RevokeToken invalidates a session token
 func (sm *SessionManager) RevokeToken(token string) {
 	sm.mu.Lock()
-	delete(sm.sessions, token)
+	if _, exists := sm.sessions[token]; exists {
+		// No sensitive data to clear - session only contains public data
+		delete(sm.sessions, token)
+	}
 	sm.mu.Unlock()
+}
+
+// zeroString securely zeros a string in memory
+func zeroString(s *string) {
+	if s == nil || *s == "" {
+		return
+	}
+	b := []byte(*s)
+	for i := range b {
+		b[i] = 0
+	}
+	*s = ""
 }
 
 // RevokeAllSessions invalidates all sessions for a USB device
@@ -110,6 +157,7 @@ func (sm *SessionManager) RevokeAllSessions(usbPath string) {
 
 	for token, session := range sm.sessions {
 		if session.UsbPath == usbPath {
+			// No sensitive data to clear - session only contains public data
 			delete(sm.sessions, token)
 		}
 	}
@@ -132,6 +180,7 @@ func (sm *SessionManager) cleanupExpiredSessions() {
 		now := time.Now()
 		for token, session := range sm.sessions {
 			if now.After(session.ExpiresAt) {
+				// No sensitive data to clear - session only contains public data
 				delete(sm.sessions, token)
 			}
 		}

@@ -294,6 +294,11 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Get device membership status using session token (no password required)
+    GetDeviceMembershipStatusWithToken {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
     // ========================================================================
     // Session Management Operations
     // ========================================================================
@@ -548,6 +553,11 @@ impl WalletQueue {
                 }
                 WalletCommand::RemoveMembershipBinding { params_json, respond_to } => {
                     let result = library.remove_membership_binding(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::GetDeviceMembershipStatusWithToken { params_json, respond_to } => {
+                    let result = library.get_device_membership_status_with_token(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -1231,6 +1241,25 @@ impl WalletQueue {
         .map_err(|e| format!("Task join error: {}", e))?
     }
 
+    /// Get device membership status using session token (no password required).
+    pub async fn get_device_membership_status_with_token(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::GetDeviceMembershipStatusWithToken {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
     // ========================================================================
     // Session Management Operations
     // ========================================================================
@@ -1548,6 +1577,11 @@ impl LazyWalletQueue {
     /// Remove NFT membership binding
     pub async fn remove_membership_binding(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().remove_membership_binding(params_json).await
+    }
+
+    /// Get device membership status using session token (no password required)
+    pub async fn get_device_membership_status_with_token(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().get_device_membership_status_with_token(params_json).await
     }
 
     // ========================================================================

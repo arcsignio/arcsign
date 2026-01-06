@@ -1098,6 +1098,7 @@ export const tauriApi = {
 
   // USB Device Membership (Device Binding System)
   getDeviceMembershipStatus,
+  getDeviceMembershipStatusWithToken,
   addDeviceMembershipBinding,
   removeDeviceMembershipBinding,
 
@@ -1194,6 +1195,37 @@ export async function getDeviceMembershipStatus(params: {
     return result;
   } catch (error) {
     console.error("🔴 [tauri-api] getDeviceMembershipStatus error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Get device membership status using session token
+ * This is the preferred API - no password needed, uses session token
+ */
+export async function getDeviceMembershipStatusWithToken(params: {
+  token: string;
+}): Promise<DeviceMembershipStatus> {
+  console.log("🔐 [tauri-api] getDeviceMembershipStatusWithToken called");
+
+  try {
+    const result = await invoke<DeviceMembershipStatus>(
+      "get_device_membership_status_with_token",
+      {
+        input: {
+          token: params.token,
+        },
+      }
+    );
+    console.log("🔐 [tauri-api] getDeviceMembershipStatusWithToken response:", {
+      deviceId: result.deviceId,
+      walletLimit: result.walletLimit,
+      walletCount: result.walletCount,
+      bindingsCount: result.memberships.length,
+    });
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] getDeviceMembershipStatusWithToken error:", error);
     throw parseError(error);
   }
 }

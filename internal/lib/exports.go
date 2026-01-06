@@ -3729,18 +3729,60 @@ func GetDeviceMembershipStatusWithToken(params *C.char) *C.char {
 	sm := initSessionManager()
 
 	// Validate token and get session
-	_, err := sm.ValidateToken(input.Token)
+	session, err := sm.ValidateToken(input.Token)
 	if err != nil {
 		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid token: %v", err))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
-	// Load app config using session's USB path
-	// Note: We need to temporarily get the password - this is a limitation
-	// For now, we'll return an error and document that device operations require re-auth
-	// In a production system, we'd need to cache decrypted config in memory with the session
-	response := NewErrorResponse(ErrInvalidInput, "Device operations require authentication - use password-based API")
+	// Security: Read from session cache - NO PASSWORD needed
+	// DeviceId, DeviceIdHash, and Memberships were cached at login time
+	deviceId := session.DeviceId
+	deviceIdHash := session.DeviceIdHash
+
+	// Build membership list from cached data
+	memberships := make([]map[string]interface{}, 0)
+	for _, m := range session.Memberships {
+		memberships = append(memberships, map[string]interface{}{
+			"nftTokenId":   m.NftTokenId,
+			"nftContract":  m.NftContract,
+			"chainId":      m.ChainId,
+			"boundAddress": m.BoundAddress,
+			"boundAt":      m.BoundAt.Unix(),
+			"isValid":      m.IsValid,
+			"lastVerified": m.LastVerified.Unix(),
+		})
+	}
+
+	// Count wallets from filesystem (no password needed)
+	// Just count directories in the wallets folder
+	walletsPath := filepath.Join(session.UsbPath, ".arcsign", "wallets")
+	walletCount := 0
+	if entries, err := os.ReadDir(walletsPath); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				walletCount++
+			}
+		}
+	}
+
+	// Calculate wallet limit based on memberships
+	// Formula: 3 + (nft_count * 5)
+	nftCount := len(session.Memberships)
+	walletLimit := 3 + (nftCount * 5)
+	canCreateWallet := walletCount < walletLimit
+
+	output := map[string]interface{}{
+		"deviceId":        deviceId,
+		"deviceIdHash":    deviceIdHash,
+		"walletLimit":     walletLimit,
+		"walletCount":     walletCount,
+		"canCreateWallet": canCreateWallet,
+		"memberships":     memberships,
+	}
+
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
