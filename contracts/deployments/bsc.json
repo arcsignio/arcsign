@@ -1,0 +1,8 @@
+{
+  "network": "bsc",
+  "contractAddress": "0x02EA7B4870Aa0553EF357Af6475727f1E01c7b2F",
+  "usdtAddress": "0x55d398326f99059fF775485246999027B3197955",
+  "treasuryAddress": "0x2e26cbd533ac3e98d3b650c7f89406ebb6f2f634",
+  "deployedAt": "2026-01-06T01:53:39.919Z",
+  "deployer": "0x2e26cbD533Ac3E98d3B650c7f89406EbB6f2f634"
+}

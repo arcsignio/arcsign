@@ -7,10 +7,10 @@
  * 2. See NFT breakdown by address
  * 3. Mint Pro NFT directly (integrated, no WebSocket needed)
  *
- * Wallet limit formula: 3 + (totalNftCount * 3)
+ * Wallet limit formula: 3 + (totalNftCount * 5)
  * - Free (0 NFT): 3 wallets
- * - 1 NFT: 6 wallets
- * - 2 NFTs: 9 wallets, etc.
+ * - 1 NFT: 8 wallets
+ * - 2 NFTs: 13 wallets, etc.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -36,10 +36,10 @@ interface BscAddress {
 }
 
 // Contract addresses - same as mint-page config
-const IS_TESTNET = true; // TODO: Set to false for mainnet
+const IS_TESTNET = false; // Production: Use BSC mainnet
 const TESTNET_CONTRACT = '0x401b0D7D9Ae46fDF75d92d8F218b1F15Dd2DFEc1';
 const TESTNET_USDT = '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd';
-const MAINNET_CONTRACT = '0x0000000000000000000000000000000000000000';
+const MAINNET_CONTRACT = '0x02EA7B4870Aa0553EF357Af6475727f1E01c7b2F';
 const MAINNET_USDT = '0x55d398326f99059fF775485246999027B3197955';
 const CONTRACT_ADDRESS = IS_TESTNET ? TESTNET_CONTRACT : MAINNET_CONTRACT;
 const USDT_ADDRESS = IS_TESTNET ? TESTNET_USDT : MAINNET_USDT;
