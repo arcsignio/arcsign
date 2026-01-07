@@ -345,3 +345,28 @@ func (sm *SessionManager) GetSessionByUSBPath(usbPath string) *Session {
 	}
 	return nil
 }
+
+// RecalculateLockedWallets re-reads wallets from filesystem and updates the locked wallet list.
+// This should be called after wallet creation or deletion to keep the lock status current.
+func (sm *SessionManager) RecalculateLockedWallets(usbPath string) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	now := time.Now()
+	for _, session := range sm.sessions {
+		if session.UsbPath == usbPath && now.Before(session.ExpiresAt) {
+			// Re-read wallets from filesystem
+			walletsFromFS := loadWalletsFromFilesystem(usbPath)
+
+			// Recalculate locked wallets based on current NFT count
+			nftCount := len(session.Memberships)
+			lockedIds := calculateLockedWallets(walletsFromFS, nftCount)
+
+			// Update session
+			session.LockedWalletIds = lockedIds
+
+			fmt.Printf("[RecalculateLockedWallets] Updated locked wallets for %s: %v\n", usbPath, lockedIds)
+			return
+		}
+	}
+}
