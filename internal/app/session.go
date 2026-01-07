@@ -64,7 +64,7 @@ func (sm *SessionManager) CreateSession(usbPath, appPassword string) (*Session, 
 	}
 
 	// Load public data from app config (this is the only time we use the password)
-	appConfig, err := LoadAppConfig(usbPath, appPassword)
+	appConfig, err := LoadAppConfig(appPassword, usbPath)
 	if err != nil {
 		return nil, err
 	}
