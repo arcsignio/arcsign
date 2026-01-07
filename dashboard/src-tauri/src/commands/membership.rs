@@ -267,10 +267,10 @@ pub async fn check_membership(
     tracing::info!("Membership check complete: is_pro={}, nft_count={}", is_pro, nft_count);
 
     // Calculate wallet limit based on NFT count
-    // Free: 5 wallets
-    // Pro: 5 + (nft_count * 5) wallets per NFT
-    // e.g., 1 NFT = 10 wallets, 2 NFTs = 15 wallets
-    let wallet_limit = 5 + (nft_count * 5);
+    // Free: 3 wallets
+    // Pro: 3 + (nft_count * 5) wallets per NFT
+    // e.g., 1 NFT = 8 wallets, 2 NFTs = 13 wallets
+    let wallet_limit = 3 + (nft_count * 5);
 
     Ok(MembershipStatus {
         is_pro,
@@ -376,7 +376,7 @@ pub async fn check_all_memberships(
 
     let is_pro = total_nft_count > 0;
     let days_remaining = if is_pro { 365u64 } else { 0u64 };
-    let wallet_limit = 5 + (total_nft_count * 5);
+    let wallet_limit = 3 + (total_nft_count * 5);
 
     tracing::info!(
         "Aggregated membership: total_nft_count={}, is_pro={}, wallet_limit={}",
