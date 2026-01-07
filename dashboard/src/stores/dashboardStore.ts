@@ -13,7 +13,7 @@ import { Category } from '@/types/address';
 /**
  * Membership status for Pro tier verification
  * NFT count is aggregated across ALL BSC addresses in all wallets
- * Wallet limit formula: 3 + (totalNftCount * 3)
+ * Wallet limit formula: 3 + (totalNftCount * 5)
  */
 interface MembershipState {
   /** Whether user is a Pro member (owns at least 1 NFT) */
@@ -22,10 +22,12 @@ interface MembershipState {
   nftCount: number;
   /** Days remaining until membership expires */
   daysRemaining: number;
-  /** Wallet creation limit: 3 + (nftCount * 3) */
+  /** Wallet creation limit: 3 + (nftCount * 5) */
   walletLimit: number;
   /** NFT count breakdown by address */
   addressNftCounts: { address: string; nftCount: number }[];
+  /** IDs of wallets that are locked due to exceeding the limit */
+  lockedWalletIds: string[];
 }
 
 /**
@@ -116,8 +118,9 @@ const initialMembership: MembershipState = {
   isPro: false,
   nftCount: 0,
   daysRemaining: 0,
-  walletLimit: 3, // Free tier default: 3 + (0 * 3) = 3
+  walletLimit: 3, // Free tier default: 3 + (0 * 5) = 3
   addressNftCounts: [],
+  lockedWalletIds: [],
 };
 
 const initialState = {
@@ -308,3 +311,11 @@ export const useWalletLimitInfo = () =>
 /** Get NFT count breakdown by address */
 export const useAddressNftCounts = () =>
   useDashboardStore((state) => state.membership.addressNftCounts);
+
+/** Get locked wallet IDs */
+export const useLockedWalletIds = () =>
+  useDashboardStore((state) => state.membership.lockedWalletIds);
+
+/** Check if a specific wallet is locked */
+export const useIsWalletLocked = (walletId: string) =>
+  useDashboardStore((state) => state.membership.lockedWalletIds.includes(walletId));

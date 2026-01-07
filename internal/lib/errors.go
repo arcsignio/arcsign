@@ -24,6 +24,7 @@ const (
 	// Resource errors (404/409-style)
 	ErrWalletNotFound       ErrorCode = "WALLET_NOT_FOUND"        // Wallet does not exist
 	ErrWalletAlreadyExists  ErrorCode = "WALLET_ALREADY_EXISTS"   // Wallet name collision
+	ErrWalletLocked         ErrorCode = "WALLET_LOCKED"           // Wallet is locked due to limit exceeded
 
 	// System errors (500-style)
 	ErrStorageError     ErrorCode = "STORAGE_ERROR"     // USB I/O failure
@@ -114,6 +115,8 @@ func GetUserFriendlyMessage(code ErrorCode) string {
 		return "Wallet not found. Please ensure the USB drive is connected and contains your wallet."
 	case ErrWalletAlreadyExists:
 		return "A wallet with this recovery phrase already exists on the USB drive."
+	case ErrWalletLocked:
+		return "This wallet is locked because you have exceeded your wallet limit. Please upgrade your membership or remove some wallets to unlock."
 	case ErrStorageError:
 		return "Storage device not accessible. Please ensure your USB drive is properly connected."
 	case ErrEncryptionError:

@@ -441,6 +441,10 @@ pub struct DeviceMembershipStatus {
     pub can_create_wallet: bool,
     /// List of NFT membership bindings
     pub memberships: Vec<MembershipBindingInfo>,
+    /// IDs of wallets that are locked due to exceeding the limit
+    /// Locked wallets can view balance but cannot send transactions
+    #[serde(default)]
+    pub locked_wallet_ids: Vec<String>,
 }
 
 /// NFT membership binding info
@@ -553,6 +557,9 @@ pub async fn get_device_membership_status(
         wallet_count,
         can_create_wallet: can_create,
         memberships,
+        // Note: This endpoint doesn't have session info, so locked wallets are not available
+        // Use get_device_membership_status_with_token for locked wallet info
+        locked_wallet_ids: vec![],
     })
 }
 
@@ -660,9 +667,19 @@ pub async fn get_device_membership_status_with_token(
         })
         .unwrap_or_default();
 
+    // Parse locked wallet IDs from session
+    let locked_wallet_ids: Vec<String> = result["lockedWalletIds"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|id| id.as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+
     tracing::info!(
-        "Device membership (token-based): id={}, hash={}, limit={}, count={}",
-        device_id, device_id_hash, wallet_limit, wallet_count
+        "Device membership (token-based): id={}, hash={}, limit={}, count={}, locked={}",
+        device_id, device_id_hash, wallet_limit, wallet_count, locked_wallet_ids.len()
     );
 
     Ok(DeviceMembershipStatus {
@@ -672,6 +689,7 @@ pub async fn get_device_membership_status_with_token(
         wallet_count,
         can_create_wallet: can_create,
         memberships,
+        locked_wallet_ids,
     })
 }
 

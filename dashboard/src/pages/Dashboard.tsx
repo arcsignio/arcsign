@@ -11,6 +11,7 @@ import {
   useSelectedWallet,
   useHasWallets,
   useWalletLimitInfo,
+  useLockedWalletIds,
 } from "@/stores/dashboardStore";
 import tauriApi, { type AppError, type PendingTransactionInfo } from "@/services/tauri-api";
 import { WalletCreate } from "@/components/WalletCreate";
@@ -26,6 +27,7 @@ import { DeleteWalletDialog } from "@/components/DeleteWalletDialog";
 import { TransactionSignDialog } from "@/components/TransactionSignDialog";
 import { MembershipBadge } from "@/components/MembershipBadge";
 import { useInactivityLogout } from "@/hooks/useInactivityLogout";
+import { useSessionStore } from "@/stores/sessionStore";
 import type { Address } from "@/types/address";
 import type { Wallet } from "@/types/wallet";
 
@@ -69,6 +71,10 @@ export function Dashboard() {
   const selectedWallet = useSelectedWallet();
   const hasWallets = useHasWallets();
   const walletLimitInfo = useWalletLimitInfo();
+  const lockedWalletIds = useLockedWalletIds();
+
+  const { setMembership } = useDashboardStore();
+  const { getToken } = useSessionStore();
 
   // Auto-logout after 15 minutes of inactivity (SEC-006, T092)
   // continueUsing: locks app and requires password re-entry
@@ -292,6 +298,23 @@ export function Dashboard() {
         // Auto-select first wallet if none selected
         if (walletList.length > 0 && !selectedWalletId) {
           selectWallet(walletList[0].id);
+        }
+
+        // Load membership status with locked wallet IDs using session token
+        const sessionToken = getToken();
+        if (sessionToken) {
+          try {
+            const membershipStatus = await tauriApi.getDeviceMembershipStatusWithToken({ token: sessionToken });
+            setMembership({
+              walletLimit: membershipStatus.walletLimit,
+              nftCount: membershipStatus.memberships.length,
+              isPro: membershipStatus.memberships.length > 0,
+              lockedWalletIds: membershipStatus.lockedWalletIds || [],
+            });
+          } catch (membershipErr) {
+            console.warn("Failed to load membership status:", membershipErr);
+            // Non-critical error - continue without membership info
+          }
         }
       } catch (err) {
         const error = err as AppError;
@@ -609,48 +632,59 @@ export function Dashboard() {
         <div className="wallet-list">
           <h2>Your Wallets</h2>
           <div className="wallets-grid">
-            {wallets.map((wallet) => (
-              <div
-                key={wallet.id}
-                className={`wallet-card ${
-                  selectedWalletId === wallet.id ? "selected" : ""
-                }`}
-                onClick={() => handleWalletSelect(wallet.id)}
-              >
-                <div className="wallet-card-header">
-                  <h3>{wallet.name}</h3>
+            {wallets.map((wallet) => {
+              const isLocked = lockedWalletIds.includes(wallet.id);
+              return (
+                <div
+                  key={wallet.id}
+                  className={`wallet-card ${
+                    selectedWalletId === wallet.id ? "selected" : ""
+                  } ${isLocked ? "locked" : ""}`}
+                  onClick={() => handleWalletSelect(wallet.id)}
+                >
+                  <div className="wallet-card-header">
+                    <h3>
+                      {wallet.name}
+                      {isLocked && <span className="lock-icon" title="Wallet locked - upgrade membership to unlock">🔒</span>}
+                    </h3>
+                    <button
+                      className="delete-wallet-button"
+                      onClick={(e) => handleDeleteWallet(wallet, e)}
+                      title="Delete wallet"
+                      aria-label={`Delete wallet ${wallet.name}`}
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                  {isLocked && (
+                    <div className="locked-banner">
+                      <span>⚠️ Locked - Cannot send transactions</span>
+                    </div>
+                  )}
+                  <div className="wallet-info">
+                    <p>
+                      <strong>Created:</strong>{" "}
+                      {new Date(wallet.created_at).toLocaleDateString()}
+                    </p>
+                    <p>
+                      <strong>Addresses:</strong> {wallet.address_count}
+                    </p>
+                    {wallet.has_passphrase && (
+                      <span className="badge">Protected with Passphrase</span>
+                    )}
+                  </div>
                   <button
-                    className="delete-wallet-button"
-                    onClick={(e) => handleDeleteWallet(wallet, e)}
-                    title="Delete wallet"
-                    aria-label={`Delete wallet ${wallet.name}`}
+                    className="view-addresses-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleWalletSelect(wallet.id);
+                    }}
                   >
-                    🗑️
+                    View Assets →
                   </button>
                 </div>
-                <div className="wallet-info">
-                  <p>
-                    <strong>Created:</strong>{" "}
-                    {new Date(wallet.created_at).toLocaleDateString()}
-                  </p>
-                  <p>
-                    <strong>Addresses:</strong> {wallet.address_count}
-                  </p>
-                  {wallet.has_passphrase && (
-                    <span className="badge">Protected with Passphrase</span>
-                  )}
-                </div>
-                <button
-                  className="view-addresses-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleWalletSelect(wallet.id);
-                  }}
-                >
-                  View Assets →
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

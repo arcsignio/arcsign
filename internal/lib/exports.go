@@ -1037,6 +1037,20 @@ func SignTransaction(params *C.char) *C.char {
 	defer zeroString(&input.Password)
 	defer zeroString(&input.Passphrase)
 
+	// Step 0: Check if wallet is locked (before any expensive operations)
+	// Locked wallets cannot sign transactions - this enforces the wallet limit
+	sm := initSessionManager()
+	if session := sm.GetSessionByUSBPath(input.USBPath); session != nil {
+		if session.IsWalletLocked(input.WalletID) {
+			response := NewErrorResponse(ErrWalletLocked, "Wallet is locked due to exceeding the wallet limit. Please upgrade your membership or remove newer wallets to unlock this wallet.")
+			jsonBytes, _ := json.Marshal(response)
+			return C.CString(string(jsonBytes))
+		}
+	}
+	// Note: If no session exists, we proceed with the transaction
+	// This allows signing when the user hasn't logged in yet (fallback mode)
+	// The wallet limit is still enforced at the UI level in this case
+
 	// Step 1: Decrypt wallet to get mnemonic
 	walletSvc := wallet.NewWalletService(input.USBPath)
 	mnemonic, err := walletSvc.RestoreWallet(input.WalletID, input.Password)
@@ -3773,6 +3787,12 @@ func GetDeviceMembershipStatusWithToken(params *C.char) *C.char {
 	walletLimit := 3 + (nftCount * 5)
 	canCreateWallet := walletCount < walletLimit
 
+	// Get locked wallet IDs from session (calculated at login)
+	lockedWalletIds := session.LockedWalletIds
+	if lockedWalletIds == nil {
+		lockedWalletIds = []string{}
+	}
+
 	output := map[string]interface{}{
 		"deviceId":        deviceId,
 		"deviceIdHash":    deviceIdHash,
@@ -3780,6 +3800,7 @@ func GetDeviceMembershipStatusWithToken(params *C.char) *C.char {
 		"walletCount":     walletCount,
 		"canCreateWallet": canCreateWallet,
 		"memberships":     memberships,
+		"lockedWalletIds": lockedWalletIds,
 	}
 
 	response := NewSuccessResponse(output)

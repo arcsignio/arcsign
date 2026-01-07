@@ -3,7 +3,12 @@ package app
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
@@ -36,6 +41,10 @@ type Session struct {
 	DeviceId     string              // UUID from app config
 	DeviceIdHash string              // keccak256(deviceId) for contract binding
 	Memberships  []MembershipBinding // NFT bindings (public data)
+
+	// Wallet lock status (calculated at login based on wallet limit)
+	// Locked wallets can view balance but cannot send transactions
+	LockedWalletIds []string // IDs of wallets that exceed the limit
 }
 
 // NewSessionManager creates a new session manager instance
@@ -82,18 +91,27 @@ func (sm *SessionManager) CreateSession(usbPath, appPassword string) (*Session, 
 		memberships = appConfig.Identity.Memberships
 	}
 
+	// Load wallet list from filesystem (more reliable than appConfig.Wallets)
+	// appConfig.Wallets may be out of sync if wallets were created before the config
+	walletsFromFS := loadWalletsFromFilesystem(usbPath)
+
+	// Calculate locked wallets based on wallet limit
+	// Wallets are sorted by CreatedAt, newest wallets get locked first
+	lockedWalletIds := calculateLockedWallets(walletsFromFS, len(memberships))
+
 	// Create session with 24-hour expiration
 	// Security: Only cache public data, password is discarded after validation
 	now := time.Now()
 	session := &Session{
-		Token:        token,
-		UsbPath:      usbPath,
-		CreatedAt:    now,
-		ExpiresAt:    now.Add(24 * time.Hour),
-		LastUsed:     now,
-		DeviceId:     deviceId,
-		DeviceIdHash: deviceIdHash,
-		Memberships:  memberships,
+		Token:           token,
+		UsbPath:         usbPath,
+		CreatedAt:       now,
+		ExpiresAt:       now.Add(24 * time.Hour),
+		LastUsed:        now,
+		DeviceId:        deviceId,
+		DeviceIdHash:    deviceIdHash,
+		Memberships:     memberships,
+		LockedWalletIds: lockedWalletIds,
 	}
 
 	// Store session
@@ -195,4 +213,135 @@ func generateSecureToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
+}
+
+// loadWalletsFromFilesystem reads wallet metadata directly from the filesystem.
+// This is more reliable than appConfig.Wallets which may be out of sync.
+// Wallet directories are stored directly in the USB root as UUID folders containing wallet.json
+func loadWalletsFromFilesystem(usbPath string) []WalletMetadata {
+	wallets := make([]WalletMetadata, 0)
+
+	fmt.Printf("[loadWalletsFromFilesystem] Reading wallets from USB root: %s\n", usbPath)
+
+	entries, err := os.ReadDir(usbPath)
+	if err != nil {
+		fmt.Printf("[loadWalletsFromFilesystem] Error reading directory: %v\n", err)
+		return wallets // Return empty list if directory doesn't exist
+	}
+
+	fmt.Printf("[loadWalletsFromFilesystem] Found %d entries in USB root\n", len(entries))
+
+	for _, entry := range entries {
+		// Skip non-directories and hidden directories (starting with .)
+		if !entry.IsDir() || len(entry.Name()) == 0 || entry.Name()[0] == '.' {
+			continue
+		}
+
+		walletID := entry.Name()
+		metaPath := filepath.Join(usbPath, walletID, "wallet.json")
+
+		// Check if wallet.json exists - this confirms it's a wallet directory
+		data, err := os.ReadFile(metaPath)
+		if err != nil {
+			// Not a wallet directory, skip silently
+			continue
+		}
+
+		fmt.Printf("[loadWalletsFromFilesystem] Found wallet directory: %s\n", walletID)
+
+		// Parse wallet metadata to get CreatedAt
+		var walletMeta struct {
+			ID        string    `json:"id"`
+			Name      string    `json:"name"`
+			CreatedAt time.Time `json:"createdAt"`
+		}
+		if err := json.Unmarshal(data, &walletMeta); err != nil {
+			fmt.Printf("[loadWalletsFromFilesystem] Error parsing JSON for %s: %v, using fallback\n", walletID, err)
+			// If parsing fails, use directory info time as fallback
+			info, _ := entry.Info()
+			wallets = append(wallets, WalletMetadata{
+				ID:        walletID,
+				Name:      walletID,
+				CreatedAt: info.ModTime(),
+			})
+			continue
+		}
+
+		fmt.Printf("[loadWalletsFromFilesystem] Loaded wallet: id=%s, name=%s, createdAt=%s\n",
+			walletMeta.ID, walletMeta.Name, walletMeta.CreatedAt.Format(time.RFC3339))
+
+		wallets = append(wallets, WalletMetadata{
+			ID:        walletMeta.ID,
+			Name:      walletMeta.Name,
+			CreatedAt: walletMeta.CreatedAt,
+		})
+	}
+
+	fmt.Printf("[loadWalletsFromFilesystem] Total wallets loaded: %d\n", len(wallets))
+	return wallets
+}
+
+// calculateLockedWallets determines which wallets should be locked based on the wallet limit.
+// Wallets are sorted by creation time (oldest first), and wallets beyond the limit are locked.
+// Formula: walletLimit = 3 + (nftCount * 5)
+func calculateLockedWallets(wallets []WalletMetadata, nftCount int) []string {
+	walletLimit := 3 + (nftCount * 5)
+	walletCount := len(wallets)
+
+	fmt.Printf("[calculateLockedWallets] nftCount=%d, walletLimit=%d, walletCount=%d\n",
+		nftCount, walletLimit, walletCount)
+
+	// No wallets need to be locked
+	if walletCount <= walletLimit {
+		fmt.Printf("[calculateLockedWallets] No locking needed: %d <= %d\n", walletCount, walletLimit)
+		return []string{}
+	}
+
+	// Sort wallets by CreatedAt (oldest first)
+	// We need to make a copy to avoid modifying the original slice
+	sortedWallets := make([]WalletMetadata, len(wallets))
+	copy(sortedWallets, wallets)
+	sort.Slice(sortedWallets, func(i, j int) bool {
+		return sortedWallets[i].CreatedAt.Before(sortedWallets[j].CreatedAt)
+	})
+
+	fmt.Printf("[calculateLockedWallets] Sorted wallets (oldest first):\n")
+	for i, w := range sortedWallets {
+		fmt.Printf("  [%d] id=%s, name=%s, createdAt=%s\n", i, w.ID, w.Name, w.CreatedAt.Format(time.RFC3339))
+	}
+
+	// Lock wallets beyond the limit (newest wallets get locked)
+	lockedIds := make([]string, 0, walletCount-walletLimit)
+	for i := walletLimit; i < walletCount; i++ {
+		fmt.Printf("[calculateLockedWallets] Locking wallet: %s\n", sortedWallets[i].ID)
+		lockedIds = append(lockedIds, sortedWallets[i].ID)
+	}
+
+	fmt.Printf("[calculateLockedWallets] Total locked: %d, IDs: %v\n", len(lockedIds), lockedIds)
+	return lockedIds
+}
+
+// IsWalletLocked checks if a wallet is in the locked list
+func (s *Session) IsWalletLocked(walletId string) bool {
+	for _, id := range s.LockedWalletIds {
+		if id == walletId {
+			return true
+		}
+	}
+	return false
+}
+
+// GetSessionByUSBPath returns a valid session for the given USB path, if one exists.
+// Returns nil if no valid session is found for the USB path.
+func (sm *SessionManager) GetSessionByUSBPath(usbPath string) *Session {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
+	now := time.Now()
+	for _, session := range sm.sessions {
+		if session.UsbPath == usbPath && now.Before(session.ExpiresAt) {
+			return session
+		}
+	}
+	return nil
 }

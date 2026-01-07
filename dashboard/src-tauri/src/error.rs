@@ -39,6 +39,7 @@ pub enum ErrorCode {
     // Wallet errors
     WalletNotFound,
     WalletAlreadyExists,
+    WalletLocked,
     InvalidWalletId,
 
     // Password errors
@@ -181,6 +182,7 @@ impl AppError {
 
             ErrorCode::WalletNotFound => "Wallet not found on USB drive.",
             ErrorCode::WalletAlreadyExists => "A wallet with this mnemonic already exists.",
+            ErrorCode::WalletLocked => "This wallet is locked due to exceeding the wallet limit. Please upgrade your membership or remove newer wallets to unlock.",
             ErrorCode::InvalidWalletId => "Invalid wallet identifier.",
 
             ErrorCode::InvalidPassword => "Password does not meet security requirements.",
@@ -236,6 +238,7 @@ impl AppError {
             // Resource errors
             "WALLET_NOT_FOUND" => ErrorCode::WalletNotFound,
             "WALLET_ALREADY_EXISTS" => ErrorCode::WalletAlreadyExists,
+            "WALLET_LOCKED" => ErrorCode::WalletLocked,
 
             // System errors
             "STORAGE_ERROR" => ErrorCode::FfiStorageError,
