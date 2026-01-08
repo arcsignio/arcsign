@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import tauriApi, { type AppError, type AppConfig } from '@/services/tauri-api';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 interface AppUnlockProps {
   usbPath: string;
@@ -110,6 +111,11 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
 
   return (
     <div className="app-unlock">
+      {/* Language Switcher - positioned at top right */}
+      <div className="language-switcher-container">
+        <LanguageSwitcher variant="toggle" />
+      </div>
+
       <div className="unlock-container">
         <div className="unlock-header">
           <h1>🔐 {t('appUnlock.title')}</h1>
@@ -228,6 +234,25 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
           justify-content: center;
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           padding: 20px;
+          position: relative;
+        }
+
+        .language-switcher-container {
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          z-index: 10;
+        }
+
+        .language-switcher-container button {
+          background: rgba(255, 255, 255, 0.95) !important;
+          border-color: rgba(255, 255, 255, 0.3) !important;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .language-switcher-container button:hover {
+          background: #ffffff !important;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
 
         .unlock-container {
