@@ -1,6 +1,7 @@
 /**
  * Native Token Metadata
  * For chains' native tokens that don't appear in token lists
+ * Using local icons for reliability (no CDN dependency)
  */
 
 export interface NativeTokenMetadata {
@@ -16,6 +17,7 @@ export interface NativeTokenMetadata {
 /**
  * Native tokens for each blockchain
  * These are the coins used for gas fees
+ * Icons are stored locally in public/icons/tokens/
  */
 export const NATIVE_TOKENS: Record<string, NativeTokenMetadata> = {
   // Ethereum
@@ -23,7 +25,7 @@ export const NATIVE_TOKENS: Record<string, NativeTokenMetadata> = {
     symbol: "ETH",
     name: "Ethereum",
     decimals: 18,
-    logoURI: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
+    logoURI: "/icons/tokens/eth.png",
     chainId: 1,
     chainName: "Ethereum",
     network: "eth-mainnet",
@@ -34,8 +36,7 @@ export const NATIVE_TOKENS: Record<string, NativeTokenMetadata> = {
     symbol: "BNB",
     name: "BNB",
     decimals: 18,
-    logoURI:
-      "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png",
+    logoURI: "/icons/tokens/bnb.png",
     chainId: 56,
     chainName: "BNB Chain",
     network: "bsc-mainnet",
@@ -46,7 +47,7 @@ export const NATIVE_TOKENS: Record<string, NativeTokenMetadata> = {
     symbol: "MATIC",
     name: "Polygon",
     decimals: 18,
-    logoURI: "https://assets.coingecko.com/coins/images/4713/small/polygon.png",
+    logoURI: "/icons/tokens/matic.png",
     chainId: 137,
     chainName: "Polygon",
     network: "polygon-mainnet",
@@ -57,7 +58,7 @@ export const NATIVE_TOKENS: Record<string, NativeTokenMetadata> = {
     symbol: "ETH",
     name: "Ethereum",
     decimals: 18,
-    logoURI: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
+    logoURI: "/icons/tokens/eth.png",
     chainId: 42161,
     chainName: "Arbitrum One",
     network: "arbitrum-mainnet",
@@ -68,7 +69,7 @@ export const NATIVE_TOKENS: Record<string, NativeTokenMetadata> = {
     symbol: "ETH",
     name: "Ethereum",
     decimals: 18,
-    logoURI: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
+    logoURI: "/icons/tokens/eth.png",
     chainId: 10,
     chainName: "Optimism",
     network: "optimism-mainnet",
@@ -79,7 +80,7 @@ export const NATIVE_TOKENS: Record<string, NativeTokenMetadata> = {
     symbol: "ETH",
     name: "Ethereum",
     decimals: 18,
-    logoURI: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
+    logoURI: "/icons/tokens/eth.png",
     chainId: 8453,
     chainName: "Base",
     network: "base-mainnet",
@@ -90,7 +91,7 @@ export const NATIVE_TOKENS: Record<string, NativeTokenMetadata> = {
     symbol: "BTC",
     name: "Bitcoin",
     decimals: 8,
-    logoURI: "https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
+    logoURI: "/icons/tokens/btc.png",
     chainId: 0,
     chainName: "Bitcoin",
     network: "btc-mainnet",
@@ -101,7 +102,7 @@ export const NATIVE_TOKENS: Record<string, NativeTokenMetadata> = {
     symbol: "ETH",
     name: "Sepolia ETH",
     decimals: 18,
-    logoURI: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
+    logoURI: "/icons/tokens/eth.png",
     chainId: 11155111,
     chainName: "Sepolia Testnet",
     network: "eth-sepolia",

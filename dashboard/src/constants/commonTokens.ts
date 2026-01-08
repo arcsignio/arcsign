@@ -29,6 +29,7 @@ export interface CommonToken {
 /**
  * Common tokens list - Using well-known contract addresses
  * All addresses are checksummed and verified
+ * Icons are stored locally in public/icons/tokens/ for reliability
  */
 export const COMMON_TOKENS: CommonToken[] = [
   // Stablecoins
@@ -36,7 +37,7 @@ export const COMMON_TOKENS: CommonToken[] = [
     symbol: "USDT",
     name: "Tether USD",
     decimals: 6,
-    logo: "https://assets.coingecko.com/coins/images/325/small/Tether.png",
+    logo: "/icons/tokens/usdt.png",
     category: "stablecoin",
     coingeckoId: "tether",
     chains: {
@@ -58,7 +59,7 @@ export const COMMON_TOKENS: CommonToken[] = [
     symbol: "USDC",
     name: "USD Coin",
     decimals: 6,
-    logo: "https://assets.coingecko.com/coins/images/6319/small/usdc.png",
+    logo: "/icons/tokens/usdc.png",
     category: "stablecoin",
     coingeckoId: "usd-coin",
     chains: {
@@ -81,7 +82,7 @@ export const COMMON_TOKENS: CommonToken[] = [
     symbol: "ETH",
     name: "Ethereum",
     decimals: 18,
-    logo: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
+    logo: "/icons/tokens/eth.png",
     category: "layer1",
     coingeckoId: "ethereum",
     chains: {
@@ -99,7 +100,7 @@ export const COMMON_TOKENS: CommonToken[] = [
     symbol: "WETH",
     name: "Wrapped Ether",
     decimals: 18,
-    logo: "https://assets.coingecko.com/coins/images/2518/small/weth.png",
+    logo: "/icons/tokens/weth.png",
     category: "defi",
     coingeckoId: "weth",
     chains: {
@@ -117,7 +118,7 @@ export const COMMON_TOKENS: CommonToken[] = [
     symbol: "BTC",
     name: "Bitcoin",
     decimals: 8,
-    logo: "https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
+    logo: "/icons/tokens/btc.png",
     category: "layer1",
     coingeckoId: "bitcoin",
     chains: {
@@ -131,7 +132,7 @@ export const COMMON_TOKENS: CommonToken[] = [
     symbol: "WBTC",
     name: "Wrapped Bitcoin",
     decimals: 8,
-    logo: "https://assets.coingecko.com/coins/images/7598/small/wrapped_bitcoin_wbtc.png",
+    logo: "/icons/tokens/wbtc.png",
     category: "defi",
     coingeckoId: "wrapped-bitcoin",
     chains: {
@@ -146,7 +147,7 @@ export const COMMON_TOKENS: CommonToken[] = [
     symbol: "UNI",
     name: "Uniswap",
     decimals: 18,
-    logo: "https://assets.coingecko.com/coins/images/12504/small/uni.png",
+    logo: "/icons/tokens/uni.png",
     category: "defi",
     coingeckoId: "uniswap",
     chains: {
@@ -160,7 +161,7 @@ export const COMMON_TOKENS: CommonToken[] = [
     symbol: "AAVE",
     name: "Aave",
     decimals: 18,
-    logo: "https://assets.coingecko.com/coins/images/12645/small/aave.png",
+    logo: "/icons/tokens/aave.png",
     category: "defi",
     coingeckoId: "aave",
     chains: {
@@ -175,7 +176,7 @@ export const COMMON_TOKENS: CommonToken[] = [
     symbol: "MATIC",
     name: "Polygon",
     decimals: 18,
-    logo: "https://assets.coingecko.com/coins/images/4713/small/polygon.png",
+    logo: "/icons/tokens/matic.png",
     category: "layer2",
     coingeckoId: "matic-network",
     chains: {
@@ -193,7 +194,7 @@ export const COMMON_TOKENS: CommonToken[] = [
     symbol: "OP",
     name: "Optimism",
     decimals: 18,
-    logo: "https://assets.coingecko.com/coins/images/25244/small/Optimism.png",
+    logo: "/icons/tokens/op.png",
     category: "layer2",
     coingeckoId: "optimism",
     chains: {
@@ -207,7 +208,7 @@ export const COMMON_TOKENS: CommonToken[] = [
     symbol: "ARB",
     name: "Arbitrum",
     decimals: 18,
-    logo: "https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg",
+    logo: "/icons/tokens/arb.png",
     category: "layer2",
     coingeckoId: "arbitrum",
     chains: {
@@ -222,7 +223,7 @@ export const COMMON_TOKENS: CommonToken[] = [
     symbol: "BNB",
     name: "BNB",
     decimals: 18,
-    logo: "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png",
+    logo: "/icons/tokens/bnb.png",
     category: "exchange",
     coingeckoId: "binancecoin",
     chains: {
@@ -236,7 +237,7 @@ export const COMMON_TOKENS: CommonToken[] = [
     symbol: "OKB",
     name: "OKB",
     decimals: 18,
-    logo: "https://assets.coingecko.com/coins/images/4463/small/WeChat_Image_20220118095654.png",
+    logo: "/icons/tokens/okb.png",
     category: "exchange",
     coingeckoId: "okb",
     chains: {
