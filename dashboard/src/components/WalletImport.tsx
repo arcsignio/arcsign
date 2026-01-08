@@ -7,6 +7,7 @@
 
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   walletImportSchema,
@@ -32,6 +33,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
   onSuccess,
   onCancel,
 }) => {
+  const { t } = useTranslation();
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
@@ -124,7 +126,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
         setShowDuplicateDialog(true);
       } else {
         setImportError(
-          error.message || "Failed to import wallet. Please try again."
+          error.message || t('wallet.importFailed')
         );
       }
     } finally {
@@ -146,9 +148,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
    */
   const handleOverwriteDuplicate = async () => {
     setShowDuplicateDialog(false);
-    setImportError(
-      "Overwrite functionality not yet implemented. Please use a different mnemonic."
-    );
+    setImportError(t('wallet.overwriteNotImplemented'));
     // TODO: Implement force import with overwrite flag
   };
 
@@ -180,7 +180,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
 
   return (
     <div className="wallet-import">
-      <h2 className="text-2xl font-semibold mb-6">Import Wallet</h2>
+      <h2 className="text-2xl font-semibold mb-6">{t('wallet.importWallet')}</h2>
 
       {/* Wallet Limit Info */}
       <div style={{
@@ -193,8 +193,8 @@ export const WalletImport: React.FC<WalletImportProps> = ({
       }}>
         <span style={{ fontWeight: 500 }}>
           {walletLimitInfo.canCreate
-            ? `Wallets: ${walletLimitInfo.current}/${walletLimitInfo.limit} (${walletLimitInfo.isPro ? 'Pro' : 'Free'})`
-            : `Wallet limit reached (${walletLimitInfo.current}/${walletLimitInfo.limit})`
+            ? t('wallet.walletsCount', { current: walletLimitInfo.current, limit: walletLimitInfo.limit, tier: walletLimitInfo.isPro ? t('membership.pro') : t('membership.free') })
+            : t('wallet.limitReachedCount', { current: walletLimitInfo.current, limit: walletLimitInfo.limit })
           }
         </span>
         {!walletLimitInfo.canCreate && (
@@ -212,7 +212,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
               fontWeight: 600
             }}
           >
-            {walletLimitInfo.isPro ? 'Get More NFTs' : 'Upgrade to Pro'}
+            {walletLimitInfo.isPro ? t('membership.getMoreNfts') : t('actions.upgrade')}
           </button>
         )}
       </div>
@@ -224,7 +224,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
             htmlFor="mnemonic"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Recovery Phrase (Mnemonic) *
+            {t('mnemonic.recoveryPhrase')} *
           </label>
           <textarea
             id="mnemonic"
@@ -238,7 +238,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
                 ? "border-red-500 focus:ring-red-500"
                 : "border-gray-300 focus:ring-blue-500"
             }`}
-            placeholder="Enter your 12 or 24 word recovery phrase..."
+            placeholder={t('mnemonic.enterRecoveryPhrase')}
             disabled={isImporting}
           />
           {errors.mnemonic && (
@@ -247,7 +247,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
             </p>
           )}
           <p className="mt-2 text-xs text-gray-500">
-            Enter your BIP39 mnemonic phrase (12 or 24 words, space-separated)
+            {t('mnemonic.enterBip39Hint')}
           </p>
         </div>
 
@@ -257,7 +257,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
             htmlFor="password"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Wallet Password *
+            {t('security.walletPassword')} *
           </label>
           <input
             type="password"
@@ -268,7 +268,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
                 ? "border-red-500 focus:ring-red-500"
                 : "border-gray-300 focus:ring-blue-500"
             }`}
-            placeholder="Enter a strong password (12+ characters)"
+            placeholder={t('security.enterStrongPassword')}
             disabled={isImporting}
           />
           {errors.password && (
@@ -283,7 +283,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
             htmlFor="confirmPassword"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Confirm Password *
+            {t('security.confirmPassword')} *
           </label>
           <input
             type="password"
@@ -294,7 +294,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
                 ? "border-red-500 focus:ring-red-500"
                 : "border-gray-300 focus:ring-blue-500"
             }`}
-            placeholder="Re-enter your password"
+            placeholder={t('security.reenterPassword')}
             disabled={isImporting}
           />
           {errors.confirmPassword && (
@@ -318,7 +318,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
               htmlFor="usePassphrase"
               className="ml-2 block text-sm text-gray-700"
             >
-              Use BIP39 Passphrase (25th word)
+              {t('security.useBip39Passphrase')}
             </label>
           </div>
 
@@ -328,7 +328,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
                 htmlFor="passphrase"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                BIP39 Passphrase
+                {t('security.passphrase')}
               </label>
               <input
                 type="password"
@@ -339,7 +339,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
                     ? "border-red-500 focus:ring-red-500"
                     : "border-gray-300 focus:ring-blue-500"
                 }`}
-                placeholder="Enter BIP39 passphrase (optional)"
+                placeholder={t('security.enterBip39Passphrase')}
                 disabled={isImporting}
               />
               {errors.passphrase && (
@@ -348,8 +348,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
                 </p>
               )}
               <p className="mt-2 text-xs text-yellow-600">
-                ⚠️ If your original wallet used a passphrase, you must enter the
-                exact same passphrase here.
+                {t('security.passphraseImportWarning')}
               </p>
             </div>
           )}
@@ -361,7 +360,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
             htmlFor="name"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Wallet Name
+            {t('wallet.walletName')}
           </label>
           <input
             type="text"
@@ -372,7 +371,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
                 ? "border-red-500 focus:ring-red-500"
                 : "border-gray-300 focus:ring-blue-500"
             }`}
-            placeholder="e.g., My Main Wallet"
+            placeholder={t('wallet.myMainWallet')}
             disabled={isImporting}
             maxLength={50}
           />
@@ -397,7 +396,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
             disabled={isImporting}
             className="flex-1 px-6 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isImporting ? "Importing..." : "Import Wallet"}
+            {isImporting ? t('wallet.importing') : t('wallet.importWallet')}
           </button>
 
           {onCancel && (
@@ -407,7 +406,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
               disabled={isImporting}
               className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           )}
         </div>
@@ -418,14 +417,13 @@ export const WalletImport: React.FC<WalletImportProps> = ({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-xl font-semibold text-yellow-600 mb-4">
-              ⚠️ Duplicate Wallet
+              {t('wallet.duplicateWalletTitle')}
             </h3>
             <p className="text-sm text-gray-700 mb-4">
-              A wallet with this mnemonic already exists on your USB drive.
-              Importing it again will overwrite the existing wallet data.
+              {t('wallet.duplicateWalletMessage')}
             </p>
             <p className="text-sm text-gray-700 mb-6">
-              Are you sure you want to continue?
+              {t('wallet.duplicateWalletConfirm')}
             </p>
 
             <div className="flex gap-3">
@@ -433,13 +431,13 @@ export const WalletImport: React.FC<WalletImportProps> = ({
                 onClick={handleCancelDuplicate}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleOverwriteDuplicate}
                 className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
               >
-                Overwrite
+                {t('wallet.overwrite')}
               </button>
             </div>
           </div>
@@ -449,10 +447,10 @@ export const WalletImport: React.FC<WalletImportProps> = ({
       {/* Cancellation Confirmation Dialog (T093, FR-032) */}
       <ConfirmationDialog
         isOpen={showCancelConfirm}
-        title="Discard Wallet Import?"
-        message="You have unsaved changes. Are you sure you want to cancel? All entered information will be lost."
-        confirmLabel="Discard Changes"
-        cancelLabel="Continue Editing"
+        title={t('wallet.discardImport')}
+        message={t('wallet.discardImportMessage')}
+        confirmLabel={t('wallet.discardChanges')}
+        cancelLabel={t('wallet.continueEditing')}
         confirmVariant="danger"
         onConfirm={confirmCancel}
         onCancel={cancelCancelAction}
@@ -461,10 +459,14 @@ export const WalletImport: React.FC<WalletImportProps> = ({
       {/* Upgrade to Pro Prompt Dialog */}
       <ConfirmationDialog
         isOpen={showUpgradePrompt}
-        title="Wallet Limit Reached"
-        message={`You have reached your wallet limit (${walletLimitInfo.current}/${walletLimitInfo.limit}). ${walletLimitInfo.isPro ? 'Purchase additional ArcSign Pro NFTs to increase your limit (+3 wallets per NFT).' : 'Upgrade to ArcSign Pro to increase your limit (+3 wallets per NFT).'}`}
-        confirmLabel="Learn More"
-        cancelLabel="Close"
+        title={t('wallet.walletLimitReached')}
+        message={t('wallet.upgradePromptMessage', {
+          current: walletLimitInfo.current,
+          limit: walletLimitInfo.limit,
+          suggestion: walletLimitInfo.isPro ? t('wallet.purchaseMoreNfts') : t('wallet.upgradeToPro')
+        })}
+        confirmLabel={t('actions.learnMore')}
+        cancelLabel={t('actions.close')}
         confirmVariant="primary"
         onConfirm={() => {
           setShowUpgradePrompt(false);

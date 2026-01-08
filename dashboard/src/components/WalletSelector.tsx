@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Wallet } from '@/types/wallet';
 import tauriApi, { type AppError } from '@/services/tauri-api';
 import { useDashboardStore } from '@/stores/dashboardStore';
@@ -29,6 +30,7 @@ export const WalletSelector: React.FC<WalletSelectorProps> = ({
   onSelect,
   onRename,
 }) => {
+  const { t } = useTranslation();
   const [renamingWalletId, setRenamingWalletId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [renameError, setRenameError] = useState<string | null>(null);
@@ -68,12 +70,12 @@ export const WalletSelector: React.FC<WalletSelectorProps> = ({
    */
   const submitRename = async (walletId: string) => {
     if (!newName.trim()) {
-      setRenameError('Wallet name cannot be empty');
+      setRenameError(t('wallet.nameCannotBeEmpty'));
       return;
     }
 
     if (newName.trim().length > 50) {
-      setRenameError('Wallet name must be 50 characters or less');
+      setRenameError(t('wallet.nameTooLong'));
       return;
     }
 
@@ -103,7 +105,7 @@ export const WalletSelector: React.FC<WalletSelectorProps> = ({
       setNewName('');
     } catch (err) {
       const error = err as AppError;
-      setRenameError(error.message || 'Failed to rename wallet');
+      setRenameError(error.message || t('wallet.renameFailed'));
     } finally {
       setIsRenaming(false);
     }
@@ -125,8 +127,8 @@ export const WalletSelector: React.FC<WalletSelectorProps> = ({
   if (wallets.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">No wallets found on this USB drive.</p>
-        <p className="text-sm text-gray-500 mt-2">Create or import a wallet to get started.</p>
+        <p className="text-gray-600">{t('wallet.noWalletsFound')}</p>
+        <p className="text-sm text-gray-500 mt-2">{t('wallet.createOrImportToStart')}</p>
       </div>
     );
   }
@@ -136,8 +138,8 @@ export const WalletSelector: React.FC<WalletSelectorProps> = ({
     <div className={`p-3 mb-4 rounded-md ${wallets.length >= 10 ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'}`}>
       <p className={`text-sm ${wallets.length >= 10 ? 'text-red-800' : 'text-yellow-800'}`}>
         {wallets.length >= 10
-          ? '⚠️ Maximum wallet limit reached (10 wallets). Please delete a wallet before creating a new one.'
-          : `⚠️ Approaching wallet limit: ${wallets.length} of 10 wallets created.`}
+          ? t('wallet.maxLimitReached')
+          : t('wallet.approachingLimit', { current: wallets.length, limit: 10 })}
       </p>
     </div>
   ) : null;
@@ -188,14 +190,14 @@ export const WalletSelector: React.FC<WalletSelectorProps> = ({
                         disabled={isRenaming}
                         className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                       >
-                        {isRenaming ? 'Saving...' : 'Save'}
+                        {isRenaming ? t('common.saving') : t('common.save')}
                       </button>
                       <button
                         onClick={cancelRename}
                         disabled={isRenaming}
                         className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
                       >
-                        Cancel
+                        {t('common.cancel')}
                       </button>
                     </div>
                   </div>
@@ -213,8 +215,8 @@ export const WalletSelector: React.FC<WalletSelectorProps> = ({
                     startRename(wallet);
                   }}
                   className="ml-2 p-1 text-gray-500 hover:text-blue-600 rounded hover:bg-gray-100 transition-colors"
-                  title="Rename wallet"
-                  aria-label="Rename"
+                  title={t('wallet.renameWallet')}
+                  aria-label={t('wallet.rename')}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -226,12 +228,12 @@ export const WalletSelector: React.FC<WalletSelectorProps> = ({
             {/* Wallet Metadata (FR-018) */}
             <div className="space-y-2 text-sm text-gray-600">
               <div className="flex items-center justify-between">
-                <span>Created:</span>
+                <span>{t('wallet.created')}:</span>
                 <span className="font-medium">{formatDate(wallet.created_at)}</span>
               </div>
 
               <div className="flex items-center justify-between">
-                <span>Addresses:</span>
+                <span>{t('wallet.addresses')}:</span>
                 <span className="font-medium">{wallet.address_count}</span>
               </div>
 
@@ -240,7 +242,7 @@ export const WalletSelector: React.FC<WalletSelectorProps> = ({
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
-                  <span>Protected with Passphrase</span>
+                  <span>{t('wallet.protectedWithPassphrase')}</span>
                 </div>
               )}
             </div>

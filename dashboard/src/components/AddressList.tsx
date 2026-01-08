@@ -6,10 +6,11 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import AddressRow from './AddressRow';
 import ReceiveAddressModal from './ReceiveAddressModal';
 import { copyWithAutoClear } from '@/services/clipboard';
-import { isChainSupported, CHAIN_CATEGORIES } from '@/utils/chainIcons';
+import { isChainSupported } from '@/utils/chainIcons';
 import type { Address } from '@/types/address';
 
 interface AddressListProps {
@@ -20,17 +21,17 @@ interface AddressListProps {
 }
 
 /**
- * Available categories for filtering
+ * Available categories for filtering (keys for i18n)
  */
-const CATEGORIES = [
-  { value: 'all', label: 'All Chains' },
-  { value: 'supported', label: 'Supported Chains' },
-  { value: 'base', label: 'Base Chains' },
-  { value: 'layer2', label: 'Layer 2' },
-  { value: 'regional', label: 'Regional' },
-  { value: 'cosmos', label: 'Cosmos' },
-  { value: 'alt_evm', label: 'Alt EVM' },
-  { value: 'specialized', label: 'Specialized' },
+const CATEGORY_KEYS = [
+  { value: 'all', labelKey: 'address.allChains' },
+  { value: 'supported', labelKey: 'address.supportedChains' },
+  { value: 'base', labelKey: 'address.baseChains' },
+  { value: 'layer2', labelKey: 'address.layer2' },
+  { value: 'regional', labelKey: 'address.regional' },
+  { value: 'cosmos', labelKey: 'address.cosmos' },
+  { value: 'alt_evm', labelKey: 'address.altEvm' },
+  { value: 'specialized', labelKey: 'address.specialized' },
 ];
 
 /**
@@ -62,6 +63,7 @@ export const AddressList: React.FC<AddressListProps> = ({
   error = null,
   walletName = 'Wallet',
 }) => {
+  const { t } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copyStatus, setCopyStatus] = useState<string>('');
@@ -111,13 +113,13 @@ export const AddressList: React.FC<AddressListProps> = ({
     const result = await copyWithAutoClear(address, symbol);
 
     if (result.success) {
-      setCopyStatus(`${symbol} address copied!`);
+      setCopyStatus(t('address.addressCopied', { symbol }));
       setTimeout(() => setCopyStatus(''), 3000);
     } else {
-      setCopyStatus(`Failed to copy: ${result.error}`);
+      setCopyStatus(t('address.copyFailed', { error: result.error }));
       setTimeout(() => setCopyStatus(''), 3000);
     }
-  }, []);
+  }, [t]);
 
   /**
    * Handle receive button click
@@ -132,7 +134,7 @@ export const AddressList: React.FC<AddressListProps> = ({
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading addresses...</p>
+          <p className="text-gray-600">{t('address.loadingAddresses')}</p>
         </div>
       </div>
     );
@@ -156,7 +158,7 @@ export const AddressList: React.FC<AddressListProps> = ({
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
             />
           </svg>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to Load Addresses</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('address.failedToLoad')}</h3>
           <p className="text-sm text-gray-600">{error}</p>
         </div>
       </div>
@@ -168,7 +170,7 @@ export const AddressList: React.FC<AddressListProps> = ({
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <p className="text-gray-600">No addresses found for this wallet.</p>
+          <p className="text-gray-600">{t('address.noAddressesFound')}</p>
         </div>
       </div>
     );
@@ -178,9 +180,9 @@ export const AddressList: React.FC<AddressListProps> = ({
     <div className="flex flex-col h-full bg-white rounded-lg shadow" data-testid="address-list">
       {/* Header with Title */}
       <div className="px-6 py-4 border-b border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-900">Wallet Addresses</h2>
+        <h2 className="text-xl font-semibold text-gray-900">{t('address.walletAddresses')}</h2>
         <p className="text-sm text-gray-500 mt-1">
-          {walletName} - {addresses.length} blockchain addresses
+          {walletName} - {addresses.length} {t('address.blockchainAddresses')}
         </p>
       </div>
 
@@ -189,7 +191,7 @@ export const AddressList: React.FC<AddressListProps> = ({
         {/* Category Filter */}
         <div className="flex items-center gap-2">
           <label htmlFor="category-filter" className="text-sm font-medium text-gray-700">
-            Filter:
+            {t('actions.filter')}:
           </label>
           <select
             id="category-filter"
@@ -198,9 +200,9 @@ export const AddressList: React.FC<AddressListProps> = ({
             className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             data-testid="category-filter"
           >
-            {CATEGORIES.map((cat) => (
+            {CATEGORY_KEYS.map((cat) => (
               <option key={cat.value} value={cat.value}>
-                {cat.label}
+                {t(cat.labelKey)}
               </option>
             ))}
           </select>
@@ -219,7 +221,7 @@ export const AddressList: React.FC<AddressListProps> = ({
             </svg>
             <input
               type="text"
-              placeholder="Search by symbol, name, or address..."
+              placeholder={t('address.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -230,7 +232,7 @@ export const AddressList: React.FC<AddressListProps> = ({
 
         {/* Results Count */}
         <div className="text-sm text-gray-600">
-          <span className="font-medium">{filteredAddresses.length}</span> of {addresses.length} addresses
+          <span className="font-medium">{filteredAddresses.length}</span> {t('common.of')} {addresses.length} {t('address.addresses')}
         </div>
       </div>
 
@@ -258,9 +260,9 @@ export const AddressList: React.FC<AddressListProps> = ({
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    {CHAIN_CATEGORIES.SUPPORTED} ({supportedAddresses.length})
+                    {t('address.supportedChains')} ({supportedAddresses.length})
                     <span className="text-xs font-normal text-green-600 ml-2">
-                      Full transaction support
+                      {t('address.fullTransactionSupport')}
                     </span>
                   </h3>
                 </div>
@@ -283,9 +285,9 @@ export const AddressList: React.FC<AddressListProps> = ({
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                     </svg>
-                    {CHAIN_CATEGORIES.UNSUPPORTED} ({unsupportedAddresses.length})
+                    {t('address.otherChains')} ({unsupportedAddresses.length})
                     <span className="text-xs font-normal text-gray-500 ml-2">
-                      Address only - Use external wallets for transactions
+                      {t('address.addressOnly')}
                     </span>
                   </h3>
                 </div>
@@ -303,7 +305,7 @@ export const AddressList: React.FC<AddressListProps> = ({
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <p className="text-gray-600">
-                No addresses match your search or filter criteria.
+                {t('address.noMatchingAddresses')}
               </p>
               <button
                 onClick={() => {
@@ -312,7 +314,7 @@ export const AddressList: React.FC<AddressListProps> = ({
                 }}
                 className="mt-4 px-4 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
               >
-                Clear filters
+                {t('address.clearFilters')}
               </button>
             </div>
           </div>

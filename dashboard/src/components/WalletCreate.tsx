@@ -8,6 +8,7 @@
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { invoke } from '@tauri-apps/api';
 import { walletCreateSchema, type WalletCreateFormData } from '@/validation/password';
@@ -24,6 +25,7 @@ interface WalletCreateProps {
 }
 
 export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateProps = {}) {
+  const { t } = useTranslation();
   const [usbDevices, setUsbDevices] = useState<UsbDevice[]>([]);
   const [isLoadingUsb, setIsLoadingUsb] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -65,7 +67,7 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
         }
       } catch (err) {
         const error = err as AppError;
-        setError(error.message || 'Failed to detect USB devices');
+        setError(error.message || t('usb.detectFailed'));
       } finally {
         setIsLoadingUsb(false);
       }
@@ -95,8 +97,10 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
         // Device-level wallet limit check
         if (!deviceMembership.canCreateWallet) {
           setError(
-            `Device wallet limit reached (${deviceMembership.walletCount}/${deviceMembership.walletLimit}). ` +
-            `Please upgrade to Pro or bind NFTs to this device in Settings → Membership.`
+            t('wallet.deviceLimitReached', {
+              current: deviceMembership.walletCount,
+              limit: deviceMembership.walletLimit
+            })
           );
           setIsCheckingDevice(false);
           return;
@@ -144,7 +148,7 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
       console.error('Error details:', JSON.stringify(err, null, 2));
 
       const error = err as AppError;
-      const errorMessage = error.message || (typeof err === 'string' ? err : 'Failed to create wallet');
+      const errorMessage = error.message || (typeof err === 'string' ? err : t('wallet.createFailed'));
       console.error('Display error message:', errorMessage);
 
       setError(errorMessage);
@@ -202,7 +206,7 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
 
   return (
     <div className="wallet-create">
-      <h2>Create New Wallet</h2>
+      <h2>{t('wallet.createWallet')}</h2>
 
       {/* Wallet Limit Info */}
       <div className="wallet-limit-info" style={{
@@ -215,8 +219,8 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
       }}>
         <span style={{ fontWeight: 500 }}>
           {walletLimitInfo.canCreate
-            ? `Wallets: ${walletLimitInfo.current}/${walletLimitInfo.limit} (${walletLimitInfo.isPro ? 'Pro' : 'Free'})`
-            : `Wallet limit reached (${walletLimitInfo.current}/${walletLimitInfo.limit})`
+            ? t('wallet.walletsCount', { current: walletLimitInfo.current, limit: walletLimitInfo.limit, tier: walletLimitInfo.isPro ? t('membership.pro') : t('membership.free') })
+            : t('wallet.limitReachedCount', { current: walletLimitInfo.current, limit: walletLimitInfo.limit })
           }
         </span>
         {!walletLimitInfo.canCreate && (
@@ -234,7 +238,7 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
               fontWeight: 600
             }}
           >
-            {walletLimitInfo.isPro ? 'Get More NFTs' : 'Upgrade to Pro'}
+            {walletLimitInfo.isPro ? t('membership.getMoreNfts') : t('actions.upgrade')}
           </button>
         )}
       </div>
@@ -248,17 +252,17 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
       <form onSubmit={handleSubmit(onSubmit)}>
         {/* USB Drive Selection */}
         <div className="form-group">
-          <label htmlFor="usbPath">USB Drive *</label>
+          <label htmlFor="usbPath">{t('usb.usbDrive')} *</label>
           {isLoadingUsb ? (
-            <p>Detecting USB drives...</p>
+            <p>{t('usb.detecting')}</p>
           ) : usbDevices.length === 0 ? (
-            <p className="error">No USB drives detected. Please insert a USB drive.</p>
+            <p className="error">{t('usb.noUsbDetected')}</p>
           ) : (
             <select id="usbPath" {...register('usbPath')}>
-              <option value="">Select USB drive</option>
+              <option value="">{t('usb.selectUsb')}</option>
               {usbDevices.map((device) => (
                 <option key={device.path} value={device.path}>
-                  {device.name} ({device.path}) - {Math.round(device.available_space / 1024 / 1024)}MB free
+                  {device.name} ({device.path}) - {Math.round(device.available_space / 1024 / 1024)}MB {t('usb.free')}
                 </option>
               ))}
             </select>
@@ -268,11 +272,11 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
 
         {/* Wallet Name */}
         <div className="form-group">
-          <label htmlFor="walletName">Wallet Name (Optional)</label>
+          <label htmlFor="walletName">{t('wallet.walletName')} ({t('common.optional')})</label>
           <input
             id="walletName"
             type="text"
-            placeholder="My Wallet"
+            placeholder={t('wallet.myWallet')}
             {...register('walletName')}
           />
           {errors.walletName && <span className="error">{errors.walletName.message}</span>}
@@ -280,24 +284,24 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
 
         {/* Password */}
         <div className="form-group">
-          <label htmlFor="password">Password *</label>
+          <label htmlFor="password">{t('security.password')} *</label>
           <input
             id="password"
             type="password"
-            placeholder="At least 12 characters"
+            placeholder={t('security.atLeast12Chars')}
             {...register('password')}
           />
           {errors.password && <span className="error">{errors.password.message}</span>}
-          <small>Must contain uppercase, lowercase, and number</small>
+          <small>{t('security.passwordHint')}</small>
         </div>
 
         {/* Confirm Password */}
         <div className="form-group">
-          <label htmlFor="confirmPassword">Confirm Password *</label>
+          <label htmlFor="confirmPassword">{t('security.confirmPassword')} *</label>
           <input
             id="confirmPassword"
             type="password"
-            placeholder="Re-enter password"
+            placeholder={t('security.reenterPassword')}
             {...register('confirmPassword')}
           />
           {errors.confirmPassword && (
@@ -307,22 +311,22 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
 
         {/* BIP39 Passphrase (Optional) */}
         <div className="form-group">
-          <label htmlFor="passphrase">BIP39 Passphrase (Optional - 25th word)</label>
+          <label htmlFor="passphrase">{t('security.bip39Passphrase')}</label>
           <input
             id="passphrase"
             type="password"
-            placeholder="Leave empty if not using passphrase"
+            placeholder={t('security.passphraseOptional')}
             {...register('passphrase')}
           />
-          <small>Advanced feature: Adds an extra word to your mnemonic for additional security</small>
+          <small>{t('security.passphraseHint')}</small>
         </div>
 
         {/* Mnemonic Length */}
         <div className="form-group">
-          <label htmlFor="mnemonicLength">Mnemonic Length</label>
+          <label htmlFor="mnemonicLength">{t('mnemonic.wordCount')}</label>
           <select id="mnemonicLength" {...register('mnemonicLength')}>
-            <option value={24}>24 words (Recommended)</option>
-            <option value={12}>12 words</option>
+            <option value={24}>{t('mnemonic.24words')}</option>
+            <option value={12}>{t('mnemonic.12words')}</option>
           </select>
         </div>
 
@@ -356,10 +360,10 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
             className="primary-button"
           >
             {isCheckingDevice
-              ? 'Checking Device Limit...'
+              ? t('wallet.checkingDeviceLimit')
               : isCreating
-              ? 'Creating Wallet...'
-              : 'Create Wallet'
+              ? t('wallet.creatingWallet')
+              : t('wallet.createWallet')
             }
           </button>
           {onCancel && (
@@ -369,7 +373,7 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
               disabled={isCreating || isCheckingDevice}
               className="secondary-button"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           )}
         </div>
@@ -377,21 +381,21 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
 
       {/* Security Notice */}
       <div className="security-notice">
-        <strong>Security Notice:</strong>
+        <strong>{t('security.securityNotice')}:</strong>
         <ul>
-          <li>Your wallet will be encrypted with your password</li>
-          <li>You will receive a mnemonic phrase - write it down and keep it safe</li>
-          <li>Without your mnemonic, you cannot recover your wallet</li>
+          <li>{t('security.walletEncrypted')}</li>
+          <li>{t('security.mnemonicNotice')}</li>
+          <li>{t('security.mnemonicWarning')}</li>
         </ul>
       </div>
 
       {/* Cancellation Confirmation Dialog (T093, FR-032) */}
       <ConfirmationDialog
         isOpen={showCancelConfirm}
-        title="Discard Wallet Creation?"
-        message="You have unsaved changes. Are you sure you want to cancel? All entered information will be lost."
-        confirmLabel="Discard Changes"
-        cancelLabel="Continue Editing"
+        title={t('wallet.discardCreation')}
+        message={t('wallet.discardCreationMessage')}
+        confirmLabel={t('wallet.discardChanges')}
+        cancelLabel={t('wallet.continueEditing')}
         confirmVariant="danger"
         onConfirm={confirmCancel}
         onCancel={cancelCancel}
@@ -400,10 +404,14 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
       {/* Upgrade to Pro Prompt Dialog */}
       <ConfirmationDialog
         isOpen={showUpgradePrompt}
-        title="Wallet Limit Reached"
-        message={`You have reached your wallet limit (${walletLimitInfo.current}/${walletLimitInfo.limit}). ${walletLimitInfo.isPro ? 'Purchase additional ArcSign Pro NFTs to increase your limit (+3 wallets per NFT).' : 'Upgrade to ArcSign Pro to increase your limit (+3 wallets per NFT).'}`}
-        confirmLabel="Learn More"
-        cancelLabel="Close"
+        title={t('wallet.walletLimitReached')}
+        message={t('wallet.upgradePromptMessage', {
+          current: walletLimitInfo.current,
+          limit: walletLimitInfo.limit,
+          suggestion: walletLimitInfo.isPro ? t('wallet.purchaseMoreNfts') : t('wallet.upgradeToPro')
+        })}
+        confirmLabel={t('actions.learnMore')}
+        cancelLabel={t('actions.close')}
         confirmVariant="primary"
         onConfirm={() => {
           setShowUpgradePrompt(false);
