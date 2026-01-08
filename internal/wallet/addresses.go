@@ -12,10 +12,11 @@ import (
 	"github.com/yourusername/arcsign/internal/services/hdkey"
 )
 
-// T022: Generate addresses.json file with all 54 blockchain addresses
+// T022: Generate addresses.json file for supported blockchains
 
-// GenerateAddressesFile generates addresses for all 54 supported blockchains
+// GenerateAddressesFile generates addresses for all supported blockchains
 // and writes them to addresses.json on the specified USB path.
+// Currently generates 13 addresses (7 supported + 6 next phase chains).
 //
 // Parameters:
 //   - usbPath: Root path to USB device (e.g., "/Volumes/NO NAME")
@@ -47,9 +48,9 @@ func GenerateAddressesFile(usbPath, walletID, mnemonic, passphrase string) (stri
 		return "", fmt.Errorf("failed to create master key: %w", err)
 	}
 
-	// Generate addresses for all 54 supported chains
-	addresses := make([]Address, 0, 54)
+	// Generate addresses for all supported chains
 	chains := SupportedChains()
+	addresses := make([]Address, 0, len(chains))
 
 	for _, chain := range chains {
 		// Derive key at BIP44 path for this chain
@@ -146,13 +147,14 @@ func ReadAddressesFile(filePath string) (*AddressesFile, error) {
 		return nil, fmt.Errorf("checksum validation failed: %w", err)
 	}
 
-	// Validate total count
-	if addressesFile.TotalCount != 54 {
-		return nil, fmt.Errorf("invalid address count: %d (expected 54)", addressesFile.TotalCount)
-	}
-
+	// Validate total count matches array length
 	if len(addressesFile.Addresses) != int(addressesFile.TotalCount) {
 		return nil, fmt.Errorf("address array length %d does not match total_count %d", len(addressesFile.Addresses), addressesFile.TotalCount)
+	}
+
+	// Validate minimum address count (at least 1)
+	if addressesFile.TotalCount < 1 {
+		return nil, fmt.Errorf("invalid address count: %d (expected at least 1)", addressesFile.TotalCount)
 	}
 
 	return &addressesFile, nil

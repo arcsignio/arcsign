@@ -1,79 +1,211 @@
 /**
  * Chain Icons Utility
  * Maps blockchain symbols to their respective logo URLs
- * Uses multiple CDN sources for reliable icon loading
+ * Supports both short (BTC) and long (BITCOIN) symbol formats
  */
 
 /**
  * Direct URLs for major blockchain icons
- * Using reliable CDN sources (CoinGecko, TrustWallet, etc.)
+ * Using local files in public/icons/chains/ for reliability (no CORS issues)
  */
 const CHAIN_ICON_URLS: Record<string, string> = {
-  // Major Chains - Using CoinGecko asset platform icons
-  'BTC': 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
-  'ETH': 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
-  'BNB': 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
-  'SOL': 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
-  'ADA': 'https://assets.coingecko.com/coins/images/975/small/cardano.png',
-  'AVAX': 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
-  'DOT': 'https://assets.coingecko.com/coins/images/12171/small/polkadot.png',
-  'MATIC': 'https://assets.coingecko.com/coins/images/4713/small/polygon.png',
-  'LTC': 'https://assets.coingecko.com/coins/images/2/small/litecoin.png',
-  'TRX': 'https://assets.coingecko.com/coins/images/1094/small/tron-logo.png',
-  'ATOM': 'https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png',
-  'LINK': 'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png',
-  'XLM': 'https://assets.coingecko.com/coins/images/100/small/Stellar_symbol_black_RGB.png',
-  'ALGO': 'https://assets.coingecko.com/coins/images/4380/small/download.png',
-  'NEAR': 'https://assets.coingecko.com/coins/images/10365/small/near.jpg',
-  'VET': 'https://assets.coingecko.com/coins/images/1167/small/VET_Token_Icon.png',
-  'HBAR': 'https://assets.coingecko.com/coins/images/3688/small/hbar.png',
-  'FIL': 'https://assets.coingecko.com/coins/images/12817/small/filecoin.png',
-  'APT': 'https://assets.coingecko.com/coins/images/26455/small/aptos_round.png',
-  'SUI': 'https://assets.coingecko.com/coins/images/26375/small/sui_asset.jpeg',
-  'ETC': 'https://assets.coingecko.com/coins/images/453/small/ethereum-classic-logo.png',
-  'XMR': 'https://assets.coingecko.com/coins/images/69/small/monero_logo.png',
-  'XRP': 'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png',
-  'BCH': 'https://assets.coingecko.com/coins/images/780/small/bitcoin-cash-circle.png',
-  'DOGE': 'https://assets.coingecko.com/coins/images/5/small/dogecoin.png',
-  'EOS': 'https://assets.coingecko.com/coins/images/738/small/eos-eos-logo.png',
-  'DASH': 'https://assets.coingecko.com/coins/images/19/small/dash-logo.png',
-  'ZEC': 'https://assets.coingecko.com/coins/images/486/small/circle-zcash-color.png',
-  'XTZ': 'https://assets.coingecko.com/coins/images/976/small/Tezos-logo.png',
-  'WAVES': 'https://assets.coingecko.com/coins/images/425/small/waves.png',
+  // Major Chains - Local icons
+  'BTC': '/icons/chains/btc.png',
+  'ETH': '/icons/chains/eth.png',
+  'BNB': '/icons/chains/bnb.png',
+  'SOL': '/icons/chains/sol.png',
+  'ADA': '/icons/chains/ada.png',
+  'AVAX': '/icons/chains/avax.png',
+  'DOT': '/icons/chains/dot.png',
+  'MATIC': '/icons/chains/matic.png',
+  'LTC': '/icons/chains/ltc.png',
+  'TRX': '/icons/chains/trx.png',
+  'ATOM': '/icons/chains/atom.png',
+  'LINK': '/icons/chains/link.png',
+  'XLM': '/icons/chains/xlm.png',
+  'ALGO': '/icons/chains/algo.png',
+  'NEAR': '/icons/chains/near.png',
+  'VET': '/icons/chains/vet.png',
+  'HBAR': '/icons/chains/hbar.png',
+  'FIL': '/icons/chains/fil.png',
+  'APT': '/icons/chains/apt.png',
+  'SUI': '/icons/chains/sui.png',
+  'ETC': '/icons/chains/etc.png',
+  'XMR': '/icons/chains/xmr.png',
+  'XRP': '/icons/chains/xrp.png',
+  'BCH': '/icons/chains/bch.png',
+  'DOGE': '/icons/chains/doge.png',
+  'EOS': '/icons/chains/eos.png',
+  'DASH': '/icons/chains/dash.png',
+  'ZEC': '/icons/chains/zec.png',
+  'XTZ': '/icons/chains/xtz.png',
+  'WAVES': '/icons/chains/waves.png',
+  'TON': '/icons/chains/ton.png',
+  'ICP': '/icons/chains/icp.png',
 
   // Layer 2
-  'ARB': 'https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg',
-  'OP': 'https://assets.coingecko.com/coins/images/25244/small/Optimism.png',
-  'BASE': 'https://assets.coingecko.com/asset_platforms/images/131/small/base.jpeg',
-  'ZKS': 'https://assets.coingecko.com/coins/images/28597/small/zksync.jpeg',
-  'STRK': 'https://assets.coingecko.com/coins/images/26433/small/starknet.png',
+  'ARB': '/icons/chains/arb.png',
+  'OP': '/icons/chains/op.png',
+  'BASE': '/icons/chains/base.png',
+  'ZKS': '/icons/chains/zks.png',
+  'STRK': '/icons/chains/strk.png',
+  'LINEA': '/icons/chains/linea.png',
 
   // Regional
-  'KLAY': 'https://assets.coingecko.com/coins/images/9672/small/klaytn.png',
-  'CRO': 'https://assets.coingecko.com/coins/images/7310/small/cro_token_logo.png',
-  'HT': 'https://assets.coingecko.com/coins/images/2822/small/huobi-token-logo.png',
-  'ONE': 'https://assets.coingecko.com/coins/images/4344/small/Y88JAze.png',
+  'KLAY': '/icons/chains/klay.png',
+  'CRO': '/icons/chains/cro.png',
+  'HT': '/icons/chains/ht.png',
+  'ONE': '/icons/chains/one.png',
 
   // Cosmos
-  'OSMO': 'https://assets.coingecko.com/coins/images/16724/small/osmo.png',
-  'JUNO': 'https://assets.coingecko.com/coins/images/19249/small/Juno_Logo_%28Salmon%29.png',
-  'EVMOS': 'https://assets.coingecko.com/coins/images/24023/small/evmos.png',
-  'SCRT': 'https://assets.coingecko.com/coins/images/11871/small/secret_logo.png',
+  'OSMO': '/icons/chains/osmo.png',
+  'JUNO': '/icons/chains/juno.png',
+  'EVMOS': '/icons/chains/evmos.png',
+  'SCRT': '/icons/chains/scrt.png',
 
   // Alt EVM
-  'FTM': 'https://assets.coingecko.com/coins/images/4001/small/Fantom_round.png',
-  'CELO': 'https://assets.coingecko.com/coins/images/11090/small/InjsrgVl_400x400.jpg',
-  'GLMR': 'https://assets.coingecko.com/coins/images/22459/small/glmr.png',
-  'METIS': 'https://assets.coingecko.com/coins/images/15595/small/metis.jpeg',
-  'GNO': 'https://assets.coingecko.com/coins/images/662/small/logo_square_simple_300px.png',
+  'FTM': '/icons/chains/ftm.png',
+  'CELO': '/icons/chains/celo.png',
+  'GLMR': '/icons/chains/glmr.png',
+  'METIS': '/icons/chains/metis.png',
+  'GNO': '/icons/chains/gno.png',
 
   // Specialized
-  'KSM': 'https://assets.coingecko.com/coins/images/9568/small/m4zRhP5e_400x400.jpg',
-  'ZIL': 'https://assets.coingecko.com/coins/images/2687/small/Zilliqa-logo.png',
-  'ICX': 'https://assets.coingecko.com/coins/images/1060/small/icon-icx-logo.png',
-  'IOST': 'https://assets.coingecko.com/coins/images/2523/small/IOST.png',
-  'TON': 'https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png',
+  'KSM': '/icons/chains/ksm.png',
+  'ZIL': '/icons/chains/zil.png',
+  'ICX': '/icons/chains/icx.png',
+  'IOST': '/icons/chains/iost.png',
+  'FLOW': '/icons/chains/flow.png',
+  'NEO': '/icons/chains/neo.png',
+  'THETA': '/icons/chains/theta.png',
+  'EGLD': '/icons/chains/egld.png',
+  'MINA': '/icons/chains/mina.png',
+  'XDC': '/icons/chains/xdc.png',
+  'QTUM': '/icons/chains/qtum.png',
+  'ONT': '/icons/chains/ont.png',
+  'ZEN': '/icons/chains/zen.png',
+  'SC': '/icons/chains/sc.png',
+  'DGB': '/icons/chains/dgb.png',
+  'DCR': '/icons/chains/dcr.png',
+  'BTG': '/icons/chains/btg.png',
+  'RVN': '/icons/chains/rvn.png',
+  'LSK': '/icons/chains/lsk.png',
+  'NANO': '/icons/chains/nano.png',
+  'STEEM': '/icons/chains/steem.png',
+  'ARDR': '/icons/chains/ardr.png',
+  'STRAX': '/icons/chains/strax.png',
+  'NIM': '/icons/chains/nim.png',
+  'WAN': '/icons/chains/wan.png',
+  'FIRO': '/icons/chains/firo.png',
+  'VLX': '/icons/chains/vlx.png',
+  'SYS': '/icons/chains/sys.png',
+  'KMD': '/icons/chains/kmd.png',
+  'AION': '/icons/chains/aion.png',
 };
+
+/**
+ * Map full names to short symbols
+ * Supports addresses that use full names like "BITCOIN" instead of "BTC"
+ */
+const FULL_NAME_TO_SYMBOL: Record<string, string> = {
+  'BITCOIN': 'BTC',
+  'ETHEREUM': 'ETH',
+  'BINANCE': 'BNB',
+  'BNB CHAIN': 'BNB',
+  'SOLANA': 'SOL',
+  'CARDANO': 'ADA',
+  'AVALANCHE': 'AVAX',
+  'POLKADOT': 'DOT',
+  'POLYGON': 'MATIC',
+  'LITECOIN': 'LTC',
+  'TRON': 'TRX',
+  'COSMOS': 'ATOM',
+  'CHAINLINK': 'LINK',
+  'STELLAR': 'XLM',
+  'ALGORAND': 'ALGO',
+  'NEAR PROTOCOL': 'NEAR',
+  'VECHAIN': 'VET',
+  'HEDERA': 'HBAR',
+  'FILECOIN': 'FIL',
+  'APTOS': 'APT',
+  'SUI': 'SUI',
+  'ETHEREUM CLASSIC': 'ETC',
+  'MONERO': 'XMR',
+  'XRP': 'XRP',
+  'RIPPLE': 'XRP',
+  'BITCOIN CASH': 'BCH',
+  'DOGECOIN': 'DOGE',
+  'EOS': 'EOS',
+  'DASH': 'DASH',
+  'ZCASH': 'ZEC',
+  'TEZOS': 'XTZ',
+  'WAVES': 'WAVES',
+  'TONCOIN': 'TON',
+  'TON': 'TON',
+  'INTERNET COMPUTER': 'ICP',
+  'ARBITRUM': 'ARB',
+  'OPTIMISM': 'OP',
+  'BASE': 'BASE',
+  'ZKSYNC': 'ZKS',
+  'STARKNET': 'STRK',
+  'LINEA': 'LINEA',
+  'KLAYTN': 'KLAY',
+  'CRONOS': 'CRO',
+  'HUOBI': 'HT',
+  'HARMONY': 'ONE',
+  'OSMOSIS': 'OSMO',
+  'JUNO': 'JUNO',
+  'EVMOS': 'EVMOS',
+  'SECRET': 'SCRT',
+  'FANTOM': 'FTM',
+  'CELO': 'CELO',
+  'MOONBEAM': 'GLMR',
+  'METIS': 'METIS',
+  'GNOSIS': 'GNO',
+  'KUSAMA': 'KSM',
+  'ZILLIQA': 'ZIL',
+  'ICON': 'ICX',
+  'IOST': 'IOST',
+  'FLOW': 'FLOW',
+  'NEO': 'NEO',
+  'THETA': 'THETA',
+  'ELROND': 'EGLD',
+  'MULTIVERSX': 'EGLD',
+  'MINA': 'MINA',
+  'XDC NETWORK': 'XDC',
+  'QTUM': 'QTUM',
+  'ONTOLOGY': 'ONT',
+  'HORIZEN': 'ZEN',
+  'SIACOIN': 'SC',
+  'DIGIBYTE': 'DGB',
+  'DECRED': 'DCR',
+  'BITCOIN GOLD': 'BTG',
+  'RAVENCOIN': 'RVN',
+  'LISK': 'LSK',
+  'NANO': 'NANO',
+  'STEEM': 'STEEM',
+  'ARDOR': 'ARDR',
+  'STRATIS': 'STRAX',
+  'NIMIQ': 'NIM',
+  'WANCHAIN': 'WAN',
+  'FIRO': 'FIRO',
+  'VELAS': 'VLX',
+  'SYSCOIN': 'SYS',
+  'KOMODO': 'KMD',
+  'AION': 'AION',
+};
+
+/**
+ * Normalize symbol to standard format
+ */
+function normalizeSymbol(symbol: string): string {
+  const upper = symbol.toUpperCase();
+  // Check if it's a full name that needs conversion
+  if (FULL_NAME_TO_SYMBOL[upper]) {
+    return FULL_NAME_TO_SYMBOL[upper];
+  }
+  return upper;
+}
 
 /**
  * Fallback colors for chains when icon fails to load
@@ -102,37 +234,72 @@ const CHAIN_COLORS: Record<string, string> = {
   'FTM': '#1969FF',
   'KLAY': '#FF4E00',
   'CRO': '#002D74',
+  'TON': '#0088CC',
+  'APT': '#4CD7A5',
+  'SUI': '#6FBCF0',
 };
 
 /**
  * Chains that support full transaction interaction (send/receive)
  * Based on ChainAdapter implementation
+ * Supports both short and full name formats
  */
-export const SUPPORTED_CHAINS = new Set([
-  // Bitcoin
-  'BTC',
-  // EVM chains with full adapter support
-  'ETH',
-  'BNB',
-  'MATIC',
-  'ARB',
-  'OP',
-  'BASE',
+const SUPPORTED_SYMBOLS = new Set([
+  // Currently Supported - Short symbols
+  'BTC', 'ETH', 'BNB', 'MATIC', 'ARB', 'OP', 'BASE',
+  // Currently Supported - Full names
+  'BITCOIN', 'ETHEREUM', 'BINANCE', 'BNB CHAIN', 'POLYGON', 'ARBITRUM', 'OPTIMISM',
+]);
+
+/**
+ * Chains coming in next phase (address generation enabled, transaction support coming)
+ * These will appear in "Other Chains" section with disclaimer
+ */
+const COMING_SOON_SYMBOLS = new Set([
+  // Short symbols
+  'SOL', 'TRX', 'AVAX', 'ZKS', 'STRK', 'LINEA',
+  // Full names
+  'SOLANA', 'TRON', 'AVALANCHE', 'ZKSYNC', 'STARKNET',
+]);
+
+/**
+ * All chains that should have addresses generated (supported + coming soon)
+ */
+const ENABLED_SYMBOLS = new Set([
+  ...SUPPORTED_SYMBOLS,
+  ...COMING_SOON_SYMBOLS,
 ]);
 
 /**
  * Check if a chain supports full transaction interaction
  */
 export function isChainSupported(symbol: string): boolean {
-  return SUPPORTED_CHAINS.has(symbol.toUpperCase());
+  const normalized = normalizeSymbol(symbol);
+  return SUPPORTED_SYMBOLS.has(symbol.toUpperCase()) || SUPPORTED_SYMBOLS.has(normalized);
+}
+
+/**
+ * Check if a chain is coming soon (address enabled but no transaction support yet)
+ */
+export function isChainComingSoon(symbol: string): boolean {
+  const normalized = normalizeSymbol(symbol);
+  return COMING_SOON_SYMBOLS.has(symbol.toUpperCase()) || COMING_SOON_SYMBOLS.has(normalized);
+}
+
+/**
+ * Check if a chain has address generation enabled (supported or coming soon)
+ */
+export function isChainEnabled(symbol: string): boolean {
+  const normalized = normalizeSymbol(symbol);
+  return ENABLED_SYMBOLS.has(symbol.toUpperCase()) || ENABLED_SYMBOLS.has(normalized);
 }
 
 /**
  * Get the icon URL for a blockchain symbol
  */
 export function getChainIconUrl(symbol: string): string {
-  const normalizedSymbol = symbol.toUpperCase();
-  return CHAIN_ICON_URLS[normalizedSymbol] || '';
+  const normalized = normalizeSymbol(symbol);
+  return CHAIN_ICON_URLS[normalized] || CHAIN_ICON_URLS[symbol.toUpperCase()] || '';
 }
 
 /**
@@ -140,7 +307,8 @@ export function getChainIconUrl(symbol: string): string {
  * Used when CDN icons fail to load
  */
 export function getChainFallbackIcon(symbol: string): string {
-  return CHAIN_COLORS[symbol.toUpperCase()] || '#6B7280';
+  const normalized = normalizeSymbol(symbol);
+  return CHAIN_COLORS[normalized] || CHAIN_COLORS[symbol.toUpperCase()] || '#6B7280';
 }
 
 /**

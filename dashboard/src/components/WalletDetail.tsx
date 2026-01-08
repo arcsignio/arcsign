@@ -2073,6 +2073,27 @@ export function WalletDetail({
                             Address only
                           </span>
                         </div>
+                        {/* Disclaimer for Other Chains */}
+                        <div
+                          style={{
+                            padding: "0.75rem 1.5rem",
+                            background: "#fef3c7",
+                            borderBottom: "1px solid #fcd34d",
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "0.5rem",
+                          }}
+                        >
+                          <span style={{ color: "#d97706", flexShrink: 0 }}>⚠️</span>
+                          <div style={{ fontSize: "0.75rem", color: "#92400e", lineHeight: "1.4" }}>
+                            <strong>Disclaimer:</strong> These addresses are derived using standard BIP-44 paths but have NOT been fully verified for compatibility with each blockchain's native wallet format.
+                            Use at your own risk. We recommend verifying addresses with official tools before depositing significant funds.
+                            <br />
+                            <span style={{ color: "#b45309", fontStyle: "italic" }}>
+                              Full transaction support for these chains is planned for future releases.
+                            </span>
+                          </div>
+                        </div>
                         <div style={{ padding: "0.5rem" }}>
                           {unsupportedAddrs.map((addr) => (
                             <div
