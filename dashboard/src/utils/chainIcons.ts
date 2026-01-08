@@ -245,10 +245,10 @@ const CHAIN_COLORS: Record<string, string> = {
  * Supports both short and full name formats
  */
 const SUPPORTED_SYMBOLS = new Set([
-  // Currently Supported - Short symbols
-  'BTC', 'ETH', 'BNB', 'MATIC', 'ARB', 'OP', 'BASE',
+  // Currently Supported - Short symbols (EVM chains only)
+  'ETH', 'BNB', 'MATIC', 'ARB', 'OP', 'BASE',
   // Currently Supported - Full names
-  'BITCOIN', 'ETHEREUM', 'BINANCE', 'BNB CHAIN', 'POLYGON', 'ARBITRUM', 'OPTIMISM',
+  'ETHEREUM', 'BINANCE', 'BNB CHAIN', 'POLYGON', 'ARBITRUM', 'OPTIMISM',
 ]);
 
 /**
@@ -257,9 +257,9 @@ const SUPPORTED_SYMBOLS = new Set([
  */
 const COMING_SOON_SYMBOLS = new Set([
   // Short symbols
-  'SOL', 'TRX', 'AVAX', 'ZKS', 'STRK', 'LINEA',
+  'BTC', 'SOL', 'TRX', 'AVAX', 'ZKS', 'STRK', 'LINEA',
   // Full names
-  'SOLANA', 'TRON', 'AVALANCHE', 'ZKSYNC', 'STARKNET',
+  'BITCOIN', 'SOLANA', 'TRON', 'AVALANCHE', 'ZKSYNC', 'STARKNET',
 ]);
 
 /**
