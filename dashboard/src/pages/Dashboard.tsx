@@ -26,14 +26,17 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { DeleteWalletDialog } from "@/components/DeleteWalletDialog";
 import { TransactionSignDialog } from "@/components/TransactionSignDialog";
 import { MembershipBadge } from "@/components/MembershipBadge";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useTranslation } from "react-i18next";
 import type { Address } from "@/types/address";
 import type { Wallet } from "@/types/wallet";
 
 type View = "list" | "create" | "import" | "addresses" | "settings" | "api-settings" | "membership" | "detail";
 
 export function Dashboard() {
+  const { t } = useTranslation();
   const [currentView, setCurrentView] = useState<View>("list");
   const [isLoadingWallets, setIsLoadingWallets] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -581,36 +584,37 @@ export function Dashboard() {
           <MembershipBadge onClick={() => setCurrentView("membership")} />
         </div>
         <div className="header-actions">
+          <LanguageSwitcher variant="toggle" />
           <button
             onClick={() => setCurrentView("settings")}
             className="secondary-button"
-            title="Application settings"
+            title={t('nav.settings')}
           >
-            ⚙️ Settings
+            ⚙️ {t('nav.settings')}
           </button>
           <button
             onClick={handleReload}
             disabled={isLoadingWallets}
             className="secondary-button"
-            title="Reload USB and wallets"
+            title={t('actions.reload')}
           >
-            {isLoadingWallets ? "↻ Reloading..." : "↻ Reload"}
+            {isLoadingWallets ? `↻ ${t('common.loading')}` : `↻ ${t('actions.reload')}`}
           </button>
           <button
             onClick={handleCreateWallet}
             className="primary-button"
             disabled={!walletLimitInfo.canCreate}
-            title={!walletLimitInfo.canCreate ? `Wallet limit reached (${walletLimitInfo.current}/${walletLimitInfo.limit})` : undefined}
+            title={!walletLimitInfo.canCreate ? `${t('wallet.walletLimitReached')} (${walletLimitInfo.current}/${walletLimitInfo.limit})` : undefined}
           >
-            + Create New Wallet {walletLimitInfo.limit && `(${walletLimitInfo.current}/${walletLimitInfo.limit})`}
+            + {t('wallet.createWallet')} {walletLimitInfo.limit && `(${walletLimitInfo.current}/${walletLimitInfo.limit})`}
           </button>
           <button
             onClick={handleImportWallet}
             className="secondary-button"
             disabled={!walletLimitInfo.canCreate}
-            title={!walletLimitInfo.canCreate ? `Wallet limit reached (${walletLimitInfo.current}/${walletLimitInfo.limit})` : undefined}
+            title={!walletLimitInfo.canCreate ? `${t('wallet.walletLimitReached')} (${walletLimitInfo.current}/${walletLimitInfo.limit})` : undefined}
           >
-            Import Wallet
+            {t('wallet.importWallet')}
           </button>
         </div>
       </header>

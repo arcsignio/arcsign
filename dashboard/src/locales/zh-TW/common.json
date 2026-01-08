@@ -1,0 +1,146 @@
+{
+  "app": {
+    "name": "ArcSign",
+    "tagline": "安全的多鏈 HD 錢包"
+  },
+  "nav": {
+    "dashboard": "儀表板",
+    "settings": "設定",
+    "membership": "會員資格",
+    "addresses": "地址",
+    "transactions": "交易"
+  },
+  "actions": {
+    "create": "建立",
+    "import": "匯入",
+    "delete": "刪除",
+    "cancel": "取消",
+    "confirm": "確認",
+    "save": "儲存",
+    "close": "關閉",
+    "copy": "複製",
+    "copied": "已複製！",
+    "reload": "重新載入",
+    "back": "返回",
+    "next": "下一步",
+    "submit": "送出",
+    "search": "搜尋",
+    "filter": "篩選",
+    "learnMore": "了解更多",
+    "upgrade": "升級"
+  },
+  "common": {
+    "loading": "載入中...",
+    "error": "錯誤",
+    "success": "成功",
+    "warning": "警告",
+    "info": "資訊",
+    "yes": "是",
+    "no": "否",
+    "all": "全部",
+    "none": "無",
+    "of": "/"
+  },
+  "wallet": {
+    "wallet": "錢包",
+    "wallets": "錢包",
+    "createWallet": "建立新錢包",
+    "importWallet": "匯入錢包",
+    "deleteWallet": "刪除錢包",
+    "renameWallet": "重新命名錢包",
+    "walletName": "錢包名稱",
+    "walletId": "錢包 ID",
+    "noWallets": "此 USB 中沒有找到錢包。",
+    "createOrImport": "建立或匯入錢包以開始使用。",
+    "created": "建立時間",
+    "addresses": "地址數量",
+    "protectedWithPassphrase": "使用密碼保護",
+    "walletLimit": "錢包上限",
+    "walletLimitReached": "已達錢包上限",
+    "currentUsage": "目前使用量"
+  },
+  "address": {
+    "address": "地址",
+    "addresses": "地址",
+    "walletAddresses": "錢包地址",
+    "blockchainAddresses": "個區塊鏈地址",
+    "supportedChains": "支援的鏈",
+    "otherChains": "其他鏈",
+    "fullTransactionSupport": "完整交易支援",
+    "addressOnly": "僅地址 - 請使用外部錢包進行交易",
+    "derivationPath": "派生路徑",
+    "copyAddress": "複製地址",
+    "receive": "接收",
+    "yourAddress": "您的 {{symbol}} 地址"
+  },
+  "transaction": {
+    "send": "發送",
+    "receive": "接收",
+    "swap": "兌換",
+    "history": "交易紀錄",
+    "noTransactions": "沒有找到交易",
+    "pending": "處理中",
+    "confirmed": "已確認",
+    "failed": "失敗",
+    "from": "從",
+    "to": "至",
+    "amount": "金額",
+    "fee": "手續費",
+    "hash": "交易哈希"
+  },
+  "membership": {
+    "membership": "會員資格",
+    "free": "免費版",
+    "pro": "專業版",
+    "freeTier": "免費方案",
+    "proMember": "專業會員",
+    "daysRemaining": "剩餘 {{days}} 天",
+    "expired": "已過期",
+    "nftCount": "NFT 數量",
+    "walletsPerNft": "每個 NFT +3 個錢包",
+    "upgradeToProDescription": "升級至專業版，每個 NFT 可增加 3 個錢包及進階功能！",
+    "membershipDescription": "您的專業會員資格由所有 BSC 地址中的 NFT 計算。每個 NFT 可增加 3 個錢包上限。",
+    "purchaseNft": "購買 NFT",
+    "getMoreNfts": "獲取更多 NFT"
+  },
+  "usb": {
+    "usbDrive": "USB 隨身碟",
+    "selectUsb": "選擇 USB 隨身碟",
+    "noUsbFound": "未找到 USB 隨身碟",
+    "usbConnected": "USB 已連接",
+    "usbDisconnected": "USB 已斷開",
+    "insertUsb": "請插入 USB 隨身碟以繼續"
+  },
+  "security": {
+    "password": "密碼",
+    "confirmPassword": "確認密碼",
+    "passphrase": "助記詞密碼",
+    "usePassphrase": "使用 BIP39 密碼",
+    "passphraseHint": "選填：新增密碼以增強安全性（第 25 個詞）",
+    "passwordRequirements": "密碼必須至少 12 個字元，包含大寫、小寫、數字和特殊字元",
+    "unlock": "解鎖",
+    "lock": "鎖定"
+  },
+  "mnemonic": {
+    "mnemonic": "助記詞",
+    "seedPhrase": "種子詞組",
+    "wordCount": "詞數",
+    "enterMnemonic": "輸入您的助記詞",
+    "mnemonicWarning": "切勿與任何人分享您的助記詞。任何擁有此詞組的人都可以存取您的資金。",
+    "backupWarning": "請務必將助記詞備份在安全的地方。"
+  },
+  "errors": {
+    "genericError": "發生錯誤，請重試。",
+    "networkError": "網路錯誤，請檢查您的連線。",
+    "invalidPassword": "密碼無效",
+    "invalidMnemonic": "助記詞無效",
+    "walletNotFound": "找不到錢包",
+    "insufficientFunds": "餘額不足",
+    "transactionFailed": "交易失敗"
+  },
+  "language": {
+    "language": "語言",
+    "english": "English",
+    "chinese": "中文"
+  }
+}

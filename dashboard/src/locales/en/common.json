@@ -1,0 +1,146 @@
+{
+  "app": {
+    "name": "ArcSign",
+    "tagline": "Secure Multi-Chain HD Wallet"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "settings": "Settings",
+    "membership": "Membership",
+    "addresses": "Addresses",
+    "transactions": "Transactions"
+  },
+  "actions": {
+    "create": "Create",
+    "import": "Import",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "close": "Close",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "reload": "Reload",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "search": "Search",
+    "filter": "Filter",
+    "learnMore": "Learn More",
+    "upgrade": "Upgrade"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info",
+    "yes": "Yes",
+    "no": "No",
+    "all": "All",
+    "none": "None",
+    "of": "of"
+  },
+  "wallet": {
+    "wallet": "Wallet",
+    "wallets": "Wallets",
+    "createWallet": "Create New Wallet",
+    "importWallet": "Import Wallet",
+    "deleteWallet": "Delete Wallet",
+    "renameWallet": "Rename Wallet",
+    "walletName": "Wallet Name",
+    "walletId": "Wallet ID",
+    "noWallets": "No wallets found on this USB drive.",
+    "createOrImport": "Create or import a wallet to get started.",
+    "created": "Created",
+    "addresses": "Addresses",
+    "protectedWithPassphrase": "Protected with Passphrase",
+    "walletLimit": "Wallet Limit",
+    "walletLimitReached": "Wallet limit reached",
+    "currentUsage": "Current Usage"
+  },
+  "address": {
+    "address": "Address",
+    "addresses": "Addresses",
+    "walletAddresses": "Wallet Addresses",
+    "blockchainAddresses": "blockchain addresses",
+    "supportedChains": "Supported Chains",
+    "otherChains": "Other Chains",
+    "fullTransactionSupport": "Full transaction support",
+    "addressOnly": "Address only - Use external wallets for transactions",
+    "derivationPath": "Derivation path",
+    "copyAddress": "Copy Address",
+    "receive": "Receive",
+    "yourAddress": "Your {{symbol}} Address"
+  },
+  "transaction": {
+    "send": "Send",
+    "receive": "Receive",
+    "swap": "Swap",
+    "history": "Transaction History",
+    "noTransactions": "No transactions found",
+    "pending": "Pending",
+    "confirmed": "Confirmed",
+    "failed": "Failed",
+    "from": "From",
+    "to": "To",
+    "amount": "Amount",
+    "fee": "Fee",
+    "hash": "Transaction Hash"
+  },
+  "membership": {
+    "membership": "Membership",
+    "free": "Free",
+    "pro": "Pro",
+    "freeTier": "Free Tier",
+    "proMember": "Pro Member",
+    "daysRemaining": "{{days}} days remaining",
+    "expired": "Expired",
+    "nftCount": "NFT Count",
+    "walletsPerNft": "+3 wallets per NFT",
+    "upgradeToProDescription": "Upgrade to Pro for +3 wallets per NFT and premium features!",
+    "membershipDescription": "Your Pro membership is calculated from NFTs across all your BSC addresses. Each NFT adds 3 wallets to your limit.",
+    "purchaseNft": "Purchase NFT",
+    "getMoreNfts": "Get More NFTs"
+  },
+  "usb": {
+    "usbDrive": "USB Drive",
+    "selectUsb": "Select USB Drive",
+    "noUsbFound": "No USB drives found",
+    "usbConnected": "USB Connected",
+    "usbDisconnected": "USB Disconnected",
+    "insertUsb": "Please insert a USB drive to continue"
+  },
+  "security": {
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "passphrase": "Passphrase",
+    "usePassphrase": "Use BIP39 Passphrase",
+    "passphraseHint": "Optional: Add a passphrase for extra security (25th word)",
+    "passwordRequirements": "Password must be at least 12 characters with uppercase, lowercase, number, and special character",
+    "unlock": "Unlock",
+    "lock": "Lock"
+  },
+  "mnemonic": {
+    "mnemonic": "Mnemonic",
+    "seedPhrase": "Seed Phrase",
+    "wordCount": "Word Count",
+    "enterMnemonic": "Enter your mnemonic phrase",
+    "mnemonicWarning": "Never share your mnemonic phrase with anyone. Anyone with this phrase can access your funds.",
+    "backupWarning": "Make sure to backup your mnemonic phrase in a safe place."
+  },
+  "errors": {
+    "genericError": "Something went wrong. Please try again.",
+    "networkError": "Network error. Please check your connection.",
+    "invalidPassword": "Invalid password",
+    "invalidMnemonic": "Invalid mnemonic phrase",
+    "walletNotFound": "Wallet not found",
+    "insufficientFunds": "Insufficient funds",
+    "transactionFailed": "Transaction failed"
+  },
+  "language": {
+    "language": "Language",
+    "english": "English",
+    "chinese": "中文"
+  }
+}
