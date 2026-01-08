@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDashboardStore, useMembershipStatus } from '@/stores/dashboardStore';
 import tauriApi, {
   type BuildTransactionResponse,
@@ -104,6 +105,7 @@ const formatUserFriendlyError = (errorMessage: string): string => {
 };
 
 export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, usbPath }) => {
+  const { t } = useTranslation();
   const [bscAddresses, setBscAddresses] = useState<BscAddress[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
@@ -182,7 +184,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       }
     } catch (err) {
       console.error('Failed to load BSC addresses:', err);
-      setError('Failed to load wallet addresses');
+      setError(t('membership.failedToLoadAddresses'));
     } finally {
       setIsLoading(false);
     }
@@ -205,11 +207,11 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       });
 
       if (result.isPro) {
-        setSuccessMessage(`Pro membership verified! Total NFTs: ${result.totalNftCount}`);
+        setSuccessMessage(t('membership.proMembershipVerified', { count: result.totalNftCount }));
         setTimeout(() => setSuccessMessage(null), 3000);
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to check membership';
+      const errorMessage = err instanceof Error ? err.message : t('membership.failedToCheckMembership');
       setError(errorMessage);
     } finally {
       setIsChecking(false);
@@ -242,7 +244,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       if (errorMessage.toLowerCase().includes('password') ||
           errorMessage.toLowerCase().includes('decrypt') ||
           errorMessage.toLowerCase().includes('invalid')) {
-        setDeviceError('Incorrect password. Please try again.');
+        setDeviceError(t('membership.incorrectPassword'));
       } else {
         setDeviceError(errorMessage);
       }
@@ -339,7 +341,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
 
         if (status.status === 'failed') {
           console.log('Transaction failed!', status);
-          return { confirmed: false, error: 'Transaction failed on chain' };
+          return { confirmed: false, error: t('membership.transactionFailed') };
         }
 
         // Transaction still pending, wait and retry
@@ -351,7 +353,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       }
     }
 
-    return { confirmed: false, error: 'Transaction confirmation timeout (3 minutes)' };
+    return { confirmed: false, error: t('membership.confirmationTimeout') };
   };
 
   // Build, sign, and broadcast a transaction
@@ -362,7 +364,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   ): Promise<{ success: boolean; txHash?: string; error?: string }> => {
     const selectedWallet = getSelectedWallet();
     if (!selectedWallet || !selectedMintAddress) {
-      return { success: false, error: 'No wallet selected for minting' };
+      return { success: false, error: t('membership.noWalletSelected') };
     }
 
     try {
@@ -502,11 +504,11 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         setConfirmationProgress('');
         setMintStep('mint');
       } else {
-        setMintError(confirmation.error || 'Approval transaction not confirmed');
+        setMintError(confirmation.error || t('membership.approvalNotConfirmed'));
         setMintStep('error');
       }
     } else {
-      setMintError(result.error || 'Approval failed');
+      setMintError(result.error || t('membership.approvalFailed'));
       setMintStep('error');
     }
   };
@@ -527,7 +529,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         setTimeout(() => checkAllMemberships(bscAddresses.map(a => a.address)), 2000);
       }
     } else {
-      setMintError(result.error || 'Mint failed');
+      setMintError(result.error || t('membership.mintFailed'));
       setMintStep('error');
     }
   };
@@ -554,14 +556,13 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   return (
     <div className="membership-settings">
       <button onClick={onBack} className="back-button">
-        ← Back to Settings
+        ← {t('membership.backToSettings')}
       </button>
 
       <header className="page-header">
-        <h1>Membership</h1>
+        <h1>{t('membership.membership')}</h1>
         <p className="page-description">
-          Your Pro membership is calculated from NFTs across all your BSC addresses.
-          Each NFT adds 3 wallets to your limit.
+          {t('membership.membershipDescription')}
         </p>
       </header>
 
@@ -572,38 +573,38 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       {/* Current Status */}
       <section className="status-section">
         <div className="status-header">
-          <h2>Current Status</h2>
+          <h2>{t('membership.currentStatus')}</h2>
           <button
             onClick={handleRefresh}
             disabled={isChecking || bscAddresses.length === 0}
             className="refresh-btn"
           >
-            {isChecking ? '...' : '↻ Refresh'}
+            {isChecking ? '...' : `↻ ${t('membership.refresh')}`}
           </button>
         </div>
 
         <div className={`status-card ${membership.isPro ? 'pro' : 'free'}`}>
           <div className="status-badge">
-            {membership.isPro ? '⭐ Pro Member' : 'Free Tier'}
+            {membership.isPro ? `⭐ ${t('membership.proMember')}` : t('membership.freeTier')}
           </div>
 
           <div className="status-details">
             <div className="detail-row">
-              <span className="label">Total NFTs Owned</span>
+              <span className="label">{t('membership.totalNftsOwned')}</span>
               <span className="value">{membership.nftCount}</span>
             </div>
             <div className="detail-row">
-              <span className="label">Wallet Limit</span>
-              <span className="value">{membership.walletLimit} wallets</span>
+              <span className="label">{t('membership.walletLimit')}</span>
+              <span className="value">{membership.walletLimit} {t('membership.walletsUnit')}</span>
             </div>
             <div className="detail-row">
-              <span className="label">Current Usage</span>
+              <span className="label">{t('membership.currentUsage')}</span>
               <span className="value">{wallets.length} / {membership.walletLimit}</span>
             </div>
             {membership.isPro && (
               <div className="detail-row">
-                <span className="label">Status</span>
-                <span className="value status-active">Active</span>
+                <span className="label">{t('membership.status')}</span>
+                <span className="value status-active">{t('membership.active')}</span>
               </div>
             )}
           </div>
@@ -611,11 +612,11 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
           {/* NFT breakdown by address */}
           {membership.addressNftCounts && membership.addressNftCounts.length > 0 && (
             <div className="nft-breakdown">
-              <h4>NFT Breakdown by Address</h4>
+              <h4>{t('membership.nftBreakdown')}</h4>
               {membership.addressNftCounts.map((item) => (
                 <div key={item.address} className="breakdown-row">
                   <span className="breakdown-address">{formatAddress(item.address)}</span>
-                  <span className="breakdown-count">{item.nftCount} NFT{item.nftCount !== 1 ? 's' : ''}</span>
+                  <span className="breakdown-count">{item.nftCount} {t('membership.nfts')}</span>
                 </div>
               ))}
             </div>
@@ -624,7 +625,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
           {/* Show upgrade options if not Pro */}
           {!membership.isPro && mintStep === 'idle' && bscAddresses.length > 0 && (
             <div className="upgrade-section">
-              <p className="upgrade-hint">Select an address to mint a Pro NFT:</p>
+              <p className="upgrade-hint">{t('membership.selectAddressToMint')}</p>
               <div className="mint-address-list">
                 {bscAddresses.map((item) => (
                   <button
@@ -634,7 +635,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
                   >
                     <span className="wallet-name">{item.walletName}</span>
                     <span className="address">{formatAddress(item.address)}</span>
-                    <span className="mint-label">Mint NFT →</span>
+                    <span className="mint-label">{t('membership.mintNft')} →</span>
                   </button>
                 ))}
               </div>
@@ -648,12 +649,12 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
               <div className="mint-steps">
                 <div className={`mint-step ${mintStep === 'approve' || mintStep === 'approving' || mintStep === 'waiting_confirmation' ? 'active' : ''} ${mintStep === 'mint' || mintStep === 'minting' ? 'completed' : ''}`}>
                   <span className="step-number">1</span>
-                  <span className="step-label">Approve USDT</span>
+                  <span className="step-label">{t('membership.stepApproveUsdt')}</span>
                 </div>
                 <div className="step-connector" />
                 <div className={`mint-step ${mintStep === 'mint' || mintStep === 'minting' ? 'active' : ''}`}>
                   <span className="step-number">2</span>
-                  <span className="step-label">Mint NFT</span>
+                  <span className="step-label">{t('membership.stepMintNft')}</span>
                 </div>
               </div>
 
@@ -661,13 +662,13 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
               {mintStep === 'approve' && (
                 <div className="mint-action">
                   <p className="mint-description">
-                    First, approve the contract to spend 30 USDT on your behalf.
+                    {t('membership.approveDescription')}
                   </p>
                   <button onClick={() => requestPassword('approve')} className="mint-btn">
-                    Approve 30 USDT
+                    {t('membership.approve30Usdt')}
                   </button>
                   <button onClick={cancelMint} className="cancel-btn">
-                    Cancel
+                    {t('actions.cancel')}
                   </button>
                 </div>
               )}
@@ -676,8 +677,8 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
               {mintStep === 'approving' && (
                 <div className="mint-action">
                   <div className="mint-spinner" />
-                  <p className="mint-status">Approving USDT...</p>
-                  <p className="mint-hint">Please wait while the transaction is being processed.</p>
+                  <p className="mint-status">{t('membership.approvingUsdt')}</p>
+                  <p className="mint-hint">{t('membership.pleaseWaitTransaction')}</p>
                 </div>
               )}
 
@@ -685,8 +686,8 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
               {mintStep === 'waiting_confirmation' && (
                 <div className="mint-action">
                   <div className="mint-spinner" />
-                  <p className="mint-status">Waiting for Confirmation...</p>
-                  <p className="mint-hint">{confirmationProgress || 'Please wait for blockchain confirmation.'}</p>
+                  <p className="mint-status">{t('membership.waitingConfirmation')}</p>
+                  <p className="mint-hint">{confirmationProgress || t('membership.pleaseWaitBlockchain')}</p>
                   {approveTxHash && (
                     <a
                       href={`${BLOCK_EXPLORER_URL}/tx/${approveTxHash}`}
@@ -694,7 +695,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
                       rel="noopener noreferrer"
                       className="tx-link-small"
                     >
-                      View Transaction →
+                      {t('membership.viewTransaction')} →
                     </a>
                   )}
                 </div>
@@ -704,13 +705,13 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
               {mintStep === 'mint' && (
                 <div className="mint-action">
                   <p className="mint-description">
-                    USDT approved! Now mint your Pro NFT.
+                    {t('membership.usdtApproved')}
                   </p>
                   <button onClick={() => requestPassword('mint')} className="mint-btn primary">
-                    Mint Pro NFT
+                    {t('membership.mintProNft')}
                   </button>
                   <button onClick={cancelMint} className="cancel-btn">
-                    Cancel
+                    {t('actions.cancel')}
                   </button>
                 </div>
               )}
@@ -719,8 +720,8 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
               {mintStep === 'minting' && (
                 <div className="mint-action">
                   <div className="mint-spinner" />
-                  <p className="mint-status">Minting NFT...</p>
-                  <p className="mint-hint">Please wait while the transaction is being processed.</p>
+                  <p className="mint-status">{t('membership.mintingNft')}</p>
+                  <p className="mint-hint">{t('membership.pleaseWaitTransaction')}</p>
                 </div>
               )}
 
@@ -729,7 +730,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
                 <div className="mint-action error">
                   <p className="mint-error">{mintError}</p>
                   <button onClick={cancelMint} className="mint-btn">
-                    Try Again
+                    {t('membership.tryAgain')}
                   </button>
                 </div>
               )}
@@ -740,8 +741,8 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
           {mintStep === 'success' && (
             <div className="mint-success">
               <div className="success-icon">✓</div>
-              <h3>Welcome to Pro!</h3>
-              <p>Your membership is now active for 1 year.</p>
+              <h3>{t('membership.welcomeToPro')}</h3>
+              <p>{t('membership.membershipActive1Year')}</p>
               {txHash && (
                 <a
                   href={`${BLOCK_EXPLORER_URL}/tx/${txHash}`}
@@ -749,11 +750,11 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
                   rel="noopener noreferrer"
                   className="tx-link"
                 >
-                  View Transaction →
+                  {t('membership.viewTransaction')} →
                 </a>
               )}
               <button onClick={cancelMint} className="mint-btn done">
-                Done
+                {t('membership.done')}
               </button>
             </div>
           )}
@@ -764,14 +765,14 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       {showPasswordDialog && (
         <div className="password-overlay">
           <div className="password-dialog">
-            <h3>Enter Wallet Password</h3>
+            <h3>{t('membership.enterWalletPassword')}</h3>
             <p className="wallet-name-hint">
-              Wallet: <strong>{getSelectedWallet()?.walletName || 'Unknown'}</strong>
+              {t('membership.wallet')}: <strong>{getSelectedWallet()?.walletName || t('membership.unknown')}</strong>
             </p>
             <p className="password-hint">
               {pendingAction === 'approve'
-                ? 'Your password is required to sign the USDT approval transaction.'
-                : 'Your password is required to sign the NFT mint transaction.'
+                ? t('membership.passwordRequiredApprove')
+                : t('membership.passwordRequiredMint')
               }
             </p>
             <input
@@ -779,20 +780,20 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
               value={walletPassword}
               onChange={(e) => setWalletPassword(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && executeWithPassword()}
-              placeholder="Wallet password"
+              placeholder={t('membership.walletPassword')}
               autoFocus
               className="password-input"
             />
             <div className="password-actions">
               <button onClick={cancelPasswordDialog} className="cancel-btn">
-                Cancel
+                {t('actions.cancel')}
               </button>
               <button
                 onClick={executeWithPassword}
                 disabled={!walletPassword}
                 className="confirm-btn"
               >
-                Confirm
+                {t('actions.confirm')}
               </button>
             </div>
           </div>
@@ -803,32 +804,32 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       {showMintAppPasswordDialog && (
         <div className="password-overlay">
           <div className="password-dialog">
-            <h3>Enter App Password</h3>
+            <h3>{t('membership.enterAppPassword')}</h3>
             <p className="wallet-name-hint">
-              Minting from: <strong>{getSelectedWallet()?.walletName || 'Unknown'}</strong>
+              {t('membership.mintingFrom')}: <strong>{getSelectedWallet()?.walletName || t('membership.unknown')}</strong>
             </p>
             <p className="password-hint">
-              Your app password is required to perform transaction operations.
+              {t('membership.appPasswordRequired')}
             </p>
             <input
               type="password"
               value={mintAppPassword}
               onChange={(e) => setMintAppPassword(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && proceedWithMint()}
-              placeholder="App password"
+              placeholder={t('membership.appPassword')}
               autoFocus
               className="password-input"
             />
             <div className="password-actions">
               <button onClick={cancelMintAppPasswordDialog} className="cancel-btn">
-                Cancel
+                {t('actions.cancel')}
               </button>
               <button
                 onClick={proceedWithMint}
                 disabled={!mintAppPassword}
                 className="confirm-btn"
               >
-                Continue
+                {t('membership.continue')}
               </button>
             </div>
           </div>
@@ -837,27 +838,27 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
 
       {/* Device Information Section */}
       <section className="device-section">
-        <h2>Device Information</h2>
+        <h2>{t('membership.deviceInformation')}</h2>
         <p className="section-description">
-          Your USB device has a unique ID that can be bound to NFT memberships for hardware-level security.
+          {t('membership.deviceDescription')}
         </p>
 
         {isLoadingDevice ? (
           <div className="device-card">
-            <div className="loading">Loading device information...</div>
+            <div className="loading">{t('membership.loadingDeviceInfo')}</div>
           </div>
         ) : isDeviceLocked ? (
           /* Locked State - Show unlock button */
           <div className="device-card locked">
             <div className="locked-content">
               <div className="lock-icon">🔒</div>
-              <p className="locked-message">Device information is locked</p>
-              <p className="locked-hint">Enter your app password to view device details and membership bindings.</p>
+              <p className="locked-message">{t('membership.deviceLocked')}</p>
+              <p className="locked-hint">{t('membership.unlockHint')}</p>
               {deviceError && (
                 <p className="device-error">{deviceError}</p>
               )}
               <button onClick={handleUnlockDevice} className="unlock-btn">
-                Unlock with Password
+                {t('membership.unlockWithPassword')}
               </button>
             </div>
           </div>
@@ -865,59 +866,59 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
           /* Unlocked State - Show device info */
           <div className="device-card">
             <div className="device-header">
-              <span className="unlocked-badge">🔓 Unlocked</span>
-              <button onClick={handleLockDevice} className="lock-btn" title="Lock device info">
-                Lock
+              <span className="unlocked-badge">🔓 {t('membership.unlocked')}</span>
+              <button onClick={handleLockDevice} className="lock-btn" title={t('membership.lock')}>
+                {t('membership.lock')}
               </button>
             </div>
 
             <div className="device-detail-row">
-              <span className="device-label">Device ID</span>
+              <span className="device-label">{t('membership.deviceId')}</span>
               <span className="device-value mono">{deviceStatus.deviceId}</span>
             </div>
 
             <div className="device-detail-row">
-              <span className="device-label">Device Hash (for contract binding)</span>
+              <span className="device-label">{t('membership.deviceHashLabel')}</span>
               <div className="device-hash-container">
                 <span className="device-value mono hash">{deviceStatus.deviceIdHash}</span>
                 <button
                   onClick={copyDeviceHash}
                   className="copy-btn"
-                  title="Copy device hash"
+                  title={t('membership.copy')}
                 >
-                  {copiedDeviceHash ? '✓ Copied' : '📋 Copy'}
+                  {copiedDeviceHash ? `✓ ${t('membership.copied')}` : `📋 ${t('membership.copy')}`}
                 </button>
               </div>
             </div>
 
             <div className="device-detail-row">
-              <span className="device-label">Wallet Limit (USB-based)</span>
-              <span className="device-value">{deviceStatus.walletLimit} wallets</span>
+              <span className="device-label">{t('membership.walletLimitUsb')}</span>
+              <span className="device-value">{deviceStatus.walletLimit} {t('membership.walletsUnit')}</span>
             </div>
 
             <div className="device-detail-row">
-              <span className="device-label">Current Wallets</span>
+              <span className="device-label">{t('membership.currentWallets')}</span>
               <span className="device-value">{deviceStatus.walletCount} / {deviceStatus.walletLimit}</span>
             </div>
 
             <div className="device-detail-row">
-              <span className="device-label">Can Create More</span>
+              <span className="device-label">{t('membership.canCreateMore')}</span>
               <span className={`device-value ${deviceStatus.canCreateWallet ? 'success' : 'warning'}`}>
-                {deviceStatus.canCreateWallet ? '✓ Yes' : '✗ Limit reached'}
+                {deviceStatus.canCreateWallet ? `✓ ${t('membership.yes')}` : `✗ ${t('membership.limitReached')}`}
               </span>
             </div>
 
             {/* NFT Bindings */}
             {deviceStatus.memberships && deviceStatus.memberships.length > 0 && (
               <div className="device-bindings">
-                <h4>NFT Bindings on This Device</h4>
+                <h4>{t('membership.nftBindings')}</h4>
                 {deviceStatus.memberships.map((binding, index) => (
                   <div key={index} className={`binding-row ${binding.isValid ? 'valid' : 'invalid'}`}>
                     <div className="binding-info">
-                      <span className="binding-label">Token #{binding.nftTokenId}</span>
+                      <span className="binding-label">{t('membership.token')} #{binding.nftTokenId}</span>
                       <span className="binding-chain">{binding.chainId}</span>
                       <span className={`binding-status ${binding.isValid ? 'valid' : 'invalid'}`}>
-                        {binding.isValid ? '✓ Valid' : '✗ Invalid'}
+                        {binding.isValid ? `✓ ${t('membership.valid')}` : `✗ ${t('membership.invalid')}`}
                       </span>
                     </div>
                     <div className="binding-address mono">{formatAddress(binding.boundAddress)}</div>
@@ -928,8 +929,8 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
 
             {deviceStatus.memberships.length === 0 && membership.isPro && (
               <div className="binding-hint">
-                <p>💡 <strong>Tip:</strong> You own Pro NFTs but haven't bound them to this device yet.</p>
-                <p>Binding NFTs to your USB device adds hardware-level security and prevents multi-device sharing.</p>
+                <p>💡 <strong>{t('membership.bindingTip')}</strong> {t('membership.bindingTipMessage')}</p>
+                <p>{t('membership.bindingTipDescription')}</p>
               </div>
             )}
           </div>
@@ -940,29 +941,29 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       {showDevicePasswordDialog && (
         <div className="password-overlay">
           <div className="password-dialog">
-            <h3>Unlock Device Information</h3>
+            <h3>{t('membership.unlockDeviceInfo')}</h3>
             <p className="password-hint">
-              Enter your app password to view device details and membership bindings.
+              {t('membership.unlockHint')}
             </p>
             <input
               type="password"
               value={devicePassword}
               onChange={(e) => setDevicePassword(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && executeDeviceUnlock()}
-              placeholder="App password"
+              placeholder={t('membership.appPassword')}
               autoFocus
               className="password-input"
             />
             <div className="password-actions">
               <button onClick={cancelDevicePasswordDialog} className="cancel-btn">
-                Cancel
+                {t('actions.cancel')}
               </button>
               <button
                 onClick={executeDeviceUnlock}
                 disabled={!devicePassword}
                 className="confirm-btn"
               >
-                Unlock
+                {t('security.unlock')}
               </button>
             </div>
           </div>
@@ -972,36 +973,36 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       {/* Your BSC Addresses */}
       {isLoading ? (
         <section className="address-section">
-          <div className="loading">Loading addresses...</div>
+          <div className="loading">{t('membership.loadingAddresses')}</div>
         </section>
       ) : bscAddresses.length === 0 ? (
         <section className="address-section">
           <div className="no-addresses">
-            <p>No BSC addresses found.</p>
-            <p className="hint">Create a wallet first to get your BSC address.</p>
+            <p>{t('membership.noBscAddresses')}</p>
+            <p className="hint">{t('membership.createWalletFirst')}</p>
           </div>
         </section>
       ) : null}
 
       {/* Pro Benefits */}
       <section className="benefits-section">
-        <h2>Pro Benefits</h2>
+        <h2>{t('membership.proBenefits')}</h2>
         <ul className="benefits-list">
           <li>
             <span className="check">✓</span>
-            +3 wallets per NFT
+            {t('membership.benefit3Wallets')}
           </li>
           <li>
             <span className="check">✓</span>
-            Priority support
+            {t('membership.benefitPrioritySupport')}
           </li>
           <li>
             <span className="check">✓</span>
-            Early access to new features
+            {t('membership.benefitEarlyAccess')}
           </li>
           <li>
             <span className="check">✓</span>
-            Earn points for future airdrops
+            {t('membership.benefitEarnPoints')}
           </li>
         </ul>
       </section>

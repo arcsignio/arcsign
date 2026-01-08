@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface SettingsProps {
   onBack: () => void;
@@ -12,44 +13,46 @@ interface SettingsProps {
 
 interface SettingItem {
   id: string;
-  title: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
   icon: string;
 }
 
 const SETTING_ITEMS: SettingItem[] = [
   {
     id: 'membership',
-    title: 'Membership',
-    description: 'View membership status and set primary verification address',
+    titleKey: 'settings.membershipTitle',
+    descriptionKey: 'settings.membershipDescription',
     icon: '⭐',
   },
   {
     id: 'api-settings',
-    title: 'API Provider Settings',
-    description: 'Configure blockchain API providers (Alchemy, Infura, QuickNode)',
+    titleKey: 'settings.apiSettingsTitle',
+    descriptionKey: 'settings.apiSettingsDescription',
     icon: '🔗',
   },
   // Future settings can be added here
   // {
   //   id: 'security',
-  //   title: 'Security Settings',
-  //   description: 'Manage security preferences and auto-lock timeout',
+  //   titleKey: 'settings.securityTitle',
+  //   descriptionKey: 'settings.securityDescription',
   //   icon: '🔒',
   // },
 ];
 
 export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="settings-page">
       <button onClick={onBack} className="back-button">
-        ← Back to Wallets
+        ← {t('settings.backToWallets')}
       </button>
 
       <header className="settings-header">
-        <h1>Settings</h1>
+        <h1>{t('settings.settings')}</h1>
         <p className="settings-description">
-          Manage your application settings and preferences
+          {t('settings.settingsDescription')}
         </p>
       </header>
 
@@ -62,8 +65,8 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
           >
             <span className="setting-icon">{item.icon}</span>
             <div className="setting-content">
-              <h3 className="setting-title">{item.title}</h3>
-              <p className="setting-description">{item.description}</p>
+              <h3 className="setting-title">{t(item.titleKey)}</h3>
+              <p className="setting-description">{t(item.descriptionKey)}</p>
             </div>
             <span className="setting-arrow">→</span>
           </button>
