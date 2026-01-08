@@ -78,7 +78,6 @@ export function WalletDetail({
   // Transaction History state
   const [showHistory, setShowHistory] = useState(false);
   const [historyAddress, setHistoryAddress] = useState("");
-  const [historyNetwork, setHistoryNetwork] = useState("eth-mainnet");
   // Store wallet addresses from AddressBook (loaded when unlocking wallet)
   const [walletAddresses, setWalletAddresses] = useState<Address[]>([]);
   // Address List modal state (for Copy Address feature)
@@ -1010,7 +1009,6 @@ export function WalletDetail({
     return (
       <TransactionHistory
         address={historyAddress}
-        network={historyNetwork}
         password={appPassword}
         usbPath={usbPath}
         onBack={() => setShowHistory(false)}
@@ -1330,13 +1328,13 @@ export function WalletDetail({
                 console.log("📜 [History] Button clicked, walletAddresses:", walletAddresses.length);
                 // Get first EVM address (coin_type 60 = Ethereum compatible)
                 // EVM addresses start with 0x and are used for ETH, Polygon, Arbitrum, etc.
+                // All EVM chains share the same address, so we just need one
                 const evmAddress = walletAddresses.find(
                   (addr) => addr.coin_type === 60 && !addr.is_testnet
                 );
                 console.log("📜 [History] Found EVM address:", evmAddress);
                 if (evmAddress) {
                   setHistoryAddress(evmAddress.address);
-                  setHistoryNetwork("eth-mainnet");
                   setShowHistory(true);
                 } else {
                   // Try to find any address that looks like EVM (starts with 0x)
@@ -1346,7 +1344,6 @@ export function WalletDetail({
                   if (anyEvmAddress) {
                     console.log("📜 [History] Using fallback EVM address:", anyEvmAddress);
                     setHistoryAddress(anyEvmAddress.address);
-                    setHistoryNetwork("eth-mainnet");
                     setShowHistory(true);
                   } else {
                     alert("No EVM address found. Transaction history requires an Ethereum-compatible address (0x...).");

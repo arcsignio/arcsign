@@ -1,6 +1,7 @@
 /**
  * TransactionHistory Component
  * Feature: Display asset transfers (transaction history) from Alchemy API
+ * Now supports querying ALL supported EVM chains simultaneously
  */
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -11,14 +12,27 @@ import tauriApi, {
 
 interface TransactionHistoryProps {
   address: string;
-  network: string; // e.g., "eth-mainnet", "polygon-mainnet"
   password: string;
   usbPath: string;
   onBack: () => void;
 }
 
-// Supported EVM chains for display
-const SUPPORTED_EVM_CHAINS = "Ethereum, Polygon, Arbitrum, Optimism, Base, BSC";
+// Supported EVM chains for transaction history
+const EVM_CHAINS = [
+  { id: "eth-mainnet", name: "Ethereum", shortName: "ETH", color: "#627EEA" },
+  { id: "polygon-mainnet", name: "Polygon", shortName: "MATIC", color: "#8247E5" },
+  { id: "arbitrum-mainnet", name: "Arbitrum", shortName: "ARB", color: "#28A0F0" },
+  { id: "optimism-mainnet", name: "Optimism", shortName: "OP", color: "#FF0420" },
+  { id: "base-mainnet", name: "Base", shortName: "BASE", color: "#0052FF" },
+  { id: "bnb-mainnet", name: "BNB Chain", shortName: "BNB", color: "#F0B90B" },
+];
+
+// Extended transfer with network info
+interface TransferWithNetwork extends AssetTransfer {
+  network: string;
+  networkName: string;
+  networkColor: string;
+}
 
 // Category display names and colors
 const CATEGORY_STYLES: Record<string, { label: string; color: string }> = {
@@ -67,77 +81,108 @@ function getExplorerUrl(network: string, txHash: string): string {
 
 export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   address,
-  network,
   password,
   usbPath,
   onBack,
 }) => {
   console.log("🔵 [TransactionHistory] Component rendered with props:", {
     address,
-    network,
     hasPassword: !!password,
     usbPath,
   });
 
-  const [transfers, setTransfers] = useState<AssetTransfer[]>([]);
+  const [transfers, setTransfers] = useState<TransferWithNetwork[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pageKey, setPageKey] = useState<string>("");
-  const [hasMore, setHasMore] = useState(false);
+  const [loadingChains, setLoadingChains] = useState<string[]>([]);
+  const [chainStats, setChainStats] = useState<Record<string, number>>({});
 
-  const fetchTransfers = useCallback(
-    async (loadMore = false) => {
-      console.log("🔵 [TransactionHistory] fetchTransfers called:", {
-        loadMore,
-        address,
-        network,
-        currentPageKey: pageKey,
-      });
+  // Fetch transfers from all EVM chains
+  const fetchAllChainTransfers = useCallback(
+    async () => {
+      console.log("🔵 [TransactionHistory] fetchAllChainTransfers called for address:", address);
 
       setIsLoading(true);
       setError(null);
+      setLoadingChains(EVM_CHAINS.map(c => c.name));
+      setChainStats({});
 
-      try {
-        console.log("🔵 [TransactionHistory] Calling tauriApi.getAssetTransfers...");
-        const response: AssetTransfersResponse =
-          await tauriApi.getAssetTransfers({
-            address,
-            network,
-            maxCount: 50,
-            pageKey: loadMore ? pageKey : "",
-            password,
-            usbPath,
-          });
+      const allTransfers: TransferWithNetwork[] = [];
+      const stats: Record<string, number> = {};
+      let errorCount = 0;
 
-        console.log("🔵 [TransactionHistory] API response received:", {
-          transfersCount: response.transfers?.length || 0,
-          pageKey: response.pageKey,
-        });
+      // Query all chains in parallel
+      const chainPromises = EVM_CHAINS.map(async (chain) => {
+        try {
+          console.log(`🔵 [TransactionHistory] Fetching from ${chain.name}...`);
+          const response: AssetTransfersResponse =
+            await tauriApi.getAssetTransfers({
+              address,
+              network: chain.id,
+              maxCount: 30, // Limit per chain
+              pageKey: "",
+              password,
+              usbPath,
+            });
 
-        if (loadMore) {
-          setTransfers((prev) => [...prev, ...response.transfers]);
-        } else {
-          setTransfers(response.transfers);
+          const count = response.transfers?.length || 0;
+          console.log(`✅ [TransactionHistory] ${chain.name}: ${count} transfers`);
+
+          stats[chain.name] = count;
+
+          // Add network info to each transfer
+          const transfersWithNetwork: TransferWithNetwork[] = (response.transfers || []).map(t => ({
+            ...t,
+            network: chain.id,
+            networkName: chain.name,
+            networkColor: chain.color,
+          }));
+
+          return { chain: chain.name, transfers: transfersWithNetwork, error: null };
+        } catch (err: unknown) {
+          const errorMessage = err instanceof Error ? err.message : "Unknown error";
+          console.warn(`⚠️ [TransactionHistory] ${chain.name} failed:`, errorMessage);
+          errorCount++;
+          stats[chain.name] = -1; // -1 indicates error
+          return { chain: chain.name, transfers: [], error: errorMessage };
+        } finally {
+          setLoadingChains(prev => prev.filter(c => c !== chain.name));
         }
+      });
 
-        setPageKey(response.pageKey);
-        setHasMore(response.pageKey !== "");
-      } catch (err: unknown) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to load transaction history";
-        console.error("❌ [TransactionHistory] Error fetching transfers:", err);
-        setError(errorMessage);
-      } finally {
-        setIsLoading(false);
+      const results = await Promise.all(chainPromises);
+
+      // Collect all transfers
+      results.forEach(result => {
+        allTransfers.push(...result.transfers);
+      });
+
+      // Sort by timestamp (newest first)
+      allTransfers.sort((a, b) => {
+        const timeA = a.metadata?.blockTimestamp ? new Date(a.metadata.blockTimestamp).getTime() : 0;
+        const timeB = b.metadata?.blockTimestamp ? new Date(b.metadata.blockTimestamp).getTime() : 0;
+        return timeB - timeA;
+      });
+
+      console.log(`🔵 [TransactionHistory] Total transfers across all chains: ${allTransfers.length}`);
+
+      setTransfers(allTransfers);
+      setChainStats(stats);
+
+      // Only show error if ALL chains failed
+      if (errorCount === EVM_CHAINS.length) {
+        setError("Failed to load transaction history from all chains. Please check your network connection.");
       }
+
+      setIsLoading(false);
     },
-    [address, network, password, usbPath, pageKey]
+    [address, password, usbPath]
   );
 
   useEffect(() => {
-    console.log("🔵 [TransactionHistory] useEffect triggered - fetching transfers");
-    fetchTransfers(false);
-  }, [address, network]);
+    console.log("🔵 [TransactionHistory] useEffect triggered - fetching transfers from all chains");
+    fetchAllChainTransfers();
+  }, [address, fetchAllChainTransfers]);
 
   // Determine if transfer is incoming or outgoing
   const getTransferDirection = (transfer: AssetTransfer): "in" | "out" => {
@@ -156,11 +201,11 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
             {shortenAddress(address)}
           </p>
           <p className="supported-chains">
-            Supported: {SUPPORTED_EVM_CHAINS}
+            Querying: {EVM_CHAINS.map(c => c.shortName).join(", ")}
           </p>
         </div>
         <button
-          onClick={() => fetchTransfers(false)}
+          onClick={fetchAllChainTransfers}
           disabled={isLoading}
           className="refresh-button"
         >
@@ -168,10 +213,38 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         </button>
       </header>
 
+      {/* Loading indicator with chain progress */}
+      {loadingChains.length > 0 && (
+        <div className="loading-chains">
+          <div className="loading-spinner-small" />
+          <span>Loading: {loadingChains.join(", ")}...</span>
+        </div>
+      )}
+
+      {/* Chain stats summary */}
+      {!isLoading && Object.keys(chainStats).length > 0 && (
+        <div className="chain-stats">
+          {EVM_CHAINS.map(chain => {
+            const count = chainStats[chain.name];
+            const isError = count === -1;
+            return (
+              <span
+                key={chain.id}
+                className={`chain-stat ${isError ? 'error' : ''}`}
+                style={{ borderColor: chain.color }}
+              >
+                <span className="chain-dot" style={{ backgroundColor: chain.color }} />
+                {chain.shortName}: {isError ? '✕' : count}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
       {error && (
         <div className="error-message">
           <p>{error}</p>
-          <button onClick={() => fetchTransfers(false)}>Retry</button>
+          <button onClick={fetchAllChainTransfers}>Retry</button>
         </div>
       )}
 
@@ -185,13 +258,13 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
       {transfers.length > 0 && (
         <div className="transfers-list">
-          {transfers.map((transfer) => {
+          {transfers.map((transfer, index) => {
             const direction = getTransferDirection(transfer);
             const categoryStyle =
               CATEGORY_STYLES[transfer.category] || CATEGORY_STYLES.external;
 
             return (
-              <div key={transfer.uniqueId} className="transfer-item">
+              <div key={`${transfer.uniqueId}-${index}`} className="transfer-item">
                 <div className="transfer-icon">
                   <span
                     className={`direction-indicator ${direction}`}
@@ -203,12 +276,20 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
                 <div className="transfer-details">
                   <div className="transfer-main">
-                    <span
-                      className="category-badge"
-                      style={{ backgroundColor: categoryStyle.color }}
-                    >
-                      {categoryStyle.label}
-                    </span>
+                    <div className="badges">
+                      <span
+                        className="network-badge"
+                        style={{ backgroundColor: transfer.networkColor }}
+                      >
+                        {EVM_CHAINS.find(c => c.id === transfer.network)?.shortName || transfer.networkName}
+                      </span>
+                      <span
+                        className="category-badge"
+                        style={{ backgroundColor: categoryStyle.color }}
+                      >
+                        {categoryStyle.label}
+                      </span>
+                    </div>
                     <span className="transfer-value">
                       {direction === "in" ? "+" : "-"}
                       {formatValue(transfer.value)} {transfer.asset}
@@ -231,7 +312,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                       </span>
                     )}
                     <a
-                      href={getExplorerUrl(network, transfer.hash)}
+                      href={getExplorerUrl(transfer.network, transfer.hash)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="explorer-link"
@@ -243,20 +324,10 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
               </div>
             );
           })}
-
-          {hasMore && (
-            <button
-              className="load-more-button"
-              onClick={() => fetchTransfers(true)}
-              disabled={isLoading}
-            >
-              {isLoading ? "Loading..." : "Load More"}
-            </button>
-          )}
         </div>
       )}
 
-      {isLoading && transfers.length === 0 && (
+      {isLoading && transfers.length === 0 && loadingChains.length === 0 && (
         <div className="loading-state">
           <div className="loading-spinner" />
           <p>Loading transaction history...</p>
@@ -337,6 +408,59 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         .refresh-button:disabled {
           opacity: 0.6;
           cursor: not-allowed;
+        }
+
+        .loading-chains {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 12px;
+          background: #f0f9ff;
+          border-radius: 8px;
+          margin-bottom: 16px;
+          font-size: 14px;
+          color: #0369a1;
+        }
+
+        .loading-spinner-small {
+          width: 16px;
+          height: 16px;
+          border: 2px solid #bfdbfe;
+          border-top-color: #3b82f6;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
+        .chain-stats {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 16px;
+          justify-content: center;
+        }
+
+        .chain-stat {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 10px;
+          background: #f9fafb;
+          border: 1px solid;
+          border-radius: 16px;
+          font-size: 12px;
+          color: #4b5563;
+        }
+
+        .chain-stat.error {
+          background: #fef2f2;
+          color: #dc2626;
+        }
+
+        .chain-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
         }
 
         .error-message {
@@ -437,10 +561,23 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           margin-bottom: 8px;
         }
 
-        .category-badge {
-          padding: 4px 8px;
+        .badges {
+          display: flex;
+          gap: 6px;
+        }
+
+        .network-badge {
+          padding: 3px 8px;
           border-radius: 4px;
-          font-size: 12px;
+          font-size: 11px;
+          font-weight: 600;
+          color: white;
+        }
+
+        .category-badge {
+          padding: 3px 8px;
+          border-radius: 4px;
+          font-size: 11px;
           font-weight: 500;
           color: white;
         }
@@ -472,27 +609,6 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
         .explorer-link:hover {
           text-decoration: underline;
-        }
-
-        .load-more-button {
-          width: 100%;
-          padding: 12px;
-          background: #f3f4f6;
-          border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 14px;
-          color: #374151;
-          transition: background 0.2s;
-        }
-
-        .load-more-button:hover:not(:disabled) {
-          background: #e5e7eb;
-        }
-
-        .load-more-button:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
         }
 
         .loading-state {
