@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   setProviderConfig,
   listProviderConfigs,
@@ -21,6 +22,7 @@ interface ProviderSettingsProps {
 export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
   usbPath,
 }) => {
+  const { t } = useTranslation();
   const { appPassword } = useAppPassword();
   const [providers, setProviders] = useState<ProviderListItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -45,7 +47,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
 
   const loadProviders = async () => {
     if (!appPassword) {
-      setError('App password not available');
+      setError(t('provider.appPasswordNotAvailable'));
       return;
     }
 
@@ -55,7 +57,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
       const result = await listProviderConfigs(null, appPassword, usbPath);
       setProviders(result);
     } catch (err) {
-      setError(`Failed to load providers: ${err}`);
+      setError(`${t('provider.failedToLoad')}: ${err}`);
     } finally {
       setLoading(false);
     }
@@ -65,7 +67,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
     e.preventDefault();
 
     if (!appPassword) {
-      setError('App password not available');
+      setError(t('provider.appPasswordNotAvailable'));
       return;
     }
 
@@ -87,7 +89,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
         usbPath,
       });
 
-      setSuccess(`Provider ${formData.providerType} added successfully!`);
+      setSuccess(t('provider.addedSuccess', { provider: formData.providerType }));
       setShowAddForm(false);
       setFormData({
         providerType: PROVIDER_TYPES.ALCHEMY as string,
@@ -97,7 +99,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
       });
       await loadProviders();
     } catch (err) {
-      setError(`Failed to add provider: ${err}`);
+      setError(`${t('provider.failedToAdd')}: ${err}`);
     } finally {
       setLoading(false);
     }
@@ -108,7 +110,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
     providerType: string
   ) => {
     if (!appPassword) {
-      setError('App password not available');
+      setError(t('provider.appPasswordNotAvailable'));
       return;
     }
 
@@ -116,32 +118,44 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
     setError(null);
     try {
       await deleteProviderConfig(chainId, providerType, appPassword, usbPath);
-      setSuccess(`Provider ${providerType} deleted successfully`);
+      setSuccess(t('provider.deletedSuccess', { provider: providerType }));
       await loadProviders();
     } catch (err) {
-      setError(`Failed to delete provider: ${err}`);
+      setError(`${t('provider.failedToDelete')}: ${err}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Helper function to get provider hint based on type
+  const getProviderHint = (providerType: string) => {
+    switch (providerType) {
+      case PROVIDER_TYPES.ALCHEMY:
+        return t('provider.alchemyHint');
+      case PROVIDER_TYPES.NODEREAL:
+        return t('provider.noderealHint');
+      case PROVIDER_TYPES.ONEINCH:
+        return t('provider.oneinchHint');
+      default:
+        return t('provider.defaultHint');
     }
   };
 
   return (
     <div className="provider-settings">
       <div className="header">
-        <h2>API Provider Settings</h2>
+        <h2>{t('provider.title')}</h2>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
           className="btn-primary"
           disabled={loading}
         >
-          {showAddForm ? 'Cancel' : '+ Add Provider'}
+          {showAddForm ? t('provider.cancel') : `+ ${t('provider.addProvider')}`}
         </button>
       </div>
 
       <p className="description">
-        Configure blockchain API providers (Alchemy, Infura, QuickNode) to
-        enable balance queries, fee estimation, and transaction broadcasting.
-        For token swap functionality, add your 1inch API key.
+        {t('provider.description')}
       </p>
 
       {error && <div className="alert alert-error">{error}</div>}
@@ -150,10 +164,10 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
       {/* Add Provider Form */}
       {showAddForm && (
         <form onSubmit={handleAddProvider} className="add-form">
-          <h3>Add New Provider</h3>
+          <h3>{t('provider.addNewProvider')}</h3>
 
           <div className="form-group">
-            <label htmlFor="providerType">Provider Type</label>
+            <label htmlFor="providerType">{t('provider.providerType')}</label>
             <select
               id="providerType"
               value={formData.providerType}
@@ -165,25 +179,19 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
             >
               <option value={PROVIDER_TYPES.ALCHEMY}>Alchemy</option>
               <option value={PROVIDER_TYPES.NODEREAL}>NodeReal</option>
-              <option value={PROVIDER_TYPES.INFURA}>Infura (Coming Soon)</option>
+              <option value={PROVIDER_TYPES.INFURA}>Infura ({t('provider.comingSoon')})</option>
               <option value={PROVIDER_TYPES.QUICKNODE}>
-                QuickNode (Coming Soon)
+                QuickNode ({t('provider.comingSoon')})
               </option>
               <option value={PROVIDER_TYPES.ONEINCH}>1inch (DEX Swap)</option>
             </select>
             <small className="form-hint">
-              {formData.providerType === PROVIDER_TYPES.ALCHEMY
-                ? 'Blockchain API provider for ETH, Polygon, Arbitrum, Optimism, Base. Get free API key at alchemy.com'
-                : formData.providerType === PROVIDER_TYPES.NODEREAL
-                ? 'Blockchain API provider for BSC. Get free API key at dashboard.nodereal.io'
-                : formData.providerType === PROVIDER_TYPES.ONEINCH
-                ? 'DEX aggregator for token swaps. Get API key at portal.1inch.dev'
-                : 'API key for this provider'}
+              {getProviderHint(formData.providerType)}
             </small>
           </div>
 
           <div className="form-group">
-            <label htmlFor="apiKey">API Key</label>
+            <label htmlFor="apiKey">{t('provider.apiKey')}</label>
             <input
               type="password"
               id="apiKey"
@@ -191,17 +199,17 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
               onChange={(e) =>
                 setFormData({ ...formData, apiKey: e.target.value })
               }
-              placeholder="Enter your API key"
+              placeholder={t('provider.enterApiKey')}
               disabled={loading}
               required
             />
             <small className="form-hint">
-              Get your API key from the provider's dashboard
+              {t('provider.apiKeyHint')}
             </small>
           </div>
 
           <div className="form-group">
-            <label htmlFor="priority">Priority</label>
+            <label htmlFor="priority">{t('provider.priority')}</label>
             <input
               type="number"
               id="priority"
@@ -215,7 +223,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
               required
             />
             <small className="form-hint">
-              Lower numbers = higher priority (1 is highest)
+              {t('provider.priorityHint')}
             </small>
           </div>
 
@@ -229,13 +237,13 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
                 }
                 disabled={loading}
               />
-              <span>Enable this provider</span>
+              <span>{t('provider.enableProvider')}</span>
             </label>
           </div>
 
           <div className="form-actions">
             <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Adding...' : 'Add Provider'}
+              {loading ? t('provider.adding') : t('provider.addProvider')}
             </button>
             <button
               type="button"
@@ -243,7 +251,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
               className="btn-secondary"
               disabled={loading}
             >
-              Cancel
+              {t('provider.cancel')}
             </button>
           </div>
         </form>
@@ -251,22 +259,22 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
 
       {/* Provider List */}
       <div className="providers-section">
-        <h3>Configured Providers</h3>
+        <h3>{t('provider.configuredProviders')}</h3>
         {loading && !showAddForm ? (
-          <div className="loading">Loading providers...</div>
+          <div className="loading">{t('provider.loadingProviders')}</div>
         ) : providers.length === 0 ? (
           <div className="empty-state">
-            No providers configured. Add one to get started!
+            {t('provider.noProviders')}
           </div>
         ) : (
           <table className="providers-table">
             <thead>
               <tr>
-                <th>Provider</th>
-                <th>Priority</th>
-                <th>Status</th>
-                <th>Has API Key</th>
-                <th>Actions</th>
+                <th>{t('provider.provider')}</th>
+                <th>{t('provider.priority')}</th>
+                <th>{t('provider.status')}</th>
+                <th>{t('provider.hasApiKey')}</th>
+                <th>{t('provider.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -285,12 +293,12 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
                         provider.enabled ? 'status-active' : 'status-inactive'
                       }`}
                     >
-                      {provider.enabled ? 'Active' : 'Disabled'}
+                      {provider.enabled ? t('provider.active') : t('provider.disabled')}
                     </span>
                   </td>
                   <td>
                     <span className={`api-key-badge ${provider.hasApiKey ? 'has-key' : 'no-key'}`}>
-                      {provider.hasApiKey ? '✓ Configured' : '✗ Missing'}
+                      {provider.hasApiKey ? `✓ ${t('provider.configured')}` : `✗ ${t('provider.missing')}`}
                     </span>
                   </td>
                   <td>
@@ -304,7 +312,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
                       className="btn-danger btn-sm"
                       disabled={loading}
                     >
-                      Delete
+                      {t('provider.delete')}
                     </button>
                   </td>
                 </tr>
