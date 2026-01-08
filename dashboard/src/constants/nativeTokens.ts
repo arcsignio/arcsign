@@ -107,6 +107,24 @@ export const NATIVE_TOKENS: Record<string, NativeTokenMetadata> = {
     chainName: "Sepolia Testnet",
     network: "eth-sepolia",
   },
+  "arbitrum-sepolia": {
+    symbol: "ETH",
+    name: "Arbitrum Sepolia ETH",
+    decimals: 18,
+    logoURI: "/icons/tokens/eth.png",
+    chainId: 421614,
+    chainName: "Arbitrum Sepolia",
+    network: "arbitrum-sepolia",
+  },
+  "optimism-sepolia": {
+    symbol: "ETH",
+    name: "Optimism Sepolia ETH",
+    decimals: 18,
+    logoURI: "/icons/tokens/eth.png",
+    chainId: 11155420,
+    chainName: "Optimism Sepolia",
+    network: "optimism-sepolia",
+  },
 };
 
 /**
@@ -131,20 +149,34 @@ export function isNativeTokenAddress(address: string): boolean {
  * Map network label to network key
  */
 export const NETWORK_LABEL_TO_KEY: Record<string, string> = {
+  // User-friendly labels
   Ethereum: "eth-mainnet",
   "BNB Chain": "bsc-mainnet",
   Polygon: "polygon-mainnet",
   "Polygon PoS": "polygon-mainnet",
-  "matic-mainnet": "polygon-mainnet",
   Arbitrum: "arbitrum-mainnet",
   "Arbitrum One": "arbitrum-mainnet",
   Optimism: "optimism-mainnet",
   Base: "base-mainnet",
   Bitcoin: "btc-mainnet",
-  // Testnets (for development)
+
+  // Internal Network IDs (canonical format)
+  // Backend API always returns these Internal IDs after adapter conversion
+  "eth-mainnet": "eth-mainnet",
+  "polygon-mainnet": "polygon-mainnet",
+  "matic-mainnet": "polygon-mainnet",
+  "arbitrum-mainnet": "arbitrum-mainnet",
+  "optimism-mainnet": "optimism-mainnet",
+  "base-mainnet": "base-mainnet",
+  "bnb-mainnet": "bsc-mainnet",
+  "bsc-mainnet": "bsc-mainnet",
+
+  // Testnets
   "eth-sepolia": "eth-sepolia",
   "Sepolia": "eth-sepolia",
   "Sepolia Testnet": "eth-sepolia",
+  "arbitrum-sepolia": "arbitrum-sepolia",
+  "optimism-sepolia": "optimism-sepolia",
 };
 
 /**

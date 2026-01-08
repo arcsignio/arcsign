@@ -9,6 +9,10 @@
  * nr_getAssetTransfers: 250 CU/request = ~400K queries/month
  *
  * Docs: https://docs.nodereal.io/reference/nr_getassettransfers
+ *
+ * Network ID Conversion:
+ * Uses adapter.NodeRealAdapter for converting between Internal and NodeReal formats.
+ * All API responses are normalized to Internal Network IDs before returning.
  */
 
 package provider
@@ -22,16 +26,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/yourusername/arcsign/internal/provider/adapter"
 )
 
+// Constants are now defined in adapter/nodereal.go
+// Re-export for backward compatibility
 const (
-	// BSCTraceBaseURL is the NodeReal MegaNode endpoint for BSC
-	// Using public endpoint without API key for basic queries
-	BSCTraceBaseURL = "https://bsc-mainnet.nodereal.io/v1"
-
-	// BSCTracePublicKey - NodeReal provides a public endpoint
-	// For production, users should get their own key at https://dashboard.nodereal.io
-	BSCTracePublicKey = "e7864b06cdbb4ec0a64c19c8bdcb3401"
+	BSCTraceBaseURL   = adapter.NodeRealBaseURL
+	BSCTracePublicKey = adapter.NodeRealPublicKey
 )
 
 // BSCTraceClient handles communication with NodeReal BSCTrace API
@@ -41,59 +44,54 @@ type BSCTraceClient struct {
 }
 
 // ================================================================================
-// NODEREAL/BSCTRACE NETWORK ADAPTER
-// Converts Internal Network IDs to NodeReal-specific format
-// Currently BSCTrace only supports BSC mainnet, so adapter is simple
+// NODEREAL/BSCTRACE NETWORK ADAPTER (Delegated to adapter package)
 // ================================================================================
 
+// nodeRealAdapter is a cached reference to the NodeReal adapter
+var nodeRealAdapter = adapter.Get("nodereal")
+
 // ToNodeRealNetwork converts Internal Network ID to NodeReal's format
-// Currently only BSC mainnet is supported
+// Delegates to adapter.NodeRealAdapter.ToProviderNetwork()
 func ToNodeRealNetwork(internalNetwork string) string {
-	switch internalNetwork {
-	case NetworkBnbMainnet: // "bnb-mainnet"
-		return "bsc-mainnet" // NodeReal uses "bsc-mainnet"
-	default:
-		return internalNetwork
+	if nodeRealAdapter != nil {
+		return nodeRealAdapter.ToProviderNetwork(internalNetwork)
 	}
+	return internalNetwork
 }
 
 // FromNodeRealNetwork converts NodeReal's format back to Internal Network ID
+// Delegates to adapter.NodeRealAdapter.FromProviderNetwork()
 func FromNodeRealNetwork(nodeRealNetwork string) string {
-	switch nodeRealNetwork {
-	case "bsc-mainnet":
-		return NetworkBnbMainnet // "bnb-mainnet"
-	default:
-		return nodeRealNetwork
+	if nodeRealAdapter != nil {
+		return nodeRealAdapter.FromProviderNetwork(nodeRealNetwork)
 	}
+	return nodeRealNetwork
 }
 
 // GetNodeRealRPCEndpoint returns the RPC endpoint for a given Internal Network ID
+// Delegates to adapter.NodeRealAdapter.GetRPCEndpoint()
 func GetNodeRealRPCEndpoint(internalNetwork string, apiKey string) string {
-	key := apiKey
-	if key == "" {
-		key = BSCTracePublicKey
+	if nodeRealAdapter != nil {
+		return nodeRealAdapter.GetRPCEndpoint(internalNetwork, apiKey)
 	}
-
-	switch internalNetwork {
-	case NetworkBnbMainnet:
-		return fmt.Sprintf("%s/%s", BSCTraceBaseURL, key)
-	default:
-		return ""
-	}
+	return ""
 }
 
 // GetNodeRealSupportedNetworks returns all networks supported by NodeReal/BSCTrace
+// Delegates to adapter.NodeRealAdapter.SupportedNetworks()
 func GetNodeRealSupportedNetworks() []string {
-	return []string{NetworkBnbMainnet}
+	if nodeRealAdapter != nil {
+		return nodeRealAdapter.SupportedNetworks()
+	}
+	return []string{}
 }
 
 // IsNodeRealNetwork checks if a network is supported by NodeReal/BSCTrace
+// Delegates to adapter.NodeRealAdapter.IsSupported()
 func IsNodeRealNetwork(network string) bool {
-	normalized := NormalizeToInternalNetwork(network)
-	for _, n := range GetNodeRealSupportedNetworks() {
-		if n == normalized {
-			return true
-		}
+	if nodeRealAdapter != nil {
+		normalized := NormalizeToInternalNetwork(network)
+		return nodeRealAdapter.IsSupported(normalized)
 	}
 	return false
 }

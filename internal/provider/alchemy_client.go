@@ -1,6 +1,10 @@
 /**
  * Alchemy API client for token balance queries
  * Feature: Query token balances across multiple chains
+ *
+ * Network ID Conversion:
+ * Uses adapter.AlchemyAdapter for converting between Internal and Alchemy formats.
+ * All API responses are normalized to Internal Network IDs before returning.
  */
 
 package provider
@@ -14,6 +18,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/yourusername/arcsign/internal/provider/adapter"
 )
 
 const (
@@ -35,44 +41,28 @@ func NewAlchemyClient(apiKey string) *AlchemyClient {
 }
 
 // ================================================================================
-// ALCHEMY NETWORK ADAPTER
-// Converts Internal Network IDs to Alchemy-specific format
+// ALCHEMY NETWORK ADAPTER (Delegated to adapter package)
 // ================================================================================
 
+// alchemyAdapter is a cached reference to the Alchemy adapter
+var alchemyAdapter = adapter.Get("alchemy")
+
 // ToAlchemyNetwork converts Internal Network ID to Alchemy's format
-// Internal: arbitrum-mainnet -> Alchemy: arb-mainnet
-// Internal: optimism-mainnet -> Alchemy: opt-mainnet
+// Delegates to adapter.AlchemyAdapter.ToProviderNetwork()
 func ToAlchemyNetwork(internalNetwork string) string {
-	switch internalNetwork {
-	case NetworkArbitrumMainnet: // "arbitrum-mainnet"
-		return "arb-mainnet"
-	case NetworkOptimismMainnet: // "optimism-mainnet"
-		return "opt-mainnet"
-	case NetworkArbitrumSepolia: // "arbitrum-sepolia"
-		return "arb-sepolia"
-	case NetworkOptimismSepolia: // "optimism-sepolia"
-		return "opt-sepolia"
-	default:
-		return internalNetwork
+	if alchemyAdapter != nil {
+		return alchemyAdapter.ToProviderNetwork(internalNetwork)
 	}
+	return internalNetwork
 }
 
 // FromAlchemyNetwork converts Alchemy's format back to Internal Network ID
-// Alchemy: arb-mainnet -> Internal: arbitrum-mainnet
-// Alchemy: opt-mainnet -> Internal: optimism-mainnet
+// Delegates to adapter.AlchemyAdapter.FromProviderNetwork()
 func FromAlchemyNetwork(alchemyNetwork string) string {
-	switch alchemyNetwork {
-	case "arb-mainnet":
-		return NetworkArbitrumMainnet
-	case "opt-mainnet":
-		return NetworkOptimismMainnet
-	case "arb-sepolia":
-		return NetworkArbitrumSepolia
-	case "opt-sepolia":
-		return NetworkOptimismSepolia
-	default:
-		return alchemyNetwork
+	if alchemyAdapter != nil {
+		return alchemyAdapter.FromProviderNetwork(alchemyNetwork)
 	}
+	return alchemyNetwork
 }
 
 // GetTokenBalancesByAddress queries token balances for multiple addresses across networks
@@ -170,12 +160,17 @@ func SimplifyTokenBalances(alchemyResponse *AlchemyTokenBalanceResponse) []Simpl
 			usdValue = balanceFloat * priceUSD
 		}
 
-		// Get human-readable network label
-		networkLabel := getNetworkLabel(token.Network)
+		// Convert Alchemy network ID to Internal format for consistent API response
+		// This ensures frontend always receives Internal Network IDs (e.g., "arbitrum-mainnet")
+		// regardless of which provider returned the data
+		internalNetwork := FromAlchemyNetwork(token.Network)
+
+		// Get human-readable network label using Internal Network ID
+		networkLabel := getNetworkLabel(internalNetwork)
 
 		result = append(result, SimplifiedTokenBalance{
 			Address:      token.Address,
-			Network:      token.Network,
+			Network:      internalNetwork, // Return Internal Network ID, not Alchemy format
 			NetworkLabel: networkLabel,
 			TokenAddress: token.TokenAddress,
 			TokenSymbol:  token.TokenMetadata.Symbol,
@@ -241,21 +236,10 @@ func formatTokenBalance(rawBalance string, decimals int) string {
 	return fmt.Sprintf("%s.%s", quotient.String(), remainderStr)
 }
 
-// getNetworkLabel converts Alchemy network identifier to human-readable label
+// getNetworkLabel converts Internal Network ID to human-readable label
+// Delegates to adapter.GetNetworkLabel() for centralized label management
 func getNetworkLabel(network string) string {
-	labels := map[string]string{
-		NetworkEthMainnet:      "Ethereum",
-		NetworkPolygonMainnet:  "Polygon",
-		NetworkArbitrumMainnet: "Arbitrum",
-		NetworkOptimismMainnet: "Optimism",
-		NetworkBaseMainnet:     "Base",
-		NetworkBnbMainnet:      "BNB Chain",
-	}
-
-	if label, ok := labels[network]; ok {
-		return label
-	}
-	return network
+	return adapter.GetNetworkLabel(network)
 }
 
 // AssetTransfer represents a single transfer from Alchemy getAssetTransfers API
