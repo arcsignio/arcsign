@@ -1,7 +1,9 @@
 {
   "name": "CoinGecko",
   "logoURI": "https://static.coingecko.com/gecko-new.svg",
-  "keywords": ["defi"],
+  "keywords": [
+    "defi"
+  ],
   "timestamp": "2025-12-14T09:03:26.807+00:00",
   "tokens": [
     {
@@ -8322,7 +8324,7 @@
     {
       "chainId": 1,
       "address": "0xca468554e5c0423ee858fe3942c9568c51fcaa79",
-      "name": "Hims \u0026 Hers Health (Ondo Tokenized Stock)",
+      "name": "Hims & Hers Health (Ondo Tokenized Stock)",
       "symbol": "HIMSON",
       "decimals": 18,
       "logoURI": "https://assets.coingecko.com/coins/images/68553/thumb/himson_160x160.png?1756105686"
@@ -13152,14 +13154,6 @@
     },
     {
       "chainId": 1,
-      "address": "0x5e21d1ee5cf0077b314c381720273ae82378d613",
-      "name": "The Infinite Garden",
-      "symbol": "ETH",
-      "decimals": 18,
-      "logoURI": "https://assets.coingecko.com/coins/images/34540/thumb/film.jpg?1705338132"
-    },
-    {
-      "chainId": 1,
       "address": "0xde5d2530a877871f6f0fc240b9fce117246dadae",
       "name": "Juice",
       "symbol": "$JUICE",
@@ -13329,7 +13323,7 @@
     {
       "chainId": 1,
       "address": "0xbc843b147db4c7e00721d76037b8b92e13afe13f",
-      "name": "S\u0026P Global (Ondo Tokenized Stock)",
+      "name": "S&P Global (Ondo Tokenized Stock)",
       "symbol": "SPGION",
       "decimals": 18,
       "logoURI": "https://assets.coingecko.com/coins/images/68596/thumb/spgion_160x160.png?1756129901"
@@ -14616,7 +14610,7 @@
     {
       "chainId": 1,
       "address": "0xfd50fc4e3686a8da814c5c3d6121d8ab98a537f0",
-      "name": "iShares Core S\u0026P MidCap ETF (Ondo Tokenized ETF)",
+      "name": "iShares Core S&P MidCap ETF (Ondo Tokenized ETF)",
       "symbol": "IJHON",
       "decimals": 18,
       "logoURI": "https://assets.coingecko.com/coins/images/68611/thumb/ijhon_160x160.png?1756130078"
@@ -22847,7 +22841,7 @@
     {
       "chainId": 1,
       "address": "0x1e2c4fb7ede391d116e6b41cd0608260e8801d59",
-      "name": "Backed CSPX Core S\u0026P 500",
+      "name": "Backed CSPX Core S&P 500",
       "symbol": "BCSPX",
       "decimals": 18,
       "logoURI": "https://assets.coingecko.com/coins/images/31891/thumb/bCSPX_200p.png?1740041074"
@@ -24415,7 +24409,7 @@
     {
       "chainId": 1,
       "address": "0x4f33acf823e6eeb697180d553ce0c710124c8d59",
-      "name": "Spiko Digital Assets Cash \u0026 Carry Fund",
+      "name": "Spiko Digital Assets Cash & Carry Fund",
       "symbol": "SPKCC",
       "decimals": 5,
       "logoURI": "https://assets.coingecko.com/coins/images/71054/thumb/Fund_C_C-_Dollar.png?1765460346"
@@ -26207,7 +26201,7 @@
     {
       "chainId": 1,
       "address": "0x0692481c369e2bdc728a69ae31b848343a4567be",
-      "name": "iShares Core S\u0026P Total US Stock Market ETF (Ondo Tokenized E",
+      "name": "iShares Core S&P Total US Stock Market ETF (Ondo Tokenized E",
       "symbol": "ITOTON",
       "decimals": 18,
       "logoURI": "https://assets.coingecko.com/coins/images/68543/thumb/itoton_160x160.png?1756105177"
@@ -26215,7 +26209,7 @@
     {
       "chainId": 1,
       "address": "0x62ca254a363dc3c748e7e955c20447ab5bf06ff7",
-      "name": "iShares Core S\u0026P 500 ETF (Ondo Tokenized ETF)",
+      "name": "iShares Core S&P 500 ETF (Ondo Tokenized ETF)",
       "symbol": "IVVON",
       "decimals": 18,
       "logoURI": "https://assets.coingecko.com/coins/images/68650/thumb/ivvon_160x160.png?1756156270"
@@ -28999,7 +28993,7 @@
     {
       "chainId": 1,
       "address": "0x75639ae3a05079873d7189dcbdbc455898cae904",
-      "name": "AT\u0026T xStock",
+      "name": "AT&T xStock",
       "symbol": "TX",
       "decimals": 18,
       "logoURI": "https://assets.coingecko.com/coins/images/69659/thumb/Ticker_Tx__Company_Name_AT_T__size_200x200.png?1759233845"
@@ -29031,7 +29025,7 @@
     {
       "chainId": 1,
       "address": "0xd3c5af6b2f0f754b2141f368cfc5ea99c3594d3a",
-      "name": "S\u0026P Global xStock",
+      "name": "S&P Global xStock",
       "symbol": "SPGIX",
       "decimals": 18,
       "logoURI": "https://assets.coingecko.com/coins/images/69661/thumb/Ticker_SPGIx__Company_Name_S_P_Global__size_200x200.png?1759233847"
@@ -29071,7 +29065,7 @@
     {
       "chainId": 1,
       "address": "0xaa28cb97d7f7e172f54dee950743886d2d65447d",
-      "name": "S\u0026P Small Cap xStock",
+      "name": "S&P Small Cap xStock",
       "symbol": "IJRX",
       "decimals": 18,
       "logoURI": "https://assets.coingecko.com/coins/images/69664/thumb/Ticker_IJRx__Company_Name_S_P_Small_Cap__size_200x200.png?1759233851"
@@ -29575,7 +29569,7 @@
     {
       "chainId": 1,
       "address": "0xfedc5f4a6c38211c1338aa411018dfaf26612c08",
-      "name": "SPDR S\u0026P 500 ETF (Ondo Tokenized ETF)",
+      "name": "SPDR S&P 500 ETF (Ondo Tokenized ETF)",
       "symbol": "SPYON",
       "decimals": 18,
       "logoURI": "https://assets.coingecko.com/coins/images/68655/thumb/spyon_160x160.png?1756156354"
@@ -29711,7 +29705,7 @@
     {
       "chainId": 1,
       "address": "0x339ce23a355ed6d513dd3e1462975c4ecd86823a",
-      "name": "Procter \u0026 Gamble (Ondo Tokenized Stock)",
+      "name": "Procter & Gamble (Ondo Tokenized Stock)",
       "symbol": "PGON",
       "decimals": 18,
       "logoURI": "https://assets.coingecko.com/coins/images/68593/thumb/pgon_160x160.png?1756129875"
@@ -38679,7 +38673,7 @@
     {
       "chainId": 1,
       "address": "0xdb0482cfad4789798623e64b15eeba01b16e917c",
-      "name": "Johnson \u0026 Johnson xStock",
+      "name": "Johnson & Johnson xStock",
       "symbol": "JNJX",
       "decimals": 18,
       "logoURI": "https://assets.coingecko.com/coins/images/55620/thumb/Ticker_JNJ__Company_Name_johnson-johnson__size_200x200_2x.png?1746861691"
@@ -38759,7 +38753,7 @@
     {
       "chainId": 1,
       "address": "0xa90424d5d3e770e8644103ab503ed775dd1318fd",
-      "name": "Procter \u0026 Gamble xStock",
+      "name": "Procter & Gamble xStock",
       "symbol": "PGX",
       "decimals": 18,
       "logoURI": "https://assets.coingecko.com/coins/images/55636/thumb/Ticker_PG__Company_Name_Proctor___Gamble__size_200x200_2x.png?1746863267"
@@ -42765,5 +42759,9 @@
       "logoURI": "https://assets.coingecko.com/coins/images/12232/thumb/logo.png?1752656446"
     }
   ],
-  "version": { "major": 1251, "minor": 0, "patch": 0 }
+  "version": {
+    "major": 1251,
+    "minor": 0,
+    "patch": 0
+  }
 }

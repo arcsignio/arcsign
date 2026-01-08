@@ -142,6 +142,55 @@ class TokenListCache {
 const tokenListCache = new TokenListCache();
 
 /**
+ * Reserved native token symbols that should only appear with zero address
+ * Tokens with these symbols but non-zero addresses are likely scam tokens
+ */
+const NATIVE_TOKEN_SYMBOLS = new Set([
+  'ETH',   // Ethereum
+  'BTC',   // Bitcoin
+  'BNB',   // BNB Chain
+  'MATIC', // Polygon
+  'AVAX',  // Avalanche
+  'SOL',   // Solana
+  'TRX',   // Tron
+  'FTM',   // Fantom
+  'ONE',   // Harmony
+  'KLAY',  // Klaytn
+]);
+
+/**
+ * Check if an address is a native token address (zero address or empty)
+ */
+function isNativeAddress(address: string): boolean {
+  return (
+    !address ||
+    address === '0x0000000000000000000000000000000000000000' ||
+    address === '0x0' ||
+    address === ''
+  );
+}
+
+/**
+ * Filter out suspicious tokens that use native token symbols with non-zero addresses
+ * These are typically scam tokens trying to impersonate native tokens
+ */
+function filterSuspiciousTokens(tokens: TokenInfo[]): TokenInfo[] {
+  return tokens.filter((token) => {
+    const upperSymbol = token.symbol.toUpperCase();
+
+    // If it uses a native token symbol but has a non-zero address, filter it out
+    if (NATIVE_TOKEN_SYMBOLS.has(upperSymbol) && !isNativeAddress(token.address)) {
+      console.warn(
+        `⚠️ Filtered suspicious token: ${token.name} (${token.symbol}) at ${token.address}`
+      );
+      return false;
+    }
+
+    return true;
+  });
+}
+
+/**
  * Get all tokens for a specific chain
  */
 export async function getTokensForChain(
@@ -150,7 +199,10 @@ export async function getTokensForChain(
   const tokenList = await tokenListCache.getTokenList(chain);
   const config = CHAIN_CONFIG[chain];
 
-  return tokenList.tokens.map((token) => ({
+  // Filter out suspicious tokens before processing
+  const filteredTokens = filterSuspiciousTokens(tokenList.tokens);
+
+  return filteredTokens.map((token) => ({
     address: token.address,
     symbol: token.symbol,
     name: token.name,
