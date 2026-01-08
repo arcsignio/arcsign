@@ -40,6 +40,64 @@ type BSCTraceClient struct {
 	endpoint   string
 }
 
+// ================================================================================
+// NODEREAL/BSCTRACE NETWORK ADAPTER
+// Converts Internal Network IDs to NodeReal-specific format
+// Currently BSCTrace only supports BSC mainnet, so adapter is simple
+// ================================================================================
+
+// ToNodeRealNetwork converts Internal Network ID to NodeReal's format
+// Currently only BSC mainnet is supported
+func ToNodeRealNetwork(internalNetwork string) string {
+	switch internalNetwork {
+	case NetworkBnbMainnet: // "bnb-mainnet"
+		return "bsc-mainnet" // NodeReal uses "bsc-mainnet"
+	default:
+		return internalNetwork
+	}
+}
+
+// FromNodeRealNetwork converts NodeReal's format back to Internal Network ID
+func FromNodeRealNetwork(nodeRealNetwork string) string {
+	switch nodeRealNetwork {
+	case "bsc-mainnet":
+		return NetworkBnbMainnet // "bnb-mainnet"
+	default:
+		return nodeRealNetwork
+	}
+}
+
+// GetNodeRealRPCEndpoint returns the RPC endpoint for a given Internal Network ID
+func GetNodeRealRPCEndpoint(internalNetwork string, apiKey string) string {
+	key := apiKey
+	if key == "" {
+		key = BSCTracePublicKey
+	}
+
+	switch internalNetwork {
+	case NetworkBnbMainnet:
+		return fmt.Sprintf("%s/%s", BSCTraceBaseURL, key)
+	default:
+		return ""
+	}
+}
+
+// GetNodeRealSupportedNetworks returns all networks supported by NodeReal/BSCTrace
+func GetNodeRealSupportedNetworks() []string {
+	return []string{NetworkBnbMainnet}
+}
+
+// IsNodeRealNetwork checks if a network is supported by NodeReal/BSCTrace
+func IsNodeRealNetwork(network string) bool {
+	normalized := NormalizeToInternalNetwork(network)
+	for _, n := range GetNodeRealSupportedNetworks() {
+		if n == normalized {
+			return true
+		}
+	}
+	return false
+}
+
 // NewBSCTraceClient creates a new BSCTrace API client
 func NewBSCTraceClient(apiKey string) *BSCTraceClient {
 	key := apiKey
