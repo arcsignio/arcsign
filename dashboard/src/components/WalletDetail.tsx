@@ -22,7 +22,7 @@ import type { ChainKey } from "@/services/tokenList";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { SendTransaction, type SendableToken } from "@/components/SendTransaction";
 import SwapTransaction from "@/components/SwapTransaction";
-import { getChainIconUrl, getChainFallbackIcon, isChainSupported, CHAIN_CATEGORIES } from "@/utils/chainIcons";
+import { getChainIconUrl, getChainFallbackIcon, isChainSupported, isChainEnabled, CHAIN_CATEGORIES } from "@/utils/chainIcons";
 import ReceiveAddressModal from "@/components/ReceiveAddressModal";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
@@ -2037,7 +2037,7 @@ export function WalletDetail({
                   {/* Other Chains Section */}
                   {(() => {
                     const unsupportedAddrs = walletAddresses.filter(
-                      (addr) => !addr.is_testnet && !isChainSupported(addr.symbol)
+                      (addr) => !addr.is_testnet && !isChainSupported(addr.symbol) && isChainEnabled(addr.symbol)
                     );
                     if (unsupportedAddrs.length === 0) return null;
                     return (
