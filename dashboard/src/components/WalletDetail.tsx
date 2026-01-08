@@ -22,6 +22,8 @@ import type { ChainKey } from "@/services/tokenList";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { SendTransaction, type SendableToken } from "@/components/SendTransaction";
 import SwapTransaction from "@/components/SwapTransaction";
+import { getChainIconUrl, getChainFallbackIcon, isChainSupported, CHAIN_CATEGORIES } from "@/utils/chainIcons";
+import ReceiveAddressModal from "@/components/ReceiveAddressModal";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
 
@@ -82,6 +84,10 @@ export function WalletDetail({
   // Address List modal state (for Copy Address feature)
   const [showAddressList, setShowAddressList] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+  // Receive modal state
+  const [receiveAddress, setReceiveAddress] = useState<Address | null>(null);
+  // Chain icon error state
+  const [iconErrors, setIconErrors] = useState<Set<string>>(new Set());
 
   // Send Transaction state
   const [showSendTransaction, setShowSendTransaction] = useState(false);
@@ -1740,7 +1746,7 @@ export function WalletDetail({
         </div>
       )}
 
-      {/* Address List Modal */}
+      {/* Address List Modal with Blockchain Logos and Categorization */}
       {showAddressList && (
         <div
           style={{
@@ -1762,8 +1768,8 @@ export function WalletDetail({
               background: "#ffffff",
               borderRadius: "16px",
               width: "90%",
-              maxWidth: "600px",
-              maxHeight: "80vh",
+              maxWidth: "650px",
+              maxHeight: "85vh",
               overflow: "hidden",
               boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
             }}
@@ -1797,7 +1803,7 @@ export function WalletDetail({
                     color: "#64748b",
                   }}
                 >
-                  Click on an address to copy it
+                  {wallet.name} • {walletAddresses.filter(a => !a.is_testnet).length} addresses
                 </p>
               </div>
               <button
@@ -1815,11 +1821,10 @@ export function WalletDetail({
               </button>
             </div>
 
-            {/* Address List */}
+            {/* Address List with Categories */}
             <div
               style={{
-                padding: "1rem",
-                maxHeight: "60vh",
+                maxHeight: "70vh",
                 overflowY: "auto",
               }}
             >
@@ -1834,144 +1839,371 @@ export function WalletDetail({
                   <p>No addresses loaded. Please unlock the wallet first.</p>
                 </div>
               ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "0.5rem",
-                  }}
-                >
-                  {walletAddresses
-                    .filter((addr) => !addr.is_testnet)
-                    .map((addr) => (
-                      <button
-                        key={`${addr.symbol}-${addr.address}`}
-                        onClick={() => handleCopyAddress(addr.address)}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "1rem",
-                          padding: "1rem",
-                          background:
-                            copiedAddress === addr.address
-                              ? "#dcfce7"
-                              : "#f8fafc",
-                          border:
-                            copiedAddress === addr.address
-                              ? "1px solid #22c55e"
-                              : "1px solid #e2e8f0",
-                          borderRadius: "12px",
-                          cursor: "pointer",
-                          transition: "all 0.2s",
-                          textAlign: "left",
-                        }}
-                        onMouseEnter={(e) => {
-                          if (copiedAddress !== addr.address) {
-                            e.currentTarget.style.background = "#f1f5f9";
-                            e.currentTarget.style.borderColor = "#cbd5e1";
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (copiedAddress !== addr.address) {
-                            e.currentTarget.style.background = "#f8fafc";
-                            e.currentTarget.style.borderColor = "#e2e8f0";
-                          }
-                        }}
-                      >
-                        {/* Chain Icon */}
+                <>
+                  {/* Supported Chains Section */}
+                  {(() => {
+                    const supportedAddrs = walletAddresses.filter(
+                      (addr) => !addr.is_testnet && isChainSupported(addr.symbol)
+                    );
+                    if (supportedAddrs.length === 0) return null;
+                    return (
+                      <div>
                         <div
                           style={{
-                            width: "40px",
-                            height: "40px",
-                            borderRadius: "50%",
-                            background:
-                              "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                            padding: "0.75rem 1.5rem",
+                            background: "#f0fdf4",
+                            borderBottom: "1px solid #bbf7d0",
                             display: "flex",
                             alignItems: "center",
-                            justifyContent: "center",
-                            color: "white",
-                            fontWeight: "600",
-                            fontSize: "0.875rem",
-                            flexShrink: 0,
+                            gap: "0.5rem",
                           }}
                         >
-                          {addr.symbol.slice(0, 3)}
-                        </div>
-
-                        {/* Chain Info */}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
+                          <span style={{ color: "#16a34a" }}>✓</span>
+                          <span
                             style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "0.5rem",
-                              marginBottom: "0.25rem",
+                              fontSize: "0.875rem",
+                              fontWeight: "600",
+                              color: "#15803d",
                             }}
                           >
-                            <span
+                            {CHAIN_CATEGORIES.SUPPORTED} ({supportedAddrs.length})
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "0.75rem",
+                              color: "#22c55e",
+                              marginLeft: "0.5rem",
+                            }}
+                          >
+                            Full transaction support
+                          </span>
+                        </div>
+                        <div style={{ padding: "0.5rem" }}>
+                          {supportedAddrs.map((addr) => (
+                            <div
+                              key={`${addr.symbol}-${addr.address}`}
                               style={{
-                                fontSize: "1rem",
-                                fontWeight: "600",
-                                color: "#1e293b",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "1rem",
+                                padding: "0.875rem 1rem",
+                                background:
+                                  copiedAddress === addr.address
+                                    ? "#dcfce7"
+                                    : "transparent",
+                                borderRadius: "12px",
+                                transition: "all 0.2s",
+                              }}
+                              onMouseEnter={(e) => {
+                                if (copiedAddress !== addr.address) {
+                                  e.currentTarget.style.background = "#f1f5f9";
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (copiedAddress !== addr.address) {
+                                  e.currentTarget.style.background = "transparent";
+                                }
                               }}
                             >
-                              {addr.name}
-                            </span>
-                            <span
-                              style={{
-                                fontSize: "0.75rem",
-                                padding: "0.125rem 0.375rem",
-                                borderRadius: "0.25rem",
-                                background: "#e0e7ff",
-                                color: "#4338ca",
-                                fontWeight: "500",
-                              }}
-                            >
-                              {addr.symbol}
-                            </span>
-                          </div>
-                          <div
-                            style={{
-                              fontSize: "0.8125rem",
-                              color: "#64748b",
-                              fontFamily: "monospace",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {addr.address}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: "0.6875rem",
-                              color: "#94a3b8",
-                              marginTop: "0.25rem",
-                            }}
-                          >
-                            {addr.derivation_path}
-                          </div>
-                        </div>
+                              {/* Chain Icon */}
+                              <div
+                                style={{
+                                  width: "40px",
+                                  height: "40px",
+                                  borderRadius: "50%",
+                                  overflow: "hidden",
+                                  flexShrink: 0,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  background: iconErrors.has(addr.symbol) ? getChainFallbackIcon(addr.symbol) : "#f1f5f9",
+                                }}
+                              >
+                                {iconErrors.has(addr.symbol) ? (
+                                  <span style={{ color: "white", fontWeight: "600", fontSize: "0.875rem" }}>
+                                    {addr.symbol.slice(0, 2)}
+                                  </span>
+                                ) : (
+                                  <img
+                                    src={getChainIconUrl(addr.symbol)}
+                                    alt={addr.symbol}
+                                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                    onError={() => {
+                                      setIconErrors(prev => new Set(prev).add(addr.symbol));
+                                    }}
+                                  />
+                                )}
+                              </div>
 
-                        {/* Copy Icon */}
+                              {/* Chain Info */}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "0.5rem",
+                                    marginBottom: "0.25rem",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontSize: "1rem",
+                                      fontWeight: "600",
+                                      color: "#1e293b",
+                                    }}
+                                  >
+                                    {addr.name}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: "0.6875rem",
+                                      padding: "0.125rem 0.375rem",
+                                      borderRadius: "0.25rem",
+                                      background: "#dcfce7",
+                                      color: "#15803d",
+                                      fontWeight: "500",
+                                    }}
+                                  >
+                                    {addr.symbol}
+                                  </span>
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "0.75rem",
+                                    color: "#64748b",
+                                    fontFamily: "monospace",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {addr.address}
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div style={{ display: "flex", gap: "0.5rem" }}>
+                                <button
+                                  onClick={() => handleCopyAddress(addr.address)}
+                                  title="Copy address"
+                                  style={{
+                                    background: copiedAddress === addr.address ? "#dcfce7" : "#f1f5f9",
+                                    border: "none",
+                                    borderRadius: "8px",
+                                    padding: "0.5rem",
+                                    cursor: "pointer",
+                                    color: copiedAddress === addr.address ? "#16a34a" : "#64748b",
+                                    fontSize: "1rem",
+                                    transition: "all 0.2s",
+                                  }}
+                                >
+                                  {copiedAddress === addr.address ? "✓" : "📋"}
+                                </button>
+                                <button
+                                  onClick={() => setReceiveAddress(addr)}
+                                  title="Receive"
+                                  style={{
+                                    background: "#f1f5f9",
+                                    border: "none",
+                                    borderRadius: "8px",
+                                    padding: "0.5rem",
+                                    cursor: "pointer",
+                                    color: "#16a34a",
+                                    fontSize: "1rem",
+                                    transition: "all 0.2s",
+                                  }}
+                                >
+                                  ↓
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Other Chains Section */}
+                  {(() => {
+                    const unsupportedAddrs = walletAddresses.filter(
+                      (addr) => !addr.is_testnet && !isChainSupported(addr.symbol)
+                    );
+                    if (unsupportedAddrs.length === 0) return null;
+                    return (
+                      <div>
                         <div
                           style={{
-                            fontSize: "1.25rem",
-                            color:
-                              copiedAddress === addr.address
-                                ? "#22c55e"
-                                : "#94a3b8",
+                            padding: "0.75rem 1.5rem",
+                            background: "#f8fafc",
+                            borderBottom: "1px solid #e2e8f0",
+                            borderTop: "1px solid #e2e8f0",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
                           }}
                         >
-                          {copiedAddress === addr.address ? "✓" : "📋"}
+                          <span style={{ color: "#64748b" }}>📦</span>
+                          <span
+                            style={{
+                              fontSize: "0.875rem",
+                              fontWeight: "600",
+                              color: "#475569",
+                            }}
+                          >
+                            {CHAIN_CATEGORIES.UNSUPPORTED} ({unsupportedAddrs.length})
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "0.75rem",
+                              color: "#94a3b8",
+                              marginLeft: "0.5rem",
+                            }}
+                          >
+                            Address only
+                          </span>
                         </div>
-                      </button>
-                    ))}
-                </div>
+                        <div style={{ padding: "0.5rem" }}>
+                          {unsupportedAddrs.map((addr) => (
+                            <div
+                              key={`${addr.symbol}-${addr.address}`}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "1rem",
+                                padding: "0.875rem 1rem",
+                                background:
+                                  copiedAddress === addr.address
+                                    ? "#dcfce7"
+                                    : "transparent",
+                                borderRadius: "12px",
+                                transition: "all 0.2s",
+                              }}
+                              onMouseEnter={(e) => {
+                                if (copiedAddress !== addr.address) {
+                                  e.currentTarget.style.background = "#f1f5f9";
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (copiedAddress !== addr.address) {
+                                  e.currentTarget.style.background = "transparent";
+                                }
+                              }}
+                            >
+                              {/* Chain Icon */}
+                              <div
+                                style={{
+                                  width: "40px",
+                                  height: "40px",
+                                  borderRadius: "50%",
+                                  overflow: "hidden",
+                                  flexShrink: 0,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  background: iconErrors.has(addr.symbol) ? getChainFallbackIcon(addr.symbol) : "#f1f5f9",
+                                }}
+                              >
+                                {iconErrors.has(addr.symbol) ? (
+                                  <span style={{ color: "white", fontWeight: "600", fontSize: "0.875rem" }}>
+                                    {addr.symbol.slice(0, 2)}
+                                  </span>
+                                ) : (
+                                  <img
+                                    src={getChainIconUrl(addr.symbol)}
+                                    alt={addr.symbol}
+                                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                    onError={() => {
+                                      setIconErrors(prev => new Set(prev).add(addr.symbol));
+                                    }}
+                                  />
+                                )}
+                              </div>
+
+                              {/* Chain Info */}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "0.5rem",
+                                    marginBottom: "0.25rem",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontSize: "1rem",
+                                      fontWeight: "600",
+                                      color: "#1e293b",
+                                    }}
+                                  >
+                                    {addr.name}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: "0.6875rem",
+                                      padding: "0.125rem 0.375rem",
+                                      borderRadius: "0.25rem",
+                                      background: "#e2e8f0",
+                                      color: "#475569",
+                                      fontWeight: "500",
+                                    }}
+                                  >
+                                    {addr.symbol}
+                                  </span>
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "0.75rem",
+                                    color: "#64748b",
+                                    fontFamily: "monospace",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {addr.address}
+                                </div>
+                              </div>
+
+                              {/* Copy Button Only */}
+                              <button
+                                onClick={() => handleCopyAddress(addr.address)}
+                                title="Copy address"
+                                style={{
+                                  background: copiedAddress === addr.address ? "#dcfce7" : "#f1f5f9",
+                                  border: "none",
+                                  borderRadius: "8px",
+                                  padding: "0.5rem",
+                                  cursor: "pointer",
+                                  color: copiedAddress === addr.address ? "#16a34a" : "#64748b",
+                                  fontSize: "1rem",
+                                  transition: "all 0.2s",
+                                }}
+                              >
+                                {copiedAddress === addr.address ? "✓" : "📋"}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
               )}
             </div>
           </div>
         </div>
+      )}
+
+      {/* Receive Address Modal with QR Code */}
+      {receiveAddress && (
+        <ReceiveAddressModal
+          address={receiveAddress}
+          onClose={() => setReceiveAddress(null)}
+          onCopy={(address, _symbol) => {
+            handleCopyAddress(address);
+          }}
+        />
       )}
     </div>
   );
