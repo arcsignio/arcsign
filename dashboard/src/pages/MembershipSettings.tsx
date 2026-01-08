@@ -561,7 +561,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         <h1>Membership</h1>
         <p className="page-description">
           Your Pro membership is calculated from NFTs across all your BSC addresses.
-          Each NFT adds 5 wallets to your limit.
+          Each NFT adds 3 wallets to your limit.
         </p>
       </header>
 
