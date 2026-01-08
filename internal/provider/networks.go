@@ -1,63 +1,75 @@
 /**
- * Network constants for Alchemy API
+ * Network mapping utilities
  * Feature: Token balance queries across multiple chains
+ *
+ * Architecture:
+ * - ChainToInternalNetwork: Maps chain names (e.g., "Ethereum") to Internal Network IDs
+ * - Internal Network IDs are defined in chains.go (e.g., "arbitrum-mainnet")
+ * - Provider adapters (e.g., ToAlchemyNetwork) convert Internal IDs to provider-specific format
  */
 
 package provider
 
-// Alchemy network identifiers
-const (
-	NetworkEthMainnet      = "eth-mainnet"
-	NetworkPolygonMainnet  = "polygon-mainnet"
-	NetworkArbitrumMainnet = "arb-mainnet"
-	NetworkOptimismMainnet = "opt-mainnet"
-	NetworkBaseMainnet     = "base-mainnet"
-	NetworkBnbMainnet      = "bnb-mainnet"
-	// Testnets (for development)
-	NetworkEthSepolia = "eth-sepolia"
-)
-
 // SupportedNetworks returns all networks supported for token balance queries
+// Returns Internal Network IDs (canonical format)
 func SupportedNetworks() []string {
-	return []string{
-		NetworkEthMainnet,
-		NetworkPolygonMainnet,
-		NetworkArbitrumMainnet,
-		NetworkOptimismMainnet,
-		NetworkBaseMainnet,
-		NetworkBnbMainnet,
-	}
+	return AllMainnetNetworks()
 }
 
-// ChainToAlchemyNetwork maps our internal chain names to Alchemy network identifiers
-var ChainToAlchemyNetwork = map[string]string{
-	"Ethereum":             NetworkEthMainnet,
-	"ethereum":             NetworkEthMainnet,
-	"eth":                  NetworkEthMainnet,
-	"Polygon":              NetworkPolygonMainnet,
-	"polygon":              NetworkPolygonMainnet,
-	"matic":                NetworkPolygonMainnet,
-	"Arbitrum":             NetworkArbitrumMainnet,
-	"arbitrum":             NetworkArbitrumMainnet,
-	"arb":                  NetworkArbitrumMainnet,
-	"Optimism":             NetworkOptimismMainnet,
-	"optimism":             NetworkOptimismMainnet,
-	"opt":                  NetworkOptimismMainnet,
-	"Base":                 NetworkBaseMainnet,
-	"base":                 NetworkBaseMainnet,
-	"BNB":                  NetworkBnbMainnet,
-	"bnb":                  NetworkBnbMainnet,
-	"binance":              NetworkBnbMainnet,
-	"bsc":                  NetworkBnbMainnet,
-	"binance-smart-chain":  NetworkBnbMainnet,
+// ChainToInternalNetwork maps chain names to Internal Network IDs
+// This is used to convert user-friendly names to our canonical Internal format
+// The Internal IDs are then converted to provider-specific format by adapters
+var ChainToInternalNetwork = map[string]string{
+	// Ethereum
+	"Ethereum": NetworkEthMainnet,
+	"ethereum": NetworkEthMainnet,
+	"eth":      NetworkEthMainnet,
+	// Polygon
+	"Polygon": NetworkPolygonMainnet,
+	"polygon": NetworkPolygonMainnet,
+	"matic":   NetworkPolygonMainnet,
+	// Arbitrum - Internal format is "arbitrum-mainnet"
+	"Arbitrum":         NetworkArbitrumMainnet,
+	"arbitrum":         NetworkArbitrumMainnet,
+	"arb":              NetworkArbitrumMainnet,
+	"arbitrum-mainnet": NetworkArbitrumMainnet,
+	"arb-mainnet":      NetworkArbitrumMainnet, // Alchemy format -> Internal
+	// Optimism - Internal format is "optimism-mainnet"
+	"Optimism":         NetworkOptimismMainnet,
+	"optimism":         NetworkOptimismMainnet,
+	"opt":              NetworkOptimismMainnet,
+	"optimism-mainnet": NetworkOptimismMainnet,
+	"opt-mainnet":      NetworkOptimismMainnet, // Alchemy format -> Internal
+	// Base
+	"Base":         NetworkBaseMainnet,
+	"base":         NetworkBaseMainnet,
+	"base-mainnet": NetworkBaseMainnet,
+	// BNB Chain
+	"BNB":                 NetworkBnbMainnet,
+	"bnb":                 NetworkBnbMainnet,
+	"binance":             NetworkBnbMainnet,
+	"bsc":                 NetworkBnbMainnet,
+	"binance-smart-chain": NetworkBnbMainnet,
+	"bnb-mainnet":         NetworkBnbMainnet,
 	// Testnets (for development)
-	"Ethereum Sepolia":     NetworkEthSepolia,
-	"ethereum-sepolia":     NetworkEthSepolia,
-	"sepolia":              NetworkEthSepolia,
+	"Ethereum Sepolia": NetworkEthSepolia,
+	"ethereum-sepolia": NetworkEthSepolia,
+	"sepolia":          NetworkEthSepolia,
+	"eth-sepolia":      NetworkEthSepolia,
+	// Testnet aliases for Alchemy format
+	"arb-sepolia": NetworkArbitrumSepolia,
+	"opt-sepolia": NetworkOptimismSepolia,
 }
 
-// GetAlchemyNetwork converts a chain name to Alchemy network identifier
+// GetAlchemyNetwork converts a chain name to Internal Network ID
+// Deprecated: Use GetInternalNetwork instead, then ToAlchemyNetwork for Alchemy calls
 func GetAlchemyNetwork(chain string) (string, bool) {
-	network, ok := ChainToAlchemyNetwork[chain]
+	network, ok := ChainToInternalNetwork[chain]
+	return network, ok
+}
+
+// GetInternalNetwork converts a chain name to Internal Network ID
+func GetInternalNetwork(chain string) (string, bool) {
+	network, ok := ChainToInternalNetwork[chain]
 	return network, ok
 }

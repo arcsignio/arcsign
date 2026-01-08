@@ -2492,56 +2492,64 @@ func GetAssetTransfers(params *C.char) *C.char {
 	var transfers []provider.AssetTransfer
 	var pageKey string
 
-	// Step 1: Get transfers from Alchemy (supports ETH, Polygon, Arbitrum, Optimism, Base)
-	// Note: Alchemy doesn't support alchemy_getAssetTransfers for BSC
-	alchemyClient := provider.NewAlchemyClient(providerConfig.APIKey)
-	transfers, pageKey, err = alchemyClient.GetAssetTransfers(input.Address, input.Network, maxCount, input.PageKey)
-	if err != nil {
-		// Log error but continue - we might still get BSC data
-		fmt.Printf("Alchemy API error (non-fatal): %v\n", err)
-	}
+	// Determine which provider to use based on network (centralized in chains.go)
+	providerType := provider.GetProviderForNetwork(input.Network)
 
-	// Step 2: If user has BSCTrace API key configured, also fetch BSC history and merge
-	// This allows showing BSC transactions alongside other chains
-	nodeRealAPIKey := ""
-	nodeRealConfig, nodeRealErr := providerStore.Get("global", "nodereal")
-	if nodeRealErr == nil && nodeRealConfig != nil && nodeRealConfig.Enabled && nodeRealConfig.APIKey != "" {
-		nodeRealAPIKey = nodeRealConfig.APIKey
-	} else {
-		// Try bsctrace as alias
-		bscTraceConfig, bscTraceErr := providerStore.Get("global", "bsctrace")
-		if bscTraceErr == nil && bscTraceConfig != nil && bscTraceConfig.Enabled && bscTraceConfig.APIKey != "" {
-			nodeRealAPIKey = bscTraceConfig.APIKey
+	switch providerType {
+	case provider.ProviderNodeReal:
+		// BSC network: Use BSCTrace (NodeReal) provider
+		// Check all possible config keys for nodereal
+		nodeRealAPIKey := ""
+		configKeys := provider.GetProviderConfigKeys(provider.ProviderNodeReal)
+		for _, key := range configKeys {
+			config, configErr := providerStore.Get("global", key)
+			if configErr == nil && config != nil && config.Enabled && config.APIKey != "" {
+				nodeRealAPIKey = config.APIKey
+				break
+			}
 		}
-	}
 
-	// If BSCTrace API key is available, fetch BSC history and merge
-	if nodeRealAPIKey != "" {
+		if nodeRealAPIKey == "" {
+			// No BSCTrace API key configured - return informative message
+			response := NewErrorResponse(ErrInvalidInput,
+				"BSC transaction history requires NodeReal API key. "+
+					"Get a free key at https://dashboard.nodereal.io and configure it in provider settings.")
+			jsonBytes, _ := json.Marshal(response)
+			return C.CString(string(jsonBytes))
+		}
+
+		// Use BSCTrace for BSC network
 		bscTraceClient := provider.NewBSCTraceClient(nodeRealAPIKey)
-		bscTransfers, bscPageKey, bscErr := bscTraceClient.GetAssetTransfersBSC(input.Address, maxCount, input.PageKey)
-		if bscErr != nil {
-			fmt.Printf("BSCTrace API error (non-fatal): %v\n", bscErr)
-		} else if len(bscTransfers) > 0 {
-			// Merge BSC transfers with Alchemy transfers
-			transfers = append(transfers, bscTransfers...)
-			// Sort combined results by block number (descending)
-			provider.SortTransfersByBlock(transfers)
-			// Limit to maxCount
-			if len(transfers) > maxCount {
-				transfers = transfers[:maxCount]
-			}
-			// Use BSC page key if Alchemy has none
-			if pageKey == "" && bscPageKey != "" {
-				pageKey = bscPageKey
-			}
+		transfers, pageKey, err = bscTraceClient.GetAssetTransfersBSC(input.Address, maxCount, input.PageKey)
+		if err != nil {
+			fmt.Printf("BSCTrace API error: %v\n", err)
+			response := NewErrorResponse(ErrStorageError, fmt.Sprintf("BSCTrace API error: %v", err))
+			jsonBytes, _ := json.Marshal(response)
+			return C.CString(string(jsonBytes))
 		}
-	}
 
-	// If no transfers at all and we had errors, return the error
-	if len(transfers) == 0 && err != nil {
-		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("API error: %v", err))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
+	case provider.ProviderAlchemy:
+		// Alchemy networks: ETH, Polygon, Arbitrum, Optimism, Base
+		// Categories are automatically determined based on network (chains.go)
+		alchemyClient := provider.NewAlchemyClient(providerConfig.APIKey)
+		transfers, pageKey, err = alchemyClient.GetAssetTransfers(input.Address, input.Network, maxCount, input.PageKey)
+		if err != nil {
+			fmt.Printf("Alchemy API error: %v\n", err)
+			response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Alchemy API error: %v", err))
+			jsonBytes, _ := json.Marshal(response)
+			return C.CString(string(jsonBytes))
+		}
+
+	default:
+		// Unknown provider - fallback to Alchemy
+		alchemyClient := provider.NewAlchemyClient(providerConfig.APIKey)
+		transfers, pageKey, err = alchemyClient.GetAssetTransfers(input.Address, input.Network, maxCount, input.PageKey)
+		if err != nil {
+			fmt.Printf("Alchemy API error (fallback): %v\n", err)
+			response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Alchemy API error: %v", err))
+			jsonBytes, _ := json.Marshal(response)
+			return C.CString(string(jsonBytes))
+		}
 	}
 
 	output := map[string]interface{}{

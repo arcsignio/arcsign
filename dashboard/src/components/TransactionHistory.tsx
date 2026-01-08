@@ -602,9 +602,14 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           color: #9ca3af;
         }
 
+        .timestamp {
+          flex-shrink: 0;
+        }
+
         .explorer-link {
           color: #3b82f6;
           text-decoration: none;
+          margin-left: auto;
         }
 
         .explorer-link:hover {

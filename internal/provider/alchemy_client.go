@@ -34,11 +34,65 @@ func NewAlchemyClient(apiKey string) *AlchemyClient {
 	}
 }
 
+// ================================================================================
+// ALCHEMY NETWORK ADAPTER
+// Converts Internal Network IDs to Alchemy-specific format
+// ================================================================================
+
+// ToAlchemyNetwork converts Internal Network ID to Alchemy's format
+// Internal: arbitrum-mainnet -> Alchemy: arb-mainnet
+// Internal: optimism-mainnet -> Alchemy: opt-mainnet
+func ToAlchemyNetwork(internalNetwork string) string {
+	switch internalNetwork {
+	case NetworkArbitrumMainnet: // "arbitrum-mainnet"
+		return "arb-mainnet"
+	case NetworkOptimismMainnet: // "optimism-mainnet"
+		return "opt-mainnet"
+	case NetworkArbitrumSepolia: // "arbitrum-sepolia"
+		return "arb-sepolia"
+	case NetworkOptimismSepolia: // "optimism-sepolia"
+		return "opt-sepolia"
+	default:
+		return internalNetwork
+	}
+}
+
+// FromAlchemyNetwork converts Alchemy's format back to Internal Network ID
+// Alchemy: arb-mainnet -> Internal: arbitrum-mainnet
+// Alchemy: opt-mainnet -> Internal: optimism-mainnet
+func FromAlchemyNetwork(alchemyNetwork string) string {
+	switch alchemyNetwork {
+	case "arb-mainnet":
+		return NetworkArbitrumMainnet
+	case "opt-mainnet":
+		return NetworkOptimismMainnet
+	case "arb-sepolia":
+		return NetworkArbitrumSepolia
+	case "opt-sepolia":
+		return NetworkOptimismSepolia
+	default:
+		return alchemyNetwork
+	}
+}
+
 // GetTokenBalancesByAddress queries token balances for multiple addresses across networks
 func (c *AlchemyClient) GetTokenBalancesByAddress(addresses []AlchemyAddressWithNetworks) (*AlchemyTokenBalanceResponse, error) {
-	// Build request
+	// Convert Internal Network IDs to Alchemy format before sending request
+	alchemyAddresses := make([]AlchemyAddressWithNetworks, len(addresses))
+	for i, addr := range addresses {
+		alchemyNetworks := make([]string, len(addr.Networks))
+		for j, network := range addr.Networks {
+			alchemyNetworks[j] = ToAlchemyNetwork(network)
+		}
+		alchemyAddresses[i] = AlchemyAddressWithNetworks{
+			Address:  addr.Address,
+			Networks: alchemyNetworks,
+		}
+	}
+
+	// Build request with Alchemy-format network IDs
 	requestBody := AlchemyTokenBalanceRequest{
-		Addresses: addresses,
+		Addresses: alchemyAddresses,
 	}
 
 	jsonData, err := json.Marshal(requestBody)
@@ -267,42 +321,55 @@ type alchemyRPCError struct {
 	Message string `json:"message"`
 }
 
-// networkToRPCEndpoint maps network identifiers to Alchemy RPC endpoints
+// networkToRPCEndpoint maps Alchemy network identifiers to RPC endpoints
+// IMPORTANT: Keys must match Alchemy's network ID format exactly
+// Alchemy uses: arb-mainnet (not arbitrum-mainnet), opt-mainnet (not optimism-mainnet)
 var networkToRPCEndpoint = map[string]string{
-	"eth-mainnet":      "https://eth-mainnet.g.alchemy.com/v2",
-	"polygon-mainnet":  "https://polygon-mainnet.g.alchemy.com/v2",
-	"arbitrum-mainnet": "https://arb-mainnet.g.alchemy.com/v2",
-	"optimism-mainnet": "https://opt-mainnet.g.alchemy.com/v2",
-	"base-mainnet":     "https://base-mainnet.g.alchemy.com/v2",
-	"bnb-mainnet":      "https://bnb-mainnet.g.alchemy.com/v2",
+	// Mainnets (using Alchemy's exact network IDs)
+	"eth-mainnet":     "https://eth-mainnet.g.alchemy.com/v2",
+	"polygon-mainnet": "https://polygon-mainnet.g.alchemy.com/v2",
+	"arb-mainnet":     "https://arb-mainnet.g.alchemy.com/v2",  // Arbitrum
+	"opt-mainnet":     "https://opt-mainnet.g.alchemy.com/v2",  // Optimism
+	"base-mainnet":    "https://base-mainnet.g.alchemy.com/v2",
+	"bnb-mainnet":     "https://bnb-mainnet.g.alchemy.com/v2",
 	// Testnets
-	"eth-sepolia":      "https://eth-sepolia.g.alchemy.com/v2",
-	"polygon-amoy":     "https://polygon-amoy.g.alchemy.com/v2",
-	"arbitrum-sepolia": "https://arb-sepolia.g.alchemy.com/v2",
-	"optimism-sepolia": "https://opt-sepolia.g.alchemy.com/v2",
-	"base-sepolia":     "https://base-sepolia.g.alchemy.com/v2",
+	"eth-sepolia":  "https://eth-sepolia.g.alchemy.com/v2",
+	"polygon-amoy": "https://polygon-amoy.g.alchemy.com/v2",
+	"arb-sepolia":  "https://arb-sepolia.g.alchemy.com/v2", // Arbitrum Sepolia
+	"opt-sepolia":  "https://opt-sepolia.g.alchemy.com/v2", // Optimism Sepolia
+	"base-sepolia": "https://base-sepolia.g.alchemy.com/v2",
+}
+
+// getCategoriesForNetwork returns the appropriate transfer categories based on network.
+// Delegates to the centralized GetTransferCategoriesForNetwork in chains.go
+// See: https://docs.alchemy.com/reference/alchemy-getassettransfers
+func getCategoriesForNetwork(network string) []string {
+	return GetTransferCategoriesForNetwork(network)
 }
 
 // GetAssetTransfers queries transaction history for an address using Alchemy API
-// Supports Ethereum, Polygon, Arbitrum, Optimism, Base, and BSC (via BSCTrace/NodeReal)
+// Supports Ethereum, Polygon, Arbitrum, Optimism, Base
+// Note: BSC requires NodeReal/BSCTrace provider - handled in exports.go
 func (c *AlchemyClient) GetAssetTransfers(address, network string, maxCount int, pageKey string) ([]AssetTransfer, string, error) {
 	// Special handling for BSC - use BSCTrace (NodeReal) API instead of Alchemy
-	// Note: BscScan API was deprecated on 2025/12/18, replaced by BSCTrace
 	if network == "bnb-mainnet" || network == NetworkBnbMainnet {
-		bscTraceClient := NewBSCTraceClient("")
-		return bscTraceClient.GetAssetTransfersBSC(address, maxCount, pageKey)
+		return nil, "", fmt.Errorf("BSC network requires BSCTrace provider - use GetAssetTransfersBSC directly")
 	}
 
-	// Get RPC endpoint for network
-	baseURL, ok := networkToRPCEndpoint[network]
+	// Convert Internal Network ID to Alchemy format
+	alchemyNetwork := ToAlchemyNetwork(network)
+
+	// Get RPC endpoint for Alchemy network
+	baseURL, ok := networkToRPCEndpoint[alchemyNetwork]
 	if !ok {
-		return nil, "", fmt.Errorf("unsupported network: %s", network)
+		return nil, "", fmt.Errorf("unsupported network: %s (alchemy: %s)", network, alchemyNetwork)
 	}
 
 	url := fmt.Sprintf("%s/%s", baseURL, c.apiKey)
 
 	// Build params for alchemy_getAssetTransfers
 	// We query both incoming (toAddress) and outgoing (fromAddress) transfers
+	// Use network-specific categories to avoid "internal not supported" errors
 	params := map[string]interface{}{
 		"fromBlock":        "0x0",
 		"toBlock":          "latest",
@@ -310,7 +377,7 @@ func (c *AlchemyClient) GetAssetTransfers(address, network string, maxCount int,
 		"excludeZeroValue": true,
 		"maxCount":         fmt.Sprintf("0x%x", maxCount),
 		"order":            "desc",
-		"category":         []string{"external", "internal", "erc20", "erc721", "erc1155"},
+		"category":         getCategoriesForNetwork(network),
 	}
 
 	if pageKey != "" {
