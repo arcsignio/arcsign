@@ -53,6 +53,29 @@ const ChainIcon: React.FC<{ symbol: string; size?: number }> = ({ symbol, size =
 /**
  * ReceiveAddressModal - Modal for displaying receive address with QR code
  */
+/**
+ * EVM-compatible chains that can receive any token on that network
+ */
+const EVM_CHAINS = new Set(['ETH', 'ARB', 'OP', 'BASE', 'MATIC', 'BNB', 'AVAX', 'ZKS', 'LINEA']);
+
+/**
+ * Get the network display name for a chain symbol
+ */
+const getNetworkDisplayName = (symbol: string): string => {
+  const networkNames: Record<string, string> = {
+    'ETH': 'Ethereum',
+    'ARB': 'Arbitrum',
+    'OP': 'Optimism',
+    'BASE': 'Base',
+    'MATIC': 'Polygon',
+    'BNB': 'BNB Chain',
+    'AVAX': 'Avalanche',
+    'ZKS': 'zkSync',
+    'LINEA': 'Linea',
+  };
+  return networkNames[symbol.toUpperCase()] || symbol;
+};
+
 export const ReceiveAddressModal: React.FC<ReceiveAddressModalProps> = ({
   address,
   onClose,
@@ -60,6 +83,9 @@ export const ReceiveAddressModal: React.FC<ReceiveAddressModalProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+  // Check if this is an EVM-compatible chain
+  const isEVMChain = EVM_CHAINS.has(address.symbol.toUpperCase());
 
   // Generate QR code using a simple API
   useEffect(() => {
@@ -193,14 +219,26 @@ export const ReceiveAddressModal: React.FC<ReceiveAddressModalProps> = ({
           </button>
         </div>
 
-        {/* Warning */}
-        <div className="px-6 py-3 bg-yellow-50 border-t border-yellow-100">
-          <p className="text-xs text-yellow-800 flex items-start gap-2">
+        {/* Warning - Different message for EVM vs non-EVM chains */}
+        <div className={`px-6 py-3 border-t ${isEVMChain ? 'bg-blue-50 border-blue-100' : 'bg-yellow-50 border-yellow-100'}`}>
+          <p className={`text-xs flex items-start gap-2 ${isEVMChain ? 'text-blue-800' : 'text-yellow-800'}`}>
             <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              {isEVMChain ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              )}
             </svg>
             <span>
-              Only send <strong>{address.symbol}</strong> to this address. Sending other cryptocurrencies may result in permanent loss.
+              {isEVMChain ? (
+                <>
+                  This address can receive <strong>{address.symbol}</strong> and all tokens on the <strong>{getNetworkDisplayName(address.symbol)}</strong> network (ERC-20, NFTs, etc.).
+                </>
+              ) : (
+                <>
+                  Only send <strong>{address.symbol}</strong> to this address. Sending other cryptocurrencies may result in permanent loss.
+                </>
+              )}
             </span>
           </p>
         </div>
