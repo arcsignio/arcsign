@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import tauriApi, { type AppError, type AppConfig } from '@/services/tauri-api';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 
@@ -17,6 +18,7 @@ interface AppUnlockProps {
 }
 
 export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
+  const { t } = useTranslation();
   const [isFirstTime, setIsFirstTime] = useState<boolean | null>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -49,12 +51,12 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
   const handleInitialize = async () => {
     // Validate passwords match
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('appUnlock.passwordsNotMatch'));
       return;
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError(t('appUnlock.passwordTooShort'));
       return;
     }
 
@@ -77,7 +79,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
 
   const handleUnlock = async () => {
     if (!password) {
-      setError('Please enter your password');
+      setError(t('appUnlock.enterPassword'));
       return;
     }
 
@@ -100,7 +102,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
     return (
       <div className="app-unlock">
         <div className="unlock-container">
-          <LoadingSpinner size="lg" message="Checking setup status..." />
+          <LoadingSpinner size="lg" message={t('appUnlock.checkingStatus')} />
         </div>
       </div>
     );
@@ -110,25 +112,24 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
     <div className="app-unlock">
       <div className="unlock-container">
         <div className="unlock-header">
-          <h1>🔐 ArcSign</h1>
-          <p className="subtitle">Secure Cold Wallet Management</p>
+          <h1>🔐 {t('appUnlock.title')}</h1>
+          <p className="subtitle">{t('appUnlock.subtitle')}</p>
         </div>
 
         {isFirstTime ? (
           // First-time setup
           <div className="setup-form">
-            <h2>Welcome to ArcSign</h2>
+            <h2>{t('appUnlock.welcomeTitle')}</h2>
             <p className="description">
-              Create a master password to protect your wallet configuration and API settings.
-              This password will be required each time you start the application.
+              {t('appUnlock.welcomeDescription')}
             </p>
 
             <div className="security-note">
-              <strong>Security Note:</strong>
+              <strong>{t('appUnlock.securityNote')}</strong>
               <ul>
-                <li>This password encrypts your app configuration (app_config.enc)</li>
-                <li>Your wallet mnemonics are separately encrypted with individual wallet passwords</li>
-                <li>All data is stored on your USB drive using AES-256-GCM encryption</li>
+                <li>{t('appUnlock.securityNote1')}</li>
+                <li>{t('appUnlock.securityNote2')}</li>
+                <li>{t('appUnlock.securityNote3')}</li>
               </ul>
             </div>
 
@@ -137,20 +138,20 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
             )}
 
             <div className="form-group">
-              <label htmlFor="password">Master Password</label>
+              <label htmlFor="password">{t('appUnlock.masterPassword')}</label>
               <input
                 type="password"
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter master password (min 8 characters)"
+                placeholder={t('appUnlock.enterMasterPassword')}
                 disabled={loading}
                 autoFocus
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="confirm-password">Confirm Password</label>
+              <label htmlFor="confirm-password">{t('appUnlock.confirmPassword')}</label>
               <input
                 type="password"
                 id="confirm-password"
@@ -161,7 +162,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
                     handleInitialize();
                   }
                 }}
-                placeholder="Re-enter password"
+                placeholder={t('appUnlock.reenterPassword')}
                 disabled={loading}
               />
             </div>
@@ -171,15 +172,15 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
               className="btn-primary btn-large"
               disabled={loading || !password || !confirmPassword}
             >
-              {loading ? 'Initializing...' : 'Create Master Password'}
+              {loading ? t('appUnlock.initializing') : t('appUnlock.createMasterPassword')}
             </button>
           </div>
         ) : (
           // Unlock existing app
           <div className="unlock-form">
-            <h2>Unlock ArcSign</h2>
+            <h2>{t('appUnlock.unlockTitle')}</h2>
             <p className="description">
-              Enter your master password to access your wallets and settings.
+              {t('appUnlock.unlockDescription')}
             </p>
 
             {error && (
@@ -187,7 +188,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
             )}
 
             <div className="form-group">
-              <label htmlFor="unlock-password">Master Password</label>
+              <label htmlFor="unlock-password">{t('appUnlock.masterPassword')}</label>
               <input
                 type="password"
                 id="unlock-password"
@@ -198,7 +199,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
                     handleUnlock();
                   }
                 }}
-                placeholder="Enter your master password"
+                placeholder={t('appUnlock.enterYourPassword')}
                 disabled={loading}
                 autoFocus
               />
@@ -209,13 +210,13 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
               className="btn-primary btn-large"
               disabled={loading || !password}
             >
-              {loading ? 'Unlocking...' : 'Unlock'}
+              {loading ? t('appUnlock.unlocking') : t('appUnlock.unlock')}
             </button>
           </div>
         )}
 
         <div className="usb-info">
-          <small>USB Drive: {usbPath}</small>
+          <small>{t('appUnlock.usbDrive')}: {usbPath}</small>
         </div>
       </div>
 
