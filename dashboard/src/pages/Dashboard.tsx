@@ -606,7 +606,7 @@ export function Dashboard() {
             disabled={!walletLimitInfo.canCreate}
             title={!walletLimitInfo.canCreate ? `${t('wallet.walletLimitReached')} (${walletLimitInfo.current}/${walletLimitInfo.limit})` : undefined}
           >
-            + {t('wallet.createWallet')} {walletLimitInfo.limit && `(${walletLimitInfo.current}/${walletLimitInfo.limit})`}
+            + {t('wallet.createWallet')}
           </button>
           <button
             onClick={handleImportWallet}
