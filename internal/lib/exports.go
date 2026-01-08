@@ -3417,12 +3417,33 @@ func GetMembershipStatus(params *C.char) *C.char {
 		})
 	}
 
+	// Count wallets from filesystem (more reliable than appConfig.Wallets)
+	// Wallet directories are stored directly in USB root as UUID folders with wallet.json
+	walletCount := 0
+	if entries, err := os.ReadDir(input.USBPath); err == nil {
+		for _, entry := range entries {
+			// Skip non-directories and hidden directories
+			if !entry.IsDir() || len(entry.Name()) == 0 || entry.Name()[0] == '.' {
+				continue
+			}
+			// Check if it's a wallet directory (has wallet.json)
+			walletJsonPath := filepath.Join(input.USBPath, entry.Name(), "wallet.json")
+			if _, err := os.Stat(walletJsonPath); err == nil {
+				walletCount++
+			}
+		}
+	}
+
+	// Calculate wallet limit and canCreate based on actual count
+	walletLimit := appConfig.GetWalletLimit()
+	canCreateWallet := walletCount < walletLimit
+
 	output := map[string]interface{}{
 		"deviceId":        deviceId,
 		"deviceIdHash":    "0x" + deviceIdHash.Hex()[2:], // Ensure 0x prefix
-		"walletLimit":     appConfig.GetWalletLimit(),
-		"walletCount":     len(appConfig.Wallets),
-		"canCreateWallet": appConfig.CanCreateWallet(),
+		"walletLimit":     walletLimit,
+		"walletCount":     walletCount,
+		"canCreateWallet": canCreateWallet,
 		"memberships":     memberships,
 	}
 
@@ -3782,12 +3803,17 @@ func GetDeviceMembershipStatusWithToken(params *C.char) *C.char {
 	}
 
 	// Count wallets from filesystem (no password needed)
-	// Just count directories in the wallets folder
-	walletsPath := filepath.Join(session.UsbPath, ".arcsign", "wallets")
+	// Wallet directories are stored directly in USB root as UUID folders with wallet.json
 	walletCount := 0
-	if entries, err := os.ReadDir(walletsPath); err == nil {
+	if entries, err := os.ReadDir(session.UsbPath); err == nil {
 		for _, entry := range entries {
-			if entry.IsDir() {
+			// Skip non-directories and hidden directories
+			if !entry.IsDir() || len(entry.Name()) == 0 || entry.Name()[0] == '.' {
+				continue
+			}
+			// Check if it's a wallet directory (has wallet.json)
+			walletJsonPath := filepath.Join(session.UsbPath, entry.Name(), "wallet.json")
+			if _, err := os.Stat(walletJsonPath); err == nil {
 				walletCount++
 			}
 		}
