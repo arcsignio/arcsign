@@ -3,10 +3,16 @@
  * Feature: User Dashboard for Wallet Management
  * Task: T069 - Create mnemonic validation schema with Zod
  * Generated: 2025-10-17
+ * Updated: 2025-01-09 - Added i18n support for validation messages
  */
 
 import { z } from "zod";
-import { passwordSchema } from "./password";
+import { createPasswordSchema, passwordSchema } from "./password";
+
+/**
+ * Type for translation function
+ */
+type TFunction = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * Normalize mnemonic whitespace (FR-030)
@@ -56,7 +62,24 @@ function validateMnemonicWords(mnemonic: string): boolean {
 }
 
 /**
- * Mnemonic schema with basic validation
+ * Create mnemonic schema with i18n support
+ * Requirements: FR-006 (BIP39 import), FR-029 (validation), FR-030 (normalization)
+ */
+export const createMnemonicSchema = (t: TFunction) =>
+  z
+    .string()
+    .trim()
+    .min(1, t("validation.mnemonicRequired"))
+    .transform(normalizeMnemonic)
+    .refine(validateMnemonicLength, {
+      message: t("validation.mnemonicWordCount"),
+    })
+    .refine(validateMnemonicWords, {
+      message: t("validation.mnemonicInvalidWords"),
+    });
+
+/**
+ * Default mnemonic schema (English fallback)
  * Requirements: FR-006 (BIP39 import), FR-029 (validation), FR-030 (normalization)
  */
 export const mnemonicSchema = z
@@ -72,7 +95,46 @@ export const mnemonicSchema = z
   });
 
 /**
- * Wallet import form schema
+ * Create wallet import form schema with i18n support
+ * Requirements: FR-006, FR-007 (passphrase), FR-029, FR-030
+ */
+export const createWalletImportSchema = (t: TFunction) =>
+  z
+    .object({
+      mnemonic: createMnemonicSchema(t),
+      password: createPasswordSchema(t),
+      confirmPassword: z.string(),
+      usePassphrase: z.boolean().default(false),
+      passphrase: z.string().optional(),
+      name: z
+        .string()
+        .trim()
+        .min(1, t("validation.walletNameRequired"))
+        .max(50, t("validation.walletNameTooLong")),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: t("validation.passwordsNotMatch"),
+      path: ["confirmPassword"],
+    })
+    .refine(
+      (data) => {
+        // If passphrase is enabled, it must not be empty
+        if (
+          data.usePassphrase &&
+          (!data.passphrase || data.passphrase.trim() === "")
+        ) {
+          return false;
+        }
+        return true;
+      },
+      {
+        message: t("validation.passphraseCannotBeEmpty"),
+        path: ["passphrase"],
+      }
+    );
+
+/**
+ * Default wallet import form schema (English fallback)
  * Requirements: FR-006, FR-007 (passphrase), FR-029, FR-030
  */
 export const walletImportSchema = z
@@ -128,26 +190,32 @@ export function validateMnemonicChecksum(mnemonic: string): boolean {
 }
 
 /**
- * Get mnemonic validation error message (FR-029)
+ * Get mnemonic validation error message with i18n support (FR-029)
  */
-export function getMnemonicValidationError(mnemonic: string): string | null {
+export function getMnemonicValidationError(mnemonic: string, t?: TFunction): string | null {
   const normalized = normalizeMnemonic(mnemonic);
 
   if (!normalized) {
-    return "Mnemonic phrase is required";
+    return t ? t("validation.mnemonicRequired") : "Mnemonic phrase is required";
   }
 
   if (!validateMnemonicLength(normalized)) {
     const wordCount = normalized.split(" ").length;
-    return `Mnemonic must be 12 or 24 words (you entered ${wordCount} words)`;
+    return t
+      ? t("validation.mnemonicWordCountError", { count: wordCount })
+      : `Mnemonic must be 12 or 24 words (you entered ${wordCount} words)`;
   }
 
   if (!validateMnemonicWords(normalized)) {
-    return "Mnemonic contains invalid words. Please check your phrase.";
+    return t
+      ? t("validation.mnemonicInvalidWords")
+      : "Mnemonic contains invalid words. Please check your phrase.";
   }
 
   if (!validateMnemonicChecksum(normalized)) {
-    return "Invalid mnemonic checksum. Please verify your recovery phrase.";
+    return t
+      ? t("validation.mnemonicInvalidChecksum")
+      : "Invalid mnemonic checksum. Please verify your recovery phrase.";
   }
 
   return null;

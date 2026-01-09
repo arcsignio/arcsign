@@ -303,6 +303,22 @@
     "insufficientFunds": "Insufficient funds",
     "transactionFailed": "Transaction failed"
   },
+  "validation": {
+    "passwordMinLength": "Password must be at least 12 characters long",
+    "passwordUppercase": "Password must contain at least one uppercase letter",
+    "passwordLowercase": "Password must contain at least one lowercase letter",
+    "passwordNumber": "Password must contain at least one number",
+    "passwordsNotMatch": "Passwords do not match",
+    "usbRequired": "USB drive is required",
+    "mnemonicRequired": "Mnemonic phrase is required",
+    "mnemonicWordCount": "Mnemonic must be 12 or 24 words",
+    "mnemonicInvalidWords": "Mnemonic contains invalid words. Please check your phrase.",
+    "mnemonicInvalidChecksum": "Invalid mnemonic checksum. Please verify your recovery phrase.",
+    "mnemonicWordCountError": "Mnemonic must be 12 or 24 words (you entered {{count}} words)",
+    "walletNameRequired": "Wallet name is required",
+    "walletNameTooLong": "Wallet name must be 50 characters or less",
+    "passphraseCannotBeEmpty": "BIP39 passphrase cannot be empty when enabled"
+  },
   "debug": {
     "debugInfo": "Debug Info",
     "formValid": "isValid",

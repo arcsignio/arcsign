@@ -6,12 +6,12 @@
  * Updated: Force reload to use snake_case API parameters
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { invoke } from '@tauri-apps/api';
-import { walletCreateSchema, type WalletCreateFormData } from '@/validation/password';
+import { createWalletCreateSchema, type WalletCreateFormData } from '@/validation/password';
 import { useDashboardStore, useWalletLimitInfo } from '@/stores/dashboardStore';
 import tauriApi, { type UsbDevice, type AppError, type DeviceMembershipStatus } from '@/services/tauri-api';
 import type { WalletCreateResponse } from '@/types/wallet';
@@ -25,7 +25,7 @@ interface WalletCreateProps {
 }
 
 export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateProps = {}) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [usbDevices, setUsbDevices] = useState<UsbDevice[]>([]);
   const [isLoadingUsb, setIsLoadingUsb] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -42,6 +42,9 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
 
   const { addWallet } = useDashboardStore();
   const walletLimitInfo = useWalletLimitInfo();
+
+  // Create i18n-aware validation schema
+  const walletCreateSchema = useMemo(() => createWalletCreateSchema(t), [t, i18n.language]);
 
   const {
     register,

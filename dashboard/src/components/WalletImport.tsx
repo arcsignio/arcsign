@@ -5,12 +5,12 @@
  * Generated: 2025-10-17
  */
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  walletImportSchema,
+  createWalletImportSchema,
   type WalletImportFormData,
   normalizeMnemonic,
 } from "@/validation/mnemonic";
@@ -33,7 +33,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
   onSuccess,
   onCancel,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
@@ -43,6 +43,9 @@ export const WalletImport: React.FC<WalletImportProps> = ({
 
   const { addWallet } = useDashboardStore();
   const walletLimitInfo = useWalletLimitInfo();
+
+  // Create i18n-aware validation schema
+  const walletImportSchema = useMemo(() => createWalletImportSchema(t), [t, i18n.language]);
 
   const {
     register,

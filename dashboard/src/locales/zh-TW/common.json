@@ -303,6 +303,22 @@
     "insufficientFunds": "餘額不足",
     "transactionFailed": "交易失敗"
   },
+  "validation": {
+    "passwordMinLength": "密碼必須至少 12 個字元",
+    "passwordUppercase": "密碼必須包含至少一個大寫字母",
+    "passwordLowercase": "密碼必須包含至少一個小寫字母",
+    "passwordNumber": "密碼必須包含至少一個數字",
+    "passwordsNotMatch": "密碼不相符",
+    "usbRequired": "必須選擇 USB 隨身碟",
+    "mnemonicRequired": "必須輸入助記詞",
+    "mnemonicWordCount": "助記詞必須是 12 或 24 個詞",
+    "mnemonicInvalidWords": "助記詞包含無效的詞彙，請檢查您的詞組",
+    "mnemonicInvalidChecksum": "無效的助記詞檢查碼，請驗證您的恢復詞組",
+    "mnemonicWordCountError": "助記詞必須是 12 或 24 個詞（您輸入了 {{count}} 個詞）",
+    "walletNameRequired": "必須輸入錢包名稱",
+    "walletNameTooLong": "錢包名稱不能超過 50 個字元",
+    "passphraseCannotBeEmpty": "啟用時 BIP39 密碼不能為空"
+  },
   "debug": {
     "debugInfo": "除錯資訊",
     "formValid": "表單有效",
