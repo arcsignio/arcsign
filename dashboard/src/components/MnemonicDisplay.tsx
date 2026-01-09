@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import tauriApi from '@/services/tauri-api';
 
 interface MnemonicDisplayProps {
@@ -14,6 +15,7 @@ interface MnemonicDisplayProps {
 }
 
 export function MnemonicDisplay({ mnemonic, onConfirm }: MnemonicDisplayProps) {
+  const { t } = useTranslation();
   const [timeRemaining, setTimeRemaining] = useState(30);
   const [canConfirm, setCanConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -110,25 +112,25 @@ export function MnemonicDisplay({ mnemonic, onConfirm }: MnemonicDisplayProps) {
 
   return (
     <div className="mnemonic-display">
-      <h2>Backup Your Mnemonic Phrase</h2>
+      <h2>{t('mnemonic.title')}</h2>
 
       {/* Security Warning */}
       <div className="warning-message">
-        <strong>⚠️ IMPORTANT - Read Carefully:</strong>
+        <strong>⚠️ {t('mnemonic.importantWarning')}</strong>
         <ul>
-          <li>Write down these words in order on paper</li>
-          <li>Store the paper in a secure location</li>
-          <li>Never share your mnemonic with anyone</li>
-          <li>You cannot recover your wallet without this mnemonic</li>
-          <li>Screenshot protection is enabled - this window cannot be captured</li>
+          <li>{t('mnemonic.writeDown')}</li>
+          <li>{t('mnemonic.storeSecurely')}</li>
+          <li>{t('mnemonic.neverShare')}</li>
+          <li>{t('mnemonic.cannotRecover')}</li>
+          <li>{t('mnemonic.screenshotProtection')}</li>
         </ul>
       </div>
 
       {/* Countdown Timer */}
       <div className="countdown">
         <p>
-          This screen will close automatically in{' '}
-          <strong>{timeRemaining} seconds</strong>
+          {t('mnemonic.autoCloseIn')}{' '}
+          <strong>{timeRemaining} {t('mnemonic.secondsUnit')}</strong>
         </p>
       </div>
 
@@ -145,20 +147,20 @@ export function MnemonicDisplay({ mnemonic, onConfirm }: MnemonicDisplayProps) {
       {/* Copy Button */}
       <div className="copy-section">
         <button onClick={handleCopy} type="button" className="copy-button">
-          {copied ? '✓ Copied!' : 'Copy to Clipboard'}
+          {copied ? t('mnemonic.copied') : t('mnemonic.copyToClipboard')}
         </button>
         <small className="warning">
-          Warning: Clipboard will be cleared after 30 seconds for security
+          {t('mnemonic.clipboardWarning')}
         </small>
       </div>
 
       {/* Confirmation Checklist */}
       <div className="confirmation-checklist">
-        <p>Before continuing, confirm that you have:</p>
+        <p>{t('mnemonic.beforeContinuing')}</p>
         <ul>
-          <li>✓ Written down all {mnemonicWords.length} words in order</li>
-          <li>✓ Stored the backup in a secure location</li>
-          <li>✓ Verified the spelling of each word</li>
+          <li>✓ {t('mnemonic.writtenAllWords', { count: mnemonicWords.length })}</li>
+          <li>✓ {t('mnemonic.storedBackup')}</li>
+          <li>✓ {t('mnemonic.verifiedSpelling')}</li>
         </ul>
       </div>
 
@@ -170,13 +172,13 @@ export function MnemonicDisplay({ mnemonic, onConfirm }: MnemonicDisplayProps) {
         type="button"
       >
         {canConfirm
-          ? 'I Have Backed Up My Mnemonic'
-          : `Wait ${5 - Math.floor((Date.now() - Date.now()) / 1000)} seconds...`}
+          ? t('mnemonic.confirmBackedUp')
+          : t('mnemonic.waitSeconds')}
       </button>
 
       {!canConfirm && (
         <small className="button-disabled-notice">
-          Button will be enabled in 5 seconds to prevent accidental clicks
+          {t('mnemonic.buttonEnableNotice')}
         </small>
       )}
     </div>

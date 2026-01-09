@@ -7,6 +7,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface LibraryCrashDialogProps {
   isOpen: boolean;
@@ -49,6 +50,8 @@ export const LibraryCrashDialog: React.FC<LibraryCrashDialogProps> = ({
   onReload,
   onQuit,
 }) => {
+  const { t } = useTranslation();
+
   if (!isOpen) return null;
 
   return (
@@ -86,21 +89,20 @@ export const LibraryCrashDialog: React.FC<LibraryCrashDialogProps> = ({
           id="crash-dialog-title"
           className="text-xl font-bold text-red-900 text-center mb-3"
         >
-          Critical Library Error
+          {t('libraryCrash.title')}
         </h2>
 
         {/* Message */}
         <div id="crash-dialog-message" className="mb-6">
           <p className="text-sm text-gray-700 text-center mb-4">
-            The wallet library encountered a critical error and stopped working.
-            Your data is safe, but you'll need to reload the application.
+            {t('libraryCrash.message')}
           </p>
 
           {/* Error Details (Collapsible) */}
           {errorMessage && (
             <details className="mt-4">
               <summary className="text-xs text-gray-600 cursor-pointer hover:text-gray-800 font-medium">
-                Technical Details
+                {t('libraryCrash.technicalDetails')}
               </summary>
               <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200 max-h-32 overflow-y-auto">
                 <code className="text-xs text-red-700 font-mono whitespace-pre-wrap break-all">
@@ -118,19 +120,19 @@ export const LibraryCrashDialog: React.FC<LibraryCrashDialogProps> = ({
             className="w-full px-4 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             autoFocus
           >
-            Reload Application
+            {t('libraryCrash.reloadApp')}
           </button>
           <button
             onClick={onQuit}
             className="w-full px-4 py-3 border-2 border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
           >
-            Quit Application
+            {t('libraryCrash.quitApp')}
           </button>
         </div>
 
         {/* Help Text */}
         <p className="mt-4 text-xs text-gray-500 text-center">
-          If this error persists, please contact support with the technical details above.
+          {t('libraryCrash.helpText')}
         </p>
       </div>
     </div>

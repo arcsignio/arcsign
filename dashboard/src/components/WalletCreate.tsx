@@ -333,7 +333,7 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
           </select>
         </div>
 
-        {/* Debug Info - Remove after fixing */}
+        {/* Debug Info - Commented out after debugging complete
         <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f0f0f0', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace' }}>
           <strong>{t('debug.debugInfo')}:</strong>
           <div>{t('debug.formValid')}: {isValid ? '✅ true' : '❌ false'}</div>
@@ -354,6 +354,7 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
             <div>{t('debug.errorFields')}: {Object.keys(errors).join(', ')}</div>
           )}
         </div>
+        */}
 
         {/* Action Buttons (T093, FR-032) */}
         <div className="form-actions">

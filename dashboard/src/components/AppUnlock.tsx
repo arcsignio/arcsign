@@ -40,7 +40,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
       } catch (err) {
         const error = err as AppError;
         console.error('[AppUnlock] isFirstTimeSetup error:', error);
-        setError(`Failed to check setup status: ${error.message}`);
+        setError(`${t('appUnlock.failedToCheckSetup')}: ${error.message}`);
       } finally {
         setCheckingSetup(false);
       }
@@ -72,7 +72,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
       onUnlockSuccess(appConfig, password);
     } catch (err) {
       const error = err as AppError;
-      setError(`Failed to initialize app: ${error.message}`);
+      setError(`${t('appUnlock.failedToInitialize')}: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -92,7 +92,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
       onUnlockSuccess(appConfig, password);
     } catch (err) {
       const error = err as AppError;
-      setError(`Failed to unlock: ${error.message}`);
+      setError(`${t('appUnlock.failedToUnlock')}: ${error.message}`);
       setPassword(''); // Clear password on failure
     } finally {
       setLoading(false);

@@ -14,6 +14,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import tauriApi, {
   type SwapQuoteResponse,
   type BuildSwapTransactionResponse,
@@ -203,6 +204,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
   onSuccess,
 }) => {
   void _walletHasPassphrase; // Reserved for future passphrase validation
+  const { t } = useTranslation();
   // Token selection state
   const [fromToken, setFromToken] = useState<SendableToken | null>(null);
   const [toToken, setToToken] = useState<{
@@ -401,7 +403,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     } catch (err) {
       const appErr = err as AppError;
       console.error("Quote fetch failed:", appErr);
-      setError(appErr.message || "Failed to get swap quote");
+      setError(appErr.message || t('swap.failedToGetQuote'));
       setQuote(null);
     } finally {
       setIsLoading(false);
@@ -436,7 +438,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
   // Build swap transaction - first check allowance, then decide if approval is needed
   const handleBuildSwapTx = async () => {
     if (!fromToken || !toToken || !quote) {
-      setError("Missing required data");
+      setError(t('swap.missingRequiredData'));
       return;
     }
 
@@ -506,7 +508,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       }
     } catch (err) {
       const appErr = err as AppError;
-      setError(appErr.message || "Failed to build swap transaction");
+      setError(appErr.message || t('swap.failedToBuildTx'));
     } finally {
       setIsLoading(false);
     }
@@ -521,11 +523,11 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
   // Execute the approval transaction (sign and broadcast)
   const handleExecuteApproval = async () => {
     if (!walletPassword) {
-      setError("Please enter your wallet password");
+      setError(t('swap.pleaseEnterPassword'));
       return;
     }
     if (!fromToken || !quote || !swapTx) {
-      setError("Missing token, quote, or swap transaction data");
+      setError(t('swap.missingTokenOrQuote'));
       return;
     }
 
@@ -627,7 +629,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
             console.log("✅ Approval transaction confirmed!");
             break;
           } else if (statusResult.status === "failed") {
-            throw new Error("Approval transaction failed on-chain");
+            throw new Error(t('swap.approvalFailed'));
           }
           // Continue polling if still pending
         } catch (statusErr) {
@@ -637,7 +639,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       }
 
       if (!confirmed) {
-        throw new Error("Approval transaction confirmation timeout. Please check the transaction status manually.");
+        throw new Error(t('swap.approvalTimeout'));
       }
 
       // Success! Now proceed to swap password step
@@ -648,7 +650,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     } catch (err) {
       const appErr = err as AppError;
       console.error("🔴 Approval failed:", appErr);
-      setError(appErr.message || "Failed to approve token");
+      setError(appErr.message || t('swap.failedToApprove'));
       setStep("approve"); // Go back to approve step to retry
     } finally {
       setIsLoading(false);
@@ -658,11 +660,11 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
   // Sign and broadcast swap
   const handleSignAndBroadcast = async () => {
     if (!walletPassword) {
-      setError("Please enter your wallet password");
+      setError(t('swap.pleaseEnterPassword'));
       return;
     }
     if (!swapTx || !fromToken) {
-      setError("No transaction to sign");
+      setError(t('swap.noTransactionToSign'));
       return;
     }
 
@@ -717,7 +719,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       onSuccess?.(broadcastResult.txHash);
     } catch (err) {
       const appErr = err as AppError;
-      setError(appErr.message || "Failed to execute swap");
+      setError(appErr.message || t('swap.failedToExecuteSwap'));
       setStep("error");
     } finally {
       setIsLoading(false);
@@ -776,9 +778,9 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     <div className="swap-transaction">
       <header className="swap-header">
         <button onClick={getBackHandler()} className="back-button">
-          <span>&larr;</span> Back
+          <span>&larr;</span> {t('actions.back')}
         </button>
-        <h2>Swap Tokens</h2>
+        <h2>{t('swap.title')}</h2>
         <div className="header-badges">
           {/* DEX Provider Selector */}
           <div className="provider-selector">
@@ -840,16 +842,16 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       {/* Step 1: Select Source Token */}
       {step === "selectFrom" && (
         <div className="token-select-form">
-          <h3>Select Token to Swap</h3>
-          <p className="select-description">Choose which asset you want to swap from</p>
+          <h3>{t('swap.selectTokenToSwap')}</h3>
+          <p className="select-description">{t('swap.chooseAssetToSwap')}</p>
 
           {swappableTokens.length === 0 ? (
             <div className="no-tokens">
               <span className="no-tokens-icon">📭</span>
-              <p>No tokens available for swap on supported chains</p>
-              <p className="supported-chains">Supported: Ethereum, Polygon, Arbitrum, Optimism, Base, BNB Chain</p>
+              <p>{t('swap.noTokensForSwap')}</p>
+              <p className="supported-chains">{t('swap.supportedChains')}</p>
               <button className="secondary-button" onClick={onBack}>
-                Go Back
+                {t('swap.goBack')}
               </button>
             </div>
           ) : (
@@ -895,16 +897,16 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       {/* Step 2: Select Destination Token */}
       {step === "selectTo" && fromToken && (
         <div className="token-select-form">
-          <h3>Select Token to Receive</h3>
+          <h3>{t('swap.selectTokenToReceive')}</h3>
           <p className="select-description">
-            Swapping from {fromToken.tokenSymbol} on {fromToken.networkLabel}
+            {t('swap.swappingFrom', { symbol: fromToken.tokenSymbol, network: fromToken.networkLabel })}
           </p>
 
           {/* Search Input */}
           <div className="token-search-wrapper">
             <input
               type="text"
-              placeholder="Search by name, symbol, or address..."
+              placeholder={t('swap.searchPlaceholder')}
               value={tokenSearchQuery}
               onChange={(e) => setTokenSearchQuery(e.target.value)}
               className="token-search-input"
@@ -923,15 +925,15 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
           {loadingTokens && (
             <div className="token-loading">
               <div className="token-loading-spinner"></div>
-              <span>Loading token registry...</span>
+              <span>{t('swap.loadingTokenRegistry')}</span>
             </div>
           )}
 
           {/* Token Count Info */}
           {!loadingTokens && tokenCache[tokenCacheKey] && (
             <div className="token-count-info">
-              {getDestinationTokens().length} tokens available
-              {tokenSearchQuery && ` (filtered)`}
+              {t('swap.tokensAvailable', { count: getDestinationTokens().length })}
+              {tokenSearchQuery && ` (${t('swap.filtered')})`}
             </div>
           )}
 
@@ -939,8 +941,8 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
             {getDestinationTokens().length === 0 && !loadingTokens ? (
               <div className="no-tokens-found">
                 {tokenSearchQuery
-                  ? `No tokens found matching "${tokenSearchQuery}"`
-                  : "No tokens available"}
+                  ? t('swap.noTokensMatching', { query: tokenSearchQuery })
+                  : t('swap.noTokensAvailable')}
               </div>
             ) : (
               getDestinationTokens().map((token, idx) => (
@@ -979,9 +981,9 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
           {/* From Token */}
           <div className="swap-token-card from">
             <div className="token-card-header">
-              <span className="card-label">You Pay</span>
+              <span className="card-label">{t('swap.youPay')}</span>
               <span className="balance-label">
-                Balance: {formatBalance(fromToken.balance)} {fromToken.tokenSymbol}
+                {t('swap.balance')}: {formatBalance(fromToken.balance)} {fromToken.tokenSymbol}
               </span>
             </div>
             <div className="token-card-body">
@@ -1043,12 +1045,12 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
           {/* To Token */}
           <div className="swap-token-card to">
             <div className="token-card-header">
-              <span className="card-label">You Receive</span>
+              <span className="card-label">{t('swap.youReceive')}</span>
             </div>
             <div className="token-card-body">
               <div className="amount-display">
                 {isLoading ? (
-                  <span className="loading-text">Loading...</span>
+                  <span className="loading-text">{t('common.loading')}</span>
                 ) : quote ? (
                   fromSmallestUnit(quote.toAmount, toToken.decimals)
                 ) : (
@@ -1070,7 +1072,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
             {quote && (
               <div className="token-card-footer">
                 <span className="min-received">
-                  Min: {fromSmallestUnit(quote.toAmountMin, toToken.decimals)} {toToken.symbol}
+                  {t('swap.min')}: {fromSmallestUnit(quote.toAmountMin, toToken.decimals)} {toToken.symbol}
                 </span>
               </div>
             )}
@@ -1080,13 +1082,13 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
           {quote && (
             <div className="quote-details">
               <div className="quote-row">
-                <span className="quote-label">Exchange Rate</span>
+                <span className="quote-label">{t('swap.exchangeRate')}</span>
                 <span className="quote-value">
                   1 {fromToken.tokenSymbol} = {quote.exchangeRate} {toToken.symbol}
                 </span>
               </div>
               <div className="quote-row">
-                <span className="quote-label">Price Impact</span>
+                <span className="quote-label">{t('swap.priceImpact')}</span>
                 <span className={`quote-value ${
                   quote.priceImpact !== "N/A" && parseFloat(quote.priceImpact) > 3 ? "warning" : ""
                 }`}>
@@ -1096,11 +1098,11 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
                 </span>
               </div>
               <div className="quote-row">
-                <span className="quote-label">Estimated Gas</span>
+                <span className="quote-label">{t('swap.estimatedGas')}</span>
                 <span className="quote-value">{quote.gasCostETH} {getNativeTokenSymbol(fromToken.network)}</span>
               </div>
               <div className="quote-row">
-                <span className="quote-label">Route</span>
+                <span className="quote-label">{t('swap.route')}</span>
                 <span className="quote-value route">{quote.protocols.join(" → ")}</span>
               </div>
             </div>
@@ -1108,7 +1110,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 
           {/* Slippage Settings */}
           <div className="slippage-settings">
-            <span className="slippage-label">Slippage Tolerance</span>
+            <span className="slippage-label">{t('swap.slippageTolerance')}</span>
             <div className="slippage-options">
               {[0.5, 1, 3].map(s => (
                 <button
@@ -1128,7 +1130,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
             onClick={handleBuildSwapTx}
             disabled={isLoading || !isValidAmount(amount) || !quote}
           >
-            {isLoading ? "Loading..." : "Review Swap"}
+            {isLoading ? t('common.loading') : t('swap.reviewSwap')}
           </button>
         </div>
       )}
@@ -1136,30 +1138,30 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       {/* Approval Step */}
       {step === "approve" && quote && fromToken && (
         <div className="approve-form">
-          <h3>Approve Token Spending</h3>
+          <h3>{t('swap.approveTokenSpending')}</h3>
           <p className="approve-description">
-            To swap {fromToken.tokenSymbol}, you need to approve the DEX router to spend your tokens.
+            {t('swap.approveDescription', { symbol: fromToken.tokenSymbol })}
           </p>
 
           <div className="approval-details">
             <div className="approval-row">
-              <span className="approval-label">Token</span>
+              <span className="approval-label">{t('swap.token')}</span>
               <span className="approval-value">{fromToken.tokenSymbol}</span>
             </div>
             <div className="approval-row">
-              <span className="approval-label">Spender</span>
+              <span className="approval-label">{t('swap.spender')}</span>
               <span className="approval-value address">{shortenAddress(quote.approvalAddress || swapTx?.txData.to || "")}</span>
             </div>
             {currentAllowance && (
               <div className="approval-row">
-                <span className="approval-label">Current Allowance</span>
+                <span className="approval-label">{t('swap.currentAllowance')}</span>
                 <span className="approval-value">
                   {fromSmallestUnit(currentAllowance, fromToken.decimals)} {fromToken.tokenSymbol}
                 </span>
               </div>
             )}
             <div className="approval-row">
-              <span className="approval-label">Swap Amount</span>
+              <span className="approval-label">{t('swap.swapAmount')}</span>
               <span className="approval-value">{amount} {fromToken.tokenSymbol}</span>
             </div>
           </div>
@@ -1171,19 +1173,19 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
                 className={`toggle-button ${!isUnlimitedApproval ? 'active' : ''}`}
                 onClick={() => setIsUnlimitedApproval(false)}
               >
-                Specific Amount
+                {t('swap.specificAmount')}
               </button>
               <button
                 className={`toggle-button ${isUnlimitedApproval ? 'active' : ''}`}
                 onClick={() => setIsUnlimitedApproval(true)}
               >
-                Unlimited
+                {t('swap.unlimited')}
               </button>
             </div>
 
             {!isUnlimitedApproval && (
               <div className="form-group">
-                <label>Approval Amount</label>
+                <label>{t('swap.approvalAmount')}</label>
                 <div className="input-with-suffix">
                   <input
                     type="text"
@@ -1198,7 +1200,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
                     className="preset-button"
                     onClick={() => setApprovalAmount(amount)}
                   >
-                    Swap Amount ({amount})
+                    {t('swap.swapAmountPreset', { amount })}
                   </button>
                   <button
                     className="preset-button"
@@ -1216,7 +1218,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
             {isUnlimitedApproval && (
               <div className="unlimited-warning">
                 <span className="warning-icon">&#9888;</span>
-                <span>Unlimited approval allows the DEX to spend all your {fromToken.tokenSymbol}. This is convenient but carries higher risk if the DEX is compromised.</span>
+                <span>{t('swap.unlimitedWarning', { symbol: fromToken.tokenSymbol })}</span>
               </div>
             )}
           </div>
@@ -1225,11 +1227,11 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 
           <button className="primary-button" onClick={handleApprove}>
             {isUnlimitedApproval
-              ? `Approve Unlimited ${fromToken.tokenSymbol}`
-              : `Approve ${approvalAmount || amount} ${fromToken.tokenSymbol}`}
+              ? t('swap.approveUnlimited', { symbol: fromToken.tokenSymbol })
+              : t('swap.approveAmount', { amount: approvalAmount || amount, symbol: fromToken.tokenSymbol })}
           </button>
           <button className="secondary-button" onClick={() => setStep("input")}>
-            Cancel
+            {t('actions.cancel')}
           </button>
         </div>
       )}
@@ -1237,29 +1239,29 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       {/* Approval Password Step */}
       {step === "approvalPassword" && fromToken && quote && (
         <div className="password-form">
-          <h3>Enter Password to Approve</h3>
+          <h3>{t('swap.enterPasswordToApprove')}</h3>
           <p className="approve-description">
-            Sign the approval transaction to allow the DEX router to spend your {fromToken.tokenSymbol}.
+            {t('swap.signApprovalDescription', { symbol: fromToken.tokenSymbol })}
           </p>
 
           <div className="approval-details">
             <div className="approval-row">
-              <span className="approval-label">Token</span>
+              <span className="approval-label">{t('swap.token')}</span>
               <span className="approval-value">{fromToken.tokenSymbol}</span>
             </div>
             <div className="approval-row">
-              <span className="approval-label">Spender</span>
+              <span className="approval-label">{t('swap.spender')}</span>
               <span className="approval-value address">{shortenAddress(quote.approvalAddress || swapTx?.txData.to || "")}</span>
             </div>
           </div>
 
           <div className="form-group">
-            <label>Wallet Password</label>
+            <label>{t('swap.walletPassword')}</label>
             <input
               type="password"
               value={walletPassword}
               onChange={(e) => setWalletPassword(e.target.value)}
-              placeholder="Enter your wallet password"
+              placeholder={t('swap.enterWalletPassword')}
               disabled={isLoading}
             />
           </div>
@@ -1271,14 +1273,14 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
             onClick={handleExecuteApproval}
             disabled={isLoading || !walletPassword}
           >
-            {isLoading ? "Processing..." : `Sign & Approve ${fromToken.tokenSymbol}`}
+            {isLoading ? t('swap.processing') : t('swap.signAndApprove', { symbol: fromToken.tokenSymbol })}
           </button>
           <button
             className="secondary-button"
             onClick={() => { setWalletPassword(""); setStep("approve"); }}
             disabled={isLoading}
           >
-            Cancel
+            {t('actions.cancel')}
           </button>
         </div>
       )}
@@ -1287,18 +1289,18 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       {step === "approving" && fromToken && (
         <div className="approving-form">
           <div className="approving-spinner" />
-          <h3>Approving {fromToken.tokenSymbol}...</h3>
+          <h3>{t('swap.approving', { symbol: fromToken.tokenSymbol })}</h3>
           <p className="approving-description">
             {approvalTxHash
-              ? "Waiting for on-chain confirmation..."
-              : "Signing and broadcasting approval transaction..."
+              ? t('swap.waitingForConfirmation')
+              : t('swap.signingAndBroadcasting')
             }
           </p>
 
           {approvalTxHash && (
             <div className="approval-tx-info">
               <div className="tx-hash-display">
-                <span className="tx-label">Approval Transaction</span>
+                <span className="tx-label">{t('swap.approvalTransaction')}</span>
                 <a
                   href={getExplorerUrl(fromToken.network, approvalTxHash)}
                   target="_blank"
@@ -1310,15 +1312,15 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
               </div>
               <div className="confirmation-status">
                 <div className="status-indicator pulsing" />
-                <span>Confirming on {fromToken.networkLabel}...</span>
+                <span>{t('swap.confirmingOn', { network: fromToken.networkLabel })}</span>
               </div>
             </div>
           )}
 
           <p className="approving-note">
             {approvalTxHash
-              ? "This typically takes 15-60 seconds depending on network congestion."
-              : "Please wait while we prepare your transaction."
+              ? t('swap.typicallyTakes')
+              : t('swap.pleaseWait')
             }
           </p>
         </div>
@@ -1327,47 +1329,47 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       {/* Password Step */}
       {step === "password" && swapTx && fromToken && toToken && (
         <div className="password-form">
-          <h3>Confirm Swap</h3>
+          <h3>{t('swap.confirmSwap')}</h3>
 
           <div className="swap-summary">
             <div className="swap-summary-row">
-              <span className="summary-label">You Pay</span>
+              <span className="summary-label">{t('swap.youPay')}</span>
               <span className="summary-value">
                 {amount} {fromToken.tokenSymbol}
               </span>
             </div>
             <div className="swap-summary-row">
-              <span className="summary-label">You Receive</span>
+              <span className="summary-label">{t('swap.youReceive')}</span>
               <span className="summary-value highlight">
                 ~{fromSmallestUnit(swapTx.quote.toAmount, toToken.decimals)} {toToken.symbol}
               </span>
             </div>
             <div className="swap-summary-row">
-              <span className="summary-label">Network</span>
+              <span className="summary-label">{t('swap.network')}</span>
               <span className="summary-value">
                 {getNetworkIcon(fromToken.network)} {fromToken.networkLabel}
               </span>
             </div>
             <div className="swap-summary-row">
-              <span className="summary-label">Exchange Rate</span>
+              <span className="summary-label">{t('swap.exchangeRate')}</span>
               <span className="summary-value">
                 1 {fromToken.tokenSymbol} ≈ {swapTx.quote.exchangeRate} {toToken.symbol}
               </span>
             </div>
             <div className="swap-summary-row">
-              <span className="summary-label">Price Impact</span>
+              <span className="summary-label">{t('swap.priceImpact')}</span>
               <span className="summary-value" style={{ color: parseFloat(swapTx.quote.priceImpact || '0') < -1 ? '#ef4444' : '#10b981' }}>
                 {swapTx.quote.priceImpact}%
               </span>
             </div>
             <div className="swap-summary-row">
-              <span className="summary-label">Estimated Gas Fee</span>
+              <span className="summary-label">{t('swap.estimatedGasFee')}</span>
               <span className="summary-value">
                 ~{swapTx.quote.gasCostETH} {getNativeTokenSymbol(fromToken.network)}
               </span>
             </div>
             <div className="swap-summary-row">
-              <span className="summary-label">Minimum Received</span>
+              <span className="summary-label">{t('swap.minimumReceived')}</span>
               <span className="summary-value">
                 {fromSmallestUnit(swapTx.quote.toAmountMin, toToken.decimals)} {toToken.symbol}
               </span>
@@ -1375,10 +1377,10 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
           </div>
 
           <div className="form-group">
-            <label>Wallet Password</label>
+            <label>{t('swap.walletPassword')}</label>
             <input
               type="password"
-              placeholder="Enter your wallet password"
+              placeholder={t('swap.enterWalletPassword')}
               value={walletPassword}
               onChange={(e) => setWalletPassword(e.target.value)}
               className="password-input"
@@ -1391,7 +1393,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
             onClick={handleSignAndBroadcast}
             disabled={isLoading || !walletPassword}
           >
-            {isLoading ? "Processing..." : "Confirm Swap"}
+            {isLoading ? t('swap.processing') : t('swap.confirmSwap')}
           </button>
         </div>
       )}
@@ -1400,11 +1402,11 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       {(step === "signing" || step === "broadcasting") && (
         <div className="processing-form">
           <div className="processing-spinner"></div>
-          <h3>{step === "signing" ? "Signing Transaction..." : "Broadcasting Transaction..."}</h3>
+          <h3>{step === "signing" ? t('swap.signingTransaction') : t('swap.broadcastingTransaction')}</h3>
           <p className="processing-description">
             {step === "signing"
-              ? "Please wait while we sign your swap transaction"
-              : "Submitting your swap to the blockchain..."
+              ? t('swap.pleaseWaitSigning')
+              : t('swap.submittingToBlockchain')
             }
           </p>
         </div>
@@ -1414,13 +1416,13 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       {step === "success" && txHash && fromToken && (
         <div className="success-form">
           <div className="success-icon">✓</div>
-          <h3>Swap Submitted!</h3>
+          <h3>{t('swap.swapSubmitted')}</h3>
           <p className="success-description">
-            Your swap transaction has been submitted to the network.
+            {t('swap.swapSubmittedDescription')}
           </p>
 
           <div className="tx-hash-display">
-            <span className="tx-label">Transaction Hash</span>
+            <span className="tx-label">{t('swap.transactionHash')}</span>
             <a
               href={getExplorerUrl(fromToken.network, txHash)}
               target="_blank"
@@ -1433,10 +1435,10 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 
           <div className="success-actions">
             <button className="primary-button" onClick={handleReset}>
-              New Swap
+              {t('swap.newSwap')}
             </button>
             <button className="secondary-button" onClick={onBack}>
-              Back to Wallet
+              {t('swap.backToWallet')}
             </button>
           </div>
         </div>
@@ -1446,15 +1448,15 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       {step === "error" && (
         <div className="error-form">
           <div className="error-icon-large">✕</div>
-          <h3>Swap Failed</h3>
-          <p className="error-description">{error || "An error occurred during the swap"}</p>
+          <h3>{t('swap.swapFailed')}</h3>
+          <p className="error-description">{error || t('swap.errorOccurred')}</p>
 
           <div className="error-actions">
             <button className="primary-button" onClick={() => setStep("input")}>
-              Try Again
+              {t('swap.tryAgain')}
             </button>
             <button className="secondary-button" onClick={handleReset}>
-              Start Over
+              {t('swap.startOver')}
             </button>
           </div>
         </div>

@@ -7,6 +7,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ConfirmationDialogProps {
   isOpen: boolean;
@@ -27,12 +28,18 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   isOpen,
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   confirmVariant = 'danger',
   onConfirm,
   onCancel,
 }) => {
+  const { t } = useTranslation();
+
+  // Use translation defaults if no label provided
+  const resolvedConfirmLabel = confirmLabel || t('actions.confirm');
+  const resolvedCancelLabel = cancelLabel || t('actions.cancel');
+
   if (!isOpen) return null;
 
   const confirmButtonClasses = {
@@ -125,13 +132,13 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
             className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
             autoFocus
           >
-            {cancelLabel}
+            {resolvedCancelLabel}
           </button>
           <button
             onClick={onConfirm}
             className={`flex-1 px-4 py-2 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${confirmButtonClasses[confirmVariant]}`}
           >
-            {confirmLabel}
+            {resolvedConfirmLabel}
           </button>
         </div>
       </div>

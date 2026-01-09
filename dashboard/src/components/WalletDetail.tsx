@@ -4,6 +4,7 @@
  */
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppPassword } from "@/contexts/AppPasswordContext";
 import { useWalletSessionStore } from "@/stores/walletSessionStore";
 import tauriApi, { type AppError } from "@/services/tauri-api";
@@ -22,7 +23,7 @@ import type { ChainKey } from "@/services/tokenList";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { SendTransaction, type SendableToken } from "@/components/SendTransaction";
 import SwapTransaction from "@/components/SwapTransaction";
-import { getChainIconUrl, getChainFallbackIcon, isChainSupported, isChainEnabled, CHAIN_CATEGORIES } from "@/utils/chainIcons";
+import { getChainIconUrl, getChainFallbackIcon, isChainSupported, isChainEnabled } from "@/utils/chainIcons";
 import ReceiveAddressModal from "@/components/ReceiveAddressModal";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
@@ -53,6 +54,7 @@ export function WalletDetail({
   onViewAddresses: _onViewAddresses,
 }: WalletDetailProps) {
   void _onViewAddresses; // Suppress unused variable warning
+  const { t } = useTranslation();
   const { appPassword } = useAppPassword();
   const walletSession = useWalletSessionStore();
   const [tokens, setTokens] = useState<TokenBalance[]>([]);
@@ -117,7 +119,7 @@ export function WalletDetail({
 
   const handleLoadBalances = async () => {
     if (!tempPassword || !appPassword) {
-      setError("Please enter wallet password");
+      setError(t('walletDetail.pleaseEnterPassword'));
       return;
     }
 
@@ -232,7 +234,16 @@ export function WalletDetail({
       setShowPasswordPrompt(false);
     } catch (err) {
       const error = err as AppError;
-      setError(error.message || "Failed to load token balances");
+      const errorMessage = error.message || "";
+
+      // Check for password-related errors and show user-friendly message
+      if (errorMessage.includes("invalid wallet credentials") ||
+          errorMessage.includes("Invalid wallet credentials") ||
+          errorMessage.includes("Failed to create wallet session")) {
+        setError(t("walletDetail.incorrectPassword"));
+      } else {
+        setError(errorMessage || t("walletDetail.failedToLoadBalances"));
+      }
       console.error("❌ Failed to load token balances:", error);
     } finally {
       setIsLoading(false);
@@ -242,7 +253,7 @@ export function WalletDetail({
   // Handle passphrase validation for wallets with BIP39 passphrase
   const handleValidatePassphrase = async () => {
     if (!passphrase || !appPassword) {
-      setError("Please enter your BIP39 passphrase");
+      setError(t('walletDetail.pleaseEnterPassphrase'));
       return;
     }
 
@@ -300,11 +311,11 @@ export function WalletDetail({
         console.log("❌ Passphrase is invalid!");
         console.log("   Expected address:", result.expectedAddress);
         console.log("   Derived address:", result.derivedAddress);
-        setError("Invalid passphrase. The derived address does not match your wallet address.");
+        setError(t('walletDetail.invalidPassphrase'));
       }
     } catch (err) {
       const error = err as AppError;
-      setError(error.message || "Failed to validate passphrase");
+      setError(error.message || t('walletDetail.failedToValidatePassphrase'));
       console.error("❌ Failed to validate passphrase:", error);
     } finally {
       setIsValidatingPassphrase(false);
@@ -379,7 +390,7 @@ export function WalletDetail({
       setTotalUsd(response.totalUsd);
     } catch (err) {
       const error = err as AppError;
-      setError(error.message || "Failed to refresh token balances");
+      setError(error.message || t('walletDetail.failedToRefresh'));
       console.error("❌ Failed to refresh token balances:", error);
     } finally {
       setIsRefreshing(false);
@@ -548,7 +559,7 @@ export function WalletDetail({
       <div className="wallet-detail">
         <div className="detail-header">
           <button onClick={onBack} className="back-button">
-            ← Back to Wallets
+            ← {t('walletDetail.backToWallets')}
           </button>
           <h2>{wallet.name}</h2>
         </div>
@@ -590,7 +601,7 @@ export function WalletDetail({
                 marginBottom: "0.5rem",
               }}
             >
-              Unlock Your Wallet
+              {t('walletDetail.unlockWallet')}
             </h3>
             <p
               style={{
@@ -599,7 +610,7 @@ export function WalletDetail({
                 lineHeight: "1.5",
               }}
             >
-              Enter your password to view token balances and manage assets
+              {t('walletDetail.unlockDescription')}
             </p>
           </div>
 
@@ -641,7 +652,7 @@ export function WalletDetail({
                 marginBottom: "0.5rem",
               }}
             >
-              Wallet Password
+              {t('walletDetail.walletPassword')}
             </label>
             <div style={{ position: "relative" }}>
               <span
@@ -662,7 +673,7 @@ export function WalletDetail({
                 value={tempPassword}
                 onChange={(e) => setTempPassword(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleLoadBalances()}
-                placeholder="Enter your password"
+                placeholder={t('walletDetail.enterPassword')}
                 autoFocus
                 style={{
                   width: "100%",
@@ -693,7 +704,7 @@ export function WalletDetail({
                 textAlign: "right",
               }}
             >
-              Press Enter to submit ↵
+              {t('walletDetail.pressEnterToSubmit')}
             </small>
           </div>
 
@@ -754,10 +765,10 @@ export function WalletDetail({
                     animation: "spin 0.6s linear infinite",
                   }}
                 ></span>
-                Loading Assets...
+                {t('walletDetail.loadingAssets')}
               </span>
             ) : (
-              "Unlock & View Assets"
+              t('walletDetail.unlockAndViewAssets')
             )}
           </button>
         </div>
@@ -771,7 +782,7 @@ export function WalletDetail({
       <div className="wallet-detail">
         <div className="detail-header">
           <button onClick={onBack} className="back-button">
-            ← Back to Wallets
+            ← {t('walletDetail.backToWallets')}
           </button>
           <h2>{wallet.name}</h2>
         </div>
@@ -813,7 +824,7 @@ export function WalletDetail({
                 marginBottom: "0.5rem",
               }}
             >
-              Enter Passphrase
+              {t('walletDetail.enterPassphrase')}
             </h3>
             <p
               style={{
@@ -822,9 +833,9 @@ export function WalletDetail({
                 lineHeight: "1.5",
               }}
             >
-              This wallet uses a BIP39 passphrase (25th word).
+              {t('walletDetail.passphraseDescription')}
               <br />
-              Please enter it to continue.
+              {t('walletDetail.passphraseDescriptionContinue')}
             </p>
           </div>
 
@@ -865,7 +876,7 @@ export function WalletDetail({
                 marginBottom: "0.5rem",
               }}
             >
-              BIP39 Passphrase
+              {t('walletDetail.bip39Passphrase')}
             </label>
             <div style={{ position: "relative" }}>
               <span
@@ -886,7 +897,7 @@ export function WalletDetail({
                 value={passphrase}
                 onChange={(e) => setPassphrase(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleValidatePassphrase()}
-                placeholder="Enter your passphrase"
+                placeholder={t('walletDetail.enterYourPassphrase')}
                 autoFocus
                 style={{
                   width: "100%",
@@ -916,7 +927,7 @@ export function WalletDetail({
                 marginTop: "0.5rem",
               }}
             >
-              The passphrase is case-sensitive and used during wallet creation.
+              {t('walletDetail.passphraseCaseSensitive')}
             </small>
           </div>
 
@@ -962,10 +973,10 @@ export function WalletDetail({
                     animation: "spin 0.6s linear infinite",
                   }}
                 ></span>
-                Validating...
+                {t('walletDetail.validating')}
               </span>
             ) : (
-              "Verify & Continue"
+              t('walletDetail.verifyAndContinue')
             )}
           </button>
 
@@ -989,7 +1000,7 @@ export function WalletDetail({
               cursor: "pointer",
             }}
           >
-            ← Back to password
+            {t('walletDetail.backToPassword')}
           </button>
         </div>
       </div>
@@ -1093,7 +1104,7 @@ export function WalletDetail({
             gap: "0.5rem",
           }}
         >
-          ← Back to Wallets
+          ← {t('walletDetail.backToWallets')}
         </button>
 
         <div
@@ -1138,7 +1149,7 @@ export function WalletDetail({
                 {wallet.name}
               </h3>
               <button
-                title="Switch Wallet"
+                title={t('walletDetail.switchWallet')}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -1163,12 +1174,12 @@ export function WalletDetail({
                 color: "#64748b",
               }}
             >
-              Wallet 01
+              {t('walletDetail.wallet01')}
             </div>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: "0.75rem" }}>
             <button
-              title="Copy Address"
+              title={t('walletDetail.copyAddress')}
               onClick={() => setShowAddressList(true)}
               style={{
                 background: "transparent",
@@ -1190,7 +1201,7 @@ export function WalletDetail({
               📋
             </button>
             <button
-              title="Refresh Balances"
+              title={t('walletDetail.refreshBalances')}
               onClick={handleRefreshBalances}
               disabled={isRefreshing}
               style={{
@@ -1214,7 +1225,7 @@ export function WalletDetail({
               🔄
             </button>
             <button
-              title="Network Settings"
+              title={t('walletDetail.networkSettings')}
               style={{
                 background: "transparent",
                 border: "1px solid #e2e8f0",
@@ -1261,7 +1272,7 @@ export function WalletDetail({
           >
             <span>{formatUSD(0)} (0.00%)</span>
             <button
-              title="Change Time Period"
+              title={t('walletDetail.changeTimePeriod')}
               onClick={() => setShowPercentage(!showPercentage)}
               style={{
                 background: "transparent",
@@ -1295,35 +1306,35 @@ export function WalletDetail({
           {[
             {
               icon: "↑",
-              label: "Send",
-              tooltip: "Send tokens to another address",
+              label: t('walletDetail.send'),
+              tooltip: t('walletDetail.sendTooltip'),
               onClick: () => {
                 console.log("💸 [Send] Button clicked, available tokens:", availableTokensForSend.length);
                 if (availableTokensForSend.length > 0) {
                   setShowSendTransaction(true);
                 } else {
-                  alert("No tokens with balance available to send. Please load your token balances first.");
+                  alert(t('walletDetail.noTokensToSend'));
                 }
               },
             },
             {
               icon: "↓",
-              label: "Receive",
-              tooltip: "Receive tokens to your wallet",
+              label: t('walletDetail.receive'),
+              tooltip: t('walletDetail.receiveTooltip'),
               onClick: () => setShowAddressList(true),
             },
-            { icon: "🔄", label: "Swap", tooltip: "Exchange tokens instantly", onClick: () => {
+            { icon: "🔄", label: t('walletDetail.swap'), tooltip: t('walletDetail.swapTooltip'), onClick: () => {
                 console.log("🔄 [Swap] Button clicked, available tokens:", availableTokensForSend.length);
                 if (availableTokensForSend.length > 0) {
                   setShowSwapTransaction(true);
                 } else {
-                  alert("No tokens with balance available to swap. Please load your token balances first.");
+                  alert(t('walletDetail.noTokensToSwap'));
                 }
               } },
             {
               icon: "📜",
-              label: "History",
-              tooltip: "View transaction history",
+              label: t('walletDetail.history'),
+              tooltip: t('walletDetail.historyTooltip'),
               onClick: () => {
                 console.log("📜 [History] Button clicked, walletAddresses:", walletAddresses.length);
                 // Get first EVM address (coin_type 60 = Ethereum compatible)
@@ -1346,12 +1357,12 @@ export function WalletDetail({
                     setHistoryAddress(anyEvmAddress.address);
                     setShowHistory(true);
                   } else {
-                    alert("No EVM address found. Transaction history requires an Ethereum-compatible address (0x...).");
+                    alert(t('walletDetail.noEvmAddress'));
                   }
                 }
               },
             },
-            { icon: "⋯", label: "More", tooltip: "More options and settings", onClick: () => {} },
+            { icon: "⋯", label: t('walletDetail.more'), tooltip: t('walletDetail.moreTooltip'), onClick: () => {} },
           ].map((action) => (
             <button
               key={action.label}
@@ -1413,10 +1424,10 @@ export function WalletDetail({
         }}
       >
         {[
-          { id: "crypto" as TabType, label: "Crypto" },
-          { id: "defi" as TabType, label: "DeFi" },
-          { id: "nft" as TabType, label: "NFT" },
-          { id: "approvals" as TabType, label: "Approvals" },
+          { id: "crypto" as TabType, label: t('walletDetail.crypto') },
+          { id: "defi" as TabType, label: t('walletDetail.defi') },
+          { id: "nft" as TabType, label: t('walletDetail.nft') },
+          { id: "approvals" as TabType, label: t('walletDetail.approvals') },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -1448,7 +1459,7 @@ export function WalletDetail({
             <div style={{ textAlign: "center", padding: "3rem" }}>
               <LoadingSpinner />
               <p style={{ marginTop: "1rem", color: "#64748b" }}>
-                Loading assets...
+                {t('walletDetail.loadingAssetsDot')}
               </p>
             </div>
           ) : displayTokens.length === 0 ? (
@@ -1460,7 +1471,7 @@ export function WalletDetail({
               }}
             >
               <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📭</div>
-              <p>No tokens found in this wallet</p>
+              <p>{t('walletDetail.noTokensFound')}</p>
             </div>
           ) : (
             <div
@@ -1669,10 +1680,10 @@ export function WalletDetail({
               color: "#1e293b",
             }}
           >
-            DeFi Coming Soon
+            {t('walletDetail.defiComingSoon')}
           </p>
           <p style={{ fontSize: "0.875rem" }}>
-            View your DeFi positions, staking, and lending protocols
+            {t('walletDetail.defiDescription')}
           </p>
         </div>
       )}
@@ -1694,10 +1705,10 @@ export function WalletDetail({
               color: "#1e293b",
             }}
           >
-            NFT Gallery Coming Soon
+            {t('walletDetail.nftComingSoon')}
           </p>
           <p style={{ fontSize: "0.875rem" }}>
-            Browse and manage your NFT collection
+            {t('walletDetail.nftDescription')}
           </p>
         </div>
       )}
@@ -1719,10 +1730,10 @@ export function WalletDetail({
               color: "#1e293b",
             }}
           >
-            Token Approvals Coming Soon
+            {t('walletDetail.approvalsComingSoon')}
           </p>
           <p style={{ fontSize: "0.875rem" }}>
-            Review and revoke token approvals for security
+            {t('walletDetail.approvalsDescription')}
           </p>
         </div>
       )}
@@ -1791,7 +1802,7 @@ export function WalletDetail({
                     color: "#1e293b",
                   }}
                 >
-                  Wallet Addresses
+                  {t('walletDetail.walletAddresses')}
                 </h3>
                 <p
                   style={{
@@ -1800,7 +1811,7 @@ export function WalletDetail({
                     color: "#64748b",
                   }}
                 >
-                  {wallet.name} • {walletAddresses.filter(a => !a.is_testnet).length} addresses
+                  {wallet.name} • {walletAddresses.filter(a => !a.is_testnet).length} {t('walletDetail.addresses')}
                 </p>
               </div>
               <button
@@ -1833,7 +1844,7 @@ export function WalletDetail({
                     color: "#64748b",
                   }}
                 >
-                  <p>No addresses loaded. Please unlock the wallet first.</p>
+                  <p>{t('walletDetail.noAddressesLoaded')}</p>
                 </div>
               ) : (
                 <>
@@ -1863,7 +1874,7 @@ export function WalletDetail({
                               color: "#15803d",
                             }}
                           >
-                            {CHAIN_CATEGORIES.SUPPORTED} ({supportedAddrs.length})
+                            {t('walletDetail.supportedChains')} ({supportedAddrs.length})
                           </span>
                           <span
                             style={{
@@ -1872,7 +1883,7 @@ export function WalletDetail({
                               marginLeft: "0.5rem",
                             }}
                           >
-                            Full transaction support
+                            {t('walletDetail.fullTransactionSupport')}
                           </span>
                         </div>
                         <div style={{ padding: "0.5rem" }}>
@@ -1982,7 +1993,7 @@ export function WalletDetail({
                               <div style={{ display: "flex", gap: "0.5rem" }}>
                                 <button
                                   onClick={() => handleCopyAddress(addr.address)}
-                                  title="Copy address"
+                                  title={t('walletDetail.copyAddressTooltip')}
                                   style={{
                                     background: copiedAddress === addr.address ? "#dcfce7" : "#f1f5f9",
                                     border: "none",
@@ -1998,7 +2009,7 @@ export function WalletDetail({
                                 </button>
                                 <button
                                   onClick={() => setReceiveAddress(addr)}
-                                  title="Show QR Code"
+                                  title={t('walletDetail.showQrCode')}
                                   style={{
                                     background: "#f1f5f9",
                                     border: "none",
@@ -2058,7 +2069,7 @@ export function WalletDetail({
                               color: "#475569",
                             }}
                           >
-                            {CHAIN_CATEGORIES.UNSUPPORTED} ({unsupportedAddrs.length})
+                            {t('walletDetail.otherChains')} ({unsupportedAddrs.length})
                           </span>
                           <span
                             style={{
@@ -2067,7 +2078,7 @@ export function WalletDetail({
                               marginLeft: "0.5rem",
                             }}
                           >
-                            Address only
+                            {t('walletDetail.addressOnly')}
                           </span>
                         </div>
                         {/* Disclaimer for Other Chains */}
@@ -2083,11 +2094,10 @@ export function WalletDetail({
                         >
                           <span style={{ color: "#d97706", flexShrink: 0 }}>⚠️</span>
                           <div style={{ fontSize: "0.75rem", color: "#92400e", lineHeight: "1.4" }}>
-                            <strong>Disclaimer:</strong> These addresses are derived using standard BIP-44 paths but have NOT been fully verified for compatibility with each blockchain's native wallet format.
-                            Use at your own risk. We recommend verifying addresses with official tools before depositing significant funds.
+                            <strong>{t('walletDetail.disclaimer')}</strong> {t('walletDetail.disclaimerText')}
                             <br />
                             <span style={{ color: "#b45309", fontStyle: "italic" }}>
-                              Full transaction support for these chains is planned for future releases.
+                              {t('walletDetail.disclaimerFuture')}
                             </span>
                           </div>
                         </div>
@@ -2197,7 +2207,7 @@ export function WalletDetail({
                               {/* Copy Button Only */}
                               <button
                                 onClick={() => handleCopyAddress(addr.address)}
-                                title="Copy address"
+                                title={t('walletDetail.copyAddressTooltip')}
                                 style={{
                                   background: copiedAddress === addr.address ? "#dcfce7" : "#f1f5f9",
                                   border: "none",

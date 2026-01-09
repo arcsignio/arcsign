@@ -7,6 +7,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface InactivityWarningDialogProps {
   isOpen: boolean;
@@ -25,6 +26,8 @@ export const InactivityWarningDialog: React.FC<InactivityWarningDialogProps> = (
   onContinue,
   onLogout,
 }) => {
+  const { t } = useTranslation();
+
   if (!isOpen) return null;
 
   return (
@@ -59,7 +62,7 @@ export const InactivityWarningDialog: React.FC<InactivityWarningDialogProps> = (
           id="inactivity-warning-title"
           className="text-xl font-semibold text-center mb-2"
         >
-          Inactivity Detected
+          {t('inactivity.title')}
         </h2>
 
         {/* Description */}
@@ -67,9 +70,9 @@ export const InactivityWarningDialog: React.FC<InactivityWarningDialogProps> = (
           id="inactivity-warning-description"
           className="text-sm text-gray-600 text-center mb-6"
         >
-          You will be automatically logged out in{' '}
+          {t('inactivity.logoutIn')}{' '}
           <span className="font-semibold text-gray-900">{remainingSeconds}</span>{' '}
-          {remainingSeconds === 1 ? 'second' : 'seconds'} due to inactivity.
+          {remainingSeconds === 1 ? t('inactivity.second') : t('inactivity.seconds')} {t('inactivity.dueToInactivity')}
         </p>
 
         {/* Countdown Progress Bar */}
@@ -85,8 +88,7 @@ export const InactivityWarningDialog: React.FC<InactivityWarningDialogProps> = (
         {/* Security Message */}
         <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-xs text-blue-800">
-            <strong>Security Notice:</strong> You will need to re-enter your password to continue.
-            All sensitive data will be cleared from memory when you are logged out.
+            <strong>{t('inactivity.securityNotice')}</strong> {t('inactivity.needPassword')}
           </p>
         </div>
 
@@ -97,20 +99,20 @@ export const InactivityWarningDialog: React.FC<InactivityWarningDialogProps> = (
             className="flex-1 px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             autoFocus
           >
-            Unlock & Continue
+            {t('inactivity.unlockContinue')}
           </button>
           <button
             onClick={onLogout}
             className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
           >
-            Logout Now
+            {t('inactivity.logoutNow')}
           </button>
         </div>
 
         {/* Keyboard Hint */}
         <p className="text-xs text-gray-500 text-center mt-4">
-          Press <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded">Enter</kbd>{' '}
-          to unlock
+          {t('inactivity.pressEnter')} <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded">Enter</kbd>{' '}
+          {t('inactivity.toUnlock')}
         </p>
       </div>
     </div>

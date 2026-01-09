@@ -87,7 +87,7 @@ export function Dashboard() {
       onLogout: () => {
         // Navigate to list view after logout
         setCurrentView("list");
-        setError("You have been logged out due to inactivity.");
+        setError(t("dashboard.loggedOutInactivity"));
       },
     });
 
@@ -138,7 +138,7 @@ export function Dashboard() {
       );
 
       if (!wallet) {
-        throw new Error("No wallet found for the specified address");
+        throw new Error(t("dashboard.noWalletForAddress"));
       }
 
       // Map chain_id to chainId string for our transaction API
@@ -269,7 +269,7 @@ export function Dashboard() {
         // Detect USB first
         const devices = await tauriApi.detectUsb();
         if (devices.length === 0) {
-          setError("No USB drive detected. Please insert a USB drive.");
+          setError(t("dashboard.noUsbDetected"));
           setIsLoadingWallets(false);
           return;
         }
@@ -363,7 +363,7 @@ export function Dashboard() {
   // Load addresses after password is entered (T061)
   const handleLoadAddresses = async () => {
     if (!walletIdForAddresses || !usbPath || !passwordForAddresses) {
-      setAddressError("Missing required information");
+      setAddressError(t("dashboard.missingRequiredInfo"));
       return;
     }
 
@@ -474,7 +474,7 @@ export function Dashboard() {
     return (
       <div className="dashboard">
         <button onClick={handleBackToList} className="back-button">
-          ← Back to Wallets
+          ← {t("dashboard.backToWallets")}
         </button>
         {usbPath ? (
           <WalletImport
@@ -487,7 +487,7 @@ export function Dashboard() {
           />
         ) : (
           <div className="error-message">
-            No USB drive detected. Please insert a USB drive.
+            {t("dashboard.noUsbDetected")}
           </div>
         )}
       </div>
@@ -500,11 +500,11 @@ export function Dashboard() {
     return (
       <div className="dashboard">
         <button onClick={handleBackToList} className="back-button">
-          ← Back to Wallets
+          ← {t("dashboard.backToWallets")}
         </button>
         <header className="dashboard-header">
           <div className="flex-1">
-            <h1>Wallet Addresses</h1>
+            <h1>{t("dashboard.walletAddresses")}</h1>
             {wallet && <p className="text-gray-600">{wallet.name}</p>}
           </div>
         </header>
@@ -555,19 +555,18 @@ export function Dashboard() {
     return (
       <div className="dashboard">
         <button onClick={() => setCurrentView("settings")} className="back-button">
-          ← Back to Settings
+          ← {t("dashboard.backToSettings")}
         </button>
         {usbPath ? (
           <ProviderSettings usbPath={usbPath} />
         ) : (
           <div className="settings-prompt">
-            <h2>API Provider Settings</h2>
+            <h2>{t("dashboard.apiProviderSettings")}</h2>
             <p>
-              No USB drive detected. Please insert a USB drive to configure
-              providers.
+              {t("dashboard.noUsbForProviders")}
             </p>
             <button onClick={() => setCurrentView("settings")} className="primary-button">
-              Back to Settings
+              {t("dashboard.backToSettings")}
             </button>
           </div>
         )}
@@ -580,7 +579,7 @@ export function Dashboard() {
     <div className="dashboard">
       <header className="dashboard-header">
         <div className="header-title-section">
-          <h1>ArcSign Dashboard</h1>
+          <h1>{t("dashboard.title")}</h1>
           <MembershipBadge onClick={() => setCurrentView("membership")} />
         </div>
         <div className="header-actions">
@@ -627,19 +626,19 @@ export function Dashboard() {
 
       {isLoadingWallets ? (
         <div className="loading">
-          <LoadingSpinner size="lg" message="Loading wallets from USB..." />
+          <LoadingSpinner size="lg" message={t("dashboard.loadingWallets")} />
         </div>
       ) : !hasWallets ? (
         <div className="empty-state">
-          <h2>No Wallets Found</h2>
-          <p>Create your first wallet to get started with ArcSign.</p>
+          <h2>{t("dashboard.noWalletsFound")}</h2>
+          <p>{t("dashboard.createFirstWalletDesc")}</p>
           <button onClick={handleCreateWallet} className="primary-button large">
-            Create Your First Wallet
+            {t("dashboard.createFirstWallet")}
           </button>
         </div>
       ) : (
         <div className="wallet-list">
-          <h2>Your Wallets</h2>
+          <h2>{t("dashboard.yourWallets")}</h2>
           <div className="wallets-grid">
             {wallets.map((wallet) => {
               const isLocked = lockedWalletIds.includes(wallet.id);
@@ -654,32 +653,32 @@ export function Dashboard() {
                   <div className="wallet-card-header">
                     <h3>
                       {wallet.name}
-                      {isLocked && <span className="lock-icon" title="Wallet locked - upgrade membership to unlock">🔒</span>}
+                      {isLocked && <span className="lock-icon" title={t("dashboard.walletLockedTitle")}>🔒</span>}
                     </h3>
                     <button
                       className="delete-wallet-button"
                       onClick={(e) => handleDeleteWallet(wallet, e)}
-                      title="Delete wallet"
-                      aria-label={`Delete wallet ${wallet.name}`}
+                      title={t("wallet.deleteWallet")}
+                      aria-label={t("dashboard.deleteWalletAria", { name: wallet.name })}
                     >
                       🗑️
                     </button>
                   </div>
                   {isLocked && (
                     <div className="locked-banner">
-                      <span>⚠️ Locked - Cannot send transactions</span>
+                      <span>⚠️ {t("dashboard.walletLocked")}</span>
                     </div>
                   )}
                   <div className="wallet-info">
                     <p>
-                      <strong>Created:</strong>{" "}
+                      <strong>{t("wallet.created")}:</strong>{" "}
                       {new Date(wallet.created_at).toLocaleDateString()}
                     </p>
                     <p>
-                      <strong>Addresses:</strong> {wallet.address_count}
+                      <strong>{t("wallet.addresses")}:</strong> {wallet.address_count}
                     </p>
                     {wallet.has_passphrase && (
-                      <span className="badge">Protected with Passphrase</span>
+                      <span className="badge">{t("wallet.protectedWithPassphrase")}</span>
                     )}
                   </div>
                   <button
@@ -689,7 +688,7 @@ export function Dashboard() {
                       handleWalletSelect(wallet.id);
                     }}
                   >
-                    View Assets →
+                    {t("dashboard.viewAssets")} →
                   </button>
                 </div>
               );
@@ -700,9 +699,9 @@ export function Dashboard() {
 
       {selectedWallet && (
         <div className="selected-wallet-info">
-          <h3>Selected: {selectedWallet.name}</h3>
+          <h3>{t("dashboard.selected")}: {selectedWallet.name}</h3>
           <p className="wallet-id">
-            ID: {selectedWallet.id.substring(0, 16)}...
+            {t("wallet.walletId")}: {selectedWallet.id.substring(0, 16)}...
           </p>
         </div>
       )}
@@ -718,11 +717,10 @@ export function Dashboard() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h2 className="text-xl font-semibold mb-4">
-              Enter Wallet Password
+              {t("dashboard.enterWalletPassword")}
             </h2>
             <p className="text-sm text-gray-600 mb-4">
-              Enter your password to unlock and view the addresses for this
-              wallet.
+              {t("dashboard.enterPasswordDesc")}
             </p>
 
             {addressError && (
@@ -736,7 +734,7 @@ export function Dashboard() {
                 htmlFor="address-password"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Password
+                {t("dashboard.password")}
               </label>
               <input
                 type="password"
@@ -748,7 +746,7 @@ export function Dashboard() {
                     handleLoadAddresses();
                   }
                 }}
-                placeholder="Enter wallet password"
+                placeholder={t("dashboard.enterWalletPasswordPlaceholder")}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 autoFocus
                 disabled={isLoadingAddresses}
@@ -761,14 +759,14 @@ export function Dashboard() {
                 disabled={isLoadingAddresses || !passwordForAddresses}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {isLoadingAddresses ? "Loading..." : "Unlock Wallet"}
+                {isLoadingAddresses ? t("common.loading") : t("dashboard.unlockWallet")}
               </button>
               <button
                 onClick={handleCancelPasswordPrompt}
                 disabled={isLoadingAddresses}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
-                Cancel
+                {t("actions.cancel")}
               </button>
             </div>
           </div>
