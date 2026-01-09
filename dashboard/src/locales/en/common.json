@@ -655,6 +655,7 @@
     "selectStakingOption": "Select Staking Option",
     "selectStakingOptionDesc": "Browse all available staking options. APY rates are fetched in real-time.",
     "loadingApy": "Loading APY rates...",
+    "loadingMetrics": "Loading staking metrics...",
     "yourBalance": "Your balance",
     "changeOption": "Change Option",
     "insufficientBalance": "Insufficient balance. Please deposit more tokens to continue.",

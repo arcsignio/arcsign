@@ -655,6 +655,7 @@
     "selectStakingOption": "選擇質押選項",
     "selectStakingOptionDesc": "瀏覽所有可用的質押選項。APY 利率即時取得。",
     "loadingApy": "載入 APY 利率中...",
+    "loadingMetrics": "載入質押數據中...",
     "yourBalance": "您的餘額",
     "changeOption": "更換選項",
     "insufficientBalance": "餘額不足。請存入更多代幣以繼續。",

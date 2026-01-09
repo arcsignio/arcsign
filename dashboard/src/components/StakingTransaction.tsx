@@ -18,7 +18,7 @@ import tauriApi, { type AppError, type BuildTransactionResponse } from "@/servic
 import type { SendableToken } from "./SendTransaction";
 import type { StakingStep, StakableAsset, StakingProvider } from "@/types/defi";
 import {
-  getStakableAssetsWithApy,
+  getStakableAssetsWithMetrics,
   getCallDataEncoder,
   getExplorerTxUrl,
 } from "@/constants/stakingRegistry";
@@ -126,19 +126,19 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
   const [estimatedOutput, setEstimatedOutput] = useState<string>("");
   const [gasEstimate, setGasEstimate] = useState<string | null>(null);
 
-  // APY loading state
+  // Metrics loading state (APY + TVL)
   const [stakingOptions, setStakingOptions] = useState<StakingOption[]>([]);
-  const [isLoadingApy, setIsLoadingApy] = useState(true);
+  const [isLoadingMetrics, setIsLoadingMetrics] = useState(true);
 
-  // Fetch staking options with APY on mount
+  // Fetch staking options with APY and TVL on mount
   useEffect(() => {
     async function loadStakingOptions() {
-      setIsLoadingApy(true);
+      setIsLoadingMetrics(true);
       try {
-        const assetsWithApy = await getStakableAssetsWithApy();
+        const assetsWithMetrics = await getStakableAssetsWithMetrics();
         const options: StakingOption[] = [];
 
-        for (const asset of assetsWithApy) {
+        for (const asset of assetsWithMetrics) {
           for (const provider of asset.providers) {
             options.push({
               asset,
@@ -156,7 +156,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
       } catch (error) {
         console.error("Failed to load staking options:", error);
       } finally {
-        setIsLoadingApy(false);
+        setIsLoadingMetrics(false);
       }
     }
 
@@ -353,10 +353,10 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
       <h2 className="text-xl font-semibold mb-4">{t('staking.selectStakingOption')}</h2>
       <p className="text-sm text-gray-600 mb-6">{t('staking.selectStakingOptionDesc')}</p>
 
-      {isLoadingApy ? (
+      {isLoadingMetrics ? (
         <div className="text-center py-8">
           <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-sm text-gray-600">{t('staking.loadingApy')}</p>
+          <p className="text-sm text-gray-600">{t('staking.loadingMetrics')}</p>
         </div>
       ) : (
       <div className="space-y-3">

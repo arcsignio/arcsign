@@ -3,7 +3,7 @@
  * Feature: White-list verified staking providers across multiple chains
  *
  * Currently supported:
- * - ETH: Lido (stETH), Ankr (ankrETH)
+ * - ETH: Lido (stETH), Ankr (ankrETH), ether.fi (eETH)
  * - BNB: Ankr (ankrBNB)
  */
 
@@ -44,6 +44,18 @@ export function encodeAnkrEthStake(): string {
 }
 
 /**
+ * Encode ether.fi deposit(address _referral) call data for ETH
+ * Used for: ETH staking on ether.fi LiquidityPool
+ * Contract: 0x308861A430be4cce5502d0A12724771Fc6DaF216
+ */
+export function encodeEtherfiDeposit(referral: string = "0x0000000000000000000000000000000000000000"): string {
+  // Function selector: keccak256("deposit(address)")[:4] = 0xf340fa01
+  const selector = "f340fa01";
+  const paddedAddress = referral.toLowerCase().replace("0x", "").padStart(64, "0");
+  return "0x" + selector + paddedAddress;
+}
+
+/**
  * Get encoder function for a provider
  */
 export function getCallDataEncoder(providerId: string): (amount?: string, referral?: string) => string {
@@ -52,6 +64,8 @@ export function getCallDataEncoder(providerId: string): (amount?: string, referr
       return (_amount?: string, referral?: string) => encodeLidoSubmit(referral);
     case "ankr-eth":
       return () => encodeAnkrEthStake();
+    case "etherfi-eth":
+      return (_amount?: string, referral?: string) => encodeEtherfiDeposit(referral);
     case "ankr-bnb":
       return () => encodeAnkrBnbStake();
     default:
@@ -75,7 +89,7 @@ const LIDO_ETH: StakingProvider = {
   outputTokenDecimals: 18,
 
   apy: undefined,  // Fetched from Lido API at runtime
-  tvlUsd: 32_500_000_000,
+  tvlUsd: undefined,  // Fetched from DeFiLlama API at runtime
   minAmount: "0",
 
   verified: true,
@@ -100,7 +114,7 @@ const ANKR_ETH: StakingProvider = {
   outputTokenDecimals: 18,
 
   apy: undefined,  // Fetched from Ankr API at runtime
-  tvlUsd: 100_000_000,
+  tvlUsd: undefined,  // Fetched from Ankr API at runtime
   minAmount: "0",  // No minimum stake amount
 
   verified: true,
@@ -110,6 +124,31 @@ const ANKR_ETH: StakingProvider = {
 
   contractAddress: "0x84db6eE82b7Cf3b47E8F19270abdE5718B936670", // Ankr GlobalPool Proxy
   methodSignature: "stakeAndClaimAethC()",
+};
+
+const ETHERFI_ETH: StakingProvider = {
+  id: "etherfi-eth",
+  name: "ether.fi",
+  description: "Stake ETH and receive eETH liquid staking tokens with native restaking",
+  website: "https://ether.fi",
+  logoUrl: "https://coin-images.coingecko.com/coins/images/33049/small/ether.fi_eETH.png",
+
+  outputToken: "eETH",
+  outputTokenAddress: "0x35fA164735182de50811E8e2E824cFb9B6118ac2",
+  outputTokenDecimals: 18,
+
+  apy: undefined,  // Fetched from DeFiLlama API at runtime
+  tvlUsd: undefined,  // Fetched from DeFiLlama API at runtime
+  minAmount: "0",  // No minimum stake amount
+
+  verified: true,
+  audits: [
+    { auditor: "Certora", date: "2024" },
+    { auditor: "Nethermind", date: "2024" },
+  ],
+
+  contractAddress: "0x308861A430be4cce5502d0A12724771Fc6DaF216", // ether.fi LiquidityPool
+  methodSignature: "deposit(address)",
 };
 
 // =============================================================================
@@ -127,8 +166,8 @@ const ANKR_BNB: StakingProvider = {
   outputTokenAddress: "0x52F24a5e03aee338Da5fd9Df68D2b6FAe1178827",
   outputTokenDecimals: 18,
 
-  apy: undefined,  // Fetched from Ankr contract at runtime
-  tvlUsd: 150_000_000,
+  apy: undefined,  // Fetched from Ankr API at runtime
+  tvlUsd: undefined,  // Fetched from Ankr API at runtime
   minAmount: "100000000000000000", // 0.1 BNB
 
   verified: true,
@@ -152,7 +191,7 @@ export const STAKABLE_ASSETS: StakableAsset[] = [
     network: "ethereum",
     decimals: 18,
     logoUrl: "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
-    providers: [LIDO_ETH, ANKR_ETH],
+    providers: [LIDO_ETH, ANKR_ETH, ETHERFI_ETH],
   },
   {
     symbol: "BNB",
@@ -232,6 +271,101 @@ export function getExplorerTxUrl(chainId: string, txHash: string): string {
 }
 
 // =============================================================================
+// TVL Fetching Service
+// =============================================================================
+
+/**
+ * Fetch TVL from DeFiLlama API for a protocol
+ * API: https://api.llama.fi/tvl/{protocol_slug}
+ * Free, no API key required
+ */
+async function fetchDefiLlamaTvl(protocolSlug: string): Promise<number | null> {
+  try {
+    const response = await fetch(`https://api.llama.fi/tvl/${protocolSlug}`);
+    if (!response.ok) return null;
+
+    const tvl = await response.json();
+    // API returns a number directly (e.g., 27706467771.499653)
+    return typeof tvl === "number" ? tvl : null;
+  } catch (error) {
+    console.error(`Failed to fetch TVL for ${protocolSlug}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetch Ankr TVL from official Ankr Staking Metrics API
+ * API: https://api.staking.ankr.com/v1alpha/metrics
+ * Returns totalStakedUsd for each service (ETH, BNB, etc.)
+ */
+async function fetchAnkrTvls(): Promise<Map<string, number>> {
+  const ankrTvlMap = new Map<string, number>();
+
+  try {
+    const response = await fetch("https://api.staking.ankr.com/v1alpha/metrics");
+    if (!response.ok) return ankrTvlMap;
+
+    const data = await response.json();
+    const services = Array.isArray(data) ? data : data.services || [];
+
+    // Map service names to provider IDs
+    const serviceToProvider: Record<string, string> = {
+      eth: "ankr-eth",
+      bnb: "ankr-bnb",
+    };
+
+    for (const service of services) {
+      const serviceName = service.serviceName?.toLowerCase();
+      const providerId = serviceToProvider[serviceName];
+
+      if (providerId && service.totalStakedUsd) {
+        // API returns totalStakedUsd as string (e.g., "28775808.61")
+        const tvl = parseFloat(service.totalStakedUsd.replace(/[$,]/g, ""));
+        if (!isNaN(tvl)) {
+          ankrTvlMap.set(providerId, tvl);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Failed to fetch Ankr TVLs:", error);
+  }
+
+  return ankrTvlMap;
+}
+
+/**
+ * Fetch TVL data for all supported staking providers
+ * Sources:
+ * - Lido: DeFiLlama (https://api.llama.fi/tvl/lido)
+ * - ether.fi: DeFiLlama (https://api.llama.fi/tvl/ether.fi)
+ * - Ankr: Official API (https://api.staking.ankr.com/v1alpha/metrics)
+ */
+export async function fetchAllStakingTvls(): Promise<Map<string, number>> {
+  const tvlMap = new Map<string, number>();
+
+  const [lidoTvl, etherfiTvl, ankrTvls] = await Promise.all([
+    fetchDefiLlamaTvl("lido"),
+    fetchDefiLlamaTvl("ether.fi"),
+    fetchAnkrTvls(),
+  ]);
+
+  if (lidoTvl !== null) {
+    tvlMap.set("lido-eth", lidoTvl);
+  }
+
+  if (etherfiTvl !== null) {
+    tvlMap.set("etherfi-eth", etherfiTvl);
+  }
+
+  // Merge Ankr TVLs (ETH, BNB)
+  for (const [providerId, tvl] of ankrTvls) {
+    tvlMap.set(providerId, tvl);
+  }
+
+  return tvlMap;
+}
+
+// =============================================================================
 // APY Fetching Service
 // =============================================================================
 
@@ -298,14 +432,58 @@ async function fetchAnkrApys(): Promise<Map<string, number>> {
 }
 
 /**
+ * Fetch ether.fi eETH APY from DeFiLlama Yields API
+ * API: https://yields.llama.fi/pools
+ * Returns APY for ether.fi eETH staking
+ *
+ * Note: DeFiLlama project slug is "ether.fi-stake" for liquid staking
+ * Fallback to estimated value if API fails
+ */
+async function fetchEtherfiApy(): Promise<number | null> {
+  try {
+    const response = await fetch("https://yields.llama.fi/pools");
+    if (!response.ok) {
+      // Fallback to estimated APY (similar to Lido)
+      return 3.0;
+    }
+
+    const data = await response.json();
+    // Find ether.fi eETH pool on Ethereum
+    // DeFiLlama uses various project names: "ether.fi", "ether.fi-stake", "etherfi"
+    const pools = data?.data || [];
+    const etherfiPool = pools.find(
+      (p: { project?: string; symbol?: string; chain?: string }) =>
+        (p.project === "ether.fi" ||
+         p.project === "ether.fi-stake" ||
+         p.project === "etherfi") &&
+        (p.symbol?.toLowerCase().includes("eeth") ||
+         p.symbol?.toLowerCase() === "eth") &&
+        p.chain === "Ethereum"
+    );
+
+    if (etherfiPool?.apy) {
+      return etherfiPool.apy;
+    }
+
+    // Fallback: ether.fi APY is typically similar to base ETH staking (~3%)
+    return 3.0;
+  } catch (error) {
+    console.error("Failed to fetch ether.fi APY:", error);
+    // Return estimated APY on error
+    return 3.0;
+  }
+}
+
+/**
  * Fetch APY data for all supported staking providers
  */
 export async function fetchAllStakingApys(): Promise<Map<string, number>> {
   const apyMap = new Map<string, number>();
 
-  const [lidoApy, ankrApys] = await Promise.all([
+  const [lidoApy, ankrApys, etherfiApy] = await Promise.all([
     fetchLidoApy(),
     fetchAnkrApys(),
+    fetchEtherfiApy(),
   ]);
 
   if (lidoApy !== null) {
@@ -315,6 +493,10 @@ export async function fetchAllStakingApys(): Promise<Map<string, number>> {
   // Merge Ankr APYs (ETH, BNB, etc.)
   for (const [providerId, apy] of ankrApys) {
     apyMap.set(providerId, apy);
+  }
+
+  if (etherfiApy !== null) {
+    apyMap.set("etherfi-eth", etherfiApy);
   }
 
   return apyMap;
@@ -331,6 +513,28 @@ export async function getStakableAssetsWithApy(): Promise<StakableAsset[]> {
     providers: asset.providers.map(provider => ({
       ...provider,
       apy: apyMap.get(provider.id) ?? provider.apy,
+    })),
+  }));
+}
+
+/**
+ * Get stakable assets with both APY and TVL data populated
+ * Fetches data from multiple sources in parallel:
+ * - APY: Lido API, Ankr API, DeFiLlama Yields
+ * - TVL: DeFiLlama Protocol API, Ankr Staking Metrics API
+ */
+export async function getStakableAssetsWithMetrics(): Promise<StakableAsset[]> {
+  const [apyMap, tvlMap] = await Promise.all([
+    fetchAllStakingApys(),
+    fetchAllStakingTvls(),
+  ]);
+
+  return STAKABLE_ASSETS.map(asset => ({
+    ...asset,
+    providers: asset.providers.map(provider => ({
+      ...provider,
+      apy: apyMap.get(provider.id) ?? provider.apy,
+      tvlUsd: tvlMap.get(provider.id) ?? provider.tvlUsd,
     })),
   }));
 }
