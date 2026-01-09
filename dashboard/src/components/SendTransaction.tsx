@@ -62,13 +62,15 @@ interface SendTransactionProps {
   onSuccess?: (txHash: string) => void;
 }
 
-// Map network to chainId for backend
+// Map Internal Network ID to chainId for backend API
+// Backend token balances use Internal Network IDs: "arbitrum-mainnet", "optimism-mainnet"
+// Transaction API expects short chainId: "arbitrum", "optimism"
 function networkToChainId(network: string): string {
   const mapping: Record<string, string> = {
     "eth-mainnet": "ethereum",
     "polygon-mainnet": "polygon",
-    "arb-mainnet": "arbitrum",
-    "opt-mainnet": "optimism",
+    "arbitrum-mainnet": "arbitrum",
+    "optimism-mainnet": "optimism",
     "base-mainnet": "base",
     "bnb-mainnet": "bnb",
     "eth-sepolia": "ethereum-sepolia",
@@ -76,13 +78,13 @@ function networkToChainId(network: string): string {
   return mapping[network] || network;
 }
 
-// Get block explorer URL for a transaction
+// Get block explorer URL for a transaction (using Internal Network IDs)
 function getExplorerUrl(network: string, txHash: string): string {
   const explorers: Record<string, string> = {
     "eth-mainnet": "https://etherscan.io/tx/",
     "polygon-mainnet": "https://polygonscan.com/tx/",
-    "arb-mainnet": "https://arbiscan.io/tx/",
-    "opt-mainnet": "https://optimistic.etherscan.io/tx/",
+    "arbitrum-mainnet": "https://arbiscan.io/tx/",
+    "optimism-mainnet": "https://optimistic.etherscan.io/tx/",
     "base-mainnet": "https://basescan.org/tx/",
     "bnb-mainnet": "https://bscscan.com/tx/",
     "eth-sepolia": "https://sepolia.etherscan.io/tx/",
@@ -90,13 +92,13 @@ function getExplorerUrl(network: string, txHash: string): string {
   return `${explorers[network] || "https://etherscan.io/tx/"}${txHash}`;
 }
 
-// Get network display icon
+// Get network display icon (using Internal Network IDs)
 function getNetworkIcon(network: string): string {
   const icons: Record<string, string> = {
     "eth-mainnet": "⟠",
     "polygon-mainnet": "⬡",
-    "arb-mainnet": "🔵",
-    "opt-mainnet": "🔴",
+    "arbitrum-mainnet": "🔵",
+    "optimism-mainnet": "🔴",
     "base-mainnet": "🔷",
     "bnb-mainnet": "🟡",
     "eth-sepolia": "🧪",

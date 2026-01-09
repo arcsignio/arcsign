@@ -55,39 +55,41 @@ interface SwapTransactionProps {
 // provider only affects quote/route/build operations
 type TokenCache = Record<string, SwapTokenInfo[]>;
 
-// Map network to chainId for backend
+// Map Internal Network ID to chainId for backend swap API
+// Backend token balances use Internal Network IDs: "arbitrum-mainnet", "optimism-mainnet"
+// Swap API expects short chainId: "arbitrum", "optimism"
 function networkToChainId(network: string): string {
   const mapping: Record<string, string> = {
     "eth-mainnet": "ethereum",
     "polygon-mainnet": "polygon",
-    "arb-mainnet": "arbitrum",
-    "opt-mainnet": "optimism",
+    "arbitrum-mainnet": "arbitrum",
+    "optimism-mainnet": "optimism",
     "base-mainnet": "base",
     "bnb-mainnet": "bnb",
   };
   return mapping[network] || network;
 }
 
-// Get block explorer URL for a transaction
+// Get block explorer URL for a transaction (using Internal Network IDs)
 function getExplorerUrl(network: string, txHash: string): string {
   const explorers: Record<string, string> = {
     "eth-mainnet": "https://etherscan.io/tx/",
     "polygon-mainnet": "https://polygonscan.com/tx/",
-    "arb-mainnet": "https://arbiscan.io/tx/",
-    "opt-mainnet": "https://optimistic.etherscan.io/tx/",
+    "arbitrum-mainnet": "https://arbiscan.io/tx/",
+    "optimism-mainnet": "https://optimistic.etherscan.io/tx/",
     "base-mainnet": "https://basescan.org/tx/",
     "bnb-mainnet": "https://bscscan.com/tx/",
   };
   return `${explorers[network] || "https://etherscan.io/tx/"}${txHash}`;
 }
 
-// Get network display icon
+// Get network display icon (using Internal Network IDs)
 function getNetworkIcon(network: string): string {
   const icons: Record<string, string> = {
     "eth-mainnet": "⟠",
     "polygon-mainnet": "⬡",
-    "arb-mainnet": "🔵",
-    "opt-mainnet": "🔴",
+    "arbitrum-mainnet": "🔵",
+    "optimism-mainnet": "🔴",
     "base-mainnet": "🔷",
     "bnb-mainnet": "🟡",
   };
@@ -122,13 +124,13 @@ function fromSmallestUnit(amount: string, decimals: number): string {
   return trimmed ? `${intPart}.${trimmed}` : intPart;
 }
 
-// Get native token symbol for a network
+// Get native token symbol for a network (supports both Internal Network IDs and short chainIds)
 function getNativeTokenSymbol(network: string): string {
   const mapping: Record<string, string> = {
     "eth-mainnet": "ETH",
     "polygon-mainnet": "MATIC",
-    "arb-mainnet": "ETH",
-    "opt-mainnet": "ETH",
+    "arbitrum-mainnet": "ETH",
+    "optimism-mainnet": "ETH",
     "base-mainnet": "ETH",
     "bnb-mainnet": "BNB",
     "ethereum": "ETH",
@@ -161,8 +163,9 @@ function formatBalance(balance: string): string {
   return truncate(num, 4);
 }
 
-// Supported chains for swap
-const SUPPORTED_SWAP_CHAINS = ["eth-mainnet", "polygon-mainnet", "arb-mainnet", "opt-mainnet", "base-mainnet", "bnb-mainnet"];
+// Supported chains for swap (using Internal Network IDs from backend)
+// Backend returns "arbitrum-mainnet", "optimism-mainnet", etc. (not Alchemy format "arb-mainnet")
+const SUPPORTED_SWAP_CHAINS = ["eth-mainnet", "polygon-mainnet", "arbitrum-mainnet", "optimism-mainnet", "base-mainnet", "bnb-mainnet"];
 
 // DEX Provider types (matching backend)
 type SwapProvider = "openocean" | "kyberswap";
@@ -674,15 +677,20 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 
     try {
       console.log("🔨 Building swap transaction...");
+      console.log("📦 Swap tx data:", JSON.stringify(swapTx.txData, null, 2));
 
       // Step 1: Build transaction using the swap data from OpenOcean
       // The buildTransaction call calculates the correct signingPayload (tx hash)
       // Note: OpenOcean provides gas estimates but backend will recalculate for safety
+      // Note: swapTx.txData.value from DEX API is the ETH amount to send (in wei)
+      const txValue = swapTx.txData.value || "0";
+      console.log("💰 Transaction value (wei):", txValue);
+
       const buildResult = await tauriApi.buildTransaction({
         chainId,
         from: fromToken.fromAddress,
         to: swapTx.txData.to,
-        amount: swapTx.txData.value || "0",
+        amount: txValue,
         data: swapTx.txData.data || "",
         feeSpeed: "fast", // Use fast for swap tx to ensure they go through
         usbPath,

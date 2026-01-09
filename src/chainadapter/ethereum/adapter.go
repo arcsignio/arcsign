@@ -269,6 +269,7 @@ func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.Transacti
 	var maxFeePerGas, maxPriorityFeePerGas *big.Int
 
 	isLegacyChain := e.networkID == 56 || e.networkID == 97 || e.networkID == 250 // BSC, BSC Testnet, Fantom
+	isL2Chain := e.networkID == 42161 || e.networkID == 10 || e.networkID == 8453 // Arbitrum, Optimism, Base
 
 	if isLegacyChain {
 		// Legacy strategy: Use eth_gasPrice for chains without proper EIP-1559
@@ -330,8 +331,15 @@ func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.Transacti
 			fmt.Fprintf(os.Stderr, "[ETH Build] Using fallback priorityFee: %s\n", priorityFee.String())
 		}
 
-		// Minimum priority fee (1 Gwei for most chains)
-		minPriorityFee := big.NewInt(1e9)
+		// Minimum priority fee depends on chain type:
+		// - L2 chains (Arbitrum, Optimism, Base): 0.001 Gwei (1e6 wei) - L2s have very low fees
+		// - Other EIP-1559 chains (ETH, Polygon): 1 Gwei (1e9 wei)
+		var minPriorityFee *big.Int
+		if isL2Chain {
+			minPriorityFee = big.NewInt(1e6) // 0.001 Gwei for L2
+		} else {
+			minPriorityFee = big.NewInt(1e9) // 1 Gwei for L1
+		}
 		if priorityFee.Cmp(minPriorityFee) < 0 {
 			priorityFee = minPriorityFee
 		}
