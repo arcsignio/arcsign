@@ -303,6 +303,17 @@
     "insufficientFunds": "餘額不足",
     "transactionFailed": "交易失敗"
   },
+  "debug": {
+    "debugInfo": "除錯資訊",
+    "formValid": "表單有效",
+    "formDirty": "表單已修改",
+    "isCreating": "建立中",
+    "usbDevicesCount": "USB 裝置數量",
+    "formValues": "表單值",
+    "hasErrors": "有錯誤",
+    "errorFields": "錯誤欄位",
+    "empty": "（空）"
+  },
   "language": {
     "language": "語言",
     "english": "English",

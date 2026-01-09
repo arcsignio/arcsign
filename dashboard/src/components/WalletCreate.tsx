@@ -332,23 +332,23 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
 
         {/* Debug Info - Remove after fixing */}
         <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f0f0f0', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace' }}>
-          <strong>Debug Info:</strong>
-          <div>isValid: {isValid ? '✅ true' : '❌ false'}</div>
-          <div>isDirty: {isDirty ? '✅ true' : '❌ false'}</div>
-          <div>isCreating: {isCreating ? '❌ true' : '✅ false'}</div>
-          <div>usbDevices.length: {usbDevices.length}</div>
-          <div>Form Values:</div>
+          <strong>{t('debug.debugInfo')}:</strong>
+          <div>{t('debug.formValid')}: {isValid ? '✅ true' : '❌ false'}</div>
+          <div>{t('debug.formDirty')}: {isDirty ? '✅ true' : '❌ false'}</div>
+          <div>{t('debug.isCreating')}: {isCreating ? '❌ true' : '✅ false'}</div>
+          <div>{t('debug.usbDevicesCount')}: {usbDevices.length}</div>
+          <div>{t('debug.formValues')}:</div>
           <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-            usbPath: {watch('usbPath') || '(empty)'}
-            password: {watch('password') ? '***' + watch('password').substring(watch('password').length - 3) : '(empty)'}
-            confirmPassword: {watch('confirmPassword') ? '***' + watch('confirmPassword').substring(watch('confirmPassword').length - 3) : '(empty)'}
-            walletName: {watch('walletName') || '(empty)'}
-            passphrase: {watch('passphrase') ? '***' : '(empty)'}
+            usbPath: {watch('usbPath') || t('debug.empty')}
+            password: {watch('password') ? '***' + watch('password').substring(watch('password').length - 3) : t('debug.empty')}
+            confirmPassword: {watch('confirmPassword') ? '***' + watch('confirmPassword').substring(watch('confirmPassword').length - 3) : t('debug.empty')}
+            walletName: {watch('walletName') || t('debug.empty')}
+            passphrase: {watch('passphrase') ? '***' : t('debug.empty')}
             mnemonicLength: {watch('mnemonicLength')}
           </pre>
-          <div>Has Errors: {Object.keys(errors).length > 0 ? '❌ YES' : '✅ NO'}</div>
+          <div>{t('debug.hasErrors')}: {Object.keys(errors).length > 0 ? '❌ YES' : '✅ NO'}</div>
           {Object.keys(errors).length > 0 && (
-            <div>Error Fields: {Object.keys(errors).join(', ')}</div>
+            <div>{t('debug.errorFields')}: {Object.keys(errors).join(', ')}</div>
           )}
         </div>
 

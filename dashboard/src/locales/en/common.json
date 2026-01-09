@@ -303,6 +303,17 @@
     "insufficientFunds": "Insufficient funds",
     "transactionFailed": "Transaction failed"
   },
+  "debug": {
+    "debugInfo": "Debug Info",
+    "formValid": "isValid",
+    "formDirty": "isDirty",
+    "isCreating": "isCreating",
+    "usbDevicesCount": "usbDevices.length",
+    "formValues": "Form Values",
+    "hasErrors": "Has Errors",
+    "errorFields": "Error Fields",
+    "empty": "(empty)"
+  },
   "language": {
     "language": "Language",
     "english": "English",
