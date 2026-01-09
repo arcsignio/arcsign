@@ -23,6 +23,7 @@ import type { ChainKey } from "@/services/tokenList";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { SendTransaction, type SendableToken } from "@/components/SendTransaction";
 import SwapTransaction from "@/components/SwapTransaction";
+import StakingTransaction from "@/components/StakingTransaction";
 import { getChainIconUrl, getChainFallbackIcon, isChainSupported, isChainEnabled } from "@/utils/chainIcons";
 import ReceiveAddressModal from "@/components/ReceiveAddressModal";
 
@@ -95,6 +96,12 @@ export function WalletDetail({
 
   // Swap Transaction state
   const [showSwapTransaction, setShowSwapTransaction] = useState(false);
+
+  // Staking Transaction state
+  const [showStakingTransaction, setShowStakingTransaction] = useState(false);
+
+  // More menu dropdown state
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   // Refresh state
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -1071,6 +1078,31 @@ export function WalletDetail({
     );
   }
 
+  // Show Staking Transaction view
+  if (showStakingTransaction && appPassword) {
+    console.log("📈 [WalletDetail] Rendering StakingTransaction component with", availableTokensForSend.length, "tokens");
+    return (
+      <StakingTransaction
+        walletId={wallet.id}
+        walletHasPassphrase={wallet.has_passphrase}
+        walletPassphrase={validatedPassphrase || undefined}
+        availableTokens={availableTokensForSend}
+        usbPath={usbPath}
+        appPassword={appPassword}
+        onBack={() => {
+          setShowStakingTransaction(false);
+          // Refresh balances after returning from staking
+          handleRefreshBalances();
+        }}
+        onSuccess={(txHash) => {
+          console.log("✅ Staking transaction submitted:", txHash);
+          // Refresh balances after successful staking
+          handleRefreshBalances();
+        }}
+      />
+    );
+  }
+
   return (
     <div
       style={{
@@ -1301,6 +1333,7 @@ export function WalletDetail({
             gridTemplateColumns: "repeat(5, 1fr)",
             gap: "0.75rem",
             marginTop: "1.5rem",
+            position: "relative",
           }}
         >
           {[
@@ -1362,7 +1395,7 @@ export function WalletDetail({
                 }
               },
             },
-            { icon: "⋯", label: t('walletDetail.more'), tooltip: t('walletDetail.moreTooltip'), onClick: () => {} },
+            { icon: "⋯", label: t('walletDetail.more'), tooltip: t('walletDetail.moreTooltip'), onClick: () => setShowMoreMenu(!showMoreMenu) },
           ].map((action) => (
             <button
               key={action.label}
@@ -1409,8 +1442,74 @@ export function WalletDetail({
               </span>
             </button>
           ))}
+
+          {/* More Menu Dropdown */}
+          {showMoreMenu && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                right: "0",
+                marginTop: "0.5rem",
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "12px",
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+                zIndex: 50,
+                minWidth: "200px",
+                overflow: "hidden",
+              }}
+            >
+              {/* Staking Option */}
+              <button
+                onClick={() => {
+                  setShowMoreMenu(false);
+                  if (availableTokensForSend.some(t => t.network === "eth-mainnet" && !t.tokenAddress)) {
+                    setShowStakingTransaction(true);
+                  } else {
+                    alert(t('walletDetail.noEthForStaking'));
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  padding: "0.75rem 1rem",
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: "1px solid #e2e8f0",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.75rem",
+                  textAlign: "left",
+                  transition: "background 0.2s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#f1f5f9"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                <span style={{ fontSize: "1.25rem" }}>📈</span>
+                <div>
+                  <div style={{ fontWeight: "500", color: "#1e293b" }}>{t('walletDetail.staking')}</div>
+                  <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{t('walletDetail.stakingDesc')}</div>
+                </div>
+              </button>
+
+              {/* Close Menu on Outside Click */}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Click outside to close More menu */}
+      {showMoreMenu && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 40,
+          }}
+          onClick={() => setShowMoreMenu(false)}
+        />
+      )}
 
       {/* Tabs */}
       <div

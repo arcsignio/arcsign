@@ -50,7 +50,7 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
     register,
     handleSubmit,
     formState: { errors, isValid, isDirty },
-    watch,
+    watch: _watch,  // Reserved for debug mode
     setValue,
   } = useForm<WalletCreateFormData>({
     resolver: zodResolver(walletCreateSchema),
@@ -342,12 +342,12 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
           <div>{t('debug.usbDevicesCount')}: {usbDevices.length}</div>
           <div>{t('debug.formValues')}:</div>
           <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-            usbPath: {watch('usbPath') || t('debug.empty')}
-            password: {watch('password') ? '***' + watch('password').substring(watch('password').length - 3) : t('debug.empty')}
-            confirmPassword: {watch('confirmPassword') ? '***' + watch('confirmPassword').substring(watch('confirmPassword').length - 3) : t('debug.empty')}
-            walletName: {watch('walletName') || t('debug.empty')}
-            passphrase: {watch('passphrase') ? '***' : t('debug.empty')}
-            mnemonicLength: {watch('mnemonicLength')}
+            usbPath: {_watch('usbPath') || t('debug.empty')}
+            password: {_watch('password') ? '***' + _watch('password').substring(_watch('password').length - 3) : t('debug.empty')}
+            confirmPassword: {_watch('confirmPassword') ? '***' + _watch('confirmPassword').substring(_watch('confirmPassword').length - 3) : t('debug.empty')}
+            walletName: {_watch('walletName') || t('debug.empty')}
+            passphrase: {_watch('passphrase') ? '***' : t('debug.empty')}
+            mnemonicLength: {_watch('mnemonicLength')}
           </pre>
           <div>{t('debug.hasErrors')}: {Object.keys(errors).length > 0 ? '❌ YES' : '✅ NO'}</div>
           {Object.keys(errors).length > 0 && (
