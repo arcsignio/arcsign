@@ -455,7 +455,8 @@
     "staking": "Staking",
     "stakingDesc": "Stake assets to earn rewards",
     "noEthForStaking": "You need ETH on Ethereum mainnet to stake",
-    "noAssetsForStaking": "You need ETH, BNB, or MATIC with balance to stake"
+    "noAssetsForStaking": "You need ETH, BNB, or MATIC with balance to stake",
+    "sessionExpired": "Session expired. Please re-enter your password to continue."
   },
   "appUnlock": {
     "title": "ArcSign",

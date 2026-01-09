@@ -455,7 +455,8 @@
     "staking": "質押",
     "stakingDesc": "質押資產獲得收益",
     "noEthForStaking": "您需要在 Ethereum 主網上有 ETH 才能進行質押",
-    "noAssetsForStaking": "您需要有餘額的 ETH、BNB 或 MATIC 才能進行質押"
+    "noAssetsForStaking": "您需要有餘額的 ETH、BNB 或 MATIC 才能進行質押",
+    "sessionExpired": "密碼已過期，請重新輸入密碼以繼續操作。"
   },
   "appUnlock": {
     "title": "ArcSign",

@@ -3,7 +3,7 @@
  * Feature: Asset management with Alchemy API integration + CoinGecko Token Lists
  */
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppPassword } from "@/contexts/AppPasswordContext";
 import { useWalletSessionStore } from "@/stores/walletSessionStore";
@@ -114,15 +114,10 @@ export function WalletDetail({
   // This loads the complete token lists, not just top N
   const { tokens: allTokensByChain } = useAllTokens();
 
-  // Check if wallet already has a valid session on mount
-  useEffect(() => {
-    if (walletSession.isWalletSessionValid(wallet.id)) {
-      console.log("🔐 [WalletDetail] Valid session found, skipping password prompt");
-      setShowPasswordPrompt(false);
-      // Auto-load balances if session exists
-      handleRefreshBalances();
-    }
-  }, [wallet.id]);
+  // NOTE: Removed session-based password skip logic
+  // Security requirement: Always require password when entering wallet
+  // Session is preserved for non-sensitive operations (future use)
+  // but unlocking wallet always requires password verification
 
   const handleLoadBalances = async () => {
     if (!tempPassword || !appPassword) {
@@ -359,6 +354,7 @@ export function WalletDetail({
   const handleRefreshBalances = async () => {
     if (!passwordRef.current || !appPassword) {
       console.warn("Cannot refresh: missing password or appPassword");
+      setError(t('walletDetail.sessionExpired'));
       return;
     }
 
