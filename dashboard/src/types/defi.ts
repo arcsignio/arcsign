@@ -1,7 +1,7 @@
 /**
  * DeFi Protocol Types
  * Feature: DeFi Integration with White-list Protocol Registry
- * Supports: Staking, Lending, and other verified DeFi protocols
+ * Supports: Multi-chain Staking, Lending, and other verified DeFi protocols
  */
 
 /**
@@ -19,10 +19,58 @@ export type DefiCategory =
  */
 export type DefiNetwork =
   | "ethereum"
+  | "bsc"          // BNB Chain
   | "polygon"
   | "arbitrum"
   | "optimism"
   | "base";
+
+/**
+ * Stakable asset definition
+ * Represents a native token that can be staked on a specific chain
+ */
+export interface StakableAsset {
+  symbol: string;           // "ETH", "BNB", "MATIC"
+  name: string;             // "Ethereum", "BNB Chain", "Polygon"
+  chainId: string;          // Internal chain ID for API calls
+  network: DefiNetwork;     // Network type
+  decimals: number;
+  logoUrl: string;
+  providers: StakingProvider[];
+}
+
+/**
+ * Staking provider definition
+ * Represents a liquid staking protocol for a specific asset
+ */
+export interface StakingProvider {
+  id: string;               // "lido-eth", "ether-fi-eth", "ankr-bnb"
+  name: string;             // "Lido", "Ether.fi", "Ankr"
+  description: string;
+  website: string;
+  logoUrl: string;
+
+  // Output token info
+  outputToken: string;      // "stETH", "eETH", "aBNBc"
+  outputTokenAddress: string;
+  outputTokenDecimals: number;
+
+  // Protocol metrics (APY to be filled later via API)
+  apy?: number;
+  tvlUsd?: number;
+  minAmount: string;        // Minimum stake amount in wei/smallest unit
+
+  // Security
+  verified: boolean;
+  audits: { auditor: string; date: string }[];
+
+  // Contract info
+  contractAddress: string;
+
+  // Method to encode call data for this provider
+  // Each provider may have different function signatures
+  methodSignature: string;  // e.g., "submit(address)" or "deposit()"
+}
 
 /**
  * DeFi protocol security audit status
@@ -69,7 +117,7 @@ export interface DefiProtocol {
  */
 
 export type StakingStep =
-  | "selectProtocol"    // Select staking protocol
+  | "selectOption"      // Select staking option (flat list of all provider+asset combinations)
   | "input"             // Enter amount
   | "review"            // Review transaction
   | "password"          // Enter wallet password

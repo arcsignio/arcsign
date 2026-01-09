@@ -1464,11 +1464,8 @@ export function WalletDetail({
               <button
                 onClick={() => {
                   setShowMoreMenu(false);
-                  if (availableTokensForSend.some(t => t.network === "eth-mainnet" && !t.tokenAddress)) {
-                    setShowStakingTransaction(true);
-                  } else {
-                    alert(t('walletDetail.noEthForStaking'));
-                  }
+                  // Show staking options - balance check happens at staking time
+                  setShowStakingTransaction(true);
                 }}
                 style={{
                   width: "100%",

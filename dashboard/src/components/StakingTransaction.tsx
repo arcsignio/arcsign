@@ -1,25 +1,27 @@
 /**
  * StakingTransaction Component
- * Feature: Liquid Staking via verified protocols (Lido)
+ * Feature: Multi-chain Liquid Staking via verified protocols
  *
  * Complete staking flow:
- * 1. User selects staking protocol (e.g., Lido)
- * 2. User enters ETH amount to stake
- * 3. Review estimated stETH output and APY
- * 4. User confirms and enters wallet password
- * 5. Sign and broadcast staking transaction
- * 6. Track transaction status
+ * 1. User sees ALL staking options in a flat list (ETH→stETH via Lido, BNB→ankrBNB via Ankr, etc.)
+ * 2. User selects a staking option
+ * 3. User enters amount to stake
+ * 4. Review estimated output and APY
+ * 5. User confirms and enters wallet password
+ * 6. Sign and broadcast staking transaction
+ * 7. Track transaction status
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import tauriApi, { type AppError, type BuildTransactionResponse } from "@/services/tauri-api";
 import type { SendableToken } from "./SendTransaction";
-import type { StakingStep, DefiProtocol } from "@/types/defi";
+import type { StakingStep, StakableAsset, StakingProvider } from "@/types/defi";
 import {
-  getStakingProtocols,
-  encodeLidoSubmit,
-} from "@/constants/defiProtocols";
+  getStakableAssetsWithApy,
+  getCallDataEncoder,
+  getExplorerTxUrl,
+} from "@/constants/stakingRegistry";
 
 interface StakingTransactionProps {
   walletId: string;
@@ -32,27 +34,46 @@ interface StakingTransactionProps {
   onSuccess?: (txHash: string) => void;
 }
 
-// Convert human-readable amount to wei
-function toWei(amount: string): string {
+// Flat staking option combining asset and provider
+interface StakingOption {
+  asset: StakableAsset;
+  provider: StakingProvider;
+  // Computed fields for display
+  id: string;           // e.g., "lido-eth"
+  inputSymbol: string;  // e.g., "ETH"
+  outputSymbol: string; // e.g., "stETH"
+  chainName: string;    // e.g., "Ethereum"
+  providerName: string; // e.g., "Lido"
+}
+
+// Map network names to chain IDs used in availableTokens
+const NETWORK_TO_TOKEN_NETWORK: Record<string, string> = {
+  ethereum: "eth-mainnet",
+  bsc: "bsc-mainnet",
+  polygon: "polygon-mainnet",
+};
+
+// Convert human-readable amount to wei (supports different decimals)
+function toSmallestUnit(amount: string, decimals: number = 18): string {
   if (!amount || isNaN(parseFloat(amount))) return "0";
   const parts = amount.split(".");
   const integerPart = parts[0] || "0";
   let decimalPart = parts[1] || "";
-  if (decimalPart.length < 18) {
-    decimalPart = decimalPart.padEnd(18, "0");
-  } else if (decimalPart.length > 18) {
-    decimalPart = decimalPart.slice(0, 18);
+  if (decimalPart.length < decimals) {
+    decimalPart = decimalPart.padEnd(decimals, "0");
+  } else if (decimalPart.length > decimals) {
+    decimalPart = decimalPart.slice(0, decimals);
   }
   const result = (integerPart + decimalPart).replace(/^0+/, "") || "0";
   return result;
 }
 
-// Convert wei to human-readable
-function fromWei(amount: string): string {
+// Convert smallest unit to human-readable (supports different decimals)
+function fromSmallestUnit(amount: string, decimals: number = 18): string {
   if (!amount || amount === "0") return "0";
-  const padded = amount.padStart(19, "0");
-  const intPart = padded.slice(0, -18) || "0";
-  const decPart = padded.slice(-18);
+  const padded = amount.padStart(decimals + 1, "0");
+  const intPart = padded.slice(0, -decimals) || "0";
+  const decPart = padded.slice(-decimals);
   const trimmed = decPart.slice(0, 8).replace(/0+$/, "");
   return trimmed ? `${intPart}.${trimmed}` : intPart;
 }
@@ -67,9 +88,12 @@ function formatBalance(balance: string): string {
   return num.toFixed(2);
 }
 
-// Get block explorer URL
-function getExplorerUrl(txHash: string): string {
-  return `https://etherscan.io/tx/${txHash}`;
+// Format TVL for display
+function formatTvl(tvl: number | undefined): string {
+  if (!tvl) return "-";
+  if (tvl >= 1_000_000_000) return `$${(tvl / 1_000_000_000).toFixed(1)}B`;
+  if (tvl >= 1_000_000) return `$${(tvl / 1_000_000).toFixed(0)}M`;
+  return `$${tvl.toLocaleString()}`;
 }
 
 export const StakingTransaction: React.FC<StakingTransactionProps> = ({
@@ -85,67 +109,120 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
   void _walletHasPassphrase;
   const { t } = useTranslation();
 
-  // Protocol selection
-  const [selectedProtocol, setSelectedProtocol] = useState<DefiProtocol | null>(null);
+  // Selected staking option (combines asset + provider)
+  const [selectedOption, setSelectedOption] = useState<StakingOption | null>(null);
 
   // Form state
   const [amount, setAmount] = useState("");
   const [walletPassword, setWalletPassword] = useState("");
 
   // Transaction state
-  const [step, setStep] = useState<StakingStep>("selectProtocol");
+  const [step, setStep] = useState<StakingStep>("selectOption");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Transaction data
   const [txHash, setTxHash] = useState<string | null>(null);
-  const [estimatedStETH, setEstimatedStETH] = useState<string>("");
+  const [estimatedOutput, setEstimatedOutput] = useState<string>("");
   const [gasEstimate, setGasEstimate] = useState<string | null>(null);
 
-  // Get available staking protocols
-  const stakingProtocols = getStakingProtocols();
+  // APY loading state
+  const [stakingOptions, setStakingOptions] = useState<StakingOption[]>([]);
+  const [isLoadingApy, setIsLoadingApy] = useState(true);
 
-  // Filter ETH tokens from Ethereum mainnet only (for Lido staking)
-  const ethTokens = availableTokens.filter(
-    t => t.network === "eth-mainnet" && !t.tokenAddress
-  );
+  // Fetch staking options with APY on mount
+  useEffect(() => {
+    async function loadStakingOptions() {
+      setIsLoadingApy(true);
+      try {
+        const assetsWithApy = await getStakableAssetsWithApy();
+        const options: StakingOption[] = [];
 
-  // Get user's ETH balance
-  const ethBalance = ethTokens.length > 0 ? ethTokens[0].balance : "0";
-  const ethAddress = ethTokens.length > 0 ? ethTokens[0].fromAddress : "";
+        for (const asset of assetsWithApy) {
+          for (const provider of asset.providers) {
+            options.push({
+              asset,
+              provider,
+              id: provider.id,
+              inputSymbol: asset.symbol,
+              outputSymbol: provider.outputToken,
+              chainName: asset.name,
+              providerName: provider.name,
+            });
+          }
+        }
 
-  // Calculate estimated stETH output (1:1 for Lido)
+        setStakingOptions(options);
+      } catch (error) {
+        console.error("Failed to load staking options:", error);
+      } finally {
+        setIsLoadingApy(false);
+      }
+    }
+
+    loadStakingOptions();
+  }, []);
+
+  // Use the loaded staking options
+  const allStakingOptions = stakingOptions;
+
+  // Get user's balance for a specific asset
+  const getAssetBalance = (asset: StakableAsset): string => {
+    const tokenNetwork = NETWORK_TO_TOKEN_NETWORK[asset.chainId];
+    const token = availableTokens.find(
+      t => t.network === tokenNetwork && !t.tokenAddress
+    );
+    return token?.balance || "0";
+  };
+
+  // Get user's address for selected option
+  const selectedAssetAddress = useMemo(() => {
+    if (!selectedOption) return "";
+    const tokenNetwork = NETWORK_TO_TOKEN_NETWORK[selectedOption.asset.chainId];
+    const token = availableTokens.find(
+      t => t.network === tokenNetwork && !t.tokenAddress
+    );
+    return token?.fromAddress || "";
+  }, [selectedOption, availableTokens]);
+
+  // Get balance for selected option
+  const selectedAssetBalance = useMemo(() => {
+    if (!selectedOption) return "0";
+    return getAssetBalance(selectedOption.asset);
+  }, [selectedOption, availableTokens]);
+
+  // Calculate estimated output (1:1 for most liquid staking)
   useEffect(() => {
     if (amount && parseFloat(amount) > 0) {
-      // Lido stETH is 1:1 with ETH at time of staking
-      setEstimatedStETH(amount);
+      setEstimatedOutput(amount);
     } else {
-      setEstimatedStETH("");
+      setEstimatedOutput("");
     }
   }, [amount]);
 
   // Validate amount
   const isValidAmount = (value: string): boolean => {
     const num = parseFloat(value);
-    return !isNaN(num) && num > 0 && num <= parseFloat(ethBalance);
+    return !isNaN(num) && num > 0 && num <= parseFloat(selectedAssetBalance);
   };
 
-  // Handle protocol selection
-  const handleSelectProtocol = (protocol: DefiProtocol) => {
-    setSelectedProtocol(protocol);
+  // Handle option selection
+  const handleSelectOption = (option: StakingOption) => {
+    setSelectedOption(option);
+    setAmount("");
     setStep("input");
   };
 
   // Handle amount input with max button
   const handleSetMaxAmount = () => {
-    // Leave some ETH for gas (0.01 ETH buffer)
-    const maxAmount = Math.max(0, parseFloat(ethBalance) - 0.01);
+    // Leave some native token for gas (0.01 buffer)
+    const maxAmount = Math.max(0, parseFloat(selectedAssetBalance) - 0.01);
     setAmount(maxAmount > 0 ? maxAmount.toString() : "0");
   };
 
   // Build and review transaction
   const handleReview = async () => {
-    if (!selectedProtocol || !isValidAmount(amount)) {
+    if (!selectedOption || !isValidAmount(amount)) {
       setError(t('staking.invalidAmount'));
       return;
     }
@@ -154,31 +231,26 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
     setError(null);
 
     try {
-      // Estimate gas for the staking transaction
-      const lidoContract = selectedProtocol.contracts.find(c => c.network === "ethereum");
-      if (!lidoContract) {
-        throw new Error("Protocol not available on Ethereum");
-      }
+      const amountSmallest = toSmallestUnit(amount, selectedOption.asset.decimals);
+      const encoder = getCallDataEncoder(selectedOption.provider.id);
+      const callData = encoder(amountSmallest);
 
-      const amountWei = toWei(amount);
-      const callData = encodeLidoSubmit();
-
-      console.log("📊 Estimating gas for staking transaction...", {
-        to: lidoContract.address,
-        value: amountWei,
+      console.log("Estimating gas for staking transaction...", {
+        chainId: selectedOption.asset.chainId,
+        to: selectedOption.provider.contractAddress,
+        value: amountSmallest,
         data: callData,
       });
 
       const feeEstimate = await tauriApi.estimateFee({
-        chainId: "ethereum",
-        from: ethAddress,
-        to: lidoContract.address,
-        amount: amountWei,
+        chainId: selectedOption.asset.chainId,
+        from: selectedAssetAddress,
+        to: selectedOption.provider.contractAddress,
+        amount: amountSmallest,
         usbPath,
         appPassword,
       });
 
-      // Use recommendedFee (maps to "normal" speed)
       setGasEstimate(feeEstimate.recommendedFee || null);
       setStep("review");
     } catch (err) {
@@ -197,7 +269,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
 
   // Execute staking transaction
   const handleExecuteStaking = async () => {
-    if (!selectedProtocol || !walletPassword) {
+    if (!selectedOption || !walletPassword) {
       setError(t('staking.missingPassword'));
       return;
     }
@@ -207,56 +279,52 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
     setStep("signing");
 
     try {
-      const lidoContract = selectedProtocol.contracts.find(c => c.network === "ethereum");
-      if (!lidoContract) {
-        throw new Error("Protocol not available on Ethereum");
-      }
-
-      const amountWei = toWei(amount);
-      const callData = encodeLidoSubmit();
+      const amountSmallest = toSmallestUnit(amount, selectedOption.asset.decimals);
+      const encoder = getCallDataEncoder(selectedOption.provider.id);
+      const callData = encoder(amountSmallest);
 
       // 1. Build the transaction
-      console.log("🔧 Building staking transaction...");
+      console.log("Building staking transaction...");
       const buildResult: BuildTransactionResponse = await tauriApi.buildTransaction({
-        chainId: "ethereum",
-        from: ethAddress,
-        to: lidoContract.address,
-        amount: amountWei,
+        chainId: selectedOption.asset.chainId,
+        from: selectedAssetAddress,
+        to: selectedOption.provider.contractAddress,
+        amount: amountSmallest,
         data: callData,
         feeSpeed: "normal",
         usbPath,
         appPassword,
       });
 
-      console.log("✅ Transaction built:", buildResult);
+      console.log("Transaction built:", buildResult);
 
       // 2. Sign the transaction
-      console.log("✍️ Signing transaction...");
+      console.log("Signing transaction...");
       const signResult = await tauriApi.signTransaction({
-        chainId: "ethereum",
+        chainId: selectedOption.asset.chainId,
         walletId,
         password: walletPassword,
         passphrase: preValidatedPassphrase || "",
-        fromAddress: ethAddress,
-        unsignedTx: buildResult,  // Pass the full BuildTransactionResponse
+        fromAddress: selectedAssetAddress,
+        unsignedTx: buildResult,
         usbPath,
         appPassword,
       });
 
-      console.log("✅ Transaction signed");
+      console.log("Transaction signed");
 
       // 3. Broadcast the transaction
       setStep("broadcasting");
-      console.log("📡 Broadcasting transaction...");
+      console.log("Broadcasting transaction...");
 
       const broadcastResult = await tauriApi.broadcastTransaction({
-        chainId: "ethereum",
-        signedTx: signResult,  // Pass the full SignTransactionResponse
+        chainId: selectedOption.asset.chainId,
+        signedTx: signResult,
         usbPath,
         appPassword,
       });
 
-      console.log("✅ Transaction broadcast:", broadcastResult.txHash);
+      console.log("Transaction broadcast:", broadcastResult.txHash);
 
       setTxHash(broadcastResult.txHash);
       setStep("success");
@@ -279,59 +347,75 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
     }
   };
 
-  // Render protocol selection step
-  const renderProtocolSelection = () => (
-    <div className="staking-protocol-selection">
-      <h2 className="text-xl font-semibold mb-4">{t('staking.selectProtocol')}</h2>
-      <p className="text-sm text-gray-600 mb-6">{t('staking.selectProtocolDesc')}</p>
+  // Render flat list of all staking options
+  const renderOptionSelection = () => (
+    <div className="staking-option-selection">
+      <h2 className="text-xl font-semibold mb-4">{t('staking.selectStakingOption')}</h2>
+      <p className="text-sm text-gray-600 mb-6">{t('staking.selectStakingOptionDesc')}</p>
 
-      {stakingProtocols.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          {t('staking.noProtocolsAvailable')}
+      {isLoadingApy ? (
+        <div className="text-center py-8">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-sm text-gray-600">{t('staking.loadingApy')}</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {stakingProtocols.map((protocol) => (
+      <div className="space-y-3">
+        {allStakingOptions.map((option) => {
+          const balance = getAssetBalance(option.asset);
+          const hasBalance = parseFloat(balance) > 0;
+
+          return (
             <button
-              key={protocol.id}
-              onClick={() => handleSelectProtocol(protocol)}
+              key={option.id}
+              onClick={() => handleSelectOption(option)}
               className="w-full p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-left"
             >
               <div className="flex items-center gap-4">
+                {/* Provider logo */}
                 <img
-                  src={protocol.logoUrl}
-                  alt={protocol.name}
+                  src={option.provider.logoUrl}
+                  alt={option.providerName}
                   className="w-10 h-10 rounded-full"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = "https://via.placeholder.com/40?text=?";
                   }}
                 />
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold">{protocol.name}</span>
-                    {protocol.verified && (
-                      <span className="text-green-600 text-xs">✓ {t('staking.verified')}</span>
+                  {/* Main line: ETH → stETH (Lido) */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold">{option.inputSymbol}</span>
+                    <span className="text-gray-400">→</span>
+                    <span className="font-semibold text-blue-600">{option.outputSymbol}</span>
+                    <span className="text-gray-500">({option.providerName})</span>
+                    {option.provider.verified && (
+                      <span className="text-green-600 text-xs">&check;</span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600">{protocol.description}</p>
-                  <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
-                    {protocol.apy && (
+
+                  {/* Second line: Chain, APY, TVL */}
+                  <div className="flex items-center gap-4 mt-1 text-sm text-gray-500 flex-wrap">
+                    <span>{option.chainName}</span>
+                    {option.provider.apy && (
                       <span className="text-green-600 font-medium">
-                        APY: {protocol.apy}%
+                        APY: {option.provider.apy}%
                       </span>
                     )}
-                    {protocol.tvlUsd && (
-                      <span>
-                        TVL: ${(protocol.tvlUsd / 1_000_000_000).toFixed(1)}B
-                      </span>
+                    {option.provider.tvlUsd && (
+                      <span>TVL: {formatTvl(option.provider.tvlUsd)}</span>
                     )}
+                  </div>
+
+                  {/* Third line: User balance */}
+                  <div className={`text-xs mt-1 ${hasBalance ? 'text-gray-600' : 'text-gray-400'}`}>
+                    {t('staking.yourBalance')}: {formatBalance(balance)} {option.inputSymbol}
                   </div>
                 </div>
-                <span className="text-gray-400">→</span>
+                <span className="text-gray-400">&rarr;</span>
               </div>
             </button>
-          ))}
-        </div>
+          );
+        })}
+      </div>
       )}
 
       <button
@@ -347,97 +431,107 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
   const renderAmountInput = () => (
     <div className="staking-amount-input">
       <button
-        onClick={() => setStep("selectProtocol")}
+        onClick={() => {
+          setSelectedOption(null);
+          setStep("selectOption");
+        }}
         className="mb-4 text-blue-600 hover:text-blue-800 flex items-center gap-1"
       >
-        ← {t('staking.changeProtocol')}
+        &larr; {t('staking.changeOption')}
       </button>
 
+      {/* Selected option summary */}
       <div className="flex items-center gap-3 mb-6 p-3 bg-gray-50 rounded-lg">
         <img
-          src={selectedProtocol?.logoUrl}
-          alt={selectedProtocol?.name}
+          src={selectedOption?.provider.logoUrl}
+          alt={selectedOption?.providerName}
           className="w-8 h-8 rounded-full"
         />
-        <div>
-          <span className="font-semibold">{selectedProtocol?.name}</span>
-          <span className="text-sm text-green-600 ml-2">
-            APY: {selectedProtocol?.apy}%
-          </span>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">{selectedOption?.inputSymbol}</span>
+            <span className="text-gray-400">→</span>
+            <span className="font-semibold text-blue-600">{selectedOption?.outputSymbol}</span>
+            <span className="text-gray-500">({selectedOption?.providerName})</span>
+          </div>
+          <div className="text-sm text-gray-500">{selectedOption?.chainName}</div>
         </div>
+        {selectedOption?.provider.apy && (
+          <span className="text-sm text-green-600 font-medium">
+            APY: {selectedOption.provider.apy}%
+          </span>
+        )}
       </div>
 
       <h2 className="text-xl font-semibold mb-4">{t('staking.enterAmount')}</h2>
 
-      {ethTokens.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-red-600 mb-2">{t('staking.noEthAvailable')}</p>
-          <p className="text-sm text-gray-500">{t('staking.needEthOnMainnet')}</p>
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          {t('staking.amountToStake')}
+        </label>
+        <div className="relative">
+          <input
+            type="text"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.0"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            <span className="text-gray-500">{selectedOption?.inputSymbol}</span>
+            <button
+              onClick={handleSetMaxAmount}
+              className="text-blue-600 text-sm hover:text-blue-800"
+            >
+              MAX
+            </button>
+          </div>
         </div>
-      ) : (
-        <>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t('staking.amountToStake')}
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.0"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                <span className="text-gray-500">ETH</span>
-                <button
-                  onClick={handleSetMaxAmount}
-                  className="text-blue-600 text-sm hover:text-blue-800"
-                >
-                  MAX
-                </button>
-              </div>
-            </div>
-            <div className="text-sm text-gray-500 mt-1">
-              {t('staking.available')}: {formatBalance(ethBalance)} ETH
-            </div>
-          </div>
+        <div className="text-sm text-gray-500 mt-1">
+          {t('staking.available')}: {formatBalance(selectedAssetBalance)} {selectedOption?.inputSymbol}
+        </div>
+      </div>
 
-          {estimatedStETH && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="text-sm text-gray-600 mb-1">{t('staking.youWillReceive')}</div>
-              <div className="text-xl font-semibold text-green-700">
-                ~{formatBalance(estimatedStETH)} stETH
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {t('staking.exchangeRate')}: 1 ETH = 1 stETH
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          )}
-
-          <div className="flex gap-3">
-            <button
-              onClick={onBack}
-              className="flex-1 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-            >
-              {t('actions.cancel')}
-            </button>
-            <button
-              onClick={handleReview}
-              disabled={!isValidAmount(amount) || isLoading}
-              className="flex-1 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? t('common.loading') : t('staking.reviewTransaction')}
-            </button>
-          </div>
-        </>
+      {/* Insufficient balance warning */}
+      {amount && parseFloat(amount) > 0 && parseFloat(amount) > parseFloat(selectedAssetBalance) && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-sm text-yellow-700">{t('staking.insufficientBalance')}</p>
+        </div>
       )}
+
+      {estimatedOutput && parseFloat(amount) <= parseFloat(selectedAssetBalance) && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="text-sm text-gray-600 mb-1">{t('staking.youWillReceive')}</div>
+          <div className="text-xl font-semibold text-green-700">
+            ~{formatBalance(estimatedOutput)} {selectedOption?.outputSymbol}
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            {t('staking.exchangeRate')}: 1 {selectedOption?.inputSymbol} = 1 {selectedOption?.outputSymbol}
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <button
+          onClick={onBack}
+          className="flex-1 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+        >
+          {t('actions.cancel')}
+        </button>
+        <button
+          onClick={handleReview}
+          disabled={!isValidAmount(amount) || isLoading}
+          className="flex-1 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? t('common.loading') : t('staking.reviewTransaction')}
+        </button>
+      </div>
     </div>
   );
 
@@ -448,36 +542,45 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
 
       <div className="space-y-4 mb-6">
         <div className="p-4 bg-gray-50 rounded-lg">
-          <div className="text-sm text-gray-500 mb-1">{t('staking.protocol')}</div>
-          <div className="font-semibold">{selectedProtocol?.name}</div>
+          <div className="text-sm text-gray-500 mb-1">{t('staking.provider')}</div>
+          <div className="font-semibold">{selectedOption?.providerName}</div>
+          <div className="text-sm text-gray-500">{selectedOption?.chainName}</div>
         </div>
 
         <div className="p-4 bg-gray-50 rounded-lg">
           <div className="text-sm text-gray-500 mb-1">{t('staking.stakeAmount')}</div>
-          <div className="font-semibold text-lg">{amount} ETH</div>
+          <div className="font-semibold text-lg">{amount} {selectedOption?.inputSymbol}</div>
         </div>
 
         <div className="p-4 bg-green-50 rounded-lg">
           <div className="text-sm text-gray-500 mb-1">{t('staking.youWillReceive')}</div>
-          <div className="font-semibold text-lg text-green-700">~{estimatedStETH} stETH</div>
+          <div className="font-semibold text-lg text-green-700">
+            ~{estimatedOutput} {selectedOption?.outputSymbol}
+          </div>
         </div>
 
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <div className="text-sm text-gray-500 mb-1">{t('staking.estimatedApy')}</div>
-          <div className="font-semibold text-green-600">{selectedProtocol?.apy}%</div>
-        </div>
+        {selectedOption?.provider.apy && (
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="text-sm text-gray-500 mb-1">{t('staking.estimatedApy')}</div>
+            <div className="font-semibold text-green-600">{selectedOption.provider.apy}%</div>
+          </div>
+        )}
 
         {gasEstimate && (
           <div className="p-4 bg-gray-50 rounded-lg">
             <div className="text-sm text-gray-500 mb-1">{t('staking.estimatedGas')}</div>
-            <div className="font-semibold">{fromWei(gasEstimate)} ETH</div>
+            <div className="font-semibold">
+              {fromSmallestUnit(gasEstimate, selectedOption?.asset.decimals || 18)} {selectedOption?.inputSymbol}
+            </div>
           </div>
         )}
       </div>
 
       <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
         <p className="text-sm text-blue-800">
-          <strong>{t('staking.note')}:</strong> {t('staking.stETHExplanation')}
+          <strong>{t('staking.note')}:</strong> {t('staking.liquidStakingExplanation', {
+            outputToken: selectedOption?.outputSymbol,
+          })}
         </p>
       </div>
 
@@ -568,22 +671,26 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
   const renderSuccess = () => (
     <div className="staking-success text-center py-8">
       <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <span className="text-3xl">✓</span>
+        <span className="text-3xl">&check;</span>
       </div>
       <h2 className="text-xl font-semibold mb-2 text-green-700">{t('staking.stakingSuccessful')}</h2>
       <p className="text-sm text-gray-600 mb-4">
-        {t('staking.stakingSuccessDesc', { amount: amount, token: 'stETH' })}
+        {t('staking.stakingSuccessDesc', {
+          amount: amount,
+          symbol: selectedOption?.inputSymbol,
+          token: selectedOption?.outputSymbol
+        })}
       </p>
 
-      {txHash && (
+      {txHash && selectedOption && (
         <div className="mb-6">
           <a
-            href={getExplorerUrl(txHash)}
+            href={getExplorerTxUrl(selectedOption.asset.chainId, txHash)}
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 hover:text-blue-800 text-sm"
           >
-            {t('staking.viewOnExplorer')} →
+            {t('staking.viewOnExplorer')} &rarr;
           </a>
         </div>
       )}
@@ -601,7 +708,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
   const renderError = () => (
     <div className="staking-error text-center py-8">
       <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <span className="text-3xl">✕</span>
+        <span className="text-3xl">&times;</span>
       </div>
       <h2 className="text-xl font-semibold mb-2 text-red-700">{t('staking.transactionFailed')}</h2>
       <p className="text-sm text-gray-600 mb-4">{error}</p>
@@ -629,7 +736,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
   // Main render
   return (
     <div className="staking-transaction max-w-lg mx-auto p-4">
-      {step === "selectProtocol" && renderProtocolSelection()}
+      {step === "selectOption" && renderOptionSelection()}
       {step === "input" && renderAmountInput()}
       {step === "review" && renderReview()}
       {step === "password" && renderPasswordEntry()}
