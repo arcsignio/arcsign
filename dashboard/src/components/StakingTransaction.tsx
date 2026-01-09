@@ -46,10 +46,12 @@ interface StakingOption {
   providerName: string; // e.g., "Lido"
 }
 
-// Map network names to chain IDs used in availableTokens
+// Map staking chainId to token network format used in availableTokens
+// StakingRegistry uses: "ethereum", "bsc"
+// WalletDetail/availableTokens uses: "eth-mainnet", "bnb-mainnet"
 const NETWORK_TO_TOKEN_NETWORK: Record<string, string> = {
   ethereum: "eth-mainnet",
-  bsc: "bsc-mainnet",
+  bsc: "bnb-mainnet",  // Note: WalletDetail uses "bnb-mainnet", not "bsc-mainnet"
   polygon: "polygon-mainnet",
 };
 
@@ -388,7 +390,9 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
                     <span className="font-semibold text-blue-600">{option.outputSymbol}</span>
                     <span className="text-gray-500">({option.providerName})</span>
                     {option.provider.verified && (
-                      <span className="text-green-600 text-xs">&check;</span>
+                      <span className="text-green-600 text-xs bg-green-50 px-1.5 py-0.5 rounded">
+                        ✓ {t('staking.verified')}
+                      </span>
                     )}
                   </div>
 
@@ -671,7 +675,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
   const renderSuccess = () => (
     <div className="staking-success text-center py-8">
       <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <span className="text-3xl">&check;</span>
+        <span className="text-3xl text-green-600">✓</span>
       </div>
       <h2 className="text-xl font-semibold mb-2 text-green-700">{t('staking.stakingSuccessful')}</h2>
       <p className="text-sm text-gray-600 mb-4">
