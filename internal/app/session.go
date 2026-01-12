@@ -1,7 +1,10 @@
 package app
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -28,7 +31,7 @@ type SessionManager struct {
 }
 
 // Session represents an authenticated user session
-// Security: Only stores public data, NEVER stores passwords
+// Security: Stores encrypted provider key, NEVER stores plain passwords
 type Session struct {
 	Token     string
 	UsbPath   string
@@ -45,6 +48,11 @@ type Session struct {
 	// Wallet lock status (calculated at login based on wallet limit)
 	// Locked wallets can view balance but cannot send transactions
 	LockedWalletIds []string // IDs of wallets that exceed the limit
+
+	// Encrypted provider key (for decrypting provider_config.enc)
+	// Encrypted using AES-256-GCM with session token as key
+	// This allows backend to access provider config without storing plain password
+	EncryptedProviderKey []byte // AES-256-GCM(appPassword, key=deriveKey(token))
 }
 
 // NewSessionManager creates a new session manager instance
@@ -99,19 +107,27 @@ func (sm *SessionManager) CreateSession(usbPath, appPassword string) (*Session, 
 	// Wallets are sorted by CreatedAt, newest wallets get locked first
 	lockedWalletIds := calculateLockedWallets(walletsFromFS, len(memberships))
 
+	// Encrypt app password for provider config access
+	// Security: Encrypted with session token as key, stored only in session
+	encryptedProviderKey, err := encryptProviderKey(appPassword, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt provider key: %w", err)
+	}
+
 	// Create session with 24-hour expiration
-	// Security: Only cache public data, password is discarded after validation
+	// Security: Stores encrypted provider key, plain password is discarded after validation
 	now := time.Now()
 	session := &Session{
-		Token:           token,
-		UsbPath:         usbPath,
-		CreatedAt:       now,
-		ExpiresAt:       now.Add(24 * time.Hour),
-		LastUsed:        now,
-		DeviceId:        deviceId,
-		DeviceIdHash:    deviceIdHash,
-		Memberships:     memberships,
-		LockedWalletIds: lockedWalletIds,
+		Token:                token,
+		UsbPath:              usbPath,
+		CreatedAt:            now,
+		ExpiresAt:            now.Add(24 * time.Hour),
+		LastUsed:             now,
+		DeviceId:             deviceId,
+		DeviceIdHash:         deviceIdHash,
+		Memberships:          memberships,
+		LockedWalletIds:      lockedWalletIds,
+		EncryptedProviderKey: encryptedProviderKey, // ✅ Store encrypted key
 	}
 
 	// Store session
@@ -369,4 +385,137 @@ func (sm *SessionManager) RecalculateLockedWallets(usbPath string) {
 			return
 		}
 	}
+}
+
+// ============================================================================
+// Encryption helpers for provider key storage
+// ============================================================================
+
+// deriveKeyFromToken derives a 32-byte AES key from the session token
+// Uses SHA-256 to ensure consistent key length
+func deriveKeyFromToken(token string) []byte {
+	hash := sha256.Sum256([]byte(token))
+	return hash[:]
+}
+
+// encryptProviderKey encrypts the app password using AES-256-GCM
+// The session token is used to derive the encryption key
+// Returns encrypted data with nonce prepended: [nonce(12 bytes)][ciphertext][tag(16 bytes)]
+func encryptProviderKey(appPassword string, token string) ([]byte, error) {
+	if appPassword == "" {
+		return nil, errors.New("appPassword cannot be empty")
+	}
+	if token == "" {
+		return nil, errors.New("token cannot be empty")
+	}
+
+	// Derive 32-byte key from token
+	key := deriveKeyFromToken(token)
+	defer zeroBytes(key) // Clear key from memory after use
+
+	// Create AES cipher
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cipher: %w", err)
+	}
+
+	// Create GCM mode
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GCM: %w", err)
+	}
+
+	// Generate random nonce (12 bytes for GCM)
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return nil, fmt.Errorf("failed to generate nonce: %w", err)
+	}
+
+	// Encrypt plaintext
+	plaintext := []byte(appPassword)
+	ciphertext := gcm.Seal(nonce, nonce, plaintext, nil)
+
+	// Clear plaintext from memory
+	zeroBytes(plaintext)
+
+	return ciphertext, nil
+}
+
+// decryptProviderKey decrypts the provider key using AES-256-GCM
+// The session token is used to derive the decryption key
+func decryptProviderKey(encrypted []byte, token string) (string, error) {
+	if len(encrypted) == 0 {
+		return "", errors.New("encrypted data is empty")
+	}
+	if token == "" {
+		return "", errors.New("token cannot be empty")
+	}
+
+	// Derive 32-byte key from token
+	key := deriveKeyFromToken(token)
+	defer zeroBytes(key) // Clear key from memory after use
+
+	// Create AES cipher
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", fmt.Errorf("failed to create cipher: %w", err)
+	}
+
+	// Create GCM mode
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", fmt.Errorf("failed to create GCM: %w", err)
+	}
+
+	nonceSize := gcm.NonceSize()
+	if len(encrypted) < nonceSize {
+		return "", errors.New("ciphertext too short")
+	}
+
+	// Extract nonce and ciphertext
+	nonce := encrypted[:nonceSize]
+	ciphertext := encrypted[nonceSize:]
+
+	// Decrypt
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", fmt.Errorf("decryption failed: %w", err)
+	}
+
+	password := string(plaintext)
+
+	// Clear plaintext from memory
+	zeroBytes(plaintext)
+
+	return password, nil
+}
+
+// zeroBytes securely zeros a byte slice in memory
+func zeroBytes(b []byte) {
+	for i := range b {
+		b[i] = 0
+	}
+}
+
+// GetProviderKey retrieves and decrypts the provider key for a valid session
+// This is the main method that APIs should use to get the provider key
+func (sm *SessionManager) GetProviderKey(token string) (string, error) {
+	// Validate token and get session
+	session, err := sm.ValidateToken(token)
+	if err != nil {
+		return "", err
+	}
+
+	// Check if encrypted provider key exists
+	if len(session.EncryptedProviderKey) == 0 {
+		return "", errors.New("no provider key stored in session")
+	}
+
+	// Decrypt provider key using session token
+	providerKey, err := decryptProviderKey(session.EncryptedProviderKey, token)
+	if err != nil {
+		return "", fmt.Errorf("failed to decrypt provider key: %w", err)
+	}
+
+	return providerKey, nil
 }

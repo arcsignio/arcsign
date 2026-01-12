@@ -93,18 +93,22 @@ func initWalletSessionManager() *app.WalletSessionManager {
 	return walletSessionManager
 }
 
-// validateSessionAndGetAppPassword validates session token and returns appPassword
+// validateSessionAndGetAppPassword validates session token and returns provider key
 // This is a helper function to reduce code duplication across API functions
 // Parameters:
 //   - sessionToken: Session token from frontend (preferred)
 //   - appPassword: Legacy app password (fallback for backward compatibility)
 //   - usbPath: USB device path to validate against session
-// Returns: (appPassword string, error)
+// Returns: (provider key string, error)
+//
+// Security: Uses GetProviderKey to retrieve encrypted key from session
+// The provider key is decrypted on-demand and never stored in plain text
 func validateSessionAndGetAppPassword(sessionToken, appPassword, usbPath string) (string, error) {
 	sm := initSessionManager()
 
 	// Try session token first (preferred)
 	if sessionToken != "" {
+		// Validate token and get session
 		session, err := sm.ValidateToken(sessionToken)
 		if err != nil {
 			return "", fmt.Errorf("session expired. Please log in again")
@@ -115,13 +119,18 @@ func validateSessionAndGetAppPassword(sessionToken, appPassword, usbPath string)
 			return "", fmt.Errorf("USB path mismatch with session")
 		}
 
-		// TODO: In the future, we should encrypt provider config with a key derived from deviceId
-		// For now, we still require appPassword to decrypt provider_config.enc
-		if appPassword == "" {
-			return "", fmt.Errorf("app password required for provider config decryption")
+		// ✅ NEW: Get provider key from encrypted session storage
+		// The key is decrypted using the session token itself
+		providerKey, err := sm.GetProviderKey(sessionToken)
+		if err != nil {
+			// Fallback to appPassword if decryption fails (for sessions created before this update)
+			if appPassword != "" {
+				return appPassword, nil
+			}
+			return "", fmt.Errorf("failed to get provider key from session: %w", err)
 		}
 
-		return appPassword, nil
+		return providerKey, nil
 	} else if appPassword != "" {
 		// Fallback to legacy appPassword for backward compatibility
 		return appPassword, nil
