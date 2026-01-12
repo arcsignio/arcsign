@@ -394,6 +394,24 @@ const { tokens: allTokensByChain } = useAllTokens();
 
 ## 🔄 更新記錄
 
+### 2026-01-12 - Swap 頁面過濾修復
+
+**問題**：Swap 頁面繞過白名單過濾，顯示詐騙代幣
+
+**原因**：
+- `availableTokensForSend` 使用原始的 `tokens` 而非過濾後的 `displayTokens`
+- 導致 Swap 和 Send 頁面仍會顯示未知代幣
+- 使用者可能意外與詐騙代幣互動
+
+**修復**：
+- 將 `availableTokensForSend` 改為使用 `displayTokens`
+- 所有交易介面（Swap、Send）現在都遵循白名單過濾
+- 詐騙代幣無法出現在任何交易選項中
+
+**Commit**: `b5bae39` - fix(swap): 修復 Swap 頁面顯示未過濾代幣的問題
+
+---
+
 ### 2026-01-12 - 載入時機修復
 
 **問題**：代幣列表在錢包解鎖前就開始載入，浪費資源且可能導致時機問題
