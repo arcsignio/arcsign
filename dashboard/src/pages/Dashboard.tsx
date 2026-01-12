@@ -155,8 +155,11 @@ export function Dashboard() {
         chainId,
       });
 
-      // Get app password from session (stored in session storage after unlock)
-      const appPassword = sessionStorage.getItem("appPassword") || password;
+      // ✅ Use session token instead of appPassword (zero password storage)
+      const sessionToken = getToken();
+      if (!sessionToken) {
+        throw new Error(t("dashboard.sessionExpired"));
+      }
 
       // Convert hex value to decimal for our API
       const valueInWei = hexToDecimalWei(pendingTransaction.value);
@@ -176,7 +179,7 @@ export function Dashboard() {
         amount: valueInWei, // Use converted decimal value
         data: pendingTransaction.data, // Contract call data (hex-encoded)
         usbPath,
-        appPassword,
+        sessionToken, // ✅ Use session token
       });
 
       // Sign the transaction
@@ -187,7 +190,7 @@ export function Dashboard() {
         fromAddress: pendingTransaction.from,
         unsignedTx,
         usbPath,
-        appPassword,
+        sessionToken, // ✅ Use session token
       });
 
       let txHash: string | undefined;
@@ -198,7 +201,7 @@ export function Dashboard() {
           chainId,
           signedTx,
           usbPath,
-          appPassword,
+          sessionToken, // ✅ Use session token
         });
         txHash = broadcastResult.txHash;
         console.log("📡 Transaction broadcasted:", txHash);
@@ -440,7 +443,7 @@ export function Dashboard() {
 
   // Show wallet creation view
   if (currentView === "create") {
-    const appPassword = sessionStorage.getItem("appPassword") || "";
+    // ✅ WalletCreate should use session token internally (no password prop)
     return (
       <div className="dashboard">
         <WalletCreate
@@ -449,7 +452,6 @@ export function Dashboard() {
             handleReload(); // Reload wallets after creation
             handleBackToList();
           }}
-          appPassword={appPassword}
         />
       </div>
     );

@@ -17,14 +17,15 @@ import tauriApi, { type UsbDevice, type AppError, type DeviceMembershipStatus } 
 import type { WalletCreateResponse } from '@/types/wallet';
 import { MnemonicDisplay } from './MnemonicDisplay';
 import { ConfirmationDialog } from './ConfirmationDialog';
+import { useSessionStore } from '@/stores/sessionStore';
 
 interface WalletCreateProps {
   onCancel?: () => void;
   onSuccess?: () => void;
-  appPassword?: string; // App password for device membership check
+  // ✅ REMOVED: appPassword prop - use session token instead
 }
 
-export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateProps = {}) {
+export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
   const { t, i18n } = useTranslation();
   const [usbDevices, setUsbDevices] = useState<UsbDevice[]>([]);
   const [isLoadingUsb, setIsLoadingUsb] = useState(true);
@@ -42,6 +43,7 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
 
   const { addWallet } = useDashboardStore();
   const walletLimitInfo = useWalletLimitInfo();
+  const { getToken } = useSessionStore();
 
   // Create i18n-aware validation schema
   const walletCreateSchema = useMemo(() => createWalletCreateSchema(t), [t, i18n.language]);
@@ -86,13 +88,13 @@ export function WalletCreate({ onCancel, onSuccess, appPassword }: WalletCreateP
       return;
     }
 
-    // Check device membership limit if appPassword is available
-    if (appPassword && data.usbPath) {
+    // Check device membership limit using session token
+    const sessionToken = getToken();
+    if (sessionToken && data.usbPath) {
       setIsCheckingDevice(true);
       try {
-        const deviceMembership = await tauriApi.getDeviceMembershipStatus({
-          usbPath: data.usbPath,
-          appPassword: appPassword,
+        const deviceMembership = await tauriApi.getDeviceMembershipStatusWithToken({
+          token: sessionToken, // ✅ Use session token
         });
 
         setDeviceStatus(deviceMembership);
