@@ -29,7 +29,7 @@ interface StakingTransactionProps {
   walletPassphrase?: string;
   availableTokens: SendableToken[];
   usbPath: string;
-  appPassword: string;
+  sessionToken: string;  // ✅ Changed from appPassword
   onBack: () => void;
   onSuccess?: (txHash: string) => void;
 }
@@ -104,7 +104,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
   walletPassphrase: preValidatedPassphrase,
   availableTokens,
   usbPath,
-  appPassword,
+  sessionToken,  // ✅ Changed from appPassword
   onBack,
   onSuccess,
 }) => {
@@ -250,7 +250,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         to: selectedOption.provider.contractAddress,
         amount: amountSmallest,
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Low-risk: fee estimation
       });
 
       setGasEstimate(feeEstimate.recommendedFee || null);
@@ -295,7 +295,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         data: callData,
         feeSpeed: "normal",
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Low-risk: build transaction
       });
 
       console.log("Transaction built:", buildResult);
@@ -305,12 +305,12 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
       const signResult = await tauriApi.signTransaction({
         chainId: selectedOption.asset.chainId,
         walletId,
-        password: walletPassword,
+        password: walletPassword,  // ✅ High-risk: wallet password for signing
         passphrase: preValidatedPassphrase || "",
         fromAddress: selectedAssetAddress,
         unsignedTx: buildResult,
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Session token for provider config
       });
 
       console.log("Transaction signed");
@@ -323,7 +323,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         chainId: selectedOption.asset.chainId,
         signedTx: signResult,
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Low-risk: broadcast transaction
       });
 
       console.log("Transaction broadcast:", broadcastResult.txHash);

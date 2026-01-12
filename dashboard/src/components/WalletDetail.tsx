@@ -1074,17 +1074,22 @@ export function WalletDetail({
     );
   }
 
-  // Show Staking Transaction view
-  // TODO: StakingTransaction needs migration to session tokens
+  // Show Staking Transaction view (✅ Migrated to session tokens)
   if (showStakingTransaction && sessionToken) {
     console.log("📈 [WalletDetail] Rendering StakingTransaction component with", availableTokensForSend.length, "tokens");
-    // TODO: StakingTransaction component hasn't been migrated to session tokens yet
-    console.error("❌ StakingTransaction component needs migration to session tokens");
     return (
-      <div className="error-message">
-        {t('walletDetail.featureNotAvailable')} - Staking Transaction needs update
-        <button onClick={() => setShowStakingTransaction(false)}>Back</button>
-      </div>
+      <StakingTransaction
+        walletId={wallet.id}
+        walletHasPassphrase={wallet.has_passphrase}
+        walletPassphrase={validatedPassphrase || undefined}
+        availableTokens={availableTokensForSend}
+        usbPath={usbPath}
+        sessionToken={sessionToken}  // ✅ Uses session token
+        onBack={() => setShowStakingTransaction(false)}
+        onSuccess={(txHash) => {
+          console.log("✅ Staking transaction submitted:", txHash);
+        }}
+      />
     );
   }
 
