@@ -27,10 +27,8 @@ interface AppPasswordContextType {
   // Get session token (for operations that need authentication)
   getSessionToken: () => string | null;
 
-  // DEPRECATED: App password for provider_config decryption
-  // TODO: Remove when provider_config uses DeviceID-based encryption
-  // ⚠️ Security: This is a transitional measure. Future versions will eliminate this.
-  appPassword: string | null;
+  // ✅ REMOVED: appPassword is no longer stored
+  // Backend now stores encrypted provider key in session
 }
 
 const AppPasswordContext = createContext<AppPasswordContextType | undefined>(undefined);
@@ -39,9 +37,8 @@ export function AppPasswordProvider({ children }: { children: ReactNode }) {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [usbPath, setUsbPath] = useState<string | null>(null);
-  // DEPRECATED: Store password temporarily for provider_config decryption
-  // ⚠️ Security limitation: Required until backend implements DeviceID-based encryption
-  const [appPassword, setAppPassword] = useState<string | null>(null);
+  // ✅ REMOVED: appPassword state - zero password storage achieved!
+  // Backend now stores encrypted provider key in session
 
   const sessionStore = useSessionStore();
 
@@ -62,11 +59,9 @@ export function AppPasswordProvider({ children }: { children: ReactNode }) {
       setAppConfig(config);
       setUsbPath(currentUsbPath);
       setIsUnlocked(true);
-      // DEPRECATED: Store password for provider_config decryption
-      // ⚠️ This is a transitional measure until backend uses DeviceID encryption
-      setAppPassword(password);
+      // ✅ Password is discarded here - backend has encrypted it in session
 
-      console.log('🔐 [AppPasswordContext] Session created successfully');
+      console.log('🔐 [AppPasswordContext] Session created successfully (zero password storage)');
     } catch (error) {
       console.error('🔴 [AppPasswordContext] Failed to create session:', error);
       throw error;
@@ -81,7 +76,7 @@ export function AppPasswordProvider({ children }: { children: ReactNode }) {
     setAppConfig(null);
     setUsbPath(null);
     setIsUnlocked(false);
-    setAppPassword(null);
+    // ✅ No password to clear - zero password storage
 
     console.log('🔐 [AppPasswordContext] Session revoked and app locked');
   };
@@ -99,7 +94,7 @@ export function AppPasswordProvider({ children }: { children: ReactNode }) {
         unlock,
         lock,
         getSessionToken,
-        appPassword,
+        // ✅ REMOVED: appPassword - zero password storage achieved!
       }}
     >
       {children}

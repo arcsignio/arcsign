@@ -56,7 +56,7 @@ export function WalletDetail({
 }: WalletDetailProps) {
   void _onViewAddresses; // Suppress unused variable warning
   const { t } = useTranslation();
-  const { appPassword, getSessionToken } = useAppPassword();
+  const { getSessionToken } = useAppPassword(); // ✅ Zero password storage!
   const walletSession = useWalletSessionStore();
   const [tokens, setTokens] = useState<TokenBalance[]>([]);
   const [totalUsd, setTotalUsd] = useState<number>(0);
@@ -179,8 +179,8 @@ export function WalletDetail({
         walletId: wallet.id,
         password: passwordForThisUnlock, // Using local variable
         usbPath,
-        sessionToken: getSessionToken(), // PREFERRED: Use session token
-        appPassword, // DEPRECATED: Still needed for provider_config
+        sessionToken: getSessionToken(), // ✅ Backend will decrypt provider key from session
+        // ✅ No appPassword needed - zero password storage!
         includeTestnets,
       });
 
@@ -287,8 +287,8 @@ export function WalletDetail({
           walletId: wallet.id,
           password: passwordRef.current,
           usbPath,
-          sessionToken: getSessionToken(), // PREFERRED: Use session token
-          appPassword, // DEPRECATED: Still needed for provider_config
+          sessionToken: getSessionToken(), // ✅ Backend will decrypt provider key
+          // ✅ No appPassword - zero password storage!
           includeTestnets,
         });
 
@@ -370,8 +370,8 @@ export function WalletDetail({
         walletId: wallet.id,
         password: passwordRef.current,
         usbPath,
-        sessionToken: getSessionToken(), // PREFERRED: Use session token
-        appPassword, // DEPRECATED: Still needed for provider_config
+        sessionToken: getSessionToken(), // ✅ Backend will decrypt provider key
+        // ✅ No appPassword - zero password storage!
         includeTestnets,
       });
 

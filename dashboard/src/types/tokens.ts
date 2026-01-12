@@ -30,7 +30,7 @@ export interface GetTokenBalancesParams {
   walletId: string;
   password: string; // Wallet password (for wallet decryption)
   usbPath: string;
-  sessionToken?: string; // PREFERRED: Session token for app-level auth
-  appPassword: string; // DEPRECATED: Still needed for provider_config decryption
+  sessionToken?: string; // Session token for app-level auth
+  appPassword?: string; // DEPRECATED: Only for backward compatibility with old sessions
   includeTestnets?: boolean; // Include testnet networks (dev mode)
 }
