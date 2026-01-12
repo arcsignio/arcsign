@@ -644,9 +644,10 @@ export function WalletDetail({
 
   // Convert tokens to SendableToken format for SendTransaction
   // IMPORTANT: This must be before any conditional returns to follow React Hooks rules
+  // ✅ Use displayTokens (filtered) instead of raw tokens to respect whitelist filter
   const availableTokensForSend = useMemo((): SendableToken[] => {
     // Filter tokens with balance > 0
-    const tokensWithBalance = tokens.filter((t) => {
+    const tokensWithBalance = displayTokens.filter((t) => {
       const balance = parseFloat(t.balance);
       return balance > 0;
     });
@@ -664,7 +665,7 @@ export function WalletDetail({
       decimals: token.decimals,
       fromAddress: token.address, // The wallet address for this token's network
     }));
-  }, [tokens]);
+  }, [displayTokens]);
 
   if (showPasswordPrompt) {
     return (
