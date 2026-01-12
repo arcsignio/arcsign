@@ -56,7 +56,7 @@ export function WalletDetail({
 }: WalletDetailProps) {
   void _onViewAddresses; // Suppress unused variable warning
   const { t } = useTranslation();
-  const { appPassword } = useAppPassword();
+  const { appPassword, getSessionToken } = useAppPassword();
   const walletSession = useWalletSessionStore();
   const [tokens, setTokens] = useState<TokenBalance[]>([]);
   const [totalUsd, setTotalUsd] = useState<number>(0);
@@ -179,7 +179,8 @@ export function WalletDetail({
         walletId: wallet.id,
         password: passwordForThisUnlock, // Using local variable
         usbPath,
-        appPassword,
+        sessionToken: getSessionToken(), // PREFERRED: Use session token
+        appPassword, // DEPRECATED: Still needed for provider_config
         includeTestnets,
       });
 
@@ -286,7 +287,8 @@ export function WalletDetail({
           walletId: wallet.id,
           password: passwordRef.current,
           usbPath,
-          appPassword,
+          sessionToken: getSessionToken(), // PREFERRED: Use session token
+          appPassword, // DEPRECATED: Still needed for provider_config
           includeTestnets,
         });
 
@@ -368,7 +370,8 @@ export function WalletDetail({
         walletId: wallet.id,
         password: passwordRef.current,
         usbPath,
-        appPassword,
+        sessionToken: getSessionToken(), // PREFERRED: Use session token
+        appPassword, // DEPRECATED: Still needed for provider_config
         includeTestnets,
       });
 
