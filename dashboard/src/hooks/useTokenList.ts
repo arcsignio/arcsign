@@ -62,21 +62,81 @@ export function useCommonTokens(perChain: number = 15) {
 /**
  * Hook to load ALL tokens across all chains (for logo lookup by address)
  * This loads the complete token lists, not just top N
+ * @param enabled - If false, will not load tokens (default: true)
  */
-export function useAllTokens() {
+export function useAllTokens(enabled: boolean = true) {
   const [tokens, setTokens] = useState<Map<ChainKey, NormalizedToken[]>>(
     new Map()
   );
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(enabled); // Only set loading if enabled
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // ⏸️ Skip loading if not enabled (e.g., wallet not unlocked yet)
+    if (!enabled) {
+      console.log('🛡️ Token list loading disabled (wallet not unlocked)');
+      setIsLoading(false);
+      return;
+    }
+
     let mounted = true;
 
     const loadTokens = async () => {
       try {
         setIsLoading(true);
+        console.log('🛡️ Starting token list loading (wallet unlocked)...');
         const allTokens = await getAllTokens();
+
+        // 🛡️ Load wrapped tokens whitelist and merge
+        console.log('🛡️ Attempting to load wrapped tokens whitelist...');
+        try {
+          const wrappedResponse = await fetch('/token-lists/wrapped-tokens-whitelist.json');
+          console.log(`🛡️ Fetch response status: ${wrappedResponse.status}`);
+          if (wrappedResponse.ok) {
+            const wrappedData = await wrappedResponse.json();
+            console.log(`🛡️ Loading wrapped tokens whitelist: ${wrappedData.tokens.length} tokens`);
+
+            // Map chainId to ChainKey
+            const chainIdMap: Record<number, ChainKey> = {
+              1: "ethereum",
+              56: "bsc",
+              137: "polygon",
+              42161: "arbitrum",
+              10: "optimism",
+              8453: "base",
+            };
+
+            // Add wrapped tokens to allTokens map
+            wrappedData.tokens.forEach((token: any) => {
+              const chainKey = chainIdMap[token.chainId];
+              if (chainKey) {
+                const normalizedToken = {
+                  address: token.address,
+                  symbol: token.symbol,
+                  name: token.name,
+                  decimals: token.decimals,
+                  logoURI: token.logoURI,
+                  chainId: token.chainId,
+                  chainName: chainKey,
+                };
+
+                const existingTokens = allTokens.get(chainKey) || [];
+                // Only add if not already exists (check by address)
+                if (!existingTokens.some(t => t.address.toLowerCase() === token.address.toLowerCase())) {
+                  existingTokens.push(normalizedToken);
+                  allTokens.set(chainKey, existingTokens);
+                  console.log(`🛡️ Added ${token.symbol} to ${chainKey} whitelist`);
+                }
+              }
+            });
+          } else {
+            console.warn(`⚠️ Failed to fetch wrapped tokens whitelist: ${wrappedResponse.status} ${wrappedResponse.statusText}`);
+          }
+        } catch (wrappedErr) {
+          console.error('❌ Failed to load wrapped tokens whitelist:', wrappedErr);
+          // Don't fail the entire load if wrapped tokens fail
+        }
+
         if (mounted) {
           setTokens(allTokens);
           setError(null);
@@ -99,7 +159,7 @@ export function useAllTokens() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [enabled]); // ✅ Re-run when enabled changes (wallet unlock)
 
   return { tokens, isLoading, error };
 }

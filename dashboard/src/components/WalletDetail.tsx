@@ -63,6 +63,9 @@ export function WalletDetail({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Unknown token filter state (whitelist-based)
+  const [showScamTokens, setShowScamTokens] = useState(false);
+
   // Wallet session state (replaces password state)
   const [tempPassword, setTempPassword] = useState(""); // Only used during unlock, immediately discarded
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(true);
@@ -111,8 +114,9 @@ export function WalletDetail({
     usePriorityTokens();
 
   // Load ALL tokens from local token lists for logo lookup (supports BSC, etc.)
-  // This loads the complete token lists, not just top N
-  const { tokens: allTokensByChain } = useAllTokens();
+  // ✅ Only load AFTER wallet is unlocked (!showPasswordPrompt means unlocked)
+  // This prevents unnecessary loading before user enters password
+  const { tokens: allTokensByChain } = useAllTokens(!showPasswordPrompt);
 
   // NOTE: Removed session-based password skip logic
   // Security requirement: Always require password when entering wallet
@@ -423,10 +427,70 @@ export function WalletDetail({
       tokens.filter((t) => t.network.includes("sepolia"))
     );
 
+    // 🛡️ NEW STRATEGY: Whitelist-based filtering using CoinGecko token lists
+    // Build whitelist: Create lookup map of all known legitimate tokens
+    const knownTokenAddresses = new Map<string, { chainKey: ChainKey; symbol: string }>();
+
+    // Map networkLabel to chain key
+    const chainKeyMap: Record<string, ChainKey> = {
+      "Ethereum": "ethereum",
+      "BNB Chain": "bsc",
+      "Polygon": "polygon",
+      "Arbitrum": "arbitrum",
+      "Optimism": "optimism",
+      "Base": "base",
+    };
+
+    // Build whitelist from all known tokens across all chains
+    // (Including CoinGecko lists + wrapped tokens whitelist loaded in useAllTokens)
+    if (allTokensByChain.size > 0) {
+      allTokensByChain.forEach((chainTokens, chainKey) => {
+        chainTokens.forEach((knownToken) => {
+          const key = `${chainKey}-${knownToken.address.toLowerCase()}`;
+          knownTokenAddresses.set(key, { chainKey, symbol: knownToken.symbol });
+        });
+      });
+      console.log(`🛡️ Loaded ${knownTokenAddresses.size} known tokens (CoinGecko + wrapped tokens whitelist)`);
+    }
+
+    // Track filtered tokens for UI
+    const filteredUnknownTokens: TokenBalance[] = [];
+
     // Add all user tokens first (these have actual balances)
+    // 🛡️ Only show tokens that are in the CoinGecko whitelist OR native tokens
     tokens.forEach((token) => {
-      // Check if this is a native token and enrich with metadata
+      const tokenAddress = token.tokenAddress.toLowerCase();
       const networkKey = getNetworkKey(token.networkLabel);
+      const chainKey = chainKeyMap[token.networkLabel];
+
+      // ✅ Always allow native tokens (ETH, BNB, MATIC, etc.)
+      const isNative = networkKey && isNativeTokenAddress(token.tokenAddress);
+
+      // ✅ Check if token is in CoinGecko whitelist
+      const whitelistKey = chainKey ? `${chainKey}-${tokenAddress}` : null;
+      const isKnownToken = whitelistKey && knownTokenAddresses.has(whitelistKey);
+
+      // 🛡️ Filter logic: Only show if native OR in whitelist (unless user wants to see all)
+      const isUnknownToken = !isNative && !isKnownToken;
+
+      if (isUnknownToken && !showScamTokens) {
+        console.log(`🚫 Hiding unknown token: ${token.tokenSymbol} (${token.tokenName}) at ${tokenAddress}`);
+        filteredUnknownTokens.push(token);
+        return; // Skip this token
+      }
+
+      if (isUnknownToken && showScamTokens) {
+        console.log(`⚠️ Showing unknown token (user enabled):`, {
+          symbol: token.tokenSymbol,
+          name: token.tokenName,
+          address: tokenAddress,
+          network: token.network,
+          networkLabel: token.networkLabel,
+        });
+      }
+
+      // Check if this is a native token and enrich with metadata
+      // (networkKey already declared above, reuse it)
 
       // Debug: Log native token detection
       if (isNativeTokenAddress(token.tokenAddress)) {
@@ -457,16 +521,7 @@ export function WalletDetail({
       // PRIORITY: Use local token-list logo over Alchemy's response
       // Only fallback to Alchemy's logo if local token-list doesn't have it
       if (token.tokenAddress && allTokensByChain.size > 0) {
-        // Map networkLabel to chain key
-        const chainKeyMap: Record<string, ChainKey> = {
-          "Ethereum": "ethereum",
-          "BNB Chain": "bsc",
-          "Polygon": "polygon",
-          "Arbitrum": "arbitrum",
-          "Optimism": "optimism",
-          "Base": "base",
-        };
-        const chainKey = chainKeyMap[token.networkLabel];
+        // Reuse chainKey from above (already declared)
         if (chainKey) {
           const chainTokens = allTokensByChain.get(chainKey);
           if (chainTokens) {
@@ -484,6 +539,15 @@ export function WalletDetail({
       const key = `${token.network}-${
         token.tokenSymbol
       }-${token.tokenAddress.toLowerCase()}`;
+
+      // Debug: Log key for unknown tokens
+      if (isUnknownToken) {
+        console.log(`🔑 Adding unknown token to map with key: ${key}`);
+        if (tokenMap.has(key)) {
+          console.warn(`⚠️ Key collision detected! Overwriting existing token with key: ${key}`);
+        }
+      }
+
       tokenMap.set(key, token);
     });
 
@@ -522,9 +586,10 @@ export function WalletDetail({
       "🔍 Sepolia in final result:",
       result.filter((t) => t.network.includes("sepolia"))
     );
+    console.log(`🛡️ Whitelist filter: ${filteredUnknownTokens.length} unknown tokens ${showScamTokens ? 'shown (user enabled)' : 'hidden'}`);
 
     return result;
-  }, [tokens, priorityTokens, isLoadingPriority, allTokensByChain]);
+  }, [tokens, priorityTokens, isLoadingPriority, allTokensByChain, showScamTokens]);
 
   // Group tokens by network (prepared for future use in network grouping view)
   const _tokensByNetwork = displayTokens.reduce((acc, token) => {
@@ -535,6 +600,47 @@ export function WalletDetail({
     return acc;
   }, {} as Record<string, TokenBalance[]>);
   void _tokensByNetwork; // Suppress unused variable warning
+
+  // Calculate filtered unknown tokens count (whitelist-based)
+  const filteredScamCount = useMemo(() => {
+    // Map networkLabel to chain key
+    const chainKeyMap: Record<string, ChainKey> = {
+      "Ethereum": "ethereum",
+      "BNB Chain": "bsc",
+      "Polygon": "polygon",
+      "Arbitrum": "arbitrum",
+      "Optimism": "optimism",
+      "Base": "base",
+    };
+
+    // Build whitelist from CoinGecko token lists
+    const knownTokenAddresses = new Set<string>();
+    if (allTokensByChain.size > 0) {
+      allTokensByChain.forEach((chainTokens, chainKey) => {
+        chainTokens.forEach((knownToken) => {
+          knownTokenAddresses.add(`${chainKey}-${knownToken.address.toLowerCase()}`);
+        });
+      });
+    }
+
+    // Count tokens that are NOT in whitelist and NOT native tokens
+    let unknownCount = 0;
+    tokens.forEach((token) => {
+      const tokenAddress = token.tokenAddress.toLowerCase();
+      const networkKey = getNetworkKey(token.networkLabel);
+      const chainKey = chainKeyMap[token.networkLabel];
+
+      const isNative = networkKey && isNativeTokenAddress(token.tokenAddress);
+      const whitelistKey = chainKey ? `${chainKey}-${tokenAddress}` : null;
+      const isKnownToken = whitelistKey && knownTokenAddresses.has(whitelistKey);
+
+      if (!isNative && !isKnownToken) {
+        unknownCount++;
+      }
+    });
+
+    return unknownCount;
+  }, [tokens, allTokensByChain]);
 
   // Convert tokens to SendableToken format for SendTransaction
   // IMPORTANT: This must be before any conditional returns to follow React Hooks rules
@@ -1271,6 +1377,38 @@ export function WalletDetail({
             >
               🔄
             </button>
+            {/* 🛡️ Scam Token Filter Toggle */}
+            {filteredScamCount > 0 && (
+              <button
+                title={showScamTokens
+                  ? t('walletDetail.hideScamTokens')
+                  : t('walletDetail.showScamTokens', { count: filteredScamCount })
+                }
+                onClick={() => setShowScamTokens(!showScamTokens)}
+                style={{
+                  background: showScamTokens ? "#fef3c7" : "transparent",
+                  border: showScamTokens ? "1px solid #fbbf24" : "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  padding: "0.5rem 0.75rem",
+                  cursor: "pointer",
+                  color: showScamTokens ? "#b45309" : "#1e293b",
+                  fontSize: "0.875rem",
+                  fontWeight: "500",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.25rem",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = showScamTokens ? "#fde68a" : "#f1f5f9";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = showScamTokens ? "#fef3c7" : "transparent";
+                }}
+              >
+                <span>🛡️</span>
+                <span>{filteredScamCount}</span>
+              </button>
+            )}
             <button
               title={t('walletDetail.networkSettings')}
               style={{

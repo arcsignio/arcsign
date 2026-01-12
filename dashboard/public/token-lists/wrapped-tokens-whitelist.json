@@ -1,0 +1,92 @@
+{
+  "name": "Wrapped Tokens Whitelist",
+  "description": "Official wrapped native tokens that may not be in CoinGecko lists",
+  "version": {
+    "major": 1,
+    "minor": 0,
+    "patch": 0
+  },
+  "timestamp": "2026-01-12T00:00:00.000Z",
+  "tokens": [
+    {
+      "chainId": 137,
+      "address": "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+      "name": "Wrapped Matic",
+      "symbol": "WMATIC",
+      "decimals": 18,
+      "logoURI": "https://assets.coingecko.com/coins/images/4713/thumb/matic-token-icon.png"
+    },
+    {
+      "chainId": 137,
+      "address": "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+      "name": "Wrapped Ether",
+      "symbol": "WETH",
+      "decimals": 18,
+      "logoURI": "https://assets.coingecko.com/coins/images/2518/thumb/weth.png"
+    },
+    {
+      "chainId": 1,
+      "address": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+      "name": "Wrapped Ether",
+      "symbol": "WETH",
+      "decimals": 18,
+      "logoURI": "https://assets.coingecko.com/coins/images/2518/thumb/weth.png"
+    },
+    {
+      "chainId": 42161,
+      "address": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+      "name": "Wrapped Ether",
+      "symbol": "WETH",
+      "decimals": 18,
+      "logoURI": "https://assets.coingecko.com/coins/images/2518/thumb/weth.png"
+    },
+    {
+      "chainId": 10,
+      "address": "0x4200000000000000000000000000000000000006",
+      "name": "Wrapped Ether",
+      "symbol": "WETH",
+      "decimals": 18,
+      "logoURI": "https://assets.coingecko.com/coins/images/2518/thumb/weth.png"
+    },
+    {
+      "chainId": 8453,
+      "address": "0x4200000000000000000000000000000000000006",
+      "name": "Wrapped Ether",
+      "symbol": "WETH",
+      "decimals": 18,
+      "logoURI": "https://assets.coingecko.com/coins/images/2518/thumb/weth.png"
+    },
+    {
+      "chainId": 56,
+      "address": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+      "name": "Wrapped BNB",
+      "symbol": "WBNB",
+      "decimals": 18,
+      "logoURI": "https://assets.coingecko.com/coins/images/12591/thumb/binance-coin-logo.png"
+    },
+    {
+      "chainId": 56,
+      "address": "0x2170ed0880ac9a755fd29b2688956bd959f933f8",
+      "name": "Wrapped Ether",
+      "symbol": "WETH",
+      "decimals": 18,
+      "logoURI": "https://assets.coingecko.com/coins/images/2518/thumb/weth.png"
+    },
+    {
+      "chainId": 43114,
+      "address": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+      "name": "Wrapped AVAX",
+      "symbol": "WAVAX",
+      "decimals": 18,
+      "logoURI": "https://assets.coingecko.com/coins/images/12559/thumb/Avalanche_Circle_RedWhite_Trans.png"
+    },
+    {
+      "chainId": 250,
+      "address": "0x21be370d5312f44cb42ce377bc9b8a0cef1a4c83",
+      "name": "Wrapped Fantom",
+      "symbol": "WFTM",
+      "decimals": 18,
+      "logoURI": "https://assets.coingecko.com/coins/images/4001/thumb/Fantom.png"
+    }
+  ]
+}
