@@ -93,6 +93,43 @@ func initWalletSessionManager() *app.WalletSessionManager {
 	return walletSessionManager
 }
 
+// validateSessionAndGetAppPassword validates session token and returns appPassword
+// This is a helper function to reduce code duplication across API functions
+// Parameters:
+//   - sessionToken: Session token from frontend (preferred)
+//   - appPassword: Legacy app password (fallback for backward compatibility)
+//   - usbPath: USB device path to validate against session
+// Returns: (appPassword string, error)
+func validateSessionAndGetAppPassword(sessionToken, appPassword, usbPath string) (string, error) {
+	sm := initSessionManager()
+
+	// Try session token first (preferred)
+	if sessionToken != "" {
+		session, err := sm.ValidateToken(sessionToken)
+		if err != nil {
+			return "", fmt.Errorf("session expired. Please log in again")
+		}
+
+		// Verify USB path matches session
+		if session.UsbPath != usbPath {
+			return "", fmt.Errorf("USB path mismatch with session")
+		}
+
+		// TODO: In the future, we should encrypt provider config with a key derived from deviceId
+		// For now, we still require appPassword to decrypt provider_config.enc
+		if appPassword == "" {
+			return "", fmt.Errorf("app password required for provider config decryption")
+		}
+
+		return appPassword, nil
+	} else if appPassword != "" {
+		// Fallback to legacy appPassword for backward compatibility
+		return appPassword, nil
+	} else {
+		return "", fmt.Errorf("authentication required: provide sessionToken or appPassword")
+	}
+}
+
 // debugLog writes debug messages to /Volumes/arcsign/logs/go_debug.log
 func debugLog(message string) {
 	logFile := "/Volumes/arcsign/logs/go_debug.log"
@@ -824,6 +861,7 @@ func ListWallets(params *C.char) *C.char {
 //export BuildTransaction
 // BuildTransaction constructs an unsigned transaction ready for signing.
 // Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+// Security: Uses session token for app-level auth (low-risk operation).
 //
 // Input JSON: {
 //   "chainId": "bitcoin" | "ethereum" | "ethereum-sepolia",
@@ -835,7 +873,8 @@ func ListWallets(params *C.char) *C.char {
 //   "memo": "optional",
 //   "tokenAddress": "optional ERC-20 contract address",
 //   "usbPath": "/path/to/usb",
-//   "appPassword": "app-password"
+//   "sessionToken": "session-token",    // REQUIRED: Valid session token
+//   "appPassword": "app-password"       // DEPRECATED: Use sessionToken instead
 // }
 //
 // Output JSON: {
@@ -879,7 +918,8 @@ func BuildTransaction(params *C.char) *C.char {
 		Memo         string `json:"memo"`         // optional
 		TokenAddress string `json:"tokenAddress"` // optional: ERC-20 token contract address
 		USBPath      string `json:"usbPath"`      // USB path for provider config
-		AppPassword  string `json:"appPassword"`  // App password for decryption
+		SessionToken string `json:"sessionToken"` // PREFERRED: Session token for app auth
+		AppPassword  string `json:"appPassword"`  // DEPRECATED: App password for decryption
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -891,12 +931,21 @@ func BuildTransaction(params *C.char) *C.char {
 	// Zero sensitive data after function returns
 	defer zeroString(&input.AppPassword)
 
+	// Step 0: Validate session token and get appPassword
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
 	// Build RPC endpoint from provider configuration
 	rpcEndpoint := ""
-	if input.USBPath != "" && input.AppPassword != "" {
+	if input.USBPath != "" && appPassword != "" {
 		// Load provider config to get Alchemy API key
 		configPath := input.USBPath + "/provider_config.enc"
-		store, err := provider.NewProviderConfigStore(configPath, input.AppPassword)
+		store, err := provider.NewProviderConfigStore(configPath, appPassword)
 		if err == nil {
 			// Try to get provider - first try "global", then chain-specific
 			var config *provider.ProviderConfig
@@ -2196,13 +2245,15 @@ func UnlockApp(params *C.char) *C.char {
 // GetTokenBalances queries token balances for all addresses in a wallet across multiple chains
 // using Alchemy API. Returns aggregated token balances with USD values.
 //
-// Security: Requires valid wallet password for authentication before accessing balance data.
+// Security: Uses session token for app-level auth (low-risk operation).
+// Wallet password still required to verify wallet access.
 //
 // Input JSON: {
 //   "walletId": "uuid",
-//   "password": "wallet-password",  // REQUIRED: Must be correct wallet password
+//   "password": "wallet-password",      // REQUIRED: Must be correct wallet password
 //   "usbPath": "/path/to/usb",
-//   "appPassword": "app-level-password"
+//   "sessionToken": "session-token",    // REQUIRED: Valid session token
+//   "appPassword": "app-level-password" // DEPRECATED: Use sessionToken instead
 // }
 //
 // Returns: {"success": true, "data": {"tokens": [...], "totalUsd": 5000.50, ...}}
@@ -2235,15 +2286,24 @@ func GetTokenBalances(params *C.char) *C.char {
 	defer zeroString(&input.Password)
 	defer zeroString(&input.AppPassword)
 
+	// Step 0: Validate session token (app-level authentication)
+	// This is a low-risk operation, so we use session token instead of appPassword
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
 	// Step 1: Load Alchemy API key from provider registry
 	// Note: Using provider registry system instead of app config for now
 	// Construct full path to provider_config.enc in USB root directory
 	providerConfigPath := filepath.Join(input.USBPath, "provider_config.enc")
 	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: providerConfigPath = %s", providerConfigPath))
-	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: appPassword length = %d", len(input.AppPassword)))
-	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: appPassword = '%s'", input.AppPassword))
+	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Using session token auth: %v", input.SessionToken != ""))
 
-	providerStore, err := provider.NewProviderConfigStore(providerConfigPath, input.AppPassword)
+	providerStore, err := provider.NewProviderConfigStore(providerConfigPath, appPassword)
 	if err != nil {
 		debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Failed to initialize provider store: %v", err))
 		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to initialize provider store: %v", err))

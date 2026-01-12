@@ -77,7 +77,8 @@ type GetTokenBalancesInput struct {
 	WalletID        string   `json:"walletId"`
 	Password        string   `json:"password"`
 	USBPath         string   `json:"usbPath"`
-	AppPassword     string   `json:"appPassword"`     // For reading provider config
+	SessionToken    string   `json:"sessionToken"`    // PREFERRED: Session token for app-level auth
+	AppPassword     string   `json:"appPassword"`     // DEPRECATED: For reading provider config (use SessionToken instead)
 	IncludeTestnets bool     `json:"includeTestnets"` // Include testnet networks (dev mode)
 }
 
