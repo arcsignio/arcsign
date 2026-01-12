@@ -23,14 +23,57 @@ import (
 var (
 	ErrInvalidToken   = errors.New("invalid or expired session token")
 	ErrSessionExpired = errors.New("session has expired")
+	ErrSessionIdle    = errors.New("session expired due to inactivity")
 	ErrInvalidAuth    = errors.New("invalid authentication credentials")
 )
 
-// Server pepper for HKDF key derivation
-// Security: This server-side secret prevents offline decryption attacks
-// Even if token + EncryptedProviderKey are stolen, attacker cannot decrypt without this pepper
-// TODO: In production, load from secure environment variable or key management system
-const serverPepper = "arcsign-v2-session-encryption-pepper-2026-change-in-production"
+// Session timeout configuration
+const (
+	// Maximum session lifetime (absolute timeout)
+	SessionMaxLifetime = 24 * time.Hour
+
+	// Idle timeout (activity-based timeout)
+	// If no activity for this duration, session is invalidated
+	// This prevents abandoned sessions from being hijacked
+	SessionIdleTimeout = 2 * time.Hour
+)
+
+// Pepper versioning for key rotation
+// When rotating peppers, old sessions can still be decrypted for a grace period
+const (
+	CurrentPepperVersion = 1
+	// Grace period: support previous version for 7 days during rotation
+)
+
+// Server peppers for HKDF key derivation (version-based key rotation)
+// Security: These server-side secrets prevent offline decryption attacks
+// Even if token + EncryptedProviderKey are stolen, attacker cannot decrypt without pepper
+// Production: Load from secure environment variables or key management system (AWS KMS, HashiCorp Vault)
+var serverPeppers = map[int]string{
+	// Version 1: Current pepper (generated 2026-01-12)
+	// ⚠️ CRITICAL: Replace this with a secure random 32+ byte string in production
+	// Generate with: openssl rand -base64 32
+	1: "KzJ8mR9qL3vN5wXpY2tC6fH4bV7sA1dE8nM0gT3xU9yZ4rI6oP5jQ2kW8hB7lF3v",
+
+	// Version 0: Deprecated (for migration period only, will be removed)
+	// Old sessions encrypted with this pepper can still be decrypted
+	// Remove this after all users have re-authenticated (grace period: 7 days)
+	0: "arcsign-v2-session-encryption-pepper-2026-change-in-production",
+}
+
+// getCurrentPepper returns the current version pepper
+func getCurrentPepper() (int, string) {
+	return CurrentPepperVersion, serverPeppers[CurrentPepperVersion]
+}
+
+// getPepper returns pepper by version (for decryption of old sessions)
+func getPepper(version int) (string, error) {
+	pepper, exists := serverPeppers[version]
+	if !exists {
+		return "", fmt.Errorf("pepper version %d not found (may have been rotated out)", version)
+	}
+	return pepper, nil
+}
 
 // SessionManager manages user session tokens for authenticated operations
 type SessionManager struct {
@@ -58,9 +101,10 @@ type Session struct {
 	LockedWalletIds []string // IDs of wallets that exceed the limit
 
 	// Encrypted provider key (for decrypting provider_config.enc)
-	// Encrypted using AES-256-GCM with session token as key
+	// Encrypted using AES-256-GCM with HKDF-derived key
 	// This allows backend to access provider config without storing plain password
-	EncryptedProviderKey []byte // AES-256-GCM(appPassword, key=deriveKey(token))
+	EncryptedProviderKey []byte // AES-256-GCM(appPassword, key=HKDF(token, pepper))
+	PepperVersion        int    // Version of pepper used for encryption (for key rotation)
 }
 
 // NewSessionManager creates a new session manager instance
@@ -115,27 +159,31 @@ func (sm *SessionManager) CreateSession(usbPath, appPassword string) (*Session, 
 	// Wallets are sorted by CreatedAt, newest wallets get locked first
 	lockedWalletIds := calculateLockedWallets(walletsFromFS, len(memberships))
 
+	// Get current pepper version for encryption
+	pepperVersion, _ := getCurrentPepper()
+
 	// Encrypt app password for provider config access
-	// Security: Encrypted with session token as key, stored only in session
-	encryptedProviderKey, err := encryptProviderKey(appPassword, token)
+	// Security: Encrypted with HKDF-derived key (token + versioned pepper)
+	encryptedProviderKey, err := encryptProviderKey(appPassword, token, pepperVersion)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encrypt provider key: %w", err)
 	}
 
-	// Create session with 24-hour expiration
+	// Create session with absolute and idle timeouts
 	// Security: Stores encrypted provider key, plain password is discarded after validation
 	now := time.Now()
 	session := &Session{
 		Token:                token,
 		UsbPath:              usbPath,
 		CreatedAt:            now,
-		ExpiresAt:            now.Add(24 * time.Hour),
-		LastUsed:             now,
+		ExpiresAt:            now.Add(SessionMaxLifetime), // Absolute timeout: 24 hours
+		LastUsed:             now,                         // Track for idle timeout: 2 hours
 		DeviceId:             deviceId,
 		DeviceIdHash:         deviceIdHash,
 		Memberships:          memberships,
 		LockedWalletIds:      lockedWalletIds,
 		EncryptedProviderKey: encryptedProviderKey, // ✅ Store encrypted key
+		PepperVersion:        pepperVersion,         // ✅ Store pepper version for future rotation
 	}
 
 	// Store session
@@ -147,6 +195,7 @@ func (sm *SessionManager) CreateSession(usbPath, appPassword string) (*Session, 
 }
 
 // ValidateToken checks if a token is valid and returns associated session
+// Security: Validates both absolute timeout (ExpiresAt) and idle timeout (LastUsed)
 func (sm *SessionManager) ValidateToken(token string) (*Session, error) {
 	sm.mu.RLock()
 	session, exists := sm.sessions[token]
@@ -156,15 +205,25 @@ func (sm *SessionManager) ValidateToken(token string) (*Session, error) {
 		return nil, ErrInvalidToken
 	}
 
-	// Check expiration
-	if time.Now().After(session.ExpiresAt) {
+	now := time.Now()
+
+	// Check absolute expiration (24 hours from creation)
+	if now.After(session.ExpiresAt) {
 		sm.RevokeToken(token)
 		return nil, ErrSessionExpired
 	}
 
-	// Update last used time
+	// Check idle timeout (2 hours of inactivity)
+	// This prevents abandoned sessions from being hijacked
+	idleTime := now.Sub(session.LastUsed)
+	if idleTime > SessionIdleTimeout {
+		sm.RevokeToken(token)
+		return nil, ErrSessionIdle
+	}
+
+	// Update last used time (touch session to reset idle timer)
 	sm.mu.Lock()
-	session.LastUsed = time.Now()
+	session.LastUsed = now
 	sm.mu.Unlock()
 
 	return session, nil
@@ -400,42 +459,53 @@ func (sm *SessionManager) RecalculateLockedWallets(usbPath string) {
 // ============================================================================
 
 // deriveKeyFromToken derives a 32-byte AES key from the session token using HKDF
-// Security: Uses HKDF with server pepper to prevent offline decryption attacks
-// Formula: aesKey = HKDF(SHA256(token), serverPepper, info="session-key")
+// Security: Uses HKDF with versioned server pepper to prevent offline decryption attacks
+// Formula: aesKey = HKDF(SHA256(token), pepper[version], info="session-key-v{version}")
 // Benefits:
 // - Token leak alone cannot decrypt the provider key
 // - Attacker needs both token AND server pepper (which never leaves backend)
 // - Token remains valid as session credential
-func deriveKeyFromToken(token string) []byte {
+// - Pepper versioning allows key rotation without breaking old sessions
+func deriveKeyFromToken(token string, pepperVersion int) ([]byte, error) {
+	// Get pepper for the specified version
+	pepper, err := getPepper(pepperVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pepper: %w", err)
+	}
+
 	// Step 1: Hash the token (IKM - Input Keying Material)
 	tokenHash := sha256.Sum256([]byte(token))
 
 	// Step 2: Use HKDF to derive key with server pepper as salt
-	// Salt: serverPepper (server-side secret)
-	// IKM: SHA256(token)
-	// Info: "session-key" (domain separation)
-	// Output: 32 bytes for AES-256
+	// HKDF parameters (RFC 5869):
+	// - hash: SHA-256
+	// - IKM (Input Keying Material): SHA256(token) - 32 bytes
+	// - salt: versioned pepper (≥32 bytes random string)
+	// - info: "session-key-v{version}" (domain separation + version binding)
+	// - output: 32 bytes for AES-256
+	info := fmt.Sprintf("session-key-v%d", pepperVersion)
 	hkdfReader := hkdf.New(
 		sha256.New,
-		tokenHash[:],           // IKM: hashed token
-		[]byte(serverPepper),   // Salt: server pepper (prevents offline attacks)
-		[]byte("session-key"),  // Info: context string for domain separation
+		tokenHash[:],     // IKM: hashed token (32 bytes)
+		[]byte(pepper),   // Salt: versioned server pepper (prevents offline attacks)
+		[]byte(info),     // Info: version-specific context (prevents cross-version attacks)
 	)
 
 	// Extract 32 bytes for AES-256 key
 	key := make([]byte, 32)
 	if _, err := io.ReadFull(hkdfReader, key); err != nil {
 		// This should never happen with HKDF
-		panic(fmt.Sprintf("HKDF failed: %v", err))
+		return nil, fmt.Errorf("HKDF extraction failed: %w", err)
 	}
 
-	return key
+	return key, nil
 }
 
 // encryptProviderKey encrypts the app password using AES-256-GCM
-// The session token is used to derive the encryption key
+// The session token and pepper version are used to derive the encryption key via HKDF
 // Returns encrypted data with nonce prepended: [nonce(12 bytes)][ciphertext][tag(16 bytes)]
-func encryptProviderKey(appPassword string, token string) ([]byte, error) {
+// Security: Nonce is randomly generated for each encryption (must be unique per key)
+func encryptProviderKey(appPassword string, token string, pepperVersion int) ([]byte, error) {
 	if appPassword == "" {
 		return nil, errors.New("appPassword cannot be empty")
 	}
@@ -443,8 +513,11 @@ func encryptProviderKey(appPassword string, token string) ([]byte, error) {
 		return nil, errors.New("token cannot be empty")
 	}
 
-	// Derive 32-byte key from token
-	key := deriveKeyFromToken(token)
+	// Derive 32-byte key from token using HKDF with versioned pepper
+	key, err := deriveKeyFromToken(token, pepperVersion)
+	if err != nil {
+		return nil, fmt.Errorf("key derivation failed: %w", err)
+	}
 	defer zeroBytes(key) // Clear key from memory after use
 
 	// Create AES cipher
@@ -460,12 +533,16 @@ func encryptProviderKey(appPassword string, token string) ([]byte, error) {
 	}
 
 	// Generate random nonce (12 bytes for GCM)
-	nonce := make([]byte, gcm.NonceSize())
+	// Security: CRITICAL - nonce MUST be unique for each encryption with the same key
+	// AES-GCM with reused nonce is catastrophically broken (leaks plaintext and key)
+	// We use crypto/rand which is CSPRNG (cryptographically secure pseudorandom number generator)
+	nonce := make([]byte, gcm.NonceSize()) // 12 bytes for GCM
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, fmt.Errorf("failed to generate nonce: %w", err)
 	}
 
-	// Encrypt plaintext
+	// Encrypt plaintext and prepend nonce
+	// Format: [nonce(12)][ciphertext][auth_tag(16)]
 	plaintext := []byte(appPassword)
 	ciphertext := gcm.Seal(nonce, nonce, plaintext, nil)
 
@@ -476,8 +553,9 @@ func encryptProviderKey(appPassword string, token string) ([]byte, error) {
 }
 
 // decryptProviderKey decrypts the provider key using AES-256-GCM
-// The session token is used to derive the decryption key
-func decryptProviderKey(encrypted []byte, token string) (string, error) {
+// The session token and pepper version are used to derive the decryption key via HKDF
+// Supports versioned peppers for key rotation (old sessions use old pepper version)
+func decryptProviderKey(encrypted []byte, token string, pepperVersion int) (string, error) {
 	if len(encrypted) == 0 {
 		return "", errors.New("encrypted data is empty")
 	}
@@ -485,8 +563,11 @@ func decryptProviderKey(encrypted []byte, token string) (string, error) {
 		return "", errors.New("token cannot be empty")
 	}
 
-	// Derive 32-byte key from token
-	key := deriveKeyFromToken(token)
+	// Derive 32-byte key from token using HKDF with versioned pepper
+	key, err := deriveKeyFromToken(token, pepperVersion)
+	if err != nil {
+		return "", fmt.Errorf("key derivation failed: %w", err)
+	}
 	defer zeroBytes(key) // Clear key from memory after use
 
 	// Create AES cipher
@@ -545,8 +626,9 @@ func (sm *SessionManager) GetProviderKey(token string) (string, error) {
 		return "", errors.New("no provider key stored in session")
 	}
 
-	// Decrypt provider key using session token
-	providerKey, err := decryptProviderKey(session.EncryptedProviderKey, token)
+	// Decrypt provider key using session token and pepper version
+	// This supports key rotation: old sessions use old pepper version
+	providerKey, err := decryptProviderKey(session.EncryptedProviderKey, token, session.PepperVersion)
 	if err != nil {
 		return "", fmt.Errorf("failed to decrypt provider key: %w", err)
 	}
