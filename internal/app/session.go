@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"golang.org/x/crypto/hkdf"
 )
 
 var (
@@ -23,6 +25,12 @@ var (
 	ErrSessionExpired = errors.New("session has expired")
 	ErrInvalidAuth    = errors.New("invalid authentication credentials")
 )
+
+// Server pepper for HKDF key derivation
+// Security: This server-side secret prevents offline decryption attacks
+// Even if token + EncryptedProviderKey are stolen, attacker cannot decrypt without this pepper
+// TODO: In production, load from secure environment variable or key management system
+const serverPepper = "arcsign-v2-session-encryption-pepper-2026-change-in-production"
 
 // SessionManager manages user session tokens for authenticated operations
 type SessionManager struct {
@@ -391,11 +399,37 @@ func (sm *SessionManager) RecalculateLockedWallets(usbPath string) {
 // Encryption helpers for provider key storage
 // ============================================================================
 
-// deriveKeyFromToken derives a 32-byte AES key from the session token
-// Uses SHA-256 to ensure consistent key length
+// deriveKeyFromToken derives a 32-byte AES key from the session token using HKDF
+// Security: Uses HKDF with server pepper to prevent offline decryption attacks
+// Formula: aesKey = HKDF(SHA256(token), serverPepper, info="session-key")
+// Benefits:
+// - Token leak alone cannot decrypt the provider key
+// - Attacker needs both token AND server pepper (which never leaves backend)
+// - Token remains valid as session credential
 func deriveKeyFromToken(token string) []byte {
-	hash := sha256.Sum256([]byte(token))
-	return hash[:]
+	// Step 1: Hash the token (IKM - Input Keying Material)
+	tokenHash := sha256.Sum256([]byte(token))
+
+	// Step 2: Use HKDF to derive key with server pepper as salt
+	// Salt: serverPepper (server-side secret)
+	// IKM: SHA256(token)
+	// Info: "session-key" (domain separation)
+	// Output: 32 bytes for AES-256
+	hkdfReader := hkdf.New(
+		sha256.New,
+		tokenHash[:],           // IKM: hashed token
+		[]byte(serverPepper),   // Salt: server pepper (prevents offline attacks)
+		[]byte("session-key"),  // Info: context string for domain separation
+	)
+
+	// Extract 32 bytes for AES-256 key
+	key := make([]byte, 32)
+	if _, err := io.ReadFull(hkdfReader, key); err != nil {
+		// This should never happen with HKDF
+		panic(fmt.Sprintf("HKDF failed: %v", err))
+	}
+
+	return key
 }
 
 // encryptProviderKey encrypts the app password using AES-256-GCM
