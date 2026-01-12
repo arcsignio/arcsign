@@ -1089,12 +1089,14 @@ func SignTransaction(params *C.char) *C.char {
 
 	paramsJSON := C.GoString(params)
 	var input struct {
-		WalletID   string                 `json:"walletId"`
-		Password   string                 `json:"password"`
-		Passphrase string                 `json:"passphrase"` // BIP39 passphrase (empty if not used)
-		USBPath    string                 `json:"usbPath"`
-		ChainID    string                 `json:"chainId"`
-		UnsignedTx map[string]interface{} `json:"unsignedTx"`
+		WalletID     string                 `json:"walletId"`
+		Password     string                 `json:"password"`     // Wallet password (for signing)
+		Passphrase   string                 `json:"passphrase"`   // BIP39 passphrase (empty if not used)
+		USBPath      string                 `json:"usbPath"`
+		ChainID      string                 `json:"chainId"`
+		UnsignedTx   map[string]interface{} `json:"unsignedTx"`
+		SessionToken string                 `json:"sessionToken"` // PREFERRED: Session token for session validation
+		AppPassword  string                 `json:"appPassword"`  // DEPRECATED: Backward compatibility
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -1106,8 +1108,20 @@ func SignTransaction(params *C.char) *C.char {
 	// Zero sensitive data after function returns
 	defer zeroString(&input.Password)
 	defer zeroString(&input.Passphrase)
+	defer zeroString(&input.AppPassword)
 
-	// Step 0: Check if wallet is locked (before any expensive operations)
+	// Step 0a: Validate session token (optional - for provider config access if needed)
+	// SignTransaction mainly uses wallet password, but session validation is useful
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil && input.SessionToken != "" {
+		// Only fail if sessionToken was explicitly provided but is invalid
+		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	// Step 0b: Check if wallet is locked (before any expensive operations)
 	// Locked wallets cannot sign transactions - this enforces the wallet limit
 	sm := initSessionManager()
 	if session := sm.GetSessionByUSBPath(input.USBPath); session != nil {
@@ -1499,9 +1513,12 @@ func QueryTransactionStatus(params *C.char) *C.char {
 
 	paramsJSON := C.GoString(params)
 	var input struct {
-		ChainID   string `json:"chainId"`
-		TxHash    string `json:"txHash"`
-		RPCConfig string `json:"rpcConfig"`
+		ChainID      string `json:"chainId"`
+		TxHash       string `json:"txHash"`
+		RPCConfig    string `json:"rpcConfig"`
+		USBPath      string `json:"usbPath"`      // USB path for provider config
+		SessionToken string `json:"sessionToken"` // PREFERRED: Session token
+		AppPassword  string `json:"appPassword"`  // DEPRECATED
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -1510,12 +1527,41 @@ func QueryTransactionStatus(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
+	defer zeroString(&input.AppPassword)
+
+	// Validate session token and get appPassword (optional for this read-only operation)
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil && input.SessionToken != "" {
+		// Only fail if sessionToken was explicitly provided but is invalid
+		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	// Build RPC endpoint from provider config if not provided
+	rpcConfig := input.RPCConfig
+	if rpcConfig == "" && input.USBPath != "" && appPassword != "" {
+		configPath := input.USBPath + "/provider_config.enc"
+		store, err := provider.NewProviderConfigStore(configPath, appPassword)
+		if err == nil {
+			var config *provider.ProviderConfig
+			config, err = store.GetBestProvider("global")
+			if err != nil {
+				config, err = store.GetBestProvider("ethereum")
+			}
+			if err == nil && config != nil && config.APIKey != "" {
+				rpcConfig = buildAlchemyRPCEndpoint(input.ChainID, config.APIKey)
+			}
+		}
+	}
+
 	// Initialize ChainAdapter service
 	svc := initChainAdapterService()
 
 	// Query transaction status
 	ctx := context.Background()
-	status, err := svc.QueryTransactionStatus(ctx, input.ChainID, input.TxHash, input.RPCConfig)
+	status, err := svc.QueryTransactionStatus(ctx, input.ChainID, input.TxHash, rpcConfig)
 	if err != nil {
 		response := NewErrorResponse(ErrTransactionQueryFailed, fmt.Sprintf("Failed to query transaction status: %v", err))
 		jsonBytes, _ := json.Marshal(response)
@@ -3370,10 +3416,11 @@ func GetSwapTokens(params *C.char) *C.char {
 
 	paramsJSON := C.GoString(params)
 	var input struct {
-		ChainID     string `json:"chainId"`
-		Provider    string `json:"provider"` // DEX provider: "openocean" | "kyberswap"
-		USBPath     string `json:"usbPath"`
-		AppPassword string `json:"appPassword"`
+		ChainID      string `json:"chainId"`
+		Provider     string `json:"provider"`     // DEX provider: "openocean" | "kyberswap"
+		USBPath      string `json:"usbPath"`
+		SessionToken string `json:"sessionToken"` // PREFERRED: Session token (optional for read-only API)
+		AppPassword  string `json:"appPassword"`  // DEPRECATED
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
