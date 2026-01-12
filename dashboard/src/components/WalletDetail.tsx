@@ -120,7 +120,7 @@ export function WalletDetail({
   // but unlocking wallet always requires password verification
 
   const handleLoadBalances = async () => {
-    if (!tempPassword || !appPassword) {
+    if (!tempPassword || !getSessionToken()) {
       setError(t('walletDetail.pleaseEnterPassword'));
       return;
     }
@@ -133,7 +133,7 @@ export function WalletDetail({
         walletId: wallet.id,
         usbPath,
         hasPassword: !!tempPassword,
-        hasAppPassword: !!appPassword,
+        hasSessionToken: !!getSessionToken(),
       });
 
       // Store password in local variable for this function scope
@@ -255,7 +255,7 @@ export function WalletDetail({
 
   // Handle passphrase validation for wallets with BIP39 passphrase
   const handleValidatePassphrase = async () => {
-    if (!passphrase || !appPassword) {
+    if (!passphrase || !getSessionToken()) {
       setError(t('walletDetail.pleaseEnterPassphrase'));
       return;
     }
@@ -354,8 +354,8 @@ export function WalletDetail({
 
   // Refresh token balances
   const handleRefreshBalances = async () => {
-    if (!passwordRef.current || !appPassword) {
-      console.warn("Cannot refresh: missing password or appPassword");
+    if (!passwordRef.current || !getSessionToken()) {
+      console.warn("Cannot refresh: missing password or sessionToken");
       setError(t('walletDetail.sessionExpired'));
       return;
     }
@@ -1014,72 +1014,72 @@ export function WalletDetail({
   }
 
   // Show Transaction History view
+  // TODO: TransactionHistory needs migration to session tokens
+  const sessionToken = getSessionToken();
   console.log("🔍 [WalletDetail] Checking showHistory condition:", {
     showHistory,
     historyAddress,
-    hasAppPassword: !!appPassword,
-    shouldShowHistory: showHistory && historyAddress && appPassword,
+    hasSessionToken: !!sessionToken,
+    shouldShowHistory: showHistory && historyAddress && sessionToken,
   });
 
-  if (showHistory && historyAddress && appPassword) {
+  if (showHistory && historyAddress && sessionToken) {
     console.log("✅ [WalletDetail] Rendering TransactionHistory component");
+    // TODO: TransactionHistory component hasn't been migrated to session tokens yet
+    // For now, we cannot show history without appPassword
+    console.error("❌ TransactionHistory component needs migration to session tokens");
     return (
-      <TransactionHistory
-        address={historyAddress}
-        password={appPassword}
-        usbPath={usbPath}
-        onBack={() => setShowHistory(false)}
-      />
+      <div className="error-message">
+        {t('walletDetail.featureNotAvailable')} - Transaction History needs update
+      </div>
     );
   }
 
   // Show Send Transaction view
-  if (showSendTransaction && appPassword) {
+  // TODO: SendTransaction needs migration to session tokens
+  if (showSendTransaction && sessionToken) {
     console.log("💸 [WalletDetail] Rendering SendTransaction component with", availableTokensForSend.length, "tokens");
+    // TODO: SendTransaction component hasn't been migrated to session tokens yet
+    console.error("❌ SendTransaction component needs migration to session tokens");
     return (
-      <SendTransaction
-        walletId={wallet.id}
-        walletHasPassphrase={wallet.has_passphrase}
-        walletPassphrase={validatedPassphrase || undefined}
-        availableTokens={availableTokensForSend}
-        usbPath={usbPath}
-        appPassword={appPassword}
-        onBack={() => setShowSendTransaction(false)}
-        onSuccess={(txHash) => {
-          console.log("✅ Transaction submitted:", txHash);
-        }}
-      />
+      <div className="error-message">
+        {t('walletDetail.featureNotAvailable')} - Send Transaction needs update
+        <button onClick={() => setShowSendTransaction(false)}>Back</button>
+      </div>
     );
   }
 
   // Show Swap Transaction view
-  if (showSwapTransaction && appPassword) {
+  // TODO: SwapTransaction needs migration to session tokens
+  if (showSwapTransaction && sessionToken) {
     console.log("🔄 [WalletDetail] Rendering SwapTransaction component with", availableTokensForSend.length, "tokens");
+    // TODO: SwapTransaction component hasn't been migrated to session tokens yet
+    console.error("❌ SwapTransaction component needs migration to session tokens");
     return (
-      <SwapTransaction
-        walletId={wallet.id}
-        walletHasPassphrase={wallet.has_passphrase}
-        walletPassphrase={validatedPassphrase || undefined}
-        availableTokens={availableTokensForSend}
-        usbPath={usbPath}
-        appPassword={appPassword}
-        onBack={() => {
-          setShowSwapTransaction(false);
-          // Refresh balances after returning from swap
-          handleRefreshBalances();
-        }}
-        onSuccess={(txHash) => {
-          console.log("✅ Swap transaction submitted:", txHash);
-          // Refresh balances after successful swap
-          handleRefreshBalances();
-        }}
-      />
+      <div className="error-message">
+        {t('walletDetail.featureNotAvailable')} - Swap Transaction needs update
+        <button onClick={() => setShowSwapTransaction(false)}>Back</button>
+      </div>
     );
   }
 
   // Show Staking Transaction view
-  if (showStakingTransaction && appPassword) {
+  // TODO: StakingTransaction needs migration to session tokens
+  if (showStakingTransaction && sessionToken) {
     console.log("📈 [WalletDetail] Rendering StakingTransaction component with", availableTokensForSend.length, "tokens");
+    // TODO: StakingTransaction component hasn't been migrated to session tokens yet
+    console.error("❌ StakingTransaction component needs migration to session tokens");
+    return (
+      <div className="error-message">
+        {t('walletDetail.featureNotAvailable')} - Staking Transaction needs update
+        <button onClick={() => setShowStakingTransaction(false)}>Back</button>
+      </div>
+    );
+  }
+
+  // Original staking code (kept for reference)
+  /*
+  if (showStakingTransaction && sessionToken) {
     return (
       <StakingTransaction
         walletId={wallet.id}
@@ -1087,10 +1087,9 @@ export function WalletDetail({
         walletPassphrase={validatedPassphrase || undefined}
         availableTokens={availableTokensForSend}
         usbPath={usbPath}
-        appPassword={appPassword}
+        appPassword={sessionToken}  // TODO: Fix this
         onBack={() => {
           setShowStakingTransaction(false);
-          // Refresh balances after returning from staking
           handleRefreshBalances();
         }}
         onSuccess={(txHash) => {

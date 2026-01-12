@@ -14,6 +14,7 @@ import {
   type ProviderListItem,
 } from '../api/provider';
 import { useAppPassword } from '@/contexts/AppPasswordContext';
+// TODO: Migrate ProviderSettings to use session tokens
 
 interface ProviderSettingsProps {
   usbPath: string;
@@ -23,7 +24,28 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
   usbPath,
 }) => {
   const { t } = useTranslation();
-  const { appPassword } = useAppPassword();
+
+  // TODO: This component needs migration to session tokens
+  // The provider config APIs haven't been migrated to use session tokens yet
+  return (
+    <div className="provider-settings">
+      <div className="header">
+        <h2>{t('provider.title')}</h2>
+      </div>
+      <div className="error-message" style={{ padding: '20px', backgroundColor: '#fff3cd', border: '1px solid #ffc107', borderRadius: '4px', margin: '20px 0' }}>
+        <p style={{ margin: 0, color: '#856404' }}>
+          ⚠️ Provider Settings feature is temporarily unavailable.
+        </p>
+        <p style={{ margin: '10px 0 0 0', fontSize: '0.9em', color: '#856404' }}>
+          This component needs to be migrated to use session tokens (zero password storage architecture).
+          The backend provider config APIs need to be updated first.
+        </p>
+      </div>
+    </div>
+  );
+
+  // Original code kept for reference during migration
+  /*
   const [providers, setProviders] = useState<ProviderListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,18 +60,10 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = ({
     enabled: true,
   });
 
-  // Load providers on mount
-  useEffect(() => {
-    if (appPassword) {
-      loadProviders();
-    }
-  }, [appPassword]);
-
   const loadProviders = async () => {
-    if (!appPassword) {
-      setError(t('provider.appPasswordNotAvailable'));
-      return;
-    }
+    // TODO: Use session token instead of appPassword
+    setError(t('provider.appPasswordNotAvailable'));
+    return;
 
     setLoading(true);
     setError(null);
