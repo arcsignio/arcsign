@@ -27,8 +27,9 @@ interface AppPasswordContextType {
   // Get session token (for operations that need authentication)
   getSessionToken: () => string | null;
 
-  // Legacy: App password for operations that still require it
-  // TODO: Migrate all APIs to use session tokens instead
+  // DEPRECATED: App password for provider_config decryption
+  // TODO: Remove when provider_config uses DeviceID-based encryption
+  // ⚠️ Security: This is a transitional measure. Future versions will eliminate this.
   appPassword: string | null;
 }
 
@@ -38,8 +39,8 @@ export function AppPasswordProvider({ children }: { children: ReactNode }) {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [usbPath, setUsbPath] = useState<string | null>(null);
-  // Legacy: Store password for APIs that still need it
-  // TODO: Remove this when all APIs migrate to session tokens
+  // DEPRECATED: Store password temporarily for provider_config decryption
+  // ⚠️ Security limitation: Required until backend implements DeviceID-based encryption
   const [appPassword, setAppPassword] = useState<string | null>(null);
 
   const sessionStore = useSessionStore();
@@ -61,7 +62,8 @@ export function AppPasswordProvider({ children }: { children: ReactNode }) {
       setAppConfig(config);
       setUsbPath(currentUsbPath);
       setIsUnlocked(true);
-      // Legacy: Store password for APIs that still need it
+      // DEPRECATED: Store password for provider_config decryption
+      // ⚠️ This is a transitional measure until backend uses DeviceID encryption
       setAppPassword(password);
 
       console.log('🔐 [AppPasswordContext] Session created successfully');

@@ -203,7 +203,8 @@ export async function getTokenBalances(
       walletId: params.walletId,
       password: params.password,
       usbPath: params.usbPath,
-      appPassword: params.appPassword,
+      sessionToken: params.sessionToken, // PREFERRED: Session token
+      appPassword: params.appPassword, // DEPRECATED: Still needed for provider_config
       includeTestnets: params.includeTestnets,
     });
   } catch (error) {

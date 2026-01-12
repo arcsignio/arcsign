@@ -28,8 +28,9 @@ export interface TokenBalancesResponse {
 
 export interface GetTokenBalancesParams {
   walletId: string;
-  password: string;
+  password: string; // Wallet password (for wallet decryption)
   usbPath: string;
-  appPassword: string;
+  sessionToken?: string; // PREFERRED: Session token for app-level auth
+  appPassword: string; // DEPRECATED: Still needed for provider_config decryption
   includeTestnets?: boolean; // Include testnet networks (dev mode)
 }
