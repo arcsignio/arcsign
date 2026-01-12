@@ -1345,11 +1345,12 @@ func BroadcastTransaction(params *C.char) *C.char {
 
 	paramsJSON := C.GoString(params)
 	var input struct {
-		ChainID     string                 `json:"chainId"`
-		SignedTx    map[string]interface{} `json:"signedTx"`
-		RPCConfig   string                 `json:"rpcConfig"`
-		USBPath     string                 `json:"usbPath"`
-		AppPassword string                 `json:"appPassword"`
+		ChainID      string                 `json:"chainId"`
+		SignedTx     map[string]interface{} `json:"signedTx"`
+		RPCConfig    string                 `json:"rpcConfig"`
+		USBPath      string                 `json:"usbPath"`
+		SessionToken string                 `json:"sessionToken"` // PREFERRED: Session token
+		AppPassword  string                 `json:"appPassword"`  // DEPRECATED
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -1358,11 +1359,20 @@ func BroadcastTransaction(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
+	// Validate session token and get appPassword
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
 	// Build RPC endpoint from provider configuration (same as BuildTransaction)
 	rpcEndpoint := input.RPCConfig
-	if rpcEndpoint == "" && input.USBPath != "" && input.AppPassword != "" {
+	if rpcEndpoint == "" && input.USBPath != "" && appPassword != "" {
 		configPath := input.USBPath + "/provider_config.enc"
-		store, err := provider.NewProviderConfigStore(configPath, input.AppPassword)
+		store, err := provider.NewProviderConfigStore(configPath, appPassword)
 		if err == nil {
 			var config *provider.ProviderConfig
 			config, err = store.GetBestProvider("global")
@@ -2895,9 +2905,10 @@ func GetSwapQuote(params *C.char) *C.char {
 		Amount           string  `json:"amount"`
 		FromAddress      string  `json:"fromAddress"`
 		Slippage         float64 `json:"slippage"`
-		Provider         string  `json:"provider"` // DEX provider: "openocean" | "kyberswap"
+		Provider         string  `json:"provider"`     // DEX provider: "openocean" | "kyberswap"
 		USBPath          string  `json:"usbPath"`
-		AppPassword      string  `json:"appPassword"`
+		SessionToken     string  `json:"sessionToken"` // PREFERRED: Session token (optional for read-only API)
+		AppPassword      string  `json:"appPassword"`  // DEPRECATED
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -3003,9 +3014,10 @@ func BuildSwapTransaction(params *C.char) *C.char {
 		Amount           string  `json:"amount"`
 		FromAddress      string  `json:"fromAddress"`
 		Slippage         float64 `json:"slippage"`
-		Provider         string  `json:"provider"` // DEX provider: "openocean" | "kyberswap"
+		Provider         string  `json:"provider"`     // DEX provider: "openocean" | "kyberswap"
 		USBPath          string  `json:"usbPath"`
-		AppPassword      string  `json:"appPassword"`
+		SessionToken     string  `json:"sessionToken"` // PREFERRED: Session token (optional for read-only API)
+		AppPassword      string  `json:"appPassword"`  // DEPRECATED
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -3111,7 +3123,8 @@ func GetSwapApproval(params *C.char) *C.char {
 		SpenderAddress string `json:"spenderAddress"` // DEX router address
 		Amount         string `json:"amount"`         // Optional: empty = unlimited
 		USBPath        string `json:"usbPath"`
-		AppPassword    string `json:"appPassword"`
+		SessionToken   string `json:"sessionToken"` // PREFERRED: Session token (optional for read-only API)
+		AppPassword    string `json:"appPassword"`  // DEPRECATED
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -3254,7 +3267,8 @@ func CheckSwapAllowance(params *C.char) *C.char {
 		TokenAddress  string `json:"tokenAddress"`
 		WalletAddress string `json:"walletAddress"`
 		USBPath       string `json:"usbPath"`
-		AppPassword   string `json:"appPassword"`
+		SessionToken  string `json:"sessionToken"` // PREFERRED: Session token (optional for read-only API)
+		AppPassword   string `json:"appPassword"`  // DEPRECATED
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
