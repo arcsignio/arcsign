@@ -2,17 +2,42 @@
  * Session Management Store
  *
  * Manages session tokens for authentication without storing passwords.
- * Tokens are stored in memory only (not sessionStorage) for security.
+ * Tokens are stored in memory only (not sessionStorage/localStorage) for security.
  *
- * Security Benefits:
+ * Security Architecture:
  * - Frontend never stores passwords (even in memory after initial auth)
  * - Tokens have explicit expiration (24 hours)
  * - Backend can revoke tokens
- * - Immune to XSS attacks reading passwords from storage
+ * - Backend uses HKDF + Server Pepper to encrypt provider keys
+ *   (Token leak alone CANNOT decrypt sensitive data without server pepper)
+ *
+ * Token Storage Trade-offs (Tauri Desktop App):
+ * ✅ Current: Memory-only (Zustand state)
+ *    - Pro: Tokens cleared on app close/refresh (better security)
+ *    - Pro: XSS in Tauri desktop is much harder than browser (no external scripts)
+ *    - Con: User must re-login after app restart (Security > UX)
+ *
+ * Alternative (NOT implemented):
+ * ❌ HttpOnly Cookies: Not applicable in Tauri (desktop app, not web browser)
+ * ❌ Tauri Store Plugin: Persists to disk (worse security for session tokens)
+ * ❌ localStorage: XSS risk, persists across sessions
+ *
+ * Conclusion: Memory-only storage is the best option for Tauri desktop apps.
+ * User must re-authenticate after app restart - this is a security feature, not a bug.
  */
 
 import { create } from 'zustand';
 import tauriApi from '@/services/tauri-api';
+
+/**
+ * Security: Redact sensitive token for logging/debugging
+ * Shows first 8 chars for identification, rest is masked
+ */
+function redactToken(token: string | null): string {
+  if (!token) return '<no-token>';
+  if (token.length <= 8) return '***';
+  return `${token.substring(0, 8)}...***`;
+}
 
 interface SessionState {
   // Session token (stored in memory only)
@@ -48,6 +73,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   /**
    * Create a new session token by validating credentials
+   * Security: Token is stored in memory only, never logged
    */
   createSession: async (usbPath: string, appPassword: string) => {
     set({ isAuthenticating: true, error: null });
@@ -58,6 +84,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         appPassword,
       });
 
+      // Security: Store token in memory (Zustand state)
+      // IMPORTANT: Never log the token to console or send to error trackers
       set({
         token: response.token,
         expiresAt: response.expiresAt,
@@ -65,8 +93,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         isAuthenticating: false,
         error: null,
       });
+
+      // Security: Log success without exposing token
+      console.log('🔐 [SessionStore] Session created successfully (token stored in memory only)');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create session';
+
+      // Security: Log error without exposing credentials
+      console.error('🔴 [SessionStore] Failed to create session:', errorMessage);
+
       set({
         token: null,
         expiresAt: null,
@@ -80,11 +115,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   /**
    * Validate the current session token
+   * Security: Never logs actual token value
    */
   validateSession: async () => {
     const { token } = get();
 
     if (!token) {
+      console.warn('🔓 [SessionStore] No token to validate');
       return false;
     }
 
@@ -94,14 +131,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       if (response.valid) {
         // Update expiration time in case it changed
         set({ expiresAt: response.expiresAt });
+        console.log(`🔐 [SessionStore] Token validated: ${redactToken(token)}`);
         return true;
       } else {
         // Token is invalid, clear session
+        console.warn(`🔓 [SessionStore] Token invalid: ${redactToken(token)}`);
         get().clearSession();
         return false;
       }
     } catch (err) {
       // Validation failed, clear session
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`🔴 [SessionStore] Validation failed for ${redactToken(token)}:`, errorMessage);
       get().clearSession();
       return false;
     }
@@ -109,6 +150,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   /**
    * Revoke the current session token and clear state
+   * Security: Clears token from memory and revokes on backend
    */
   revokeSession: async () => {
     const { token } = get();
@@ -116,8 +158,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (token) {
       try {
         await tauriApi.revokeSession({ token });
+        console.log('🔐 [SessionStore] Session revoked successfully');
       } catch (err) {
-        console.error('Failed to revoke session:', err);
+        // Security: Log error without exposing token
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        console.error('🔴 [SessionStore] Failed to revoke session:', errorMessage);
         // Continue to clear session even if revocation failed
       }
     }
