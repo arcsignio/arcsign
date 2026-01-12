@@ -558,7 +558,7 @@ export function Dashboard() {
           ← {t("dashboard.backToSettings")}
         </button>
         {usbPath ? (
-          <ProviderSettings usbPath={usbPath} />
+          <ProviderSettings />
         ) : (
           <div className="settings-prompt">
             <h2>{t("dashboard.apiProviderSettings")}</h2>

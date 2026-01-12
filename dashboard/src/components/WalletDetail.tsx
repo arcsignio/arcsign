@@ -20,7 +20,7 @@ import {
 } from "@/constants/nativeTokens";
 import { usePriorityTokens, useAllTokens } from "@/hooks/useTokenList";
 import type { ChainKey } from "@/services/tokenList";
-import { TransactionHistory } from "@/components/TransactionHistory";
+// import { TransactionHistory } from "@/components/TransactionHistory"; // TODO: Re-enable when needed
 import { SendTransaction, type SendableToken } from "@/components/SendTransaction";
 import SwapTransaction from "@/components/SwapTransaction";
 import StakingTransaction from "@/components/StakingTransaction";
@@ -179,7 +179,7 @@ export function WalletDetail({
         walletId: wallet.id,
         password: passwordForThisUnlock, // Using local variable
         usbPath,
-        sessionToken: getSessionToken(), // ✅ Backend will decrypt provider key from session
+        sessionToken: getSessionToken() || undefined, // ✅ Backend will decrypt provider key from session
         // ✅ No appPassword needed - zero password storage!
         includeTestnets,
       });
@@ -287,7 +287,7 @@ export function WalletDetail({
           walletId: wallet.id,
           password: passwordRef.current,
           usbPath,
-          sessionToken: getSessionToken(), // ✅ Backend will decrypt provider key
+          sessionToken: getSessionToken() || undefined, // ✅ Backend will decrypt provider key
           // ✅ No appPassword - zero password storage!
           includeTestnets,
         });
@@ -370,7 +370,7 @@ export function WalletDetail({
         walletId: wallet.id,
         password: passwordRef.current,
         usbPath,
-        sessionToken: getSessionToken(), // ✅ Backend will decrypt provider key
+        sessionToken: getSessionToken() || undefined, // ✅ Backend will decrypt provider key
         // ✅ No appPassword - zero password storage!
         includeTestnets,
       });
@@ -1116,6 +1116,7 @@ export function WalletDetail({
       />
     );
   }
+  */
 
   return (
     <div
