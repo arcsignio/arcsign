@@ -4,10 +4,12 @@
  * Task: T069 - Create mnemonic validation schema with Zod
  * Generated: 2025-10-17
  * Updated: 2025-01-09 - Added i18n support for validation messages
+ * Updated: 2025-01-12 - Implemented BIP39 checksum validation
  */
 
 import { z } from "zod";
 import { createPasswordSchema, passwordSchema } from "./password";
+import * as bip39 from "bip39";
 
 /**
  * Type for translation function
@@ -31,39 +33,29 @@ function validateMnemonicLength(mnemonic: string): boolean {
 }
 
 /**
- * BIP39 wordlist (first 10 words for validation demonstration)
- * In production, use complete BIP39 wordlist from 'bip39' package
+ * Get BIP39 wordlist (complete 2048 words)
  */
-export const BIP39_SAMPLE_WORDS = [
-  "abandon",
-  "ability",
-  "able",
-  "about",
-  "above",
-  "absent",
-  "absorb",
-  "abstract",
-  "absurd",
-  "abuse",
-  // ... (complete list would have 2048 words)
-];
+export function getBIP39Wordlist(): string[] {
+  return bip39.wordlists.english;
+}
 
 /**
  * Validate that all words are from BIP39 wordlist
- * Note: This is a simplified check. Full validation requires BIP39 library checksum
+ * Uses the official BIP39 wordlist for validation
  */
 function validateMnemonicWords(mnemonic: string): boolean {
   const normalized = normalizeMnemonic(mnemonic);
   const words = normalized.split(" ");
+  const wordlist = getBIP39Wordlist();
 
-  // For demo purposes, we accept any lowercase alphabetic words
-  // In production, check against complete BIP39 wordlist
-  return words.every((word) => /^[a-z]+$/.test(word));
+  // Check that all words are in the BIP39 wordlist
+  return words.every((word) => wordlist.includes(word));
 }
 
 /**
  * Create mnemonic schema with i18n support
  * Requirements: FR-006 (BIP39 import), FR-029 (validation), FR-030 (normalization)
+ * Includes full BIP39 checksum validation
  */
 export const createMnemonicSchema = (t: TFunction) =>
   z
@@ -76,11 +68,15 @@ export const createMnemonicSchema = (t: TFunction) =>
     })
     .refine(validateMnemonicWords, {
       message: t("validation.mnemonicInvalidWords"),
+    })
+    .refine(validateMnemonicChecksum, {
+      message: t("validation.mnemonicInvalidChecksum"),
     });
 
 /**
  * Default mnemonic schema (English fallback)
  * Requirements: FR-006 (BIP39 import), FR-029 (validation), FR-030 (normalization)
+ * Includes full BIP39 checksum validation
  */
 export const mnemonicSchema = z
   .string()
@@ -92,6 +88,9 @@ export const mnemonicSchema = z
   })
   .refine(validateMnemonicWords, {
     message: "Mnemonic contains invalid words. Please check your phrase.",
+  })
+  .refine(validateMnemonicChecksum, {
+    message: "Invalid mnemonic checksum. Please verify your recovery phrase.",
   });
 
 /**
@@ -177,16 +176,14 @@ export const walletImportSchema = z
 export type WalletImportFormData = z.infer<typeof walletImportSchema>;
 
 /**
- * Validate mnemonic checksum (placeholder)
- * In production, use bip39 library: bip39.validateMnemonic(mnemonic)
+ * Validate mnemonic checksum using BIP39 standard
+ * This performs full BIP39 validation including checksum verification
  */
 export function validateMnemonicChecksum(mnemonic: string): boolean {
-  // TODO: Implement actual BIP39 checksum validation
-  // For now, just check basic format
   const normalized = normalizeMnemonic(mnemonic);
-  return (
-    validateMnemonicLength(normalized) && validateMnemonicWords(normalized)
-  );
+
+  // Use bip39 library for complete validation (wordlist + checksum)
+  return bip39.validateMnemonic(normalized);
 }
 
 /**
