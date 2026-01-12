@@ -462,7 +462,8 @@ export interface QueryTransactionStatusParams {
   chainId: string;
   txHash: string;
   usbPath: string;
-  appPassword: string;
+  sessionToken?: string;  // ✅ PREFERRED: Session token
+  appPassword?: string;   // DEPRECATED: Backward compatibility
 }
 
 export interface QueryTransactionStatusResponse {
@@ -717,7 +718,8 @@ export interface GetSwapQuoteParams {
   slippage?: number; // Default 0.5 (0.5%)
   provider?: string; // DEX provider: "openocean" | "kyberswap"
   usbPath: string;
-  appPassword: string;
+  sessionToken?: string;  // ✅ PREFERRED: Session token
+  appPassword?: string;   // DEPRECATED: Backward compatibility
 }
 
 export interface SwapQuoteResponse {
@@ -747,7 +749,8 @@ export interface BuildSwapTransactionParams {
   slippage?: number;
   provider?: string; // DEX provider: "openocean" | "kyberswap"
   usbPath: string;
-  appPassword: string;
+  sessionToken?: string;  // ✅ PREFERRED: Session token
+  appPassword?: string;   // DEPRECATED: Backward compatibility
 }
 
 export interface SwapTxData {
@@ -771,7 +774,8 @@ export interface GetSwapApprovalParams {
   spenderAddress: string; // DEX router address (from quote.approvalAddress)
   amount?: string; // Amount to approve (empty = unlimited)
   usbPath: string;
-  appPassword: string;
+  sessionToken?: string;  // ✅ PREFERRED: Session token
+  appPassword?: string;   // DEPRECATED: Backward compatibility
 }
 
 export interface GetSwapApprovalResponse {
@@ -786,7 +790,8 @@ export interface CheckSwapAllowanceParams {
   tokenAddress: string;
   walletAddress: string;
   usbPath: string;
-  appPassword: string;
+  sessionToken?: string;  // ✅ PREFERRED: Session token
+  appPassword?: string;   // DEPRECATED: Backward compatibility
 }
 
 export interface CheckSwapAllowanceResponse {
@@ -938,7 +943,8 @@ export interface GetSwapTokensParams {
   chainId: string;
   provider?: string; // DEX provider: "openocean" | "kyberswap"
   usbPath: string;
-  appPassword: string;
+  sessionToken?: string;  // ✅ PREFERRED: Session token
+  appPassword?: string;   // DEPRECATED: Backward compatibility
 }
 
 export interface GetSwapTokensResponse {

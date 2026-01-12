@@ -44,7 +44,7 @@ interface SwapTransactionProps {
   walletPassphrase?: string;
   availableTokens: SendableToken[];
   usbPath: string;
-  appPassword: string;
+  sessionToken: string;  // ✅ Changed from appPassword
   onBack: () => void;
   onSuccess?: (txHash: string) => void;
 }
@@ -202,7 +202,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
   walletPassphrase: preValidatedPassphrase,
   availableTokens,
   usbPath,
-  appPassword,
+  sessionToken,  // ✅ Changed from appPassword
   onBack,
   onSuccess,
 }) => {
@@ -283,7 +283,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
           chainId,
           provider: registryProvider, // Fixed registry source
           usbPath,
-          appPassword,
+          sessionToken,  // ✅ Low-risk: token registry query
         });
 
         console.log(`[SwapTransaction] Loaded ${response.tokens.length} tokens for chain: ${chainId}`);
@@ -302,7 +302,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     };
 
     fetchTokens();
-  }, [fromToken, chainId, tokenCacheKey, usbPath, appPassword, tokenCache]);
+  }, [fromToken, chainId, tokenCacheKey, usbPath, sessionToken, tokenCache]);
 
   // Get destination token options based on selected source token's chain
   // Uses unified Token Registry (chain-specific) + user's wallet tokens
@@ -399,7 +399,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         slippage,
         provider: selectedProvider,
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Low-risk: quote query
       });
 
       setQuote(result);
@@ -411,7 +411,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [fromToken, toToken, amount, chainId, slippage, selectedProvider, usbPath, appPassword]);
+  }, [fromToken, toToken, amount, chainId, slippage, selectedProvider, usbPath, sessionToken]);
 
   // Debounced quote fetch
   useEffect(() => {
@@ -464,7 +464,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         slippage,
         provider: selectedProvider,
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Low-risk: build swap transaction
       });
 
       setSwapTx(result);
@@ -478,7 +478,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
             tokenAddress: fromToken.tokenAddress,
             walletAddress: fromToken.fromAddress,
             usbPath,
-            appPassword,
+            sessionToken,  // ✅ Low-risk: allowance query
           });
 
           setCurrentAllowance(allowanceResult.allowance);
@@ -562,7 +562,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         spenderAddress, // DEX router address
         amount: approvalAmountWei, // Empty = unlimited, otherwise specific amount
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Low-risk: get approval data
       });
 
       console.log("✅ Approval data received:", approvalData);
@@ -577,7 +577,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         data: approvalData.data, // approve() calldata
         feeSpeed: "fast",
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Low-risk: build transaction
       });
 
       console.log("✅ Approval tx built:", buildResult);
@@ -587,12 +587,12 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       const signResult = await tauriApi.signTransaction({
         chainId,
         walletId,
-        password: walletPassword,
+        password: walletPassword,  // ✅ High-risk: wallet password for signing
         passphrase: preValidatedPassphrase || "",
         fromAddress: fromToken.fromAddress,
         unsignedTx: buildResult,
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Session token for provider config
       });
 
       console.log("✅ Approval tx signed");
@@ -603,7 +603,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         chainId,
         signedTx: signResult,
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Low-risk: broadcast transaction
       });
 
       console.log("✅ Approval tx broadcast:", broadcastResult.txHash);
@@ -622,7 +622,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
             chainId,
             txHash: broadcastResult.txHash,
             usbPath,
-            appPassword,
+            sessionToken,  // ✅ Low-risk: query transaction status
           });
 
           console.log(`🔍 Tx status (attempt ${attempt + 1}):`, statusResult.status);
@@ -694,7 +694,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         data: swapTx.txData.data || "",
         feeSpeed: "fast", // Use fast for swap tx to ensure they go through
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Low-risk: build transaction
       });
 
       console.log("✅ Build result:", buildResult);
@@ -704,12 +704,12 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       const signResult = await tauriApi.signTransaction({
         chainId,
         walletId,
-        password: walletPassword,
+        password: walletPassword,  // ✅ High-risk: wallet password for signing
         passphrase: preValidatedPassphrase || "",
         fromAddress: fromToken.fromAddress,
         unsignedTx: buildResult,
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Session token for provider config
       });
 
       setStep("broadcasting");
@@ -719,7 +719,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         chainId,
         signedTx: signResult,
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Low-risk: broadcast transaction
       });
 
       setTxHash(broadcastResult.txHash);

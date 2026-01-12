@@ -1055,17 +1055,22 @@ export function WalletDetail({
     );
   }
 
-  // Show Swap Transaction view
-  // TODO: SwapTransaction needs migration to session tokens
+  // Show Swap Transaction view (✅ Migrated to session tokens)
   if (showSwapTransaction && sessionToken) {
     console.log("🔄 [WalletDetail] Rendering SwapTransaction component with", availableTokensForSend.length, "tokens");
-    // TODO: SwapTransaction component hasn't been migrated to session tokens yet
-    console.error("❌ SwapTransaction component needs migration to session tokens");
     return (
-      <div className="error-message">
-        {t('walletDetail.featureNotAvailable')} - Swap Transaction needs update
-        <button onClick={() => setShowSwapTransaction(false)}>Back</button>
-      </div>
+      <SwapTransaction
+        walletId={wallet.id}
+        walletHasPassphrase={wallet.has_passphrase}
+        walletPassphrase={validatedPassphrase || undefined}
+        availableTokens={availableTokensForSend}
+        usbPath={usbPath}
+        sessionToken={sessionToken}  // ✅ Uses session token
+        onBack={() => setShowSwapTransaction(false)}
+        onSuccess={(txHash) => {
+          console.log("✅ Swap transaction submitted:", txHash);
+        }}
+      />
     );
   }
 
