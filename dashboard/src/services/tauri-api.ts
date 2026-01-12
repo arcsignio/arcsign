@@ -402,7 +402,8 @@ export interface BuildTransactionParams {
   tokenAddress?: string; // ERC-20 token contract address (optional, empty for native)
   data?: string; // Contract call data (hex-encoded, optional)
   usbPath: string;
-  appPassword: string;
+  sessionToken?: string;  // ✅ Session token for provider config access (low-risk)
+  appPassword?: string;   // DEPRECATED: For backward compatibility
 }
 
 /**
@@ -424,12 +425,13 @@ export interface BuildTransactionResponse {
 export interface SignTransactionParams {
   chainId: string;
   walletId: string;
-  password: string;
-  passphrase?: string;  // BIP39 passphrase (required if wallet uses passphrase)
+  password: string;         // ✅ Wallet password (high-risk: required for signing)
+  passphrase?: string;      // BIP39 passphrase (required if wallet uses passphrase)
   fromAddress: string;
   unsignedTx: BuildTransactionResponse;  // The full BuildTransactionResponse object
   usbPath: string;
-  appPassword: string;
+  sessionToken?: string;    // ✅ Session token for provider config access
+  appPassword?: string;     // DEPRECATED: For backward compatibility
 }
 
 // SignTransactionResponse matches Go FFI output format
@@ -445,7 +447,8 @@ export interface BroadcastTransactionParams {
   chainId: string;
   signedTx: SignTransactionResponse;  // Pass the entire signed transaction response
   usbPath: string;
-  appPassword: string;
+  sessionToken?: string;   // ✅ Session token for provider config access (low-risk)
+  appPassword?: string;    // DEPRECATED: For backward compatibility
 }
 
 export interface BroadcastTransactionResponse {
@@ -478,7 +481,8 @@ export interface EstimateFeeParams {
   to: string;
   amount: string;
   usbPath: string;
-  appPassword: string;
+  sessionToken?: string;   // ✅ Session token for provider config access (low-risk)
+  appPassword?: string;    // DEPRECATED: For backward compatibility
 }
 
 /**

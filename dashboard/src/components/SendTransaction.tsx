@@ -57,7 +57,7 @@ interface SendTransactionProps {
   walletPassphrase?: string;      // Pre-validated passphrase from WalletDetail
   availableTokens: SendableToken[];  // Tokens with balance > 0
   usbPath: string;
-  appPassword: string;
+  sessionToken: string;  // ✅ Session token for provider config access (low-risk operations)
   onBack: () => void;
   onSuccess?: (txHash: string) => void;
 }
@@ -156,7 +156,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
   walletPassphrase: preValidatedPassphrase,  // Pre-validated from WalletDetail
   availableTokens,
   usbPath,
-  appPassword,
+  sessionToken,  // ✅ Session token for low-risk operations
   onBack,
   onSuccess,
 }) => {
@@ -211,7 +211,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         to: toAddress,
         amount,
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Low-risk: fee estimation uses session token
       });
       setFeeEstimate(result);
       setError(null);
@@ -221,7 +221,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       // Don't show error for fee estimation - just clear the estimate
       setFeeEstimate(null);
     }
-  }, [chainId, selectedToken, toAddress, amount, usbPath, appPassword]);
+  }, [chainId, selectedToken, toAddress, amount, usbPath, sessionToken]);
 
   // Debounced fee estimation
   useEffect(() => {
@@ -271,7 +271,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         amount: amountInSmallestUnit,  // Send in smallest unit (wei)
         feeSpeed,
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Low-risk: building transaction uses session token
         // For ERC-20 tokens, include token contract address
         tokenAddress: selectedToken.tokenAddress || undefined,
       });
@@ -305,12 +305,12 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       const result = await tauriApi.signTransaction({
         chainId,
         walletId,
-        password: walletPassword,
+        password: walletPassword,  // ✅ High-risk: wallet password for signing
         passphrase: preValidatedPassphrase || "",  // Use pre-validated passphrase from WalletDetail
         fromAddress: selectedToken.fromAddress,
         unsignedTx: unsignedTx,  // Pass the full BuildTransactionResponse
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Session token for provider config access
       });
       setSignedTx(result);
 
@@ -337,7 +337,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         chainId,
         signedTx: signed,  // Pass the entire SignTransactionResponse object
         usbPath,
-        appPassword,
+        sessionToken,  // ✅ Low-risk: broadcasting uses session token
       });
       setBroadcastResult(result);
       setStep("success");

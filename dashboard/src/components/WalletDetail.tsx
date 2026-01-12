@@ -1036,16 +1036,22 @@ export function WalletDetail({
   }
 
   // Show Send Transaction view
-  // TODO: SendTransaction needs migration to session tokens
+  // ✅ Migrated to session tokens (2026-01-12)
   if (showSendTransaction && sessionToken) {
     console.log("💸 [WalletDetail] Rendering SendTransaction component with", availableTokensForSend.length, "tokens");
-    // TODO: SendTransaction component hasn't been migrated to session tokens yet
-    console.error("❌ SendTransaction component needs migration to session tokens");
     return (
-      <div className="error-message">
-        {t('walletDetail.featureNotAvailable')} - Send Transaction needs update
-        <button onClick={() => setShowSendTransaction(false)}>Back</button>
-      </div>
+      <SendTransaction
+        walletId={wallet.id}
+        walletHasPassphrase={wallet.has_passphrase}
+        walletPassphrase={validatedPassphrase || undefined}
+        availableTokens={availableTokensForSend}
+        usbPath={usbPath}
+        sessionToken={sessionToken}  // ✅ Session token for low-risk operations
+        onBack={() => setShowSendTransaction(false)}
+        onSuccess={(txHash) => {
+          console.log("✅ Transaction submitted:", txHash);
+        }}
+      />
     );
   }
 
