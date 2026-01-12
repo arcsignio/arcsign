@@ -1036,7 +1036,8 @@ pub async fn get_token_balances(
     wallet_id: String,
     mut password: String,
     usb_path: String,
-    app_password: String,
+    session_token: Option<String>,  // ✅ PREFERRED: Session token for provider key access
+    app_password: Option<String>,   // DEPRECATED: For backward compatibility
     include_testnets: Option<bool>,
 ) -> Result<serde_json::Value, String> {
     let start = Instant::now();
@@ -1047,7 +1048,8 @@ pub async fn get_token_balances(
         "walletId": wallet_id,
         "password": password,
         "usbPath": usb_path,
-        "appPassword": app_password,
+        "sessionToken": session_token.unwrap_or_default(),  // ✅ Pass session token to backend
+        "appPassword": app_password.unwrap_or_default(),    // DEPRECATED: Fallback
         "includeTestnets": include_testnets.unwrap_or(false),
     });
 

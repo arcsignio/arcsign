@@ -43,8 +43,12 @@ pub struct GetSwapQuoteInput {
     pub provider: String,
     /// USB path for provider config
     pub usb_path: String,
-    /// App password for provider config decryption
-    pub app_password: String,
+    /// Session token for provider config decryption (PREFERRED)
+    #[serde(default)]
+    pub session_token: Option<String>,
+    /// App password for provider config decryption (DEPRECATED)
+    #[serde(default)]
+    pub app_password: Option<String>,
 }
 
 fn default_slippage() -> f64 {
@@ -73,8 +77,12 @@ pub struct BuildSwapTransactionInput {
     pub provider: String,
     /// USB path
     pub usb_path: String,
-    /// App password
-    pub app_password: String,
+    /// Session token (PREFERRED)
+    #[serde(default)]
+    pub session_token: Option<String>,
+    /// App password (DEPRECATED)
+    #[serde(default)]
+    pub app_password: Option<String>,
 }
 
 /// Input for getting approval transaction
@@ -92,8 +100,12 @@ pub struct GetSwapApprovalInput {
     pub amount: String,
     /// USB path
     pub usb_path: String,
-    /// App password
-    pub app_password: String,
+    /// Session token (PREFERRED)
+    #[serde(default)]
+    pub session_token: Option<String>,
+    /// App password (DEPRECATED)
+    #[serde(default)]
+    pub app_password: Option<String>,
 }
 
 /// Input for checking token allowance
@@ -108,8 +120,12 @@ pub struct CheckSwapAllowanceInput {
     pub wallet_address: String,
     /// USB path
     pub usb_path: String,
-    /// App password
-    pub app_password: String,
+    /// Session token (PREFERRED)
+    #[serde(default)]
+    pub session_token: Option<String>,
+    /// App password (DEPRECATED)
+    #[serde(default)]
+    pub app_password: Option<String>,
 }
 
 // ============================================================================
@@ -135,7 +151,6 @@ pub async fn get_swap_quote(
     );
 
     // Build FFI request JSON
-    let mut app_password = input.app_password;
     let ffi_params = json!({
         "chainId": input.chain_id,
         "fromTokenAddress": input.from_token_address,
@@ -145,11 +160,9 @@ pub async fn get_swap_quote(
         "slippage": input.slippage,
         "provider": input.provider,
         "usbPath": input.usb_path,
-        "appPassword": app_password
+        "sessionToken": input.session_token.unwrap_or_default(),  // ✅ Pass session token
+        "appPassword": input.app_password.unwrap_or_default(),    // DEPRECATED: Fallback
     });
-
-    // Clear password from memory
-    app_password.zeroize();
 
     // Call FFI via queue
     let result = queue.get_swap_quote(ffi_params.to_string()).await?;
@@ -180,7 +193,6 @@ pub async fn build_swap_transaction(
         input.chain_id
     );
 
-    let mut app_password = input.app_password;
     let ffi_params = json!({
         "chainId": input.chain_id,
         "fromTokenAddress": input.from_token_address,
@@ -190,10 +202,9 @@ pub async fn build_swap_transaction(
         "slippage": input.slippage,
         "provider": input.provider,
         "usbPath": input.usb_path,
-        "appPassword": app_password
+        "sessionToken": input.session_token.unwrap_or_default(),  // ✅ Pass session token
+        "appPassword": input.app_password.unwrap_or_default(),    // DEPRECATED: Fallback
     });
-
-    app_password.zeroize();
 
     let result = queue.build_swap_transaction(ffi_params.to_string()).await?;
 
@@ -221,17 +232,15 @@ pub async fn get_swap_approval(
         input.chain_id
     );
 
-    let mut app_password = input.app_password;
     let ffi_params = json!({
         "chainId": input.chain_id,
         "tokenAddress": input.token_address,
         "spenderAddress": input.spender_address,
         "amount": input.amount,
         "usbPath": input.usb_path,
-        "appPassword": app_password
+        "sessionToken": input.session_token.unwrap_or_default(),  // ✅ Pass session token
+        "appPassword": input.app_password.unwrap_or_default(),    // DEPRECATED: Fallback
     });
-
-    app_password.zeroize();
 
     let result = queue.get_swap_approval(ffi_params.to_string()).await?;
 
@@ -258,16 +267,14 @@ pub async fn check_swap_allowance(
         input.chain_id
     );
 
-    let mut app_password = input.app_password;
     let ffi_params = json!({
         "chainId": input.chain_id,
         "tokenAddress": input.token_address,
         "walletAddress": input.wallet_address,
         "usbPath": input.usb_path,
-        "appPassword": app_password
+        "sessionToken": input.session_token.unwrap_or_default(),  // ✅ Pass session token
+        "appPassword": input.app_password.unwrap_or_default(),    // DEPRECATED: Fallback
     });
-
-    app_password.zeroize();
 
     let result = queue.check_swap_allowance(ffi_params.to_string()).await?;
 
@@ -301,8 +308,12 @@ pub struct GetSwapTokensInput {
     pub provider: String,
     /// USB path for provider config
     pub usb_path: String,
-    /// App password for provider config decryption
-    pub app_password: String,
+    /// Session token for provider config decryption (PREFERRED)
+    #[serde(default)]
+    pub session_token: Option<String>,
+    /// App password for provider config decryption (DEPRECATED)
+    #[serde(default)]
+    pub app_password: Option<String>,
 }
 
 /// Get all available swap tokens for a chain from 1inch API.
@@ -319,15 +330,13 @@ pub async fn get_swap_tokens(
         input.chain_id
     );
 
-    let mut app_password = input.app_password;
     let ffi_params = json!({
         "chainId": input.chain_id,
         "provider": input.provider,
         "usbPath": input.usb_path,
-        "appPassword": app_password
+        "sessionToken": input.session_token.unwrap_or_default(),  // ✅ Pass session token
+        "appPassword": input.app_password.unwrap_or_default(),    // DEPRECATED: Fallback
     });
-
-    app_password.zeroize();
 
     let result = queue.get_swap_tokens(ffi_params.to_string()).await?;
 

@@ -47,8 +47,12 @@ pub struct BuildTransactionInput {
     pub data: Option<String>,
     /// USB path for provider config
     pub usb_path: String,
-    /// App password for provider config decryption
-    pub app_password: String,
+    /// Session token for provider config decryption (PREFERRED)
+    #[serde(default)]
+    pub session_token: Option<String>,
+    /// App password for provider config decryption (DEPRECATED)
+    #[serde(default)]
+    pub app_password: Option<String>,
 }
 
 fn default_fee_speed() -> String {
@@ -74,8 +78,12 @@ pub struct SignTransactionInput {
     pub unsigned_tx: serde_json::Value,
     /// USB path
     pub usb_path: String,
-    /// App password
-    pub app_password: String,
+    /// Session token (PREFERRED)
+    #[serde(default)]
+    pub session_token: Option<String>,
+    /// App password (DEPRECATED)
+    #[serde(default)]
+    pub app_password: Option<String>,
 }
 
 /// Input for broadcasting a signed transaction
@@ -88,8 +96,12 @@ pub struct BroadcastTransactionInput {
     pub signed_tx: serde_json::Value,
     /// USB path
     pub usb_path: String,
-    /// App password
-    pub app_password: String,
+    /// Session token (PREFERRED)
+    #[serde(default)]
+    pub session_token: Option<String>,
+    /// App password (DEPRECATED)
+    #[serde(default)]
+    pub app_password: Option<String>,
 }
 
 /// Input for querying transaction status
@@ -102,8 +114,12 @@ pub struct QueryTransactionStatusInput {
     pub tx_hash: String,
     /// USB path
     pub usb_path: String,
-    /// App password
-    pub app_password: String,
+    /// Session token (PREFERRED)
+    #[serde(default)]
+    pub session_token: Option<String>,
+    /// App password (DEPRECATED)
+    #[serde(default)]
+    pub app_password: Option<String>,
 }
 
 /// Input for estimating transaction fees
