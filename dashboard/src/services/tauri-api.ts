@@ -529,7 +529,8 @@ export async function buildTransaction(
         tokenAddress: params.tokenAddress || "",  // ERC-20 token contract address
         data: params.data || "",  // Contract call data (hex-encoded)
         usbPath: params.usbPath,
-        appPassword: params.appPassword,
+        sessionToken: params.sessionToken,  // ✅ Use session token
+        appPassword: params.appPassword,    // DEPRECATED: Fallback
       },
     });
     console.log("🔧 [tauri-api] buildTransaction response:", result);
@@ -559,7 +560,8 @@ export async function signTransaction(
         fromAddress: params.fromAddress,
         unsignedTx: params.unsignedTx,
         usbPath: params.usbPath,
-        appPassword: params.appPassword,
+        sessionToken: params.sessionToken,  // ✅ Use session token
+        appPassword: params.appPassword,    // DEPRECATED: Fallback
       },
     });
     console.log("✍️ [tauri-api] signTransaction response:", {
@@ -587,7 +589,8 @@ export async function broadcastTransaction(
           chainId: params.chainId,
           signedTx: params.signedTx,
           usbPath: params.usbPath,
-          appPassword: params.appPassword,
+          sessionToken: params.sessionToken,  // ✅ Use session token
+          appPassword: params.appPassword,    // DEPRECATED: Fallback
         },
       }
     );
@@ -615,7 +618,8 @@ export async function queryTransactionStatus(
           chainId: params.chainId,
           txHash: params.txHash,
           usbPath: params.usbPath,
-          appPassword: params.appPassword,
+          sessionToken: params.sessionToken,  // ✅ Use session token
+          appPassword: params.appPassword,    // DEPRECATED: Fallback
         },
       }
     );
@@ -645,7 +649,8 @@ export async function estimateFee(
         to: params.to,
         amount: params.amount,
         usbPath: params.usbPath,
-        appPassword: params.appPassword,
+        sessionToken: params.sessionToken,  // ✅ Use session token
+        appPassword: params.appPassword,    // DEPRECATED: Fallback
       },
     });
     console.log("💰 [tauri-api] estimateFee response:", result);
@@ -824,7 +829,8 @@ export async function getSwapQuote(
         slippage: params.slippage ?? 0.5,
         provider: params.provider || "openocean",
         usbPath: params.usbPath,
-        appPassword: params.appPassword,
+        sessionToken: params.sessionToken,  // ✅ Use session token
+        appPassword: params.appPassword,    // DEPRECATED: Fallback
       },
     });
     console.log("🔄 [tauri-api] getSwapQuote response:", result);
@@ -858,7 +864,8 @@ export async function buildSwapTransaction(
           slippage: params.slippage ?? 0.5,
           provider: params.provider || "openocean",
           usbPath: params.usbPath,
-          appPassword: params.appPassword,
+          sessionToken: params.sessionToken,  // ✅ Use session token
+          appPassword: params.appPassword,    // DEPRECATED: Fallback
         },
       }
     );
@@ -888,7 +895,8 @@ export async function getSwapApproval(
         spenderAddress: params.spenderAddress,
         amount: params.amount || "",
         usbPath: params.usbPath,
-        appPassword: params.appPassword,
+        sessionToken: params.sessionToken,  // ✅ Use session token
+        appPassword: params.appPassword,    // DEPRECATED: Fallback
       },
     });
     console.log("🔄 [tauri-api] getSwapApproval response:", result);
@@ -917,7 +925,8 @@ export async function checkSwapAllowance(
           tokenAddress: params.tokenAddress,
           walletAddress: params.walletAddress,
           usbPath: params.usbPath,
-          appPassword: params.appPassword,
+          sessionToken: params.sessionToken,  // ✅ Use session token
+          appPassword: params.appPassword,    // DEPRECATED: Fallback
         },
       }
     );
@@ -964,7 +973,8 @@ export async function getSwapTokens(
         chainId: params.chainId,
         provider: params.provider || "openocean",
         usbPath: params.usbPath,
-        appPassword: params.appPassword,
+        sessionToken: params.sessionToken,  // ✅ Use session token
+        appPassword: params.appPassword,    // DEPRECATED: Fallback
       },
     });
     console.log("🔄 [tauri-api] getSwapTokens response:", {
