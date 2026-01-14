@@ -26,6 +26,11 @@ zeroize = "1.7"     # T002: Secure memory zeroing for sensitive data
 reqwest = { version = "0.11", features = ["json"] }  # HTTP client for BSC RPC calls
 tokio-tungstenite = "0.21"  # WebSocket server for mint-page integration
 futures-util = "0.3"        # Async stream utilities
+aes-gcm = "0.10"            # AES-256-GCM encryption for WalletConnect session storage
+hmac = "0.12"               # HMAC for session integrity
+sha2 = "0.10"               # SHA-256 for key derivation
+hkdf = "0.12"               # HKDF for key derivation from session token
+rand = "0.8"                # Random nonce generation
 
 [dev-dependencies]
 tempfile = "3.8"

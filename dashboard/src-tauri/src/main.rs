@@ -298,6 +298,11 @@ fn main() {
             get_pending_transaction,
             respond_to_transaction,
             cancel_pending_transaction,
+            // WalletConnect commands (session persistence)
+            commands::walletconnect::save_wc_sessions,
+            commands::walletconnect::load_wc_sessions,
+            commands::walletconnect::delete_wc_session,
+            commands::walletconnect::delete_all_wc_sessions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

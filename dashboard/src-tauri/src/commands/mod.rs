@@ -12,4 +12,5 @@ pub mod swap;
 pub mod transaction;
 pub mod usb;
 pub mod wallet;
+pub mod walletconnect;
 pub mod websocket_commands;
