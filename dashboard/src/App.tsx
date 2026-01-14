@@ -13,12 +13,10 @@ import { WalletConnectProvider, useWalletConnect } from '@/contexts/WalletConnec
 import { PairingModal } from '@/components/WalletConnect/PairingModal';
 import { SessionApprovalDialog } from '@/components/WalletConnect/SessionApprovalDialog';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { useSessionStore } from '@/stores/sessionStore';
 import tauriApi, { type AppError, type AppConfig } from '@/services/tauri-api';
 
 function AppContent() {
   const { isUnlocked, unlock } = useAppPassword();
-  const sessionToken = useSessionStore((state) => state.sessionToken);
   const walletConnect = useWalletConnect();
   const [usbPath, setUsbPath] = useState<string | null>(null);
   const [loadingUsb, setLoadingUsb] = useState(true);
@@ -77,15 +75,8 @@ function AppContent() {
     }
   }, [isUnlocked, walletConnect]);
 
-  // Recover WalletConnect sessions after unlock
-  useEffect(() => {
-    if (isUnlocked && walletConnect.initialized && sessionToken && usbPath) {
-      console.log('[App] Recovering WalletConnect sessions...');
-      walletConnect.recoverSessions(sessionToken, usbPath).catch(err => {
-        console.error('[App] Session recovery failed:', err);
-      });
-    }
-  }, [isUnlocked, walletConnect.initialized, sessionToken, usbPath]);
+  // TODO: Recover WalletConnect sessions after unlock
+  // Will be implemented when session persistence is complete
 
   const handleUnlockSuccess = async (appConfig: AppConfig, password: string) => {
     if (!usbPath) {

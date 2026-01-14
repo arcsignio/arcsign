@@ -81,11 +81,17 @@ export interface SessionRequestParams {
   };
 }
 
+// Relay protocol (WalletConnect relay configuration)
+export interface RelayProtocol {
+  protocol: string;
+  data?: string;
+}
+
 // Persisted session data
 export interface PersistedSession {
   topic: string;
   pairingTopic?: string;
-  relay: SessionTypes.Relay;
+  relay: RelayProtocol;
   expiry: number;
   acknowledged: boolean;
   controller: string;
@@ -157,7 +163,7 @@ export interface SessionApprovalRequest {
     expiry: number;
     requiredNamespaces: ProposalTypes.RequiredNamespaces;
     optionalNamespaces?: ProposalTypes.OptionalNamespaces;
-    relays: SessionTypes.Relay[];
+    relays: RelayProtocol[];
     proposer: {
       publicKey: string;
       metadata: DAppMetadata;

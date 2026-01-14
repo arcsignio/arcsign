@@ -9,9 +9,7 @@
  */
 
 import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import type { SessionApprovalRequest } from '@/services/walletconnect/types';
-import { CHAIN_ID_MAP } from '@/services/walletconnect/types';
 
 interface SessionApprovalDialogProps {
   isOpen: boolean;
@@ -26,7 +24,6 @@ export const SessionApprovalDialog: React.FC<SessionApprovalDialogProps> = ({
   onApprove,
   onReject,
 }) => {
-  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>('chains');
 

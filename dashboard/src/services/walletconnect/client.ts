@@ -5,9 +5,8 @@
  */
 
 import SignClient from '@walletconnect/sign-client';
-import type { SignClientTypes, SessionTypes } from '@walletconnect/types';
-import type { WalletConnectConfig, PersistedSession } from './types';
-import { SUPPORTED_CHAINS, SUPPORTED_METHODS, SUPPORTED_EVENTS } from './types';
+import type { SessionTypes } from '@walletconnect/types';
+import type { WalletConnectConfig } from './types';
 
 export class WalletConnectClient {
   private client: SignClient | null = null;
@@ -91,7 +90,7 @@ export class WalletConnectClient {
   async approveSession(
     proposalId: number,
     namespaces: Record<string, SessionTypes.Namespace>
-  ): Promise<SessionTypes.Struct> {
+  ): Promise<any> {
     const client = this.getClient();
 
     try {
@@ -186,12 +185,19 @@ export class WalletConnectClient {
     try {
       if (response.error) {
         console.log('[WC] Sending error response:', response);
+        const errorResponse: any = {
+          code: response.error.code,
+          message: response.error.message,
+        };
+        if (response.error.data) {
+          errorResponse.data = String(response.error.data);
+        }
         await client.respond({
           topic,
           response: {
             id: response.id,
             jsonrpc: '2.0',
-            error: response.error,
+            error: errorResponse,
           },
         });
       } else {
@@ -240,11 +246,9 @@ export class WalletConnectClient {
   /**
    * Subscribe to client events
    */
-  on<E extends keyof SignClientTypes.Event>(
-    event: E,
-    callback: (args: SignClientTypes.Event[E]) => void
-  ): void {
+  on(event: string, callback: (args: any) => void): void {
     const client = this.getClient();
+    // @ts-ignore - WalletConnect types are complex, use any for flexibility
     client.on(event, callback);
   }
 

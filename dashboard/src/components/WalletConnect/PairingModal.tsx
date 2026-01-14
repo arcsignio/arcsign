@@ -13,7 +13,6 @@
  */
 
 import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 
 interface PairingModalProps {
   isOpen: boolean;
@@ -26,7 +25,6 @@ export const PairingModal: React.FC<PairingModalProps> = ({
   onClose,
   onPair,
 }) => {
-  const { t } = useTranslation();
   const [uri, setUri] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

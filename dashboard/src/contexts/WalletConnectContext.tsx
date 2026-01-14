@@ -10,7 +10,7 @@
  * - Session persistence and recovery
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { SessionTypes } from '@walletconnect/types';
 import { getWalletConnectClient, WalletConnectClient } from '@/services/walletconnect/client';
 import { generateNamespaces } from '@/services/walletconnect/session-manager';
