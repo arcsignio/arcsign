@@ -2,20 +2,29 @@
  * Main application component
  * Feature: User Dashboard for Wallet Management
  * Updated: 2025-10-25 - App-level authentication integration
+ * Updated: 2026-01-14 - WalletConnect v2 integration
  */
 
 import { useState, useEffect } from 'react';
 import { Dashboard } from '@/pages/Dashboard';
 import { AppUnlock } from '@/components/AppUnlock';
 import { AppPasswordProvider, useAppPassword } from '@/contexts/AppPasswordContext';
+import { WalletConnectProvider, useWalletConnect } from '@/contexts/WalletConnectContext';
+import { PairingModal } from '@/components/WalletConnect/PairingModal';
+import { SessionApprovalDialog } from '@/components/WalletConnect/SessionApprovalDialog';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { useSessionStore } from '@/stores/sessionStore';
 import tauriApi, { type AppError, type AppConfig } from '@/services/tauri-api';
 
 function AppContent() {
   const { isUnlocked, unlock } = useAppPassword();
+  const sessionToken = useSessionStore((state) => state.sessionToken);
+  const walletConnect = useWalletConnect();
   const [usbPath, setUsbPath] = useState<string | null>(null);
   const [loadingUsb, setLoadingUsb] = useState(true);
   const [usbError, setUsbError] = useState<string | null>(null);
+  // TODO: Get current address from wallet context when available
+  const currentAddress = '0x0000000000000000000000000000000000000000'; // Placeholder
 
   // Detect USB on mount
   useEffect(() => {
@@ -43,6 +52,41 @@ function AppContent() {
     detectUsbDrive();
   }, []);
 
+  // Initialize WalletConnect after unlock
+  useEffect(() => {
+    if (isUnlocked && !walletConnect.initialized && !walletConnect.initializing) {
+      const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
+
+      if (!projectId || projectId === 'replace_with_your_project_id') {
+        console.warn('[App] WalletConnect Project ID not configured');
+        return;
+      }
+
+      console.log('[App] Initializing WalletConnect...');
+      walletConnect.init({
+        projectId,
+        metadata: {
+          name: 'ArcSign',
+          description: 'HD Wallet with USB-Only Storage',
+          url: 'https://arcsign.io',
+          icons: ['https://arcsign.io/icon.png'],
+        },
+      }).catch(err => {
+        console.error('[App] WalletConnect initialization failed:', err);
+      });
+    }
+  }, [isUnlocked, walletConnect]);
+
+  // Recover WalletConnect sessions after unlock
+  useEffect(() => {
+    if (isUnlocked && walletConnect.initialized && sessionToken && usbPath) {
+      console.log('[App] Recovering WalletConnect sessions...');
+      walletConnect.recoverSessions(sessionToken, usbPath).catch(err => {
+        console.error('[App] Session recovery failed:', err);
+      });
+    }
+  }, [isUnlocked, walletConnect.initialized, sessionToken, usbPath]);
+
   const handleUnlockSuccess = async (appConfig: AppConfig, password: string) => {
     if (!usbPath) {
       setUsbError('USB path not available');
@@ -55,6 +99,18 @@ function AppContent() {
       setUsbError('Failed to create session. Please try again.');
       console.error('Failed to unlock:', error);
     }
+  };
+
+  // Handle session approval (needs wallet address)
+  const handleApproveSession = async () => {
+    // TODO: Get actual wallet address from wallet state
+    // For now, we'll need to integrate with wallet selection
+    if (!currentAddress) {
+      console.error('[App] No wallet address available for session approval');
+      return;
+    }
+
+    await walletConnect.approveSession(currentAddress);
   };
 
   // Loading USB detection
@@ -142,6 +198,20 @@ function AppContent() {
     <div className="app">
       <Dashboard />
 
+      {/* WalletConnect Modals */}
+      <PairingModal
+        isOpen={walletConnect.showPairingModal}
+        onClose={walletConnect.closePairingModal}
+        onPair={walletConnect.pair}
+      />
+
+      <SessionApprovalDialog
+        isOpen={walletConnect.sessionProposal !== null}
+        proposal={walletConnect.sessionProposal}
+        onApprove={handleApproveSession}
+        onReject={walletConnect.rejectSession}
+      />
+
       <style>{`
         .app-loading {
           min-height: 100vh;
@@ -158,7 +228,9 @@ function AppContent() {
 function App() {
   return (
     <AppPasswordProvider>
-      <AppContent />
+      <WalletConnectProvider>
+        <AppContent />
+      </WalletConnectProvider>
     </AppPasswordProvider>
   );
 }
