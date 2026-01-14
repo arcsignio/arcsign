@@ -7,6 +7,7 @@ import { useState, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppPassword } from "@/contexts/AppPasswordContext";
 import { useWalletSessionStore } from "@/stores/walletSessionStore";
+import { useWalletConnect } from "@/contexts/WalletConnectContext";
 import tauriApi, { type AppError } from "@/services/tauri-api";
 import type { TokenBalance, TokenBalancesResponse } from "@/types/tokens";
 import type { Wallet } from "@/types/wallet";
@@ -58,6 +59,7 @@ export function WalletDetail({
   const { t } = useTranslation();
   const { getSessionToken } = useAppPassword(); // ✅ Zero password storage!
   const walletSession = useWalletSessionStore();
+  const walletConnect = useWalletConnect();
   const [tokens, setTokens] = useState<TokenBalance[]>([]);
   const [totalUsd, setTotalUsd] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -1641,6 +1643,38 @@ export function WalletDetail({
                 <div>
                   <div style={{ fontWeight: "500", color: "#1e293b" }}>{t('walletDetail.staking')}</div>
                   <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{t('walletDetail.stakingDesc')}</div>
+                </div>
+              </button>
+
+              {/* WalletConnect Option */}
+              <button
+                onClick={() => {
+                  setShowMoreMenu(false);
+                  walletConnect.openPairingModal();
+                }}
+                style={{
+                  width: "100%",
+                  padding: "0.75rem 1rem",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.75rem",
+                  textAlign: "left",
+                  transition: "background 0.2s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#f1f5f9"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                <span style={{ fontSize: "1.25rem" }}>🔗</span>
+                <div>
+                  <div style={{ fontWeight: "500", color: "#1e293b" }}>WalletConnect</div>
+                  <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                    {walletConnect.sessions.length > 0
+                      ? `${walletConnect.sessions.length} active session${walletConnect.sessions.length > 1 ? 's' : ''}`
+                      : 'Connect to dApps'}
+                  </div>
                 </div>
               </button>
 
