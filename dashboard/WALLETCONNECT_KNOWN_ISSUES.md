@@ -151,9 +151,9 @@ build: {
 
 - [x] Compile TypeScript without errors ✅
 - [x] Vite build passes ✅
-- [ ] Rust compilation passes
-- [ ] App starts without crashes
-- [ ] Can open pairing modal
+- [x] Rust compilation passes ✅ (41 warnings, no errors)
+- [x] App starts without crashes ✅ (Tauri app running successfully)
+- [ ] Can open pairing modal (requires unlock)
 - [ ] Can paste WC URI
 - [ ] Session approval dialog appears
 - [ ] Can approve/reject sessions
@@ -163,14 +163,19 @@ build: {
 ## Next Steps
 
 1. ~~Fix all TypeScript compilation errors~~ ✅ DONE
-2. Test Rust compilation
-3. Test app startup and basic UI
-4. Test basic pairing flow with WalletConnect Test dApp
-5. Integrate wallet address selection
-6. Implement session persistence
-7. Move to Phase 2: Request handlers
+2. ~~Test Rust compilation~~ ✅ DONE
+3. ~~Test app startup~~ ✅ DONE
+4. **Test WalletConnect UI after unlock**:
+   - Unlock the app with password
+   - Verify WalletConnect initialization logs
+   - Test opening pairing modal
+   - Test pasting WC URI
+5. **Integration testing with WalletConnect Test dApp**
+6. **Integrate wallet address selection** (replace placeholder `0x0000...`)
+7. **Implement session persistence to USB**
+8. **Move to Phase 2: Request handlers**
 
 ---
 
-**Last Updated**: 2026-01-14 17:45
-**Status**: TypeScript compilation fixed, build passing. Ready for Rust compilation test.
+**Last Updated**: 2026-01-14 17:55
+**Status**: ✅ All compilation and build tests passing. App starts successfully. Ready for UI testing after unlock.
