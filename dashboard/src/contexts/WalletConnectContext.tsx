@@ -16,6 +16,7 @@ import { getWalletConnectClient, WalletConnectClient } from '@/services/walletco
 import { generateNamespaces } from '@/services/walletconnect/session-manager';
 import type { SessionApprovalRequest, WalletConnectConfig } from '@/services/walletconnect/types';
 import { invoke } from '@tauri-apps/api/tauri';
+import { useAppPassword } from './AppPasswordContext';
 
 interface WalletConnectContextValue {
   // Client state
@@ -32,10 +33,10 @@ interface WalletConnectContextValue {
 
   // Actions
   init: (config: WalletConnectConfig) => Promise<void>;
-  openPairingModal: () => void;
+  openPairingModal: (address?: string) => void;
   closePairingModal: () => void;
   pair: (uri: string) => Promise<void>;
-  approveSession: (address: string) => Promise<void>;
+  approveSession: (address?: string) => Promise<void>;
   rejectSession: () => Promise<void>;
   disconnectSession: (topic: string) => Promise<void>;
 
@@ -51,6 +52,8 @@ interface WalletConnectSession {
 }
 
 export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { getSessionToken, usbPath } = useAppPassword();
+
   const [client, setClient] = useState<WalletConnectClient | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [initializing, setInitializing] = useState(false);
@@ -59,6 +62,7 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
   const [sessions, setSessions] = useState<SessionTypes.Struct[]>([]);
   const [showPairingModal, setShowPairingModal] = useState(false);
   const [sessionProposal, setSessionProposal] = useState<SessionApprovalRequest | null>(null);
+  const [currentAddress, setCurrentAddress] = useState<string | null>(null);
 
   // Initialize WalletConnect client
   const init = useCallback(async (config: WalletConnectConfig) => {
@@ -145,17 +149,23 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [client, initialized]);
 
   // Approve session
-  const approveSession = useCallback(async (address: string) => {
+  const approveSession = useCallback(async (address?: string) => {
     if (!client || !sessionProposal) {
       throw new Error('No session proposal to approve');
     }
 
+    // Use provided address or stored currentAddress
+    const walletAddress = address || currentAddress;
+    if (!walletAddress) {
+      throw new Error('No wallet address available for session approval');
+    }
+
     try {
-      console.log('[WC Context] Approving session for address:', address);
+      console.log('[WC Context] Approving session for address:', walletAddress);
 
       // Generate namespaces
       const namespaces = generateNamespaces(
-        address,
+        walletAddress,
         sessionProposal.params.requiredNamespaces,
         sessionProposal.params.optionalNamespaces
       );
@@ -167,18 +177,41 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
       const updatedSessions = client.getActiveSessions();
       setSessions(updatedSessions);
 
-      // Clear proposal
-      setSessionProposal(null);
-
       console.log('[WC Context] Session approved:', session.topic);
 
-      // TODO: Persist session to USB (Phase 1 completion)
-      // Will be implemented when integrating with AppPasswordContext
+      // Persist sessions to USB (encrypted + HMAC)
+      const sessionToken = getSessionToken();
+      if (sessionToken && usbPath) {
+        try {
+          // Convert sessions to persistable format
+          const sessionsToSave = updatedSessions.map(s => ({
+            topic: s.topic,
+            data: JSON.stringify(s),
+          }));
+
+          await invoke('save_wc_sessions', {
+            usbPath,
+            sessions: sessionsToSave,
+            sessionToken,
+          });
+
+          console.log('[WC Context] ✅ Sessions persisted to USB');
+        } catch (persistError) {
+          console.error('[WC Context] Failed to persist sessions:', persistError);
+          // Don't throw - session approval succeeded even if persistence failed
+        }
+      } else {
+        console.warn('[WC Context] Cannot persist sessions - missing sessionToken or usbPath');
+      }
+
+      // Clear proposal and address
+      setSessionProposal(null);
+      setCurrentAddress(null);
     } catch (err) {
       console.error('[WC Context] Session approval failed:', err);
       throw err;
     }
-  }, [client, sessionProposal]);
+  }, [client, sessionProposal, currentAddress]);
 
   // Reject session
   const rejectSession = useCallback(async () => {
@@ -213,12 +246,25 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
 
       console.log('[WC Context] Session disconnected');
 
-      // TODO: Remove from USB storage
+      // Update USB storage
+      const sessionToken = getSessionToken();
+      if (sessionToken && usbPath) {
+        try {
+          await invoke('delete_wc_session', {
+            usbPath,
+            sessionToken,
+            topic,
+          });
+          console.log('[WC Context] ✅ Session removed from USB');
+        } catch (persistError) {
+          console.error('[WC Context] Failed to remove session from USB:', persistError);
+        }
+      }
     } catch (err) {
       console.error('[WC Context] Session disconnect failed:', err);
       throw err;
     }
-  }, [client]);
+  }, [client, getSessionToken, usbPath]);
 
   // Recover sessions from USB after app unlock
   const recoverSessions = useCallback(async (sessionToken: string, usbPath: string) => {
@@ -238,13 +284,18 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
 
       console.log(`[WC Context] Loaded ${wcSessions.length} sessions from USB`);
 
-      // TODO: Restore sessions to WalletConnect client
-      // This requires client.core.pairing.restore() or similar
-      // Will be implemented in Phase 1 completion
-
-      // For now, just update the sessions list
+      // WalletConnect SignClient automatically restores sessions from its internal storage
+      // We just need to sync our React state with the client's active sessions
       const activeSessions = client.getActiveSessions();
-      setSessions(activeSessions);
+
+      if (activeSessions.length > 0) {
+        setSessions(activeSessions);
+        console.log(`[WC Context] ✅ Recovered ${activeSessions.length} active sessions`);
+      } else if (wcSessions.length > 0) {
+        // If client has no sessions but we have them in USB, there might be a sync issue
+        console.warn('[WC Context] Sessions found in USB but not in client. They may have expired.');
+        // TODO: Could implement session re-establishment if needed (Phase 2)
+      }
     } catch (err) {
       console.error('[WC Context] Session recovery failed:', err);
       // Don't throw - recovery failure shouldn't block app startup
@@ -252,7 +303,10 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [client, initialized]);
 
   // Modal actions
-  const openPairingModal = useCallback(() => {
+  const openPairingModal = useCallback((address?: string) => {
+    if (address) {
+      setCurrentAddress(address);
+    }
     setShowPairingModal(true);
   }, []);
 

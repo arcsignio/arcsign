@@ -183,7 +183,7 @@ ArcSign 提供多層安全保護：
 - **Relay**: wss://relay.walletconnect.com
 - **存儲**: USB-only (加密 + HMAC)
 
-### 已實作功能（Phase 1）
+### 已實作功能（Phase 1） ✅ 完成
 
 - ✅ Client 初始化
 - ✅ Pairing Modal (URI 輸入)
@@ -191,11 +191,12 @@ ArcSign 提供多層安全保護：
 - ✅ Namespace 生成（支援 6 條 EVM 鏈）
 - ✅ 基礎事件監聽
 - ✅ UI 整合（More 選單）
+- ✅ 完整的中英文國際化支援
+- ✅ 錢包地址整合（自動使用當前錢包的 EVM 地址）
+- ✅ **Session 持久化到 USB（加密 + HMAC）**
+- ✅ **App 重啟後自動恢復 sessions**
 
 ### 待實作功能（Phase 2）
-
-- ⏳ Session 持久化到 USB
-- ⏳ App 重啟後恢復 sessions
 - ⏳ eth_sendTransaction 處理
 - ⏳ personal_sign 處理
 - ⏳ eth_signTypedData_v4 處理

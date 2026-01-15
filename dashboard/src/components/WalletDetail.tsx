@@ -27,6 +27,7 @@ import SwapTransaction from "@/components/SwapTransaction";
 import StakingTransaction from "@/components/StakingTransaction";
 import { getChainIconUrl, getChainFallbackIcon, isChainSupported, isChainEnabled } from "@/utils/chainIcons";
 import ReceiveAddressModal from "@/components/ReceiveAddressModal";
+import { SessionsManagerModal } from "@/components/WalletConnect/SessionsManagerModal";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
 
@@ -107,6 +108,9 @@ export function WalletDetail({
 
   // More menu dropdown state
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  // WalletConnect Sessions Manager modal state
+  const [showSessionsManager, setShowSessionsManager] = useState(false);
 
   // Refresh state
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -1334,6 +1338,37 @@ export function WalletDetail({
             </div>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: "0.75rem" }}>
+            {/* WalletConnect Sessions Indicator */}
+            {walletConnect.initialized && (
+              <button
+                title={t('walletConnect.connectedDapps')}
+                onClick={() => setShowSessionsManager(true)}
+                style={{
+                  background: walletConnect.sessions.length > 0 ? "#ecfdf5" : "transparent",
+                  border: walletConnect.sessions.length > 0 ? "1px solid #10b981" : "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  padding: "0.5rem 0.75rem",
+                  cursor: "pointer",
+                  color: walletConnect.sessions.length > 0 ? "#059669" : "#64748b",
+                  fontSize: "0.875rem",
+                  fontWeight: "500",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.375rem",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = walletConnect.sessions.length > 0 ? "#d1fae5" : "#f1f5f9";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = walletConnect.sessions.length > 0 ? "#ecfdf5" : "transparent";
+                }}
+              >
+                <span>🔗</span>
+                {walletConnect.sessions.length > 0 && (
+                  <span>{walletConnect.sessions.length}</span>
+                )}
+              </button>
+            )}
             <button
               title={t('walletDetail.copyAddress')}
               onClick={() => setShowAddressList(true)}
@@ -1650,7 +1685,11 @@ export function WalletDetail({
               <button
                 onClick={() => {
                   setShowMoreMenu(false);
-                  walletConnect.openPairingModal();
+                  // Get first EVM address for WalletConnect
+                  const evmAddress = walletAddresses.find(
+                    a => !a.is_testnet && (a.symbol === 'ETH' || a.symbol === 'BNB' || a.symbol === 'MATIC' || a.symbol === 'ARB')
+                  );
+                  walletConnect.openPairingModal(evmAddress?.address);
                 }}
                 style={{
                   width: "100%",
@@ -2528,6 +2567,30 @@ export function WalletDetail({
           }}
         />
       )}
+
+      {/* WalletConnect Sessions Manager Modal */}
+      <SessionsManagerModal
+        isOpen={showSessionsManager}
+        onClose={() => setShowSessionsManager(false)}
+        sessions={walletConnect.sessions}
+        onDisconnect={async (topic) => {
+          await walletConnect.disconnectSession(topic);
+        }}
+        onDisconnectAll={async () => {
+          // Disconnect all sessions one by one
+          for (const session of walletConnect.sessions) {
+            await walletConnect.disconnectSession(session.topic);
+          }
+        }}
+        onAddNew={() => {
+          setShowSessionsManager(false);
+          // Get first EVM address for WalletConnect
+          const evmAddress = walletAddresses.find(
+            a => !a.is_testnet && (a.symbol === 'ETH' || a.symbol === 'BNB' || a.symbol === 'MATIC' || a.symbol === 'ARB')
+          );
+          walletConnect.openPairingModal(evmAddress?.address);
+        }}
+      />
     </div>
   );
 }

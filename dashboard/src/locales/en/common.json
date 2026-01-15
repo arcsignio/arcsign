@@ -754,6 +754,19 @@
     "viewYourAddress": "View your wallet address and balance",
     "requestSignatures": "Request transaction signatures",
     "switchChains": "Request chain switching",
-    "pasteFromClipboard": "Paste from clipboard"
+    "pasteFromClipboard": "Paste from clipboard",
+    "connectedDapps": "Connected dApps",
+    "noConnections": "No dApps connected",
+    "noConnectionsHint": "Use the button below to connect to a dApp",
+    "unknownDapp": "Unknown dApp",
+    "disconnect": "Disconnect",
+    "disconnecting": "Disconnecting...",
+    "disconnectAll": "Disconnect All",
+    "confirmDisconnectAll": "Confirm Disconnect All?",
+    "addConnection": "New Connection",
+    "daysAgo": "{n} day(s) ago",
+    "hoursAgo": "{n} hour(s) ago",
+    "minutesAgo": "{n} minute(s) ago",
+    "justNow": "Just now"
   }
 }

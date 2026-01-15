@@ -16,13 +16,11 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import tauriApi, { type AppError, type AppConfig } from '@/services/tauri-api';
 
 function AppContent() {
-  const { isUnlocked, unlock } = useAppPassword();
+  const { isUnlocked, unlock, getSessionToken } = useAppPassword();
   const walletConnect = useWalletConnect();
   const [usbPath, setUsbPath] = useState<string | null>(null);
   const [loadingUsb, setLoadingUsb] = useState(true);
   const [usbError, setUsbError] = useState<string | null>(null);
-  // TODO: Get current address from wallet context when available
-  const currentAddress = '0x0000000000000000000000000000000000000000'; // Placeholder
 
   // Detect USB on mount
   useEffect(() => {
@@ -75,8 +73,18 @@ function AppContent() {
     }
   }, [isUnlocked, walletConnect]);
 
-  // TODO: Recover WalletConnect sessions after unlock
-  // Will be implemented when session persistence is complete
+  // Recover WalletConnect sessions after initialization
+  useEffect(() => {
+    if (isUnlocked && walletConnect.initialized && usbPath) {
+      const sessionToken = getSessionToken();
+      if (sessionToken) {
+        console.log('[App] Recovering WalletConnect sessions...');
+        walletConnect.recoverSessions(sessionToken, usbPath).catch(err => {
+          console.error('[App] Session recovery failed:', err);
+        });
+      }
+    }
+  }, [isUnlocked, walletConnect.initialized, usbPath, getSessionToken, walletConnect]);
 
   const handleUnlockSuccess = async (appConfig: AppConfig, password: string) => {
     if (!usbPath) {
@@ -92,16 +100,10 @@ function AppContent() {
     }
   };
 
-  // Handle session approval (needs wallet address)
+  // Handle session approval
   const handleApproveSession = async () => {
-    // TODO: Get actual wallet address from wallet state
-    // For now, we'll need to integrate with wallet selection
-    if (!currentAddress) {
-      console.error('[App] No wallet address available for session approval');
-      return;
-    }
-
-    await walletConnect.approveSession(currentAddress);
+    // Address is stored in WalletConnectContext when opening pairing modal
+    await walletConnect.approveSession();
   };
 
   // Loading USB detection

@@ -754,6 +754,19 @@
     "viewYourAddress": "查看您的錢包地址和餘額",
     "requestSignatures": "請求交易簽名",
     "switchChains": "請求切換區塊鏈",
-    "pasteFromClipboard": "從剪貼簿貼上"
+    "pasteFromClipboard": "從剪貼簿貼上",
+    "connectedDapps": "已連接的 dApps",
+    "noConnections": "尚未連接任何 dApp",
+    "noConnectionsHint": "使用下方按鈕連接到 dApp",
+    "unknownDapp": "未知的 dApp",
+    "disconnect": "斷開連接",
+    "disconnecting": "斷開中...",
+    "disconnectAll": "斷開所有連接",
+    "confirmDisconnectAll": "確認斷開所有連接？",
+    "addConnection": "新增連接",
+    "daysAgo": "{n} 天前",
+    "hoursAgo": "{n} 小時前",
+    "minutesAgo": "{n} 分鐘前",
+    "justNow": "剛剛"
   }
 }
