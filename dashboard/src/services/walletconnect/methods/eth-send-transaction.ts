@@ -28,6 +28,12 @@ import {
   registerHandler,
 } from '../request-handler';
 import type { SessionTypes } from '@walletconnect/types';
+import {
+  formatWeiValue,
+  getNativeSymbol,
+  getChainString,
+  parseJsonResult,
+} from '../utils/validators';
 
 /**
  * Parse eth_sendTransaction parameters
@@ -50,41 +56,6 @@ function parseParams(params: unknown[]): TransactionParams | null {
   }
 
   return tx;
-}
-
-/**
- * Format value for display (wei to ETH)
- */
-function formatValue(value?: string): string {
-  if (!value || value === '0x0' || value === '0x') {
-    return '0 ETH';
-  }
-
-  try {
-    const wei = BigInt(value);
-    const eth = Number(wei) / 1e18;
-    if (eth < 0.0001 && eth > 0) {
-      return `< 0.0001 ETH`;
-    }
-    return `${eth.toFixed(6)} ETH`;
-  } catch {
-    return value;
-  }
-}
-
-/**
- * Get chain native token symbol
- */
-function getNativeSymbol(chainId: number): string {
-  const symbols: Record<number, string> = {
-    1: 'ETH',
-    56: 'BNB',
-    137: 'MATIC',
-    42161: 'ETH',
-    10: 'ETH',
-    8453: 'ETH',
-  };
-  return symbols[chainId] || 'ETH';
 }
 
 /**
@@ -125,7 +96,7 @@ const sendTransactionHandler: RequestHandler = async (
   const nativeSymbol = getNativeSymbol(chainId);
 
   // Format transaction for display
-  const displayValue = formatValue(tx.value);
+  const displayValue = formatWeiValue(tx.value, nativeSymbol);
   const displayTo = tx.to || '(Contract Creation)';
   const displayData = tx.data
     ? (tx.data.length > 66 ? `${tx.data.slice(0, 66)}...` : tx.data)
@@ -133,7 +104,7 @@ const sendTransactionHandler: RequestHandler = async (
 
   const message = [
     `To: ${displayTo}`,
-    `Value: ${displayValue.replace('ETH', nativeSymbol)}`,
+    `Value: ${displayValue}`,
     `Data: ${displayData}`,
   ].join('\n');
 
@@ -160,18 +131,6 @@ const sendTransactionHandler: RequestHandler = async (
   }
 
   // Convert chainId to chain string for build_transaction
-  const getChainString = (id: number): string => {
-    const chainStrings: Record<number, string> = {
-      1: 'ethereum',
-      56: 'bsc',
-      137: 'polygon',
-      42161: 'arbitrum',
-      10: 'optimism',
-      8453: 'base',
-    };
-    return chainStrings[id] || 'ethereum';
-  };
-
   const chainString = getChainString(chainId);
 
   // Build unsigned transaction
@@ -208,19 +167,12 @@ const sendTransactionHandler: RequestHandler = async (
 
     console.log('[eth_sendTransaction] Build result:', JSON.stringify(buildResult));
 
-    // Handle different result formats (object or JSON string)
-    let parsed = buildResult;
-    if (typeof buildResult === 'string') {
-      try {
-        parsed = JSON.parse(buildResult);
-      } catch {
-        throw new Error(buildResult);
-      }
-    }
+    // Parse result using shared utility
+    const parsed = parseJsonResult<{ unsignedTx?: unknown }>(buildResult);
 
     // Extract unsignedTx from result
     if (parsed && typeof parsed === 'object' && 'unsignedTx' in parsed) {
-      unsignedTx = (parsed as { unsignedTx: unknown }).unsignedTx;
+      unsignedTx = parsed.unsignedTx;
     } else {
       unsignedTx = parsed;
     }
@@ -256,21 +208,14 @@ const sendTransactionHandler: RequestHandler = async (
 
     console.log('[eth_sendTransaction] Sign result:', JSON.stringify(signResult));
 
-    // Handle different result formats (object or JSON string)
-    let parsed = signResult;
-    if (typeof signResult === 'string') {
-      try {
-        parsed = JSON.parse(signResult);
-      } catch {
-        throw new Error(signResult);
-      }
-    }
+    // Parse result using shared utility
+    const signParsed = parseJsonResult<{ signedTx?: unknown }>(signResult);
 
     // Extract signedTx from result
-    if (parsed && typeof parsed === 'object' && 'signedTx' in parsed) {
-      signedTx = (parsed as { signedTx: unknown }).signedTx;
+    if (signParsed && typeof signParsed === 'object' && 'signedTx' in signParsed) {
+      signedTx = signParsed.signedTx;
     } else {
-      signedTx = parsed;
+      signedTx = signParsed;
     }
   } catch (error) {
     console.error('[eth_sendTransaction] Sign failed:', error);

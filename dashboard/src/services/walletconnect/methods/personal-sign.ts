@@ -27,39 +27,7 @@ import {
   registerHandler,
 } from '../request-handler';
 import type { SessionTypes } from '@walletconnect/types';
-
-/**
- * Check if a string is a valid Ethereum address
- */
-function isAddress(value: string): boolean {
-  return /^0x[a-fA-F0-9]{40}$/.test(value);
-}
-
-/**
- * Decode hex message to UTF-8 string if valid
- */
-function decodeHexMessage(hex: string): string {
-  if (!hex.startsWith('0x')) {
-    return hex;
-  }
-
-  try {
-    const bytes = hex.slice(2).match(/.{2}/g);
-    if (!bytes) return hex;
-
-    const decoded = bytes
-      .map(byte => String.fromCharCode(parseInt(byte, 16)))
-      .join('');
-
-    // Check if result is printable ASCII/UTF-8
-    if (/^[\x20-\x7E\u00A0-\uFFFF\n\r\t]*$/.test(decoded)) {
-      return decoded;
-    }
-    return hex; // Return original if not printable
-  } catch {
-    return hex;
-  }
-}
+import { isValidAddress, decodeHexMessage, extractSignature } from '../utils/validators';
 
 /**
  * Parse personal_sign parameters
@@ -73,21 +41,21 @@ function parseParams(params: unknown[]): { message: string; address: string; raw
   const [first, second] = params as [string, string];
 
   // Detect which is the address
-  if (isAddress(first) && !isAddress(second)) {
+  if (isValidAddress(first) && !isValidAddress(second)) {
     // Legacy order: [address, message]
     return {
       address: first.toLowerCase(),
       rawMessage: second,
       message: decodeHexMessage(second),
     };
-  } else if (isAddress(second) && !isAddress(first)) {
+  } else if (isValidAddress(second) && !isValidAddress(first)) {
     // Standard order: [message, address]
     return {
       address: second.toLowerCase(),
       rawMessage: first,
       message: decodeHexMessage(first),
     };
-  } else if (isAddress(first) && isAddress(second)) {
+  } else if (isValidAddress(first) && isValidAddress(second)) {
     // Both look like addresses - assume standard order
     return {
       address: second.toLowerCase(),
@@ -185,26 +153,8 @@ const personalSignHandler: RequestHandler = async (
 
     console.log('[personal_sign] Raw result from Tauri:', JSON.stringify(result));
 
-    // Handle different result formats
-    let signature: string;
-    if (typeof result === 'string') {
-      // Result might be a JSON string, try to parse
-      try {
-        const parsed = JSON.parse(result);
-        signature = parsed.signature;
-      } catch {
-        throw new Error(result);
-      }
-    } else if (result && typeof result === 'object' && 'signature' in result) {
-      // Direct object with signature
-      signature = result.signature;
-    } else {
-      throw new Error('Invalid response format from sign_message');
-    }
-
-    if (!signature) {
-      throw new Error('No signature in response');
-    }
+    // Extract signature using shared utility
+    const signature = extractSignature(result);
 
     console.log('[personal_sign] Signature created:', signature.slice(0, 20) + '...');
     return createSuccessResponse(id, signature);

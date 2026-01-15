@@ -30,13 +30,7 @@ import {
   registerHandler,
 } from '../request-handler';
 import type { SessionTypes } from '@walletconnect/types';
-
-/**
- * Check if a string is a valid Ethereum address
- */
-function isAddress(value: string): boolean {
-  return /^0x[a-fA-F0-9]{40}$/.test(value);
-}
+import { isValidAddress, extractSignature } from '../utils/validators';
 
 /**
  * Parse eth_signTypedData_v4 parameters
@@ -53,10 +47,10 @@ function parseParams(params: unknown[]): { address: string; typedData: EIP712Typ
   let address: string;
   let typedDataInput: string | EIP712TypedData;
 
-  if (typeof first === 'string' && isAddress(first)) {
+  if (typeof first === 'string' && isValidAddress(first)) {
     address = first.toLowerCase();
     typedDataInput = second as string | EIP712TypedData;
-  } else if (typeof second === 'string' && isAddress(second)) {
+  } else if (typeof second === 'string' && isValidAddress(second)) {
     // Some implementations swap the order
     address = second.toLowerCase();
     typedDataInput = first as string | EIP712TypedData;
@@ -222,26 +216,8 @@ const signTypedDataHandler: RequestHandler = async (
 
     console.log('[eth_signTypedData_v4] Raw result from Tauri:', JSON.stringify(result));
 
-    // Handle different result formats
-    let signature: string;
-    if (typeof result === 'string') {
-      // Result might be a JSON string, try to parse
-      try {
-        const parsed = JSON.parse(result);
-        signature = parsed.signature;
-      } catch {
-        throw new Error(result);
-      }
-    } else if (result && typeof result === 'object' && 'signature' in result) {
-      // Direct object with signature
-      signature = result.signature;
-    } else {
-      throw new Error('Invalid response format from sign_typed_data');
-    }
-
-    if (!signature) {
-      throw new Error('No signature in response');
-    }
+    // Extract signature using shared utility
+    const signature = extractSignature(result);
 
     console.log('[eth_signTypedData_v4] Signature created:', signature.slice(0, 20) + '...');
     return createSuccessResponse(id, signature);

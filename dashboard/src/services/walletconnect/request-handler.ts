@@ -118,21 +118,24 @@ export interface TransactionParams {
 }
 
 // Method categories
-const SIGNING_METHODS = [
-  'personal_sign',
-  'eth_sign',
-  'eth_signTypedData',
-  'eth_signTypedData_v3',
-  'eth_signTypedData_v4',
-  'eth_sendTransaction',
-];
+export type MethodCategory = 'signing' | 'chain' | 'readonly';
 
-const CHAIN_METHODS = [
-  'wallet_switchEthereumChain',
-  'wallet_addEthereumChain',
-];
+// Handler metadata
+export interface HandlerMetadata {
+  category: MethodCategory;
+  description?: string;
+}
 
-const READ_ONLY_METHODS = [
+// Handler registry with metadata
+interface RegisteredHandler {
+  handler: RequestHandler;
+  metadata: HandlerMetadata;
+}
+
+const handlers: Map<string, RegisteredHandler> = new Map();
+
+// Default supported methods (for backwards compatibility and RPC passthrough)
+const DEFAULT_READONLY_METHODS = [
   'eth_chainId',
   'eth_accounts',
   'eth_requestAccounts',
@@ -152,24 +155,54 @@ const READ_ONLY_METHODS = [
   'net_version',
 ];
 
-// Handler registry
-const handlers: Map<string, RequestHandler> = new Map();
+const DEFAULT_CHAIN_METHODS = [
+  'wallet_switchEthereumChain',
+  'wallet_addEthereumChain',
+];
 
 /**
  * Register a handler for a specific method
+ * @param method - The RPC method name (e.g., 'personal_sign')
+ * @param handler - The handler function
+ * @param metadata - Optional metadata (defaults to signing category)
  */
-export function registerHandler(method: string, handler: RequestHandler): void {
-  handlers.set(method, handler);
+export function registerHandler(
+  method: string,
+  handler: RequestHandler,
+  metadata?: HandlerMetadata
+): void {
+  handlers.set(method, {
+    handler,
+    metadata: metadata || { category: 'signing' },
+  });
+  console.log(`[WC RequestHandler] Registered handler: ${method} (${metadata?.category || 'signing'})`);
+}
+
+/**
+ * Get all registered methods by category
+ */
+export function getMethodsByCategory(category: MethodCategory): string[] {
+  const methods: string[] = [];
+  handlers.forEach((registered, method) => {
+    if (registered.metadata.category === category) {
+      methods.push(method);
+    }
+  });
+  return methods;
 }
 
 /**
  * Check if a method is supported
  */
 export function isMethodSupported(method: string): boolean {
+  // Check if handler is registered
+  if (handlers.has(method)) {
+    return true;
+  }
+  // Check default methods (for RPC passthrough)
   return (
-    SIGNING_METHODS.includes(method) ||
-    CHAIN_METHODS.includes(method) ||
-    READ_ONLY_METHODS.includes(method)
+    DEFAULT_CHAIN_METHODS.includes(method) ||
+    DEFAULT_READONLY_METHODS.includes(method)
   );
 }
 
@@ -177,14 +210,19 @@ export function isMethodSupported(method: string): boolean {
  * Check if a method requires user signature/approval
  */
 export function requiresSignature(method: string): boolean {
-  return SIGNING_METHODS.includes(method);
+  const registered = handlers.get(method);
+  return registered?.metadata.category === 'signing';
 }
 
 /**
  * Check if a method is read-only (can be passed through to RPC)
  */
 export function isReadOnly(method: string): boolean {
-  return READ_ONLY_METHODS.includes(method);
+  const registered = handlers.get(method);
+  if (registered) {
+    return registered.metadata.category === 'readonly';
+  }
+  return DEFAULT_READONLY_METHODS.includes(method);
 }
 
 /**
@@ -251,9 +289,9 @@ export async function handleRequest(
   }
 
   // Get registered handler
-  const handler = handlers.get(method);
+  const registered = handlers.get(method);
 
-  if (!handler) {
+  if (!registered) {
     // If no handler registered but method is read-only, we might want to pass through
     if (isReadOnly(method)) {
       console.log(`[WC RequestHandler] Read-only method without handler: ${method}`);
@@ -273,7 +311,7 @@ export async function handleRequest(
   }
 
   try {
-    return await handler(request, session, context);
+    return await registered.handler(request, session, context);
   } catch (error) {
     console.error(`[WC RequestHandler] Handler error:`, error);
     return createErrorResponse(

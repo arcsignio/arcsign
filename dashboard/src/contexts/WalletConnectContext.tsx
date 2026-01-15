@@ -25,10 +25,9 @@ import {
   type SignatureRequestParams,
   type SignatureResult,
 } from '@/services/walletconnect/request-handler';
-// Import handlers to register them
-import '@/services/walletconnect/methods/personal-sign';
-import '@/services/walletconnect/methods/eth-sign-typed-data';
-import '@/services/walletconnect/methods/eth-send-transaction';
+// Import handlers module to auto-register all methods
+// To add a new method: just create a handler file in methods/ and import it in methods/index.ts
+import '@/services/walletconnect/methods';
 
 interface WalletConnectContextValue {
   // Client state
