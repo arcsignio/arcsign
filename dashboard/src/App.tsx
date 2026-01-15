@@ -13,6 +13,7 @@ import { WalletConnectProvider, useWalletConnect } from '@/contexts/WalletConnec
 import { PairingModal } from '@/components/WalletConnect/PairingModal';
 import { SessionApprovalDialog } from '@/components/WalletConnect/SessionApprovalDialog';
 import { SignRequestDialog } from '@/components/WalletConnect/SignRequestDialog';
+import { SignatureToastContainer } from '@/components/WalletConnect/SignatureToast';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import tauriApi, { type AppError, type AppConfig } from '@/services/tauri-api';
 
@@ -226,6 +227,12 @@ function AppContent() {
         request={walletConnect.signRequest}
         onApprove={walletConnect.approveSignRequest}
         onReject={walletConnect.rejectSignRequest}
+      />
+
+      {/* Signature Result Notifications */}
+      <SignatureToastContainer
+        notifications={walletConnect.signatureNotifications}
+        onDismiss={walletConnect.dismissNotification}
       />
 
       <style>{`

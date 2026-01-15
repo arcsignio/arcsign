@@ -28,6 +28,7 @@ import {
 // Import handlers module to auto-register all methods
 // To add a new method: just create a handler file in methods/ and import it in methods/index.ts
 import '@/services/walletconnect/methods';
+import type { SignatureNotification } from '@/components/WalletConnect/SignatureToast';
 
 interface WalletConnectContextValue {
   // Client state
@@ -45,6 +46,10 @@ interface WalletConnectContextValue {
   // Sign request state (Phase 2)
   signRequest: SignatureRequestParams | null;
   showSignDialog: boolean;
+
+  // Signature notifications
+  signatureNotifications: SignatureNotification[];
+  dismissNotification: (id: string) => void;
 
   // Wallet context state (for checking if wallet is ready)
   walletReady: boolean;
@@ -101,6 +106,24 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
   const [signRequest, setSignRequest] = useState<SignatureRequestParams | null>(null);
   const [showSignDialog, setShowSignDialog] = useState(false);
   const pendingSignRequestRef = useRef<PendingSignRequest | null>(null);
+
+  // Signature notifications
+  const [signatureNotifications, setSignatureNotifications] = useState<SignatureNotification[]>([]);
+
+  // Add notification helper
+  const addNotification = useCallback((notification: Omit<SignatureNotification, 'id' | 'timestamp'>) => {
+    const newNotification: SignatureNotification = {
+      ...notification,
+      id: `sig-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      timestamp: Date.now(),
+    };
+    setSignatureNotifications(prev => [...prev, newNotification]);
+  }, []);
+
+  // Dismiss notification
+  const dismissNotification = useCallback((id: string) => {
+    setSignatureNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
 
   // Wallet context for handlers (set from WalletDetail when wallet is selected)
   const [walletId, setWalletId] = useState<string | null>(null);
@@ -263,13 +286,43 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
       getRpcUrl,
     };
 
+    // Get dApp metadata for notification
+    const dappName = session.peer?.metadata?.name || 'Unknown dApp';
+    const method = request.params.request.method;
+    const chainId = parseInt(request.params.chainId.split(':')[1] || '1', 10);
+
     // Route request to handler
     const response = await handleRequest(request, session, context);
 
     // Send response back to dApp
     console.log('[WC Context] Sending response to dApp:', response);
     await wcClient.respondSessionRequest(topic, response);
-  }, [getSessionToken, requestSignature, getRpcUrl]); // No longer depends on state values, uses refs instead
+
+    // Show notification based on result
+    if (response.error) {
+      // Error notification
+      addNotification({
+        status: 'error',
+        method,
+        dappName,
+        chainId,
+        message: response.error.message,
+      });
+    } else {
+      // Success notification
+      const txHash = method === 'eth_sendTransaction' && typeof response.result === 'string'
+        ? response.result
+        : undefined;
+
+      addNotification({
+        status: 'success',
+        method,
+        dappName,
+        chainId,
+        txHash,
+      });
+    }
+  }, [getSessionToken, requestSignature, getRpcUrl, addNotification]); // No longer depends on state values, uses refs instead
 
   // Setup event listeners
   const setupEventListeners = useCallback((wcClient: WalletConnectClient) => {
@@ -580,6 +633,9 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
     // Sign request state (Phase 2)
     signRequest,
     showSignDialog,
+    // Signature notifications
+    signatureNotifications,
+    dismissNotification,
     // Wallet context state
     walletReady: !!(walletId && walletAddress),
     // Actions

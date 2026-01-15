@@ -786,6 +786,10 @@
     "txWarning": "請仔細檢查交易",
     "txWarningDetail": "這將從您的錢包發送交易。請在批准前確認所有詳情。",
     "typedDataWarning": "請仔細檢查數據",
-    "typedDataWarningDetail": "這是結構化數據簽名。它可能授權代幣授權或許可等操作。"
+    "typedDataWarningDetail": "這是結構化數據簽名。它可能授權代幣授權或許可等操作。",
+    "signatureSuccess": "簽名成功",
+    "signatureFailed": "簽名失敗",
+    "signaturePending": "簽名中...",
+    "viewOnExplorer": "在瀏覽器查看"
   }
 }
