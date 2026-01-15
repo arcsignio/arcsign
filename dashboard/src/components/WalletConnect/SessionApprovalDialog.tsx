@@ -9,6 +9,7 @@
  */
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { SessionApprovalRequest } from '@/services/walletconnect/types';
 
 interface SessionApprovalDialogProps {
@@ -24,6 +25,7 @@ export const SessionApprovalDialog: React.FC<SessionApprovalDialogProps> = ({
   onApprove,
   onReject,
 }) => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>('chains');
 
@@ -204,10 +206,9 @@ export const SessionApprovalDialog: React.FC<SessionApprovalDialogProps> = ({
               />
             </svg>
             <div className="text-sm text-yellow-900">
-              <p className="font-medium">This dApp requests sensitive permissions</p>
+              <p className="font-medium">{t('walletConnect.securityWarning')}</p>
               <p className="text-yellow-800 mt-1">
-                It can send transactions and sign messages on your behalf. You'll need to enter your
-                wallet password for each transaction.
+                {t('walletConnect.onlyApprovetrusted')}
               </p>
             </div>
           </div>
@@ -231,7 +232,7 @@ export const SessionApprovalDialog: React.FC<SessionApprovalDialogProps> = ({
                   />
                 </svg>
                 <span className="font-medium text-gray-900">
-                  Networks ({allChains.length})
+                  {t('walletConnect.requestedChains')} ({allChains.length})
                 </span>
               </div>
               <svg
@@ -280,7 +281,7 @@ export const SessionApprovalDialog: React.FC<SessionApprovalDialogProps> = ({
                   />
                 </svg>
                 <span className="font-medium text-gray-900">
-                  Permissions ({allMethods.length})
+                  {t('walletConnect.requestedMethods')} ({allMethods.length})
                 </span>
               </div>
               <svg
@@ -332,7 +333,7 @@ export const SessionApprovalDialog: React.FC<SessionApprovalDialogProps> = ({
                     />
                   </svg>
                   <span className="font-medium text-gray-900">
-                    Events ({allEvents.length})
+                    {t('walletConnect.requestedEvents')} ({allEvents.length})
                   </span>
                 </div>
                 <svg
@@ -371,7 +372,7 @@ export const SessionApprovalDialog: React.FC<SessionApprovalDialogProps> = ({
             disabled={loading}
             className="px-6 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Reject
+            {t('walletConnect.reject')}
           </button>
           <button
             onClick={handleApprove}
@@ -399,10 +400,10 @@ export const SessionApprovalDialog: React.FC<SessionApprovalDialogProps> = ({
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   />
                 </svg>
-                Approving...
+                {t('walletConnect.approving')}
               </>
             ) : (
-              'Approve'
+              t('walletConnect.approve')
             )}
           </button>
         </div>

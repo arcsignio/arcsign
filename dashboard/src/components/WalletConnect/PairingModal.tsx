@@ -13,6 +13,7 @@
  */
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface PairingModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export const PairingModal: React.FC<PairingModalProps> = ({
   onClose,
   onPair,
 }) => {
+  const { t } = useTranslation();
   const [uri, setUri] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,22 +40,22 @@ export const PairingModal: React.FC<PairingModalProps> = ({
         setUri(text);
         setError(null);
       } else {
-        setError('Invalid WalletConnect URI. Must start with "wc:"');
+        setError(t('walletConnect.invalidUri'));
       }
     } catch (err) {
-      setError('Failed to read clipboard. Please paste manually.');
+      setError(t('walletConnect.clipboardReadFailed'));
       console.error('Clipboard read failed:', err);
     }
   };
 
   const handleConnect = async () => {
     if (!uri.trim()) {
-      setError('Please enter a WalletConnect URI');
+      setError(t('walletConnect.enterUri'));
       return;
     }
 
     if (!uri.startsWith('wc:')) {
-      setError('Invalid URI format. WalletConnect URIs must start with "wc:"');
+      setError(t('walletConnect.invalidUriFormat'));
       return;
     }
 
@@ -124,7 +126,7 @@ export const PairingModal: React.FC<PairingModalProps> = ({
               id="pairing-modal-title"
               className="text-xl font-semibold text-gray-900"
             >
-              Connect to dApp
+              {t('walletConnect.connectToDapp')}
             </h2>
           </div>
           {!loading && (
@@ -150,7 +152,7 @@ export const PairingModal: React.FC<PairingModalProps> = ({
           id="pairing-modal-description"
           className="text-sm text-gray-600 mb-4"
         >
-          Paste the WalletConnect URI from the dApp you want to connect to.
+          {t('walletConnect.pasteUri')}
         </p>
 
         {/* Info Box */}
@@ -170,12 +172,12 @@ export const PairingModal: React.FC<PairingModalProps> = ({
               />
             </svg>
             <div className="text-sm text-blue-900">
-              <p className="font-medium mb-1">How to get the URI:</p>
+              <p className="font-medium mb-1">{t('walletConnect.howToGetUri')}</p>
               <ol className="list-decimal list-inside space-y-1 text-blue-800">
-                <li>Open the dApp in your browser</li>
-                <li>Click "Connect Wallet" and choose "WalletConnect"</li>
-                <li>Copy the connection link or URI</li>
-                <li>Paste it here</li>
+                <li>{t('walletConnect.step1')}</li>
+                <li>{t('walletConnect.step2')}</li>
+                <li>{t('walletConnect.step3')}</li>
+                <li>{t('walletConnect.step4')}</li>
               </ol>
             </div>
           </div>
@@ -187,7 +189,7 @@ export const PairingModal: React.FC<PairingModalProps> = ({
             htmlFor="wc-uri-input"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            WalletConnect URI
+            {t('walletConnect.wcUri')}
           </label>
           <div className="flex gap-2">
             <input
@@ -199,7 +201,7 @@ export const PairingModal: React.FC<PairingModalProps> = ({
                 setError(null);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="wc:..."
+              placeholder={t('walletConnect.uriPlaceholder')}
               disabled={loading}
               className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
                 error ? 'border-red-500' : 'border-gray-300'
@@ -210,7 +212,7 @@ export const PairingModal: React.FC<PairingModalProps> = ({
               onClick={handlePaste}
               disabled={loading}
               className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              title="Paste from clipboard"
+              title={t('walletConnect.pasteFromClipboard')}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
@@ -220,12 +222,12 @@ export const PairingModal: React.FC<PairingModalProps> = ({
                   d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                 />
               </svg>
-              Paste
+              {t('walletConnect.paste')}
             </button>
           </div>
           {uri && (
             <p className="mt-1 text-xs text-gray-500">
-              URI length: {uri.length} characters
+              {t('walletConnect.uriLength', { length: uri.length })}
             </p>
           )}
         </div>
@@ -257,7 +259,7 @@ export const PairingModal: React.FC<PairingModalProps> = ({
             disabled={loading}
             className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Cancel
+            {t('walletConnect.cancel')}
           </button>
           <button
             onClick={handleConnect}
@@ -285,10 +287,10 @@ export const PairingModal: React.FC<PairingModalProps> = ({
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   />
                 </svg>
-                Connecting...
+                {t('walletConnect.connecting')}
               </>
             ) : (
-              'Connect'
+              t('walletConnect.connect')
             )}
           </button>
         </div>
