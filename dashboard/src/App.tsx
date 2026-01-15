@@ -73,7 +73,7 @@ function AppContent() {
     }
   }, [isUnlocked, walletConnect]);
 
-  // Recover WalletConnect sessions after initialization
+  // Recover WalletConnect sessions after initialization (run once)
   useEffect(() => {
     if (isUnlocked && walletConnect.initialized && usbPath) {
       const sessionToken = getSessionToken();
@@ -84,7 +84,8 @@ function AppContent() {
         });
       }
     }
-  }, [isUnlocked, walletConnect.initialized, usbPath, getSessionToken, walletConnect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isUnlocked, walletConnect.initialized, usbPath]);
 
   const handleUnlockSuccess = async (appConfig: AppConfig, password: string) => {
     if (!usbPath) {
