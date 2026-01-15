@@ -16,7 +16,13 @@ import './personal-sign';
 import './eth-sign-typed-data';
 import './eth-send-transaction';
 
+// Chain methods (no password required)
+import './wallet-switch-chain';
+import './wallet-add-chain';
+
 // Re-export for direct access if needed
 export { personalSignHandler } from './personal-sign';
 export { signTypedDataHandler } from './eth-sign-typed-data';
 export { sendTransactionHandler } from './eth-send-transaction';
+export { switchChainHandler } from './wallet-switch-chain';
+export { addChainHandler } from './wallet-add-chain';
