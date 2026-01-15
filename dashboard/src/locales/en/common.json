@@ -767,6 +767,25 @@
     "daysAgo": "{n} day(s) ago",
     "hoursAgo": "{n} hour(s) ago",
     "minutesAgo": "{n} minute(s) ago",
-    "justNow": "Just now"
+    "justNow": "Just now",
+    "signRequest": "Sign Request",
+    "messageToSign": "Message to Sign",
+    "showDecoded": "Show Decoded",
+    "showRaw": "Show Raw",
+    "signWarning": "Review carefully before signing",
+    "signWarningDetail": "Signing a message can authorize actions on your behalf. Only sign messages from trusted sources.",
+    "walletPassword": "Wallet Password",
+    "enterWalletPassword": "Enter your wallet password",
+    "enterPassword": "Please enter your password",
+    "sign": "Sign",
+    "signing": "Signing...",
+    "send": "Send",
+    "sending": "Sending...",
+    "transactionRequest": "Transaction Request",
+    "transactionDetails": "Transaction Details",
+    "txWarning": "Review transaction carefully",
+    "txWarningDetail": "This will send a transaction from your wallet. Verify all details before approving.",
+    "typedDataWarning": "Review data carefully",
+    "typedDataWarningDetail": "This is a structured data signature. It may authorize actions like token approvals or permits."
   }
 }

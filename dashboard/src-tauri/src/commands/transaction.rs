@@ -501,3 +501,199 @@ pub async fn estimate_fee(
 
     Ok(result)
 }
+
+// ============================================================================
+// WalletConnect Signing Operations
+// ============================================================================
+
+/// Input parameters for sign_message command
+#[derive(Debug, Deserialize)]
+pub struct SignMessageInput {
+    /// Wallet ID (UUID)
+    pub wallet_id: String,
+    /// Wallet password for decryption
+    pub password: String,
+    /// BIP39 passphrase (optional, empty string if not used)
+    #[serde(default)]
+    pub passphrase: String,
+    /// USB storage path
+    pub usb_path: String,
+    /// Ethereum address to sign with
+    pub address: String,
+    /// Message to sign (hex string starting with 0x or plain text)
+    pub message: String,
+}
+
+/// Sign a message using EIP-191 (personal_sign) for WalletConnect.
+///
+/// This:
+/// - Decrypts the wallet with the provided password
+/// - Derives the private key for the specified address
+/// - Creates EIP-191 formatted message hash
+/// - Signs the message
+/// - Clears the private key from memory
+///
+/// Returns the signature (0x...), message hash, and signer address.
+#[tauri::command]
+pub async fn sign_message(
+    queue: State<'_, LazyWalletQueue>,
+    mut input: SignMessageInput,
+) -> Result<serde_json::Value, String> {
+    let start = Instant::now();
+    tracing::info!(
+        "sign_message called: wallet={}, address={}",
+        input.wallet_id,
+        input.address
+    );
+
+    // Build JSON params for FFI call
+    let params = json!({
+        "walletId": input.wallet_id,
+        "password": input.password,
+        "passphrase": input.passphrase,
+        "usbPath": input.usb_path,
+        "address": input.address,
+        "message": input.message,
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    // Call FFI
+    let result = queue
+        .sign_message(params_json)
+        .await
+        .map_err(|e| {
+            tracing::error!("sign_message FFI error: {}", e);
+            if e.contains("INVALID_PASSWORD") || e.contains("DECRYPTION_ERROR") || e.contains("ENCRYPTION_ERROR") {
+                AppError::new(
+                    ErrorCode::InvalidPassword,
+                    "Invalid wallet password",
+                )
+            } else if e.contains("WALLET_NOT_FOUND") || e.contains("STORAGE_ERROR") {
+                AppError::new(
+                    ErrorCode::WalletNotFound,
+                    "Wallet not found",
+                )
+            } else if e.contains("ADDRESS_NOT_FOUND") {
+                AppError::new(
+                    ErrorCode::CliExecutionFailed,
+                    "Address not found in wallet",
+                )
+            } else {
+                AppError::with_details(
+                    ErrorCode::CliExecutionFailed,
+                    "Failed to sign message",
+                    e,
+                )
+            }
+        })?;
+
+    // Zero sensitive data
+    input.password.zeroize();
+    input.passphrase.zeroize();
+
+    let elapsed = start.elapsed();
+    tracing::info!(
+        "sign_message completed in {:?}",
+        elapsed
+    );
+
+    Ok(result)
+}
+
+/// Input parameters for sign_typed_data command
+#[derive(Debug, Deserialize)]
+pub struct SignTypedDataInput {
+    /// Wallet ID (UUID)
+    pub wallet_id: String,
+    /// Wallet password for decryption
+    pub password: String,
+    /// BIP39 passphrase (optional, empty string if not used)
+    #[serde(default)]
+    pub passphrase: String,
+    /// USB storage path
+    pub usb_path: String,
+    /// Ethereum address to sign with
+    pub address: String,
+    /// EIP-712 typed data (JSON string)
+    pub typed_data: String,
+}
+
+/// Sign EIP-712 typed data (eth_signTypedData_v4) for WalletConnect.
+///
+/// This:
+/// - Decrypts the wallet with the provided password
+/// - Derives the private key for the specified address
+/// - Computes domain separator and struct hashes per EIP-712
+/// - Signs the typed data hash
+/// - Clears the private key from memory
+///
+/// Returns the signature (0x...) and signer address.
+#[tauri::command]
+pub async fn sign_typed_data(
+    queue: State<'_, LazyWalletQueue>,
+    mut input: SignTypedDataInput,
+) -> Result<serde_json::Value, String> {
+    let start = Instant::now();
+    tracing::info!(
+        "sign_typed_data called: wallet={}, address={}",
+        input.wallet_id,
+        input.address
+    );
+
+    // Build JSON params for FFI call
+    let params = json!({
+        "walletId": input.wallet_id,
+        "password": input.password,
+        "passphrase": input.passphrase,
+        "usbPath": input.usb_path,
+        "address": input.address,
+        "typedData": input.typed_data,
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    // Call FFI
+    let result = queue
+        .sign_typed_data(params_json)
+        .await
+        .map_err(|e| {
+            tracing::error!("sign_typed_data FFI error: {}", e);
+            if e.contains("INVALID_PASSWORD") || e.contains("DECRYPTION_ERROR") || e.contains("ENCRYPTION_ERROR") {
+                AppError::new(
+                    ErrorCode::InvalidPassword,
+                    "Invalid wallet password",
+                )
+            } else if e.contains("WALLET_NOT_FOUND") || e.contains("STORAGE_ERROR") {
+                AppError::new(
+                    ErrorCode::WalletNotFound,
+                    "Wallet not found",
+                )
+            } else if e.contains("ADDRESS_NOT_FOUND") {
+                AppError::new(
+                    ErrorCode::CliExecutionFailed,
+                    "Address not found in wallet",
+                )
+            } else {
+                AppError::with_details(
+                    ErrorCode::CliExecutionFailed,
+                    "Failed to sign typed data",
+                    e,
+                )
+            }
+        })?;
+
+    // Zero sensitive data
+    input.password.zeroize();
+    input.passphrase.zeroize();
+
+    let elapsed = start.elapsed();
+    tracing::info!(
+        "sign_typed_data completed in {:?}",
+        elapsed
+    );
+
+    Ok(result)
+}

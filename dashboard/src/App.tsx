@@ -12,6 +12,7 @@ import { AppPasswordProvider, useAppPassword } from '@/contexts/AppPasswordConte
 import { WalletConnectProvider, useWalletConnect } from '@/contexts/WalletConnectContext';
 import { PairingModal } from '@/components/WalletConnect/PairingModal';
 import { SessionApprovalDialog } from '@/components/WalletConnect/SessionApprovalDialog';
+import { SignRequestDialog } from '@/components/WalletConnect/SignRequestDialog';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import tauriApi, { type AppError, type AppConfig } from '@/services/tauri-api';
 
@@ -86,6 +87,19 @@ function AppContent() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isUnlocked, walletConnect.initialized, usbPath]);
+
+  // Security: Disconnect WalletConnect sessions when app session expires
+  // This prevents dApps from continuing to interact with the wallet after logout
+  useEffect(() => {
+    // When user locks the app (isUnlocked becomes false)
+    if (!isUnlocked && walletConnect.initialized && walletConnect.sessions.length > 0) {
+      console.log('[App] Session locked - disconnecting WalletConnect sessions for security');
+      walletConnect.disconnectAllSessions().catch(err => {
+        console.error('[App] Failed to disconnect WalletConnect sessions:', err);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isUnlocked]);
 
   const handleUnlockSuccess = async (appConfig: AppConfig, password: string) => {
     if (!usbPath) {
@@ -204,6 +218,14 @@ function AppContent() {
         proposal={walletConnect.sessionProposal}
         onApprove={handleApproveSession}
         onReject={walletConnect.rejectSession}
+      />
+
+      {/* WalletConnect Sign Request Dialog (Phase 2) */}
+      <SignRequestDialog
+        isOpen={walletConnect.showSignDialog}
+        request={walletConnect.signRequest}
+        onApprove={walletConnect.approveSignRequest}
+        onReject={walletConnect.rejectSignRequest}
       />
 
       <style>{`

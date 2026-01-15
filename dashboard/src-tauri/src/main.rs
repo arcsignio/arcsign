@@ -34,7 +34,7 @@ use commands::security::{
 };
 use commands::transaction::{
     build_transaction, sign_transaction, broadcast_transaction,
-    query_transaction_status, estimate_fee,
+    query_transaction_status, estimate_fee, sign_message, sign_typed_data,
 };
 use commands::swap::{
     get_swap_quote, build_swap_transaction, get_swap_approval,
@@ -276,6 +276,9 @@ fn main() {
             broadcast_transaction,
             query_transaction_status,
             estimate_fee,
+            // WalletConnect signing commands
+            sign_message,
+            sign_typed_data,
             // Swap commands (DEX Aggregator)
             get_swap_quote,
             build_swap_transaction,

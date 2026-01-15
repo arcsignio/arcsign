@@ -152,6 +152,15 @@ type ValidateWalletSessionTokenFn = unsafe extern "C" fn(*const c_char) -> *mut 
 /// Function signature for RevokeWalletSessionToken: char* RevokeWalletSessionToken(char* params)
 type RevokeWalletSessionTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+// WalletConnect signing function types
+/// Function signature for SignMessage: char* SignMessage(char* params)
+/// EIP-191 personal_sign implementation
+type SignMessageFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for SignTypedData: char* SignTypedData(char* params)
+/// EIP-712 eth_signTypedData_v4 implementation
+type SignTypedDataFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 // ============================================================================
 // WalletLibrary - Dynamic Library Wrapper (T016, T017)
 // ============================================================================
@@ -220,6 +229,9 @@ pub struct WalletLibrary {
     create_wallet_session_token: Symbol<'static, CreateWalletSessionTokenFn>,
     validate_wallet_session_token: Symbol<'static, ValidateWalletSessionTokenFn>,
     revoke_wallet_session_token: Symbol<'static, RevokeWalletSessionTokenFn>,
+    // WalletConnect signing function symbols
+    sign_message: Symbol<'static, SignMessageFn>,
+    sign_typed_data: Symbol<'static, SignTypedDataFn>,
 }
 
 impl WalletLibrary {
@@ -449,6 +461,15 @@ impl WalletLibrary {
                 .get(b"RevokeWalletSessionToken")
                 .map_err(|e| format!("RevokeWalletSessionToken symbol not found: {}", e))?;
 
+            // Load WalletConnect signing symbols
+            let sign_message: Symbol<SignMessageFn> = lib
+                .get(b"SignMessage")
+                .map_err(|e| format!("SignMessage symbol not found: {}", e))?;
+
+            let sign_typed_data: Symbol<SignTypedDataFn> = lib
+                .get(b"SignTypedData")
+                .map_err(|e| format!("SignTypedData symbol not found: {}", e))?;
+
             // Extend symbol lifetime to 'static (safe because Library lives for program duration)
             let go_free: Symbol<'static, GoFreeFn> = std::mem::transmute(go_free);
             let get_version: Symbol<'static, GetVersionFn> = std::mem::transmute(get_version);
@@ -491,6 +512,8 @@ impl WalletLibrary {
             let create_wallet_session_token: Symbol<'static, CreateWalletSessionTokenFn> = std::mem::transmute(create_wallet_session_token);
             let validate_wallet_session_token: Symbol<'static, ValidateWalletSessionTokenFn> = std::mem::transmute(validate_wallet_session_token);
             let revoke_wallet_session_token: Symbol<'static, RevokeWalletSessionTokenFn> = std::mem::transmute(revoke_wallet_session_token);
+            let sign_message: Symbol<'static, SignMessageFn> = std::mem::transmute(sign_message);
+            let sign_typed_data: Symbol<'static, SignTypedDataFn> = std::mem::transmute(sign_typed_data);
 
             Ok(WalletLibrary {
                 lib: Arc::new(lib),
@@ -535,6 +558,8 @@ impl WalletLibrary {
                 create_wallet_session_token,
                 validate_wallet_session_token,
                 revoke_wallet_session_token,
+                sign_message,
+                sign_typed_data,
             })
         }
     }
@@ -1338,6 +1363,61 @@ impl WalletLibrary {
     /// ```
     pub fn revoke_wallet_session_token(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.revoke_wallet_session_token, params_json)
+    }
+
+    // ========================================================================
+    // WalletConnect Signing Operations
+    // ========================================================================
+
+    /// Sign a message using EIP-191 (personal_sign).
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "walletId": "wallet-uuid",
+    ///   "password": "wallet-password",
+    ///   "passphrase": "optional-bip39-passphrase",
+    ///   "usbPath": "/path/to/usb",
+    ///   "address": "0x...",
+    ///   "message": "0x... or plain text"
+    /// }
+    /// ```
+    ///
+    /// Returns:
+    /// ```json
+    /// {
+    ///   "signature": "0x...",
+    ///   "messageHash": "0x...",
+    ///   "signedBy": "0x..."
+    /// }
+    /// ```
+    pub fn sign_message(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.sign_message, params_json)
+    }
+
+    /// Sign EIP-712 typed data (eth_signTypedData_v4).
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "walletId": "wallet-uuid",
+    ///   "password": "wallet-password",
+    ///   "passphrase": "optional-bip39-passphrase",
+    ///   "usbPath": "/path/to/usb",
+    ///   "address": "0x...",
+    ///   "typedData": "{...}" // EIP-712 JSON string
+    /// }
+    /// ```
+    ///
+    /// Returns:
+    /// ```json
+    /// {
+    ///   "signature": "0x...",
+    ///   "signedBy": "0x..."
+    /// }
+    /// ```
+    pub fn sign_typed_data(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.sign_typed_data, params_json)
     }
 }
 

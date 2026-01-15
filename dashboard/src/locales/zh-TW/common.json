@@ -767,6 +767,25 @@
     "daysAgo": "{n} 天前",
     "hoursAgo": "{n} 小時前",
     "minutesAgo": "{n} 分鐘前",
-    "justNow": "剛剛"
+    "justNow": "剛剛",
+    "signRequest": "簽名請求",
+    "messageToSign": "待簽名訊息",
+    "showDecoded": "顯示解碼",
+    "showRaw": "顯示原始",
+    "signWarning": "簽名前請仔細檢查",
+    "signWarningDetail": "簽署訊息可能授權他人代表您執行操作。請只簽署來自可信來源的訊息。",
+    "walletPassword": "錢包密碼",
+    "enterWalletPassword": "請輸入您的錢包密碼",
+    "enterPassword": "請輸入密碼",
+    "sign": "簽名",
+    "signing": "簽名中...",
+    "send": "發送",
+    "sending": "發送中...",
+    "transactionRequest": "交易請求",
+    "transactionDetails": "交易詳情",
+    "txWarning": "請仔細檢查交易",
+    "txWarningDetail": "這將從您的錢包發送交易。請在批准前確認所有詳情。",
+    "typedDataWarning": "請仔細檢查數據",
+    "typedDataWarningDetail": "這是結構化數據簽名。它可能授權代幣授權或許可等操作。"
   }
 }

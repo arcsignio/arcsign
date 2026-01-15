@@ -245,6 +245,24 @@ export function WalletDetail({
       setTokens(response.tokens);
       setTotalUsd(response.totalUsd);
       setShowPasswordPrompt(false);
+
+      // Set wallet context for WalletConnect signing operations
+      // Use the first EVM address (Ethereum address) for WalletConnect
+      console.log("[WalletDetail] Looking for ETH address in:",
+        addressResponse.addresses.slice(0, 5).map(a => ({ name: a.name, symbol: a.symbol, address: a.address.slice(0, 10) }))
+      );
+      const evmAddress = addressResponse.addresses.find(
+        (addr) => addr.name === "Ethereum" || addr.symbol === "ETH" || addr.coin_type === 60
+      );
+      if (evmAddress) {
+        walletConnect.setWalletContext(wallet.id, evmAddress.address);
+        console.log("[WalletDetail] ✅ Set WalletConnect context:", {
+          walletId: wallet.id,
+          address: evmAddress.address,
+        });
+      } else {
+        console.warn("[WalletDetail] ⚠️ No Ethereum address found in wallet!");
+      }
     } catch (err) {
       const error = err as AppError;
       const errorMessage = error.message || "";
@@ -321,6 +339,21 @@ export function WalletDetail({
 
         setTokens(response.tokens);
         setTotalUsd(response.totalUsd);
+
+        // Set wallet context for WalletConnect signing operations
+        // Use the first EVM address (Ethereum address) for WalletConnect
+        const evmAddress = walletAddresses.find(
+          (addr) => addr.name === "Ethereum" || addr.symbol === "ETH" || addr.coin_type === 60
+        );
+        if (evmAddress) {
+          walletConnect.setWalletContext(wallet.id, evmAddress.address);
+          console.log("[WalletDetail] ✅ Set WalletConnect context (with passphrase):", {
+            walletId: wallet.id,
+            address: evmAddress.address,
+          });
+        } else {
+          console.warn("[WalletDetail] ⚠️ No Ethereum address found in wallet (passphrase flow)!");
+        }
       } else {
         console.log("❌ Passphrase is invalid!");
         console.log("   Expected address:", result.expectedAddress);
@@ -1689,6 +1722,10 @@ export function WalletDetail({
                   const evmAddress = walletAddresses.find(
                     a => !a.is_testnet && (a.symbol === 'ETH' || a.symbol === 'BNB' || a.symbol === 'MATIC' || a.symbol === 'ARB')
                   );
+                  // Set wallet context before opening modal so it's available for signing
+                  if (evmAddress) {
+                    walletConnect.setWalletContext(wallet.id, evmAddress.address);
+                  }
                   walletConnect.openPairingModal(evmAddress?.address);
                 }}
                 style={{

@@ -332,6 +332,19 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    // ========================================================================
+    // WalletConnect Signing Operations
+    // ========================================================================
+    /// Sign a message using EIP-191 (personal_sign)
+    SignMessage {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Sign EIP-712 typed data (eth_signTypedData_v4)
+    SignTypedData {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
 }
 
 /// WalletQueue serializes all wallet operations through a single-threaded queue.
@@ -589,6 +602,17 @@ impl WalletQueue {
                 }
                 WalletCommand::RevokeWalletSessionToken { params_json, respond_to } => {
                     let result = library.revoke_wallet_session_token(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                // WalletConnect Signing Operations
+                WalletCommand::SignMessage { params_json, respond_to } => {
+                    let result = library.sign_message(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::SignTypedData { params_json, respond_to } => {
+                    let result = library.sign_typed_data(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -1377,6 +1401,48 @@ impl WalletQueue {
         .await
         .map_err(|e| format!("Task join error: {}", e))?
     }
+
+    // ========================================================================
+    // WalletConnect Signing Operations
+    // ========================================================================
+
+    /// Sign a message using EIP-191 (personal_sign).
+    pub async fn sign_message(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::SignMessage {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Sign EIP-712 typed data (eth_signTypedData_v4).
+    pub async fn sign_typed_data(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::SignTypedData {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
 }
 
 /// Lazy-initialized WalletQueue wrapper
@@ -1616,5 +1682,19 @@ impl LazyWalletQueue {
     /// Revoke (invalidate) a wallet session token
     pub async fn revoke_wallet_session_token(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().revoke_wallet_session_token(params_json).await
+    }
+
+    // ========================================================================
+    // WalletConnect Signing Operations
+    // ========================================================================
+
+    /// Sign a message using EIP-191 (personal_sign)
+    pub async fn sign_message(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().sign_message(params_json).await
+    }
+
+    /// Sign EIP-712 typed data (eth_signTypedData_v4)
+    pub async fn sign_typed_data(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().sign_typed_data(params_json).await
     }
 }
