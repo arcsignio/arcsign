@@ -174,6 +174,7 @@ pub async fn build_transaction(
         "amount": input.amount,
         "feeSpeed": input.fee_speed,
         "usbPath": input.usb_path,
+        "sessionToken": input.session_token,
         "appPassword": input.app_password,
     });
 
@@ -289,6 +290,7 @@ pub async fn sign_transaction(
         "fromAddress": input.from_address,
         "unsignedTx": input.unsigned_tx,
         "usbPath": input.usb_path,
+        "sessionToken": input.session_token,
         "appPassword": input.app_password,
     });
 
@@ -358,6 +360,7 @@ pub async fn broadcast_transaction(
         "chainId": input.chain_id,
         "signedTx": input.signed_tx,
         "usbPath": input.usb_path,
+        "sessionToken": input.session_token,
         "appPassword": input.app_password,
     });
 
@@ -423,6 +426,7 @@ pub async fn query_transaction_status(
         "chainId": input.chain_id,
         "txHash": input.tx_hash,
         "usbPath": input.usb_path,
+        "sessionToken": input.session_token,
         "appPassword": input.app_password,
     });
 
