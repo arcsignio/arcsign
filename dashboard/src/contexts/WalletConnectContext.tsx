@@ -126,8 +126,13 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   // Wallet context for handlers (set from WalletDetail when wallet is selected)
-  const [walletId, setWalletId] = useState<string | null>(null);
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  // Persist to localStorage so context survives app restarts/background
+  const [walletId, setWalletId] = useState<string | null>(
+    () => localStorage.getItem('wc_wallet_id')
+  );
+  const [walletAddress, setWalletAddress] = useState<string | null>(
+    () => localStorage.getItem('wc_wallet_address')
+  );
 
   // Refs to hold latest values for event handler closures
   // This is necessary because event listeners are set once during init
@@ -564,6 +569,9 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
     console.log('[WC Context] Setting wallet context:', { walletId: newWalletId, address });
     setWalletId(newWalletId);
     setWalletAddress(address);
+    // Persist to localStorage so context survives app restarts/background
+    localStorage.setItem('wc_wallet_id', newWalletId);
+    localStorage.setItem('wc_wallet_address', address);
   }, []);
 
   // Clear wallet context (on logout/session expiry)
@@ -571,6 +579,9 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
     console.log('[WC Context] Clearing wallet context');
     setWalletId(null);
     setWalletAddress(null);
+    // Clear from localStorage
+    localStorage.removeItem('wc_wallet_id');
+    localStorage.removeItem('wc_wallet_address');
   }, []);
 
   // Disconnect all sessions (for security - on logout/session expiry)
