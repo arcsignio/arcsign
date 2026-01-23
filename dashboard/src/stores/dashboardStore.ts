@@ -13,7 +13,10 @@ import { Category } from '@/types/address';
 /**
  * Membership status for Pro tier verification
  * NFT count is aggregated across ALL BSC addresses in all wallets
- * Wallet limit formula: 3 + (totalNftCount * 5)
+ * Wallet limit formula: 1 + (totalNftCount * 3)
+ * - Free (0 NFT): 1 wallet
+ * - Pro (1 NFT): 4 wallets
+ * - Pro (n NFTs): 1 + (n * 3) wallets
  */
 interface MembershipState {
   /** Whether user is a Pro member (owns at least 1 NFT) */
@@ -22,7 +25,7 @@ interface MembershipState {
   nftCount: number;
   /** Days remaining until membership expires */
   daysRemaining: number;
-  /** Wallet creation limit: 3 + (nftCount * 5) */
+  /** Wallet creation limit: 1 + (nftCount * 3) */
   walletLimit: number;
   /** NFT count breakdown by address */
   addressNftCounts: { address: string; nftCount: number }[];
@@ -118,7 +121,7 @@ const initialMembership: MembershipState = {
   isPro: false,
   nftCount: 0,
   daysRemaining: 0,
-  walletLimit: 3, // Free tier default: 3 + (0 * 5) = 3
+  walletLimit: 1, // Free tier default: 1 + (0 * 3) = 1
   addressNftCounts: [],
   lockedWalletIds: [],
 };

@@ -4028,9 +4028,12 @@ func GetDeviceMembershipStatusWithToken(params *C.char) *C.char {
 	}
 
 	// Calculate wallet limit based on memberships
-	// Formula: 3 + (nft_count * 5)
+	// Formula: 1 + (nft_count * 3)
+	// - Free (0 NFT): 1 wallet
+	// - Pro (1 NFT): 4 wallets
+	// - Pro (n NFTs): 1 + (n * 3) wallets
 	nftCount := len(session.Memberships)
-	walletLimit := 3 + (nftCount * 5)
+	walletLimit := 1 + (nftCount * 3)
 	canCreateWallet := walletCount < walletLimit
 
 	// Get locked wallet IDs from session (calculated at login)

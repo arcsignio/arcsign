@@ -54,7 +54,7 @@ export function useMembership(bscAddress: string | null) {
         tokenIds: [],
         expirations: [],
         daysRemaining: 0,
-        walletLimit: 3,
+        walletLimit: 1, // Free tier: 1 wallet
       });
     } finally {
       setIsLoading(false);
@@ -71,7 +71,7 @@ export function useMembership(bscAddress: string | null) {
     error,
     refresh: checkMembership,
     isPro: status?.isPro ?? false,
-    walletLimit: status?.walletLimit ?? 3,
+    walletLimit: status?.walletLimit ?? 1, // Free tier: 1 wallet
   };
 }
 
