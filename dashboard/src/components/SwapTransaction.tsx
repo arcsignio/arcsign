@@ -15,6 +15,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { isWalletLocked } from "@/utils/walletLock";
 import tauriApi, {
   type SwapQuoteResponse,
   type BuildSwapTransactionResponse,
@@ -662,6 +663,12 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 
   // Sign and broadcast swap
   const handleSignAndBroadcast = async () => {
+    // Check if wallet is locked due to membership limit
+    if (isWalletLocked(walletId)) {
+      setError(t('wallet.walletLocked', 'Wallet is locked due to membership limit. Please upgrade to unlock.'));
+      return;
+    }
+
     if (!walletPassword) {
       setError(t('swap.pleaseEnterPassword'));
       return;

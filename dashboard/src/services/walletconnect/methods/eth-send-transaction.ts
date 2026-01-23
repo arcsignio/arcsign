@@ -27,6 +27,7 @@ import {
   parseChainId,
   registerHandler,
 } from '../request-handler';
+import { isAddressLocked } from '@/utils/walletLock';
 import type { SessionTypes } from '@walletconnect/types';
 import {
   formatWeiValue,
@@ -78,6 +79,16 @@ const sendTransactionHandler: RequestHandler = async (
       id,
       RPC_ERROR_CODES.INVALID_PARAMS,
       'Invalid parameters: expected [transactionObject]'
+    );
+  }
+
+  // Check if wallet is locked due to membership limit
+  if (isAddressLocked(tx.from)) {
+    console.log('[eth_sendTransaction] Wallet is locked - membership limit exceeded');
+    return createErrorResponse(
+      id,
+      RPC_ERROR_CODES.UNAUTHORIZED,
+      'Wallet is locked due to membership limit. Please upgrade to unlock this wallet.'
     );
   }
 

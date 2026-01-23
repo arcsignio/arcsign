@@ -26,6 +26,7 @@ import {
   parseChainId,
   registerHandler,
 } from '../request-handler';
+import { isAddressLocked } from '@/utils/walletLock';
 import type { SessionTypes } from '@walletconnect/types';
 import { isValidAddress, decodeHexMessage, extractSignature } from '../utils/validators';
 
@@ -91,6 +92,16 @@ const personalSignHandler: RequestHandler = async (
   }
 
   const { message, address, rawMessage } = parsed;
+
+  // Check if wallet is locked due to membership limit
+  if (isAddressLocked(address)) {
+    console.log('[personal_sign] Wallet is locked - membership limit exceeded');
+    return createErrorResponse(
+      id,
+      RPC_ERROR_CODES.UNAUTHORIZED,
+      'Wallet is locked due to membership limit. Please upgrade to unlock this wallet.'
+    );
+  }
 
   // Verify address matches session
   if (address.toLowerCase() !== context.address.toLowerCase()) {

@@ -26,6 +26,7 @@ import { SendTransaction, type SendableToken } from "@/components/SendTransactio
 import SwapTransaction from "@/components/SwapTransaction";
 import StakingTransaction from "@/components/StakingTransaction";
 import { getChainIconUrl, getChainFallbackIcon, isChainSupported, isChainEnabled } from "@/utils/chainIcons";
+import { isWalletLocked } from "@/utils/walletLock";
 import ReceiveAddressModal from "@/components/ReceiveAddressModal";
 import { SessionsManagerModal } from "@/components/WalletConnect/SessionsManagerModal";
 
@@ -1178,7 +1179,7 @@ export function WalletDetail({
         sessionToken={sessionToken}
         onBack={() => {
           setShowHistory(false);
-          setHistoryAddress(null);
+          setHistoryAddress("");
         }}
       />
     );
@@ -1563,12 +1564,22 @@ export function WalletDetail({
             position: "relative",
           }}
         >
-          {[
+          {(() => {
+            // Check if wallet is locked
+            const walletIsLocked = isWalletLocked(wallet.id);
+            const lockedTooltip = t('wallet.walletLocked', 'Wallet is locked due to membership limit. Please upgrade to unlock.');
+
+            return [
             {
               icon: "↑",
               label: t('walletDetail.send'),
-              tooltip: t('walletDetail.sendTooltip'),
+              tooltip: walletIsLocked ? lockedTooltip : t('walletDetail.sendTooltip'),
+              disabled: walletIsLocked,
               onClick: () => {
+                if (walletIsLocked) {
+                  alert(lockedTooltip);
+                  return;
+                }
                 console.log("💸 [Send] Button clicked, available tokens:", availableTokensForSend.length);
                 if (availableTokensForSend.length > 0) {
                   setShowSendTransaction(true);
@@ -1581,9 +1592,14 @@ export function WalletDetail({
               icon: "↓",
               label: t('walletDetail.receive'),
               tooltip: t('walletDetail.receiveTooltip'),
+              disabled: false,  // Receive is always enabled
               onClick: () => setShowAddressList(true),
             },
-            { icon: "🔄", label: t('walletDetail.swap'), tooltip: t('walletDetail.swapTooltip'), onClick: () => {
+            { icon: "🔄", label: t('walletDetail.swap'), tooltip: walletIsLocked ? lockedTooltip : t('walletDetail.swapTooltip'), disabled: walletIsLocked, onClick: () => {
+                if (walletIsLocked) {
+                  alert(lockedTooltip);
+                  return;
+                }
                 console.log("🔄 [Swap] Button clicked, available tokens:", availableTokensForSend.length);
                 if (availableTokensForSend.length > 0) {
                   setShowSwapTransaction(true);
@@ -1595,6 +1611,7 @@ export function WalletDetail({
               icon: "📜",
               label: t('walletDetail.history'),
               tooltip: t('walletDetail.historyTooltip'),
+              disabled: false,  // History viewing is always allowed
               onClick: () => {
                 console.log("📜 [History] Button clicked, walletAddresses:", walletAddresses.length);
                 // Get first EVM address (coin_type 60 = Ethereum compatible)
@@ -1622,32 +1639,39 @@ export function WalletDetail({
                 }
               },
             },
-            { icon: "⋯", label: t('walletDetail.more'), tooltip: t('walletDetail.moreTooltip'), onClick: () => setShowMoreMenu(!showMoreMenu) },
-          ].map((action) => (
+            { icon: "⋯", label: t('walletDetail.more'), tooltip: t('walletDetail.moreTooltip'), disabled: false, onClick: () => setShowMoreMenu(!showMoreMenu) },
+          ];
+          })().map((action) => (
             <button
               key={action.label}
               title={action.tooltip}
               onClick={action.onClick}
+              disabled={action.disabled}
               style={{
-                background: "#ffffff",
-                border: "1px solid #e2e8f0",
+                background: action.disabled ? "#f1f5f9" : "#ffffff",
+                border: action.disabled ? "1px solid #cbd5e1" : "1px solid #e2e8f0",
                 borderRadius: "12px",
                 padding: "1rem 0.5rem",
-                cursor: "pointer",
-                color: "#1e293b",
+                cursor: action.disabled ? "not-allowed" : "pointer",
+                color: action.disabled ? "#94a3b8" : "#1e293b",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 gap: "0.5rem",
                 transition: "all 0.2s",
+                opacity: action.disabled ? 0.6 : 1,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#f1f5f9";
-                e.currentTarget.style.transform = "translateY(-2px)";
+                if (!action.disabled) {
+                  e.currentTarget.style.background = "#f1f5f9";
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "#ffffff";
-                e.currentTarget.style.transform = "translateY(0)";
+                if (!action.disabled) {
+                  e.currentTarget.style.background = "#ffffff";
+                  e.currentTarget.style.transform = "translateY(0)";
+                }
               }}
             >
               <div
@@ -1655,16 +1679,16 @@ export function WalletDetail({
                   width: "36px",
                   height: "36px",
                   borderRadius: "50%",
-                  background: "#f1f5f9",
+                  background: action.disabled ? "#e2e8f0" : "#f1f5f9",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   fontSize: "1.125rem",
                 }}
               >
-                {action.icon}
+                {action.disabled ? "🔒" : action.icon}
               </div>
-              <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
+              <span style={{ fontSize: "0.75rem", color: action.disabled ? "#94a3b8" : "#64748b" }}>
                 {action.label}
               </span>
             </button>

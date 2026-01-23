@@ -93,7 +93,9 @@
     "duplicateWalletConfirm": "Are you sure you want to continue?",
     "overwrite": "Overwrite",
     "discardImport": "Discard Wallet Import?",
-    "discardImportMessage": "You have unsaved changes. Are you sure you want to cancel? All entered information will be lost."
+    "discardImportMessage": "You have unsaved changes. Are you sure you want to cancel? All entered information will be lost.",
+    "walletLocked": "Wallet is locked due to membership limit. Please upgrade to unlock.",
+    "walletLockedShort": "Wallet locked"
   },
   "address": {
     "address": "Address",

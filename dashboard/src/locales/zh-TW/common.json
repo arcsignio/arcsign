@@ -93,7 +93,9 @@
     "duplicateWalletConfirm": "您確定要繼續嗎？",
     "overwrite": "覆寫",
     "discardImport": "放棄匯入錢包？",
-    "discardImportMessage": "您有未儲存的變更。確定要取消嗎？所有輸入的資訊將會遺失。"
+    "discardImportMessage": "您有未儲存的變更。確定要取消嗎？所有輸入的資訊將會遺失。",
+    "walletLocked": "此錢包已被鎖定，請升級會員以解鎖。",
+    "walletLockedShort": "錢包已鎖定"
   },
   "address": {
     "address": "地址",

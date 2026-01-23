@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
+import { isWalletLocked } from "@/utils/walletLock";
 import tauriApi, {
   type BuildTransactionResponse,
   type SignTransactionResponse,
@@ -287,6 +288,12 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
   // Step 2: Sign transaction with wallet password
   const handleSignTransaction = async () => {
+    // Check if wallet is locked due to membership limit
+    if (isWalletLocked(walletId)) {
+      setError("Wallet is locked due to membership limit. Please upgrade to unlock.");
+      return;
+    }
+
     if (!walletPassword) {
       setError("Please enter your wallet password");
       return;
