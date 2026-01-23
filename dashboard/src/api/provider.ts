@@ -13,8 +13,11 @@ export interface ProviderConfig {
   customEndpoint?: string;
   priority?: number;
   enabled?: boolean;
-  password: string;
   usbPath: string;
+  /** Session token for provider config encryption (PREFERRED) */
+  sessionToken?: string;
+  /** App password for provider config encryption (DEPRECATED) */
+  appPassword?: string;
 }
 
 export interface ProviderConfigResponse {
@@ -55,16 +58,18 @@ export async function setProviderConfig(config: ProviderConfig): Promise<void> {
 export async function getProviderConfig(
   chainId: string,
   providerType: string | null,
-  password: string,
-  usbPath: string
+  usbPath: string,
+  sessionToken?: string,
+  appPassword?: string
 ): Promise<ProviderConfigResponse> {
   try {
     const result = await invoke<ProviderConfigResponse>('get_provider_config', {
       input: {
         chainId,
         providerType,
-        password,
         usbPath,
+        sessionToken: sessionToken ?? '',
+        appPassword: appPassword ?? '',
       },
     });
     return result;
@@ -79,8 +84,9 @@ export async function getProviderConfig(
  */
 export async function listProviderConfigs(
   chainId: string | null,
-  password: string,
-  usbPath: string
+  usbPath: string,
+  sessionToken?: string,
+  appPassword?: string
 ): Promise<ProviderListItem[]> {
   try {
     const result = await invoke<{ providers: ProviderListItem[]; count: number }>(
@@ -88,8 +94,9 @@ export async function listProviderConfigs(
       {
         input: {
           chainId,
-          password,
           usbPath,
+          sessionToken: sessionToken ?? '',
+          appPassword: appPassword ?? '',
         },
       }
     );
@@ -106,16 +113,18 @@ export async function listProviderConfigs(
 export async function deleteProviderConfig(
   chainId: string,
   providerType: string,
-  password: string,
-  usbPath: string
+  usbPath: string,
+  sessionToken?: string,
+  appPassword?: string
 ): Promise<void> {
   try {
     await invoke('delete_provider_config', {
       input: {
         chainId,
         providerType,
-        password,
         usbPath,
+        sessionToken: sessionToken ?? '',
+        appPassword: appPassword ?? '',
       },
     });
   } catch (error) {
@@ -129,8 +138,6 @@ export async function deleteProviderConfig(
  */
 export const PROVIDER_TYPES = {
   ALCHEMY: 'alchemy',
-  INFURA: 'infura',
-  QUICKNODE: 'quicknode',
   ONEINCH: '1inch',
   NODEREAL: 'nodereal',
 } as const;

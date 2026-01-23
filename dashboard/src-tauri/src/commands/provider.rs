@@ -24,8 +24,13 @@ pub struct SetProviderConfigInput {
     pub priority: i32,
     #[serde(default = "default_enabled")]
     pub enabled: bool,
-    pub password: String,
     pub usb_path: String,
+    /// Session token for provider config encryption (PREFERRED)
+    #[serde(default)]
+    pub session_token: Option<String>,
+    /// App password for provider config encryption (DEPRECATED)
+    #[serde(default)]
+    pub app_password: Option<String>,
 }
 
 fn default_priority() -> i32 {
@@ -42,8 +47,13 @@ pub struct GetProviderConfigInput {
     pub chain_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider_type: Option<String>,
-    pub password: String,
     pub usb_path: String,
+    /// Session token for provider config decryption (PREFERRED)
+    #[serde(default)]
+    pub session_token: Option<String>,
+    /// App password for provider config decryption (DEPRECATED)
+    #[serde(default)]
+    pub app_password: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,8 +61,13 @@ pub struct GetProviderConfigInput {
 pub struct ListProviderConfigsInput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chain_id: Option<String>,
-    pub password: String,
     pub usb_path: String,
+    /// Session token for provider config decryption (PREFERRED)
+    #[serde(default)]
+    pub session_token: Option<String>,
+    /// App password for provider config decryption (DEPRECATED)
+    #[serde(default)]
+    pub app_password: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,8 +75,13 @@ pub struct ListProviderConfigsInput {
 pub struct DeleteProviderConfigInput {
     pub chain_id: String,
     pub provider_type: String,
-    pub password: String,
     pub usb_path: String,
+    /// Session token for provider config decryption (PREFERRED)
+    #[serde(default)]
+    pub session_token: Option<String>,
+    /// App password for provider config decryption (DEPRECATED)
+    #[serde(default)]
+    pub app_password: Option<String>,
 }
 
 /// Set provider configuration (Tauri command)
@@ -85,8 +105,9 @@ pub async fn set_provider_config(
         "customEndpoint": input.custom_endpoint.unwrap_or_default(),
         "priority": input.priority,
         "enabled": input.enabled,
-        "password": input.password,
         "usbPath": input.usb_path,
+        "sessionToken": input.session_token.unwrap_or_default(),  // ✅ Pass session token
+        "appPassword": input.app_password.unwrap_or_default(),    // DEPRECATED: Fallback
     }))
     .map_err(|e| Error::new(
         crate::error::ErrorCode::SerializationError,
@@ -119,8 +140,9 @@ pub async fn get_provider_config(
     let params_json = serde_json::to_string(&serde_json::json!({
         "chainId": input.chain_id,
         "providerType": input.provider_type.unwrap_or_default(),
-        "password": input.password,
         "usbPath": input.usb_path,
+        "sessionToken": input.session_token.unwrap_or_default(),  // ✅ Pass session token
+        "appPassword": input.app_password.unwrap_or_default(),    // DEPRECATED: Fallback
     }))
     .map_err(|e| Error::new(
         crate::error::ErrorCode::SerializationError,
@@ -148,8 +170,9 @@ pub async fn list_provider_configs(
     // Serialize input to JSON for FFI
     let params_json = serde_json::to_string(&serde_json::json!({
         "chainId": input.chain_id.unwrap_or_default(),
-        "password": input.password,
         "usbPath": input.usb_path,
+        "sessionToken": input.session_token.unwrap_or_default(),  // ✅ Pass session token
+        "appPassword": input.app_password.unwrap_or_default(),    // DEPRECATED: Fallback
     }))
     .map_err(|e| Error::new(
         crate::error::ErrorCode::SerializationError,
@@ -182,8 +205,9 @@ pub async fn delete_provider_config(
     let params_json = serde_json::to_string(&serde_json::json!({
         "chainId": input.chain_id,
         "providerType": input.provider_type,
-        "password": input.password,
         "usbPath": input.usb_path,
+        "sessionToken": input.session_token.unwrap_or_default(),  // ✅ Pass session token
+        "appPassword": input.app_password.unwrap_or_default(),    // DEPRECATED: Fallback
     }))
     .map_err(|e| Error::new(
         crate::error::ErrorCode::SerializationError,
@@ -210,8 +234,13 @@ pub struct GetAssetTransfersInput {
     pub max_count: i32,
     #[serde(default)]
     pub page_key: String,
-    pub password: String,
     pub usb_path: String,
+    /// Session token for provider config decryption (PREFERRED)
+    #[serde(default)]
+    pub session_token: Option<String>,
+    /// App password for provider config decryption (DEPRECATED)
+    #[serde(default)]
+    pub app_password: Option<String>,
 }
 
 fn default_network() -> String {
@@ -240,8 +269,9 @@ pub async fn get_asset_transfers(
         "network": input.network,
         "maxCount": input.max_count,
         "pageKey": input.page_key,
-        "appPassword": input.password,
         "usbPath": input.usb_path,
+        "sessionToken": input.session_token.unwrap_or_default(),  // ✅ Pass session token
+        "appPassword": input.app_password.unwrap_or_default(),    // DEPRECATED: Fallback
     }))
     .map_err(|e| Error::new(
         crate::error::ErrorCode::SerializationError,

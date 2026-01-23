@@ -108,35 +108,53 @@ func initWalletSessionManager() *app.WalletSessionManager {
 func validateSessionAndGetAppPassword(sessionToken, appPassword, usbPath string) (string, error) {
 	sm := initSessionManager()
 
+	fmt.Fprintf(os.Stderr, "[Go validateSession] sessionToken len=%d, appPassword len=%d, usbPath=%s\n",
+		len(sessionToken), len(appPassword), usbPath)
+	fmt.Fprintf(os.Stderr, "[Go validateSession] sessionManager has %d active sessions\n", sm.GetActiveSessionCount())
+
 	// Try session token first (preferred)
 	if sessionToken != "" {
+		fmt.Fprintf(os.Stderr, "[Go validateSession] Using sessionToken (first 8 chars): %s...\n", sessionToken[:min(8, len(sessionToken))])
+
 		// Validate token and get session
 		session, err := sm.ValidateToken(sessionToken)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "[Go validateSession] ValidateToken FAILED: %v\n", err)
 			return "", fmt.Errorf("session expired. Please log in again")
 		}
+		fmt.Fprintf(os.Stderr, "[Go validateSession] ValidateToken SUCCESS, session.UsbPath=%s\n", session.UsbPath)
 
 		// Verify USB path matches session
 		if session.UsbPath != usbPath {
+			fmt.Fprintf(os.Stderr, "[Go validateSession] USB path MISMATCH: session=%s, input=%s\n", session.UsbPath, usbPath)
 			return "", fmt.Errorf("USB path mismatch with session")
 		}
 
 		// ✅ NEW: Get provider key from encrypted session storage
 		// The key is decrypted using the session token itself
+		fmt.Fprintf(os.Stderr, "[Go validateSession] Calling GetProviderKey...\n")
+		fmt.Fprintf(os.Stderr, "[Go validateSession] Session has EncryptedProviderKey len=%d, PepperVersion=%d\n",
+			len(session.EncryptedProviderKey), session.PepperVersion)
+
 		providerKey, err := sm.GetProviderKey(sessionToken)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "[Go validateSession] GetProviderKey FAILED: %v\n", err)
 			// Fallback to appPassword if decryption fails (for sessions created before this update)
 			if appPassword != "" {
+				fmt.Fprintf(os.Stderr, "[Go validateSession] Falling back to appPassword\n")
 				return appPassword, nil
 			}
 			return "", fmt.Errorf("failed to get provider key from session: %w", err)
 		}
+		fmt.Fprintf(os.Stderr, "[Go validateSession] GetProviderKey SUCCESS, providerKey len=%d\n", len(providerKey))
 
 		return providerKey, nil
 	} else if appPassword != "" {
 		// Fallback to legacy appPassword for backward compatibility
+		fmt.Fprintf(os.Stderr, "[Go validateSession] Using legacy appPassword (len=%d)\n", len(appPassword))
 		return appPassword, nil
 	} else {
+		fmt.Fprintf(os.Stderr, "[Go validateSession] No sessionToken and no appPassword provided\n")
 		return "", fmt.Errorf("authentication required: provide sessionToken or appPassword")
 	}
 }
@@ -1651,8 +1669,9 @@ func SetProviderConfig(params *C.char) *C.char {
 		CustomEndpoint string `json:"customEndpoint"`
 		Priority       int    `json:"priority"`
 		Enabled        bool   `json:"enabled"`
-		Password       string `json:"password"` // For encryption
 		USBPath        string `json:"usbPath"`
+		SessionToken   string `json:"sessionToken"` // PREFERRED: Session token
+		AppPassword    string `json:"appPassword"`  // DEPRECATED: Backward compatibility
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -1663,15 +1682,23 @@ func SetProviderConfig(params *C.char) *C.char {
 
 	// Zero sensitive data after function returns
 	defer zeroString(&input.APIKey)
-	defer zeroString(&input.Password)
+	defer zeroString(&input.AppPassword)
+
+	// Validate session and get provider key
+	providerKey, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&providerKey)
 
 	// Create provider config store
 	configPath := filepath.Join(input.USBPath, "provider_config.enc")
 	debugLog(fmt.Sprintf("[DEBUG] SetProviderConfig: configPath = %s", configPath))
-	debugLog(fmt.Sprintf("[DEBUG] SetProviderConfig: password length = %d", len(input.Password)))
-	debugLog(fmt.Sprintf("[DEBUG] SetProviderConfig: password = '%s'", input.Password))
+	debugLog(fmt.Sprintf("[DEBUG] SetProviderConfig: providerKey length = %d", len(providerKey)))
 
-	store, err := provider.NewProviderConfigStore(configPath, input.Password)
+	store, err := provider.NewProviderConfigStore(configPath, providerKey)
 	if err != nil {
 		debugLog(fmt.Sprintf("[DEBUG] SetProviderConfig: Failed to create store: %v", err))
 		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
@@ -1762,8 +1789,9 @@ func GetProviderConfig(params *C.char) *C.char {
 	var input struct {
 		ChainID      string `json:"chainId"`
 		ProviderType string `json:"providerType"` // Optional
-		Password     string `json:"password"`
 		USBPath      string `json:"usbPath"`
+		SessionToken string `json:"sessionToken"` // PREFERRED: Session token
+		AppPassword  string `json:"appPassword"`  // DEPRECATED: Backward compatibility
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -1773,15 +1801,24 @@ func GetProviderConfig(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	fmt.Fprintf(os.Stderr, "[Go] GetProviderConfig: chainId=%s, providerType=%s, password length=%d\n", input.ChainID, input.ProviderType, len(input.Password))
+	fmt.Fprintf(os.Stderr, "[Go] GetProviderConfig: chainId=%s, providerType=%s\n", input.ChainID, input.ProviderType)
 
 	// Zero sensitive data after function returns
-	defer zeroString(&input.Password)
+	defer zeroString(&input.AppPassword)
+
+	// Validate session and get provider key
+	providerKey, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&providerKey)
 
 	// Create provider config store
 	configPath := input.USBPath + "/provider_config.enc"
 	fmt.Fprintf(os.Stderr, "[Go] GetProviderConfig: configPath=%s\n", configPath)
-	store, err := provider.NewProviderConfigStore(configPath, input.Password)
+	store, err := provider.NewProviderConfigStore(configPath, providerKey)
 	if err != nil {
 		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
 		jsonBytes, _ := json.Marshal(response)
@@ -1863,9 +1900,10 @@ func ListProviderConfigs(params *C.char) *C.char {
 	paramsJSON := C.GoString(params)
 	fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs params: %s\n", paramsJSON)
 	var input struct {
-		ChainID  string `json:"chainId"` // Optional
-		Password string `json:"password"`
-		USBPath  string `json:"usbPath"`
+		ChainID      string `json:"chainId"` // Optional
+		USBPath      string `json:"usbPath"`
+		SessionToken string `json:"sessionToken"` // PREFERRED: Session token
+		AppPassword  string `json:"appPassword"`  // DEPRECATED: Backward compatibility
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -1875,15 +1913,24 @@ func ListProviderConfigs(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs: chainId=%s, password length=%d\n", input.ChainID, len(input.Password))
+	fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs: chainId=%s\n", input.ChainID)
 
 	// Zero sensitive data after function returns
-	defer zeroString(&input.Password)
+	defer zeroString(&input.AppPassword)
+
+	// Validate session and get provider key
+	providerKey, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&providerKey)
 
 	// Create provider config store
 	configPath := input.USBPath + "/provider_config.enc"
 	fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs: configPath=%s\n", configPath)
-	store, err := provider.NewProviderConfigStore(configPath, input.Password)
+	store, err := provider.NewProviderConfigStore(configPath, providerKey)
 	if err != nil {
 		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
 		jsonBytes, _ := json.Marshal(response)
@@ -1970,8 +2017,9 @@ func DeleteProviderConfig(params *C.char) *C.char {
 	var input struct {
 		ChainID      string `json:"chainId"`
 		ProviderType string `json:"providerType"`
-		Password     string `json:"password"`
 		USBPath      string `json:"usbPath"`
+		SessionToken string `json:"sessionToken"` // PREFERRED: Session token
+		AppPassword  string `json:"appPassword"`  // DEPRECATED: Backward compatibility
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -1981,15 +2029,24 @@ func DeleteProviderConfig(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	fmt.Fprintf(os.Stderr, "[Go] DeleteProviderConfig: chainId=%s, providerType=%s, password length=%d\n", input.ChainID, input.ProviderType, len(input.Password))
+	fmt.Fprintf(os.Stderr, "[Go] DeleteProviderConfig: chainId=%s, providerType=%s\n", input.ChainID, input.ProviderType)
 
 	// Zero sensitive data after function returns
-	defer zeroString(&input.Password)
+	defer zeroString(&input.AppPassword)
+
+	// Validate session and get provider key
+	providerKey, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&providerKey)
 
 	// Create provider config store
 	configPath := input.USBPath + "/provider_config.enc"
 	fmt.Fprintf(os.Stderr, "[Go] DeleteProviderConfig: configPath=%s\n", configPath)
-	store, err := provider.NewProviderConfigStore(configPath, input.Password)
+	store, err := provider.NewProviderConfigStore(configPath, providerKey)
 	if err != nil {
 		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
 		jsonBytes, _ := json.Marshal(response)
