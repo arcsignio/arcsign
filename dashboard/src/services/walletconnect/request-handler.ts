@@ -1,12 +1,15 @@
 /**
  * WalletConnect Request Handler
  * Feature: Route incoming dApp requests to appropriate handlers
- * Updated: 2026-01-15
+ * Updated: 2026-01-23
  *
  * Supported methods:
  * - Signing (requires password): personal_sign, eth_signTypedData_v4, eth_sendTransaction
  * - Chain switching: wallet_switchEthereumChain, wallet_addEthereumChain
- * - Read-only (RPC passthrough): eth_chainId, eth_accounts, eth_getBalance, etc.
+ *
+ * Note: Read-only methods (eth_getBalance, eth_call, etc.) are NOT implemented.
+ * dApps should use their own RPC providers for these queries.
+ * Account info is provided via WalletConnect session namespaces during connection.
  */
 
 import type { SessionTypes } from '@walletconnect/types';
@@ -118,7 +121,7 @@ export interface TransactionParams {
 }
 
 // Method categories
-export type MethodCategory = 'signing' | 'chain' | 'readonly';
+export type MethodCategory = 'signing' | 'chain';
 
 // Handler metadata
 export interface HandlerMetadata {
@@ -133,32 +136,6 @@ interface RegisteredHandler {
 }
 
 const handlers: Map<string, RegisteredHandler> = new Map();
-
-// Default supported methods (for backwards compatibility and RPC passthrough)
-const DEFAULT_READONLY_METHODS = [
-  'eth_chainId',
-  'eth_accounts',
-  'eth_requestAccounts',
-  'eth_getBalance',
-  'eth_getTransactionCount',
-  'eth_getTransactionByHash',
-  'eth_getTransactionReceipt',
-  'eth_call',
-  'eth_estimateGas',
-  'eth_gasPrice',
-  'eth_feeHistory',
-  'eth_blockNumber',
-  'eth_getBlockByNumber',
-  'eth_getBlockByHash',
-  'eth_getCode',
-  'eth_getLogs',
-  'net_version',
-];
-
-const DEFAULT_CHAIN_METHODS = [
-  'wallet_switchEthereumChain',
-  'wallet_addEthereumChain',
-];
 
 /**
  * Register a handler for a specific method
@@ -192,18 +169,10 @@ export function getMethodsByCategory(category: MethodCategory): string[] {
 }
 
 /**
- * Check if a method is supported
+ * Check if a method is supported (has a registered handler)
  */
 export function isMethodSupported(method: string): boolean {
-  // Check if handler is registered
-  if (handlers.has(method)) {
-    return true;
-  }
-  // Check default methods (for RPC passthrough)
-  return (
-    DEFAULT_CHAIN_METHODS.includes(method) ||
-    DEFAULT_READONLY_METHODS.includes(method)
-  );
+  return handlers.has(method);
 }
 
 /**
@@ -212,17 +181,6 @@ export function isMethodSupported(method: string): boolean {
 export function requiresSignature(method: string): boolean {
   const registered = handlers.get(method);
   return registered?.metadata.category === 'signing';
-}
-
-/**
- * Check if a method is read-only (can be passed through to RPC)
- */
-export function isReadOnly(method: string): boolean {
-  const registered = handlers.get(method);
-  if (registered) {
-    return registered.metadata.category === 'readonly';
-  }
-  return DEFAULT_READONLY_METHODS.includes(method);
 }
 
 /**
@@ -292,16 +250,6 @@ export async function handleRequest(
   const registered = handlers.get(method);
 
   if (!registered) {
-    // If no handler registered but method is read-only, we might want to pass through
-    if (isReadOnly(method)) {
-      console.log(`[WC RequestHandler] Read-only method without handler: ${method}`);
-      return createErrorResponse(
-        request.id,
-        RPC_ERROR_CODES.INTERNAL_ERROR,
-        `Handler not implemented: ${method}`
-      );
-    }
-
     console.error(`[WC RequestHandler] No handler for method: ${method}`);
     return createErrorResponse(
       request.id,

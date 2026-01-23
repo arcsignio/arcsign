@@ -1,7 +1,7 @@
 /**
  * WalletConnect v2 Type Definitions
  * Feature: Type-safe WalletConnect integration
- * Updated: 2026-01-14
+ * Updated: 2026-01-23
  */
 
 import type { SessionTypes, SignClientTypes, ProposalTypes } from '@walletconnect/types';
@@ -32,6 +32,9 @@ export const CHAIN_ID_MAP: Record<number, SupportedChain> = {
 export const SUPPORTED_CHAIN_IDS = [1, 56, 137, 42161, 10, 8453] as const;
 
 // Supported methods
+// Note: Read-only methods (eth_getBalance, eth_call, etc.) are NOT supported.
+// dApps should use their own RPC providers for these queries.
+// Account info is provided via session namespaces during connection.
 export const SUPPORTED_METHODS = [
   // Signing methods (require password)
   'eth_sendTransaction',
@@ -41,17 +44,6 @@ export const SUPPORTED_METHODS = [
   // Chain management
   'wallet_switchEthereumChain',
   'wallet_addEthereumChain',
-
-  // Read-only methods (RPC passthrough, no password)
-  'eth_chainId',
-  'eth_accounts',
-  'eth_estimateGas',
-  'eth_gasPrice',
-  'eth_feeHistory',
-  'eth_getTransactionCount',
-  'eth_call',
-  'eth_blockNumber',
-  'eth_getBalance',
 ] as const;
 
 export type SupportedMethod = typeof SUPPORTED_METHODS[number];
