@@ -738,7 +738,9 @@
     "viewOnExplorer": "View on Explorer",
     "done": "Done",
     "transactionFailed": "Transaction Failed",
-    "tryAgain": "Try Again"
+    "tryAgain": "Try Again",
+    "minimum": "Min",
+    "minimumStakeRequired": "Minimum stake amount is {{min}} {{symbol}}"
   },
   "walletConnect": {
     "title": "WalletConnect",

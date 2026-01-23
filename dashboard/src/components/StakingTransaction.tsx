@@ -202,10 +202,39 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
     }
   }, [amount]);
 
+  // Get minimum stake amount for selected provider (in human-readable units)
+  const getMinStakeAmount = (): number => {
+    if (!selectedOption?.provider.minAmount) return 0;
+    const minWei = selectedOption.provider.minAmount;
+    const decimals = selectedOption.asset.decimals;
+    return parseFloat(minWei) / Math.pow(10, decimals);
+  };
+
   // Validate amount
   const isValidAmount = (value: string): boolean => {
     const num = parseFloat(value);
-    return !isNaN(num) && num > 0 && num <= parseFloat(selectedAssetBalance);
+    if (isNaN(num) || num <= 0) return false;
+    if (num > parseFloat(selectedAssetBalance)) return false;
+    // Check minimum stake amount
+    const minAmount = getMinStakeAmount();
+    if (minAmount > 0 && num < minAmount) return false;
+    return true;
+  };
+
+  // Get validation error message
+  const getAmountError = (): string | null => {
+    if (!amount) return null;
+    const num = parseFloat(amount);
+    if (isNaN(num) || num <= 0) return t('staking.invalidAmount');
+    if (num > parseFloat(selectedAssetBalance)) return t('staking.insufficientBalance');
+    const minAmount = getMinStakeAmount();
+    if (minAmount > 0 && num < minAmount) {
+      return t('staking.minimumStakeRequired', {
+        min: minAmount,
+        symbol: selectedOption?.asset.symbol || ''
+      });
+    }
+    return null;
   };
 
   // Handle option selection
@@ -225,7 +254,9 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
   // Build and review transaction
   const handleReview = async () => {
     if (!selectedOption || !isValidAmount(amount)) {
-      setError(t('staking.invalidAmount'));
+      // Use specific error message
+      const errorMsg = getAmountError();
+      setError(errorMsg || t('staking.invalidAmount'));
       return;
     }
 
@@ -491,15 +522,20 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
             </button>
           </div>
         </div>
-        <div className="text-sm text-gray-500 mt-1">
-          {t('staking.available')}: {formatBalance(selectedAssetBalance)} {selectedOption?.inputSymbol}
+        <div className="text-sm text-gray-500 mt-1 flex justify-between">
+          <span>{t('staking.available')}: {formatBalance(selectedAssetBalance)} {selectedOption?.inputSymbol}</span>
+          {getMinStakeAmount() > 0 && (
+            <span className="text-orange-600">
+              {t('staking.minimum')}: {getMinStakeAmount()} {selectedOption?.inputSymbol}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Insufficient balance warning */}
-      {amount && parseFloat(amount) > 0 && parseFloat(amount) > parseFloat(selectedAssetBalance) && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-700">{t('staking.insufficientBalance')}</p>
+      {/* Amount validation error */}
+      {amount && getAmountError() && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-700">{getAmountError()}</p>
         </div>
       )}
 

@@ -738,7 +738,9 @@
     "viewOnExplorer": "在區塊瀏覽器上查看",
     "done": "完成",
     "transactionFailed": "交易失敗",
-    "tryAgain": "重試"
+    "tryAgain": "重試",
+    "minimum": "最低",
+    "minimumStakeRequired": "最低質押金額為 {{min}} {{symbol}}"
   },
   "walletConnect": {
     "title": "WalletConnect",
