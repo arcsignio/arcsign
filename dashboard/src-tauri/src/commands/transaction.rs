@@ -136,8 +136,12 @@ pub struct EstimateFeeInput {
     pub amount: String,
     /// USB path
     pub usb_path: String,
-    /// App password
-    pub app_password: String,
+    /// Session token (PREFERRED)
+    #[serde(default)]
+    pub session_token: Option<String>,
+    /// App password (DEPRECATED)
+    #[serde(default)]
+    pub app_password: Option<String>,
 }
 
 // ============================================================================
@@ -478,6 +482,7 @@ pub async fn estimate_fee(
         "to": input.to,
         "amount": input.amount,
         "usbPath": input.usb_path,
+        "sessionToken": input.session_token,
         "appPassword": input.app_password,
     });
 
