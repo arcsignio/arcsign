@@ -2617,12 +2617,13 @@ func GetAssetTransfers(params *C.char) *C.char {
 
 	paramsJSON := C.GoString(params)
 	var input struct {
-		Address     string `json:"address"`
-		Network     string `json:"network"`     // e.g., "eth-mainnet", "polygon-mainnet"
-		MaxCount    int    `json:"maxCount"`    // Optional: max transfers to return
-		PageKey     string `json:"pageKey"`     // Optional: pagination
-		AppPassword string `json:"appPassword"`
-		USBPath     string `json:"usbPath"`
+		Address      string `json:"address"`
+		Network      string `json:"network"`      // e.g., "eth-mainnet", "polygon-mainnet"
+		MaxCount     int    `json:"maxCount"`     // Optional: max transfers to return
+		PageKey      string `json:"pageKey"`      // Optional: pagination
+		SessionToken string `json:"sessionToken"` // PREFERRED: Session token for auth
+		AppPassword  string `json:"appPassword"`  // DEPRECATED: Direct password
+		USBPath      string `json:"usbPath"`
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -2633,6 +2634,7 @@ func GetAssetTransfers(params *C.char) *C.char {
 
 	// Security: Clear sensitive data after use
 	defer zeroString(&input.AppPassword)
+	defer zeroString(&input.SessionToken)
 
 	// Validate required inputs
 	if input.Address == "" {
@@ -2645,9 +2647,18 @@ func GetAssetTransfers(params *C.char) *C.char {
 		input.Network = "eth-mainnet" // Default to Ethereum mainnet
 	}
 
+	// Get app password from session token or use direct password (deprecated)
+	appPassword, authErr := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if authErr != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Authentication failed: %v", authErr))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
 	// Load Alchemy API key from provider registry
 	providerConfigPath := filepath.Join(input.USBPath, "provider_config.enc")
-	providerStore, err := provider.NewProviderConfigStore(providerConfigPath, input.AppPassword)
+	providerStore, err := provider.NewProviderConfigStore(providerConfigPath, appPassword)
 	if err != nil {
 		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to initialize provider store: %v", err))
 		jsonBytes, _ := json.Marshal(response)

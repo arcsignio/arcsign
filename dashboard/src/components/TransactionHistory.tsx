@@ -12,8 +12,9 @@ import tauriApi, {
 
 interface TransactionHistoryProps {
   address: string;
-  password: string;
   usbPath: string;
+  /** Session token for provider config decryption (PREFERRED) */
+  sessionToken: string;
   onBack: () => void;
 }
 
@@ -81,13 +82,13 @@ function getExplorerUrl(network: string, txHash: string): string {
 
 export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   address,
-  password,
   usbPath,
+  sessionToken,
   onBack,
 }) => {
   console.log("🔵 [TransactionHistory] Component rendered with props:", {
     address,
-    hasPassword: !!password,
+    hasSessionToken: !!sessionToken,
     usbPath,
   });
 
@@ -121,8 +122,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
               network: chain.id,
               maxCount: 30, // Limit per chain
               pageKey: "",
-              password,
               usbPath,
+              sessionToken,
             });
 
           const count = response.transfers?.length || 0;
@@ -176,7 +177,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
       setIsLoading(false);
     },
-    [address, password, usbPath]
+    [address, sessionToken, usbPath]
   );
 
   useEffect(() => {

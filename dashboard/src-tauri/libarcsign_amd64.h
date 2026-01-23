@@ -171,6 +171,7 @@ extern char* ListWallets(char* params);
 
 // BuildTransaction constructs an unsigned transaction ready for signing.
 // Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+// Security: Uses session token for app-level auth (low-risk operation).
 //
 // Input JSON: {
 //   "chainId": "bitcoin" | "ethereum" | "ethereum-sepolia",
@@ -182,7 +183,8 @@ extern char* ListWallets(char* params);
 //   "memo": "optional",
 //   "tokenAddress": "optional ERC-20 contract address",
 //   "usbPath": "/path/to/usb",
-//   "appPassword": "app-password"
+//   "sessionToken": "session-token",    // REQUIRED: Valid session token
+//   "appPassword": "app-password"       // DEPRECATED: Use sessionToken instead
 // }
 //
 // Output JSON: {
@@ -448,13 +450,15 @@ extern char* UnlockApp(char* params);
 // GetTokenBalances queries token balances for all addresses in a wallet across multiple chains
 // using Alchemy API. Returns aggregated token balances with USD values.
 //
-// Security: Requires valid wallet password for authentication before accessing balance data.
+// Security: Uses session token for app-level auth (low-risk operation).
+// Wallet password still required to verify wallet access.
 //
 // Input JSON: {
 //   "walletId": "uuid",
-//   "password": "wallet-password",  // REQUIRED: Must be correct wallet password
+//   "password": "wallet-password",      // REQUIRED: Must be correct wallet password
 //   "usbPath": "/path/to/usb",
-//   "appPassword": "app-level-password"
+//   "sessionToken": "session-token",    // REQUIRED: Valid session token
+//   "appPassword": "app-level-password" // DEPRECATED: Use sessionToken instead
 // }
 //
 // Returns: {"success": true, "data": {"tokens": [...], "totalUsd": 5000.50, ...}}
@@ -690,6 +694,56 @@ extern char* GetDeviceMembershipStatusWithToken(char* params);
 extern char* CreateWalletSessionToken(char* params);
 extern char* ValidateWalletSessionToken(char* params);
 extern char* RevokeWalletSessionToken(char* params);
+
+// SignMessage signs a message using EIP-191 personal_sign standard.
+// Feature: WalletConnect Phase 2 - personal_sign support
+//
+// EIP-191 format: keccak256("\x19Ethereum Signed Message:\n" + len(message) + message)
+//
+// Input JSON: {
+//   "walletId": "uuid-xxx",
+//   "password": "user-password",
+//   "passphrase": "bip39-passphrase",  // Optional BIP39 passphrase
+//   "usbPath": "/path/to/usb",
+//   "address": "0x...",  // Signing address
+//   "message": "0x..." | "plain text"  // Message to sign (hex or plain text)
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "signature": "0x...",  // 65-byte signature (r + s + v)
+//     "messageHash": "0x...",  // EIP-191 hash of message
+//     "signedBy": "0x..."  // Address that signed
+//   }
+// }
+extern char* SignMessage(char* params);
+
+// SignTypedData signs EIP-712 typed data.
+// This is used for eth_signTypedData_v4 in WalletConnect.
+//
+// Input JSON:
+//
+//	{
+//	  "walletId": "...",
+//	  "password": "...",
+//	  "passphrase": "...",
+//	  "usbPath": "...",
+//	  "address": "0x...",
+//	  "typedData": "{...}" // EIP-712 JSON string
+//	}
+//
+// Output JSON:
+//
+//	{
+//	  "success": true,
+//	  "data": {
+//	    "signature": "0x...",
+//	    "signedBy": "0x..."
+//	  }
+//	}
+//
+extern char* SignTypedData(char* params);
 
 #ifdef __cplusplus
 }

@@ -21,7 +21,7 @@ import {
 } from "@/constants/nativeTokens";
 import { usePriorityTokens, useAllTokens } from "@/hooks/useTokenList";
 import type { ChainKey } from "@/services/tokenList";
-// import { TransactionHistory } from "@/components/TransactionHistory"; // TODO: Re-enable when needed
+import { TransactionHistory } from "@/components/TransactionHistory";
 import { SendTransaction, type SendableToken } from "@/components/SendTransaction";
 import SwapTransaction from "@/components/SwapTransaction";
 import StakingTransaction from "@/components/StakingTransaction";
@@ -1160,7 +1160,7 @@ export function WalletDetail({
   }
 
   // Show Transaction History view
-  // TODO: TransactionHistory needs migration to session tokens
+  // ✅ Migrated to session tokens (2026-01-23)
   const sessionToken = getSessionToken();
   console.log("🔍 [WalletDetail] Checking showHistory condition:", {
     showHistory,
@@ -1171,13 +1171,16 @@ export function WalletDetail({
 
   if (showHistory && historyAddress && sessionToken) {
     console.log("✅ [WalletDetail] Rendering TransactionHistory component");
-    // TODO: TransactionHistory component hasn't been migrated to session tokens yet
-    // For now, we cannot show history without appPassword
-    console.error("❌ TransactionHistory component needs migration to session tokens");
     return (
-      <div className="error-message">
-        {t('walletDetail.featureNotAvailable')} - Transaction History needs update
-      </div>
+      <TransactionHistory
+        address={historyAddress}
+        usbPath={usbPath}
+        sessionToken={sessionToken}
+        onBack={() => {
+          setShowHistory(false);
+          setHistoryAddress(null);
+        }}
+      />
     );
   }
 

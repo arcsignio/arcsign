@@ -279,8 +279,11 @@ export interface GetAssetTransfersParams {
   network?: string; // Default: "eth-mainnet"
   maxCount?: number; // Default: 50
   pageKey?: string;
-  password: string;
   usbPath: string;
+  /** Session token for provider config decryption (PREFERRED) */
+  sessionToken?: string;
+  /** App password for provider config decryption (DEPRECATED) */
+  password?: string;
 }
 
 export async function getAssetTransfers(
@@ -291,7 +294,7 @@ export async function getAssetTransfers(
     network: params.network || "eth-mainnet",
     maxCount: params.maxCount || 50,
     pageKey: params.pageKey || "",
-    hasPassword: !!params.password,
+    hasSessionToken: !!params.sessionToken,
     usbPath: params.usbPath,
   });
 
@@ -302,8 +305,9 @@ export async function getAssetTransfers(
         network: params.network || "eth-mainnet",
         maxCount: params.maxCount || 50,
         pageKey: params.pageKey || "",
-        password: params.password,
         usbPath: params.usbPath,
+        sessionToken: params.sessionToken || "",
+        appPassword: params.password || "",  // DEPRECATED: Fallback
       },
     });
     console.log("🟢 [tauri-api] getAssetTransfers response:", {
