@@ -293,6 +293,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
             <p className="provider-info-chains">{t('provider.noderealChains')}</p>
           </div>
 
+          {/* 1inch - Temporarily disabled, will be enabled in future release
           <div className="provider-info-item">
             <div className="provider-info-header">
               <strong>1inch</strong>
@@ -303,6 +304,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
             <p className="provider-info-desc">{t('provider.oneinchInfo')}</p>
             <p className="provider-info-chains">{t('provider.oneinchChains')}</p>
           </div>
+          */}
 
         </div>
       </div>

@@ -138,7 +138,7 @@ export async function deleteProviderConfig(
  */
 export const PROVIDER_TYPES = {
   ALCHEMY: 'alchemy',
-  ONEINCH: '1inch',
+  // ONEINCH: '1inch', // Temporarily disabled - will be enabled in future release
   NODEREAL: 'nodereal',
 } as const;
 
