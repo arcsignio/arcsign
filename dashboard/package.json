@@ -13,7 +13,8 @@
     "tauri:build": "tauri build",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "version:sync": "node ../scripts/version.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
