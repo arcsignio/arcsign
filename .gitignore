@@ -49,15 +49,15 @@ go.work
 # Wallet data (for testing)
 test_wallets/
 
-# Landing page downloads - allow DMG for Cloudflare Pages
+# Landing page downloads - allow DMG and ZIP for Cloudflare Pages
 # landing-page/downloads/*.dmg  # 允許 DMG 以便 Cloudflare Pages 部署
+# landing-page/downloads/*.zip  # 允許 ZIP 以便 Cloudflare Pages 部署
 landing-page/downloads/*.msi
 landing-page/downloads/*.exe
 landing-page/downloads/*.deb
 landing-page/downloads/*.AppImage
 landing-page/downloads/*.pkg
 landing-page/downloads/*.tar.gz
-landing-page/downloads/*.zip
 *.enc
 
 # Logs
