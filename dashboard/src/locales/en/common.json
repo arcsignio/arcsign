@@ -139,7 +139,10 @@
     "to": "To",
     "amount": "Amount",
     "fee": "Fee",
-    "hash": "Transaction Hash"
+    "hash": "Transaction Hash",
+    "unknownToken": "Unknown Token",
+    "unknownTokenWarning": "This token is not in the CoinGecko whitelist. Exercise caution.",
+    "tokenNotVerified": "Unverified"
   },
   "membership": {
     "membership": "Membership",

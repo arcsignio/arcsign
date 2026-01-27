@@ -5,10 +5,15 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import tauriApi, {
   type AssetTransfer,
   type AssetTransfersResponse,
 } from "@/services/tauri-api";
+import {
+  batchCheckTokens,
+  type TokenCheckResult,
+} from "@/utils/tokenWhitelist";
 
 interface TransactionHistoryProps {
   address: string;
@@ -92,11 +97,13 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
     usbPath,
   });
 
+  const { t } = useTranslation();
   const [transfers, setTransfers] = useState<TransferWithNetwork[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadingChains, setLoadingChains] = useState<string[]>([]);
   const [chainStats, setChainStats] = useState<Record<string, number>>({});
+  const [tokenWarnings, setTokenWarnings] = useState<Map<string, TokenCheckResult>>(new Map());
 
   // Fetch transfers from all EVM chains
   const fetchAllChainTransfers = useCallback(
@@ -185,6 +192,28 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
     fetchAllChainTransfers();
   }, [address, fetchAllChainTransfers]);
 
+  // Check token whitelist after transfers are loaded
+  useEffect(() => {
+    if (transfers.length === 0) return;
+
+    const checkTokens = async () => {
+      try {
+        const checksData = transfers.map((t) => ({
+          contractAddress: t.rawContract?.address,
+          network: t.network,
+          category: t.category,
+          uniqueId: t.uniqueId,
+        }));
+        const results = await batchCheckTokens(checksData);
+        setTokenWarnings(results);
+      } catch (err) {
+        console.error("[TransactionHistory] Failed to check token whitelist:", err);
+      }
+    };
+
+    checkTokens();
+  }, [transfers]);
+
   // Determine if transfer is incoming or outgoing
   const getTransferDirection = (transfer: AssetTransfer): "in" | "out" => {
     return transfer.to.toLowerCase() === address.toLowerCase() ? "in" : "out";
@@ -263,9 +292,15 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
             const direction = getTransferDirection(transfer);
             const categoryStyle =
               CATEGORY_STYLES[transfer.category] || CATEGORY_STYLES.external;
+            const warning = tokenWarnings.get(transfer.uniqueId);
+            const shouldHighlight = warning?.shouldWarn === true;
 
             return (
-              <div key={`${transfer.uniqueId}-${index}`} className="transfer-item">
+              <div
+                key={`${transfer.uniqueId}-${index}`}
+                className={`transfer-item ${shouldHighlight ? "transfer-item-warning" : ""}`}
+                title={shouldHighlight ? t("transaction.unknownTokenWarning") : undefined}
+              >
                 <div className="transfer-icon">
                   <span
                     className={`direction-indicator ${direction}`}
@@ -290,6 +325,11 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                       >
                         {categoryStyle.label}
                       </span>
+                      {shouldHighlight && (
+                        <span className="warning-badge">
+                          {t("transaction.tokenNotVerified")}
+                        </span>
+                      )}
                     </div>
                     <span className="transfer-value">
                       {direction === "in" ? "+" : "-"}
@@ -524,6 +564,31 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
         .transfer-item:hover {
           border-color: #d1d5db;
+        }
+
+        /* Warning highlight for unknown tokens */
+        .transfer-item-warning {
+          background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+          border-color: #f59e0b;
+          border-width: 2px;
+        }
+
+        .transfer-item-warning:hover {
+          background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
+          border-color: #d97706;
+        }
+
+        .warning-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 3px 8px;
+          background: #fef3c7;
+          border: 1px solid #f59e0b;
+          border-radius: 4px;
+          font-size: 11px;
+          font-weight: 500;
+          color: #92400e;
         }
 
         .transfer-icon {

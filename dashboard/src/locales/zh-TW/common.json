@@ -139,7 +139,10 @@
     "to": "至",
     "amount": "金額",
     "fee": "手續費",
-    "hash": "交易哈希"
+    "hash": "交易哈希",
+    "unknownToken": "未知代幣",
+    "unknownTokenWarning": "此代幣不在 CoinGecko 白名單中，請謹慎操作。",
+    "tokenNotVerified": "未驗證"
   },
   "membership": {
     "membership": "會員資格",
