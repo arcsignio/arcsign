@@ -7,11 +7,11 @@
  * - Unlock: Verify password and load app configuration
  */
 
-import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import tauriApi, { type AppError, type AppConfig } from '@/services/tauri-api';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import tauriApi, { type AppError, type AppConfig } from "@/services/tauri-api";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 interface AppUnlockProps {
   usbPath: string;
@@ -21,8 +21,8 @@ interface AppUnlockProps {
 export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
   const { t } = useTranslation();
   const [isFirstTime, setIsFirstTime] = useState<boolean | null>(null);
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkingSetup, setCheckingSetup] = useState(true);
@@ -30,17 +30,17 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
   // Check if this is first-time setup
   useEffect(() => {
     const checkFirstTime = async () => {
-      console.log('[AppUnlock] Checking first-time setup for USB:', usbPath);
+      console.log("[AppUnlock] Checking first-time setup for USB:", usbPath);
       setCheckingSetup(true);
       try {
-        console.log('[AppUnlock] Calling tauriApi.isFirstTimeSetup...');
+        console.log("[AppUnlock] Calling tauriApi.isFirstTimeSetup...");
         const result = await tauriApi.isFirstTimeSetup(usbPath);
-        console.log('[AppUnlock] isFirstTimeSetup result:', result);
+        console.log("[AppUnlock] isFirstTimeSetup result:", result);
         setIsFirstTime(result);
       } catch (err) {
         const error = err as AppError;
-        console.error('[AppUnlock] isFirstTimeSetup error:', error);
-        setError(`${t('appUnlock.failedToCheckSetup')}: ${error.message}`);
+        console.error("[AppUnlock] isFirstTimeSetup error:", error);
+        setError(`${t("appUnlock.failedToCheckSetup")}: ${error.message}`);
       } finally {
         setCheckingSetup(false);
       }
@@ -52,12 +52,12 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
   const handleInitialize = async () => {
     // Validate passwords match
     if (password !== confirmPassword) {
-      setError(t('appUnlock.passwordsNotMatch'));
+      setError(t("appUnlock.passwordsNotMatch"));
       return;
     }
 
     if (password.length < 8) {
-      setError(t('appUnlock.passwordTooShort'));
+      setError(t("appUnlock.passwordTooShort"));
       return;
     }
 
@@ -72,7 +72,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
       onUnlockSuccess(appConfig, password);
     } catch (err) {
       const error = err as AppError;
-      setError(`${t('appUnlock.failedToInitialize')}: ${error.message}`);
+      setError(`${t("appUnlock.failedToInitialize")}: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -80,7 +80,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
 
   const handleUnlock = async () => {
     if (!password) {
-      setError(t('appUnlock.enterPassword'));
+      setError(t("appUnlock.enterPassword"));
       return;
     }
 
@@ -92,8 +92,8 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
       onUnlockSuccess(appConfig, password);
     } catch (err) {
       const error = err as AppError;
-      setError(`${t('appUnlock.failedToUnlock')}: ${error.message}`);
-      setPassword(''); // Clear password on failure
+      setError(`${t("appUnlock.failedToUnlock")}: ${error.message}`);
+      setPassword(""); // Clear password on failure
     } finally {
       setLoading(false);
     }
@@ -103,7 +103,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
     return (
       <div className="app-unlock">
         <div className="unlock-container">
-          <LoadingSpinner size="lg" message={t('appUnlock.checkingStatus')} />
+          <LoadingSpinner size="lg" message={t("appUnlock.checkingStatus")} />
         </div>
       </div>
     );
@@ -111,64 +111,67 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
 
   return (
     <div className="app-unlock">
-      {/* Language Switcher - positioned at top right */}
-      <div className="language-switcher-container">
+      {/* Language Switcher - top left */}
+      <div className="top-left">
         <LanguageSwitcher variant="toggle" />
+      </div>
+
+      {/* Logo - top right */}
+      <div className="top-right">
+        <img src="/logo.png" alt="ArcSign Logo" className="top-logo" />
       </div>
 
       <div className="unlock-container">
         <div className="unlock-header">
-          <h1>🔐 {t('appUnlock.title')}</h1>
-          <p className="subtitle">{t('appUnlock.subtitle')}</p>
+          <h1>🔐 ArcSign</h1>
+          <p className="subtitle">Secure Cold Wallet Management</p>
         </div>
 
         {isFirstTime ? (
           // First-time setup
           <div className="setup-form">
-            <h2>{t('appUnlock.welcomeTitle')}</h2>
-            <p className="description">
-              {t('appUnlock.welcomeDescription')}
-            </p>
+            <h2 className="form-title">{t("appUnlock.welcomeTitle")}</h2>
+            <p className="description">{t("appUnlock.welcomeDescription")}</p>
 
             <div className="security-note">
-              <strong>{t('appUnlock.securityNote')}</strong>
+              <strong>{t("appUnlock.securityNote")}</strong>
               <ul>
-                <li>{t('appUnlock.securityNote1')}</li>
-                <li>{t('appUnlock.securityNote2')}</li>
-                <li>{t('appUnlock.securityNote3')}</li>
+                <li>{t("appUnlock.securityNote1")}</li>
+                <li>{t("appUnlock.securityNote2")}</li>
+                <li>{t("appUnlock.securityNote3")}</li>
               </ul>
             </div>
 
-            {error && (
-              <div className="alert alert-error">{error}</div>
-            )}
+            {error && <div className="alert alert-error">{error}</div>}
 
             <div className="form-group">
-              <label htmlFor="password">{t('appUnlock.masterPassword')}</label>
+              <label htmlFor="password">{t("appUnlock.masterPassword")}</label>
               <input
                 type="password"
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={t('appUnlock.enterMasterPassword')}
+                placeholder={t("appUnlock.enterMasterPassword")}
                 disabled={loading}
                 autoFocus
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="confirm-password">{t('appUnlock.confirmPassword')}</label>
+              <label htmlFor="confirm-password">
+                {t("appUnlock.confirmPassword")}
+              </label>
               <input
                 type="password"
                 id="confirm-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && password && confirmPassword) {
+                  if (e.key === "Enter" && password && confirmPassword) {
                     handleInitialize();
                   }
                 }}
-                placeholder={t('appUnlock.reenterPassword')}
+                placeholder={t("appUnlock.reenterPassword")}
                 disabled={loading}
               />
             </div>
@@ -178,34 +181,34 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
               className="btn-primary btn-large"
               disabled={loading || !password || !confirmPassword}
             >
-              {loading ? t('appUnlock.initializing') : t('appUnlock.createMasterPassword')}
+              {loading
+                ? t("appUnlock.initializing")
+                : t("appUnlock.createMasterPassword")}
             </button>
           </div>
         ) : (
           // Unlock existing app
           <div className="unlock-form">
-            <h2>{t('appUnlock.unlockTitle')}</h2>
-            <p className="description">
-              {t('appUnlock.unlockDescription')}
-            </p>
+            <h2 className="form-title">{t("appUnlock.unlockTitle")}</h2>
+            <p className="description">{t("appUnlock.unlockDescription")}</p>
 
-            {error && (
-              <div className="alert alert-error">{error}</div>
-            )}
+            {error && <div className="alert alert-error">{error}</div>}
 
             <div className="form-group">
-              <label htmlFor="unlock-password">{t('appUnlock.masterPassword')}</label>
+              <label htmlFor="unlock-password">
+                {t("appUnlock.masterPassword")}
+              </label>
               <input
                 type="password"
                 id="unlock-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && password) {
+                  if (e.key === "Enter" && password) {
                     handleUnlock();
                   }
                 }}
-                placeholder={t('appUnlock.enterYourPassword')}
+                placeholder={t("appUnlock.enterYourPassword")}
                 disabled={loading}
                 autoFocus
               />
@@ -216,13 +219,15 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
               className="btn-primary btn-large"
               disabled={loading || !password}
             >
-              {loading ? t('appUnlock.unlocking') : t('appUnlock.unlock')}
+              {loading ? t("appUnlock.unlocking") : t("appUnlock.unlock")}
             </button>
           </div>
         )}
 
         <div className="usb-info">
-          <small>{t('appUnlock.usbDrive')}: {usbPath}</small>
+          <small>
+            {t("appUnlock.usbDrive")}: {usbPath}
+          </small>
         </div>
       </div>
 
@@ -237,27 +242,40 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
           position: relative;
         }
 
-        .language-switcher-container {
+        .top-left {
+          position: absolute;
+          top: 20px;
+          left: 20px;
+          z-index: 10;
+        }
+
+        .top-left button {
+          background: rgba(255, 255, 255, 0.95) !important;
+          border-color: rgba(255, 255, 255, 0.3) !important;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .top-left button:hover {
+          background: #ffffff !important;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .top-right {
           position: absolute;
           top: 20px;
           right: 20px;
           z-index: 10;
         }
 
-        .language-switcher-container button {
-          background: rgba(255, 255, 255, 0.95) !important;
-          border-color: rgba(255, 255, 255, 0.3) !important;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        }
-
-        .language-switcher-container button:hover {
-          background: #ffffff !important;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        .top-logo {
+          width: 128px;
+          height: 128px;
+          object-fit: contain;
         }
 
         .unlock-container {
           width: 100%;
-          max-width: 500px;
+          max-width: 460px;
           background: white;
           border-radius: 16px;
           box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
@@ -271,7 +289,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
 
         .unlock-header h1 {
           margin: 0;
-          font-size: 36px;
+          font-size: 32px;
           font-weight: 700;
           color: #1a1a1a;
         }
@@ -280,6 +298,14 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
           margin: 8px 0 0;
           color: #666;
           font-size: 14px;
+        }
+
+        .form-title {
+          text-align: center;
+          margin: 0 0 8px;
+          font-size: 24px;
+          font-weight: 600;
+          color: #1a1a1a;
         }
 
         .setup-form h2,
