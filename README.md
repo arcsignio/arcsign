@@ -15,8 +15,7 @@
 - [快速開始](#快速開始)
 - [ChainAdapter - 跨鏈交易接口](#chainadapter---跨鏈交易接口)
 - [Token Swap - DEX 聚合器](#token-swap---dex-聚合器)
-- [Liquid Staking - 流動性質押](#liquid-staking----流動性質押)
-- [使用指南](#使用指南)
+- [Liquid Staking - 流動性質押](#liquid-staking---流動性質押)
 - [架構設計](#架構設計)
 - [性能指標](#性能指標)
 - [安全最佳實踐](#安全最佳實踐)
@@ -2011,7 +2010,7 @@ Too many failed attempts. Please wait 1 minute and try again.
 
 ## 路線圖
 
-### 已完成 (v0.5.0)
+### 已完成 (v1.0.0)
 
 - [x] BIP39/BIP44 HD錢包實現
 - [x] 54條區塊鏈地址派生
@@ -2021,7 +2020,7 @@ Too many failed attempts. Please wait 1 minute and try again.
 - [x] Prometheus可觀測指標支持
 - [x] 7種簽名方案 (ECDSA, Ed25519, sr25519, Schnorr)
 - [x] Layer 2, 區域鏈, Cosmos生態, 專業鏈支持
-- [x] 300+自動化測試
+- [x] 85+ 自動化測試
 - [x] **Dashboard 桌面應用程式 (Tauri)**
 - [x] **Token Swap 多 Provider (OpenOcean + KyberSwap)**
 - [x] **Send Transaction 完整流程**
@@ -2038,35 +2037,30 @@ Too many failed attempts. Please wait 1 minute and try again.
 - [x] **EIP-191 簽名** - personal_sign 支援
 - [x] **EIP-712 簽名** - eth_signTypedData_v4 支援
 - [x] **鏈切換** - wallet_switchEthereumChain / wallet_addEthereumChain
+- [x] **Liquid Staking** - 流動性質押 (Lido stETH, Ankr ankrETH/ankrBNB)
+- [x] **NFT 會員制度** - Pro 會員 NFT 驗證
+- [x] **macOS 一鍵安裝腳本** - USB 安裝流程
 
-### 進行中
+### 計劃中 (v1.1.0+)
+
+**短期**:
 
 - [ ] NFT 資產顯示
-- [ ] DeFi 協議整合 (Aave, Compound)
-- [ ] Swap 手續費機制
-
-### 計劃中 (v0.6.0+)
-
-**短期 (v0.6.0)**:
-
 - [ ] **Bitcoin Dashboard 整合** - 將底層 BTC 交易功能整合到 Dashboard UI (FFI + UTXO 選擇 UI)
+- [ ] Windows/Linux 打包發布
+- [ ] 地址的QR碼生成
+
+**中期**:
+
 - [ ] 硬件錢包集成 (Ledger, Trezor)
 - [ ] 多簽名錢包支持
-- [ ] 地址的QR碼生成
-- [ ] 本地化 (多語言)
-- [ ] Windows/Linux 打包發布
-
-**中期 (v0.7.0)**:
-
-- [ ] 移動應用程序 (iOS, Android)
-- [ ] dApp 瀏覽器
 - [ ] 跨鏈橋接 (Bridge)
 
-**長期 (v1.0.0)**:
+**長期**:
 
+- [ ] 移動應用程序 (iOS, Android)
 - [ ] Shamir Secret Sharing備份
 - [ ] 社交恢復錢包
-- [ ] 完整的SPV節點集成
 - [ ] 企業級多人管理
 
 ---
@@ -2249,9 +2243,9 @@ func SecureZero(b []byte) {
 
 **Made with ❤️ for the crypto community**
 
-**Version**: 0.4.3
-**Release Date**: 2025-12-29
-**Go Version**: 1.25.0
+**Version**: 1.0.0
+**Release Date**: 2025-01-28
+**Go Version**: 1.21+
 **Rust Version**: 1.75+
 **Node Version**: 18+
 **License**: Proprietary
