@@ -526,6 +526,8 @@ export function Dashboard() {
       setCurrentView("api-settings");
     } else if (view === "membership") {
       setCurrentView("membership");
+    } else if (view === "developer") {
+      setCurrentView("developer");
     }
   };
 
