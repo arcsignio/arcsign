@@ -20,6 +20,7 @@ import { AddressList } from "@/components/AddressList";
 import { ProviderSettings } from "@/components/ProviderSettings";
 import { Settings } from "@/pages/Settings";
 import { MembershipSettings } from "@/pages/MembershipSettings";
+import { DeveloperMode } from "@/pages/DeveloperMode";
 import { WalletDetail } from "@/components/WalletDetail";
 import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -33,7 +34,7 @@ import { useTranslation } from "react-i18next";
 import type { Address } from "@/types/address";
 import type { Wallet } from "@/types/wallet";
 
-type View = "list" | "create" | "import" | "addresses" | "settings" | "api-settings" | "membership" | "detail";
+type View = "list" | "create" | "import" | "addresses" | "settings" | "api-settings" | "membership" | "detail" | "developer";
 
 export function Dashboard() {
   const { t } = useTranslation();
@@ -576,6 +577,16 @@ export function Dashboard() {
     );
   }
 
+  // Show developer mode view
+  if (currentView === "developer") {
+    return (
+      <DeveloperMode
+        onBack={handleBackToList}
+        usbPath={usbPath || ""}
+      />
+    );
+  }
+
   // Show wallet list view
   return (
     <div className="dashboard">
@@ -586,6 +597,13 @@ export function Dashboard() {
         </div>
         <div className="header-actions">
           <LanguageSwitcher variant="toggle" />
+          <button
+            onClick={() => setCurrentView("developer")}
+            className="developer-mode-button"
+            title={t('nav.developerMode', 'Developer Mode')}
+          >
+            🔧 {t('nav.developerMode', 'Dev')}
+          </button>
           <button
             onClick={() => setCurrentView("settings")}
             className="secondary-button"

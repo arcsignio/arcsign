@@ -8,7 +8,8 @@
     "settings": "Settings",
     "membership": "Membership",
     "addresses": "Addresses",
-    "transactions": "Transactions"
+    "transactions": "Transactions",
+    "developerMode": "Developer"
   },
   "actions": {
     "create": "Create",
@@ -744,6 +745,93 @@
     "tryAgain": "Try Again",
     "minimum": "Min",
     "minimumStakeRequired": "Minimum stake amount is {{min}} {{symbol}}"
+  },
+  "developer": {
+    "title": "Developer Mode",
+    "subtitle": "Smart Contract Development Tools",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "pendingRequests": "Pending Requests",
+    "history": "History",
+    "sessionSettings": "Session Settings",
+    "noRequests": "No pending signing requests",
+    "noRequestsHint": "Requests from Hardhat/Foundry scripts will appear here",
+    "waitingForScripts": "Waiting for requests from development scripts...",
+    "requestType": {
+      "deploy": "Deploy Contract",
+      "call": "Contract Call",
+      "sign": "Sign Message"
+    },
+    "requestDetails": {
+      "from": "From",
+      "to": "To",
+      "network": "Network",
+      "chainId": "Chain ID",
+      "script": "Script",
+      "gasEstimate": "Est. Gas",
+      "value": "Value",
+      "data": "Data",
+      "method": "Method",
+      "params": "Parameters"
+    },
+    "actions": {
+      "approve": "Approve & Sign",
+      "reject": "Reject",
+      "viewDetails": "View Details",
+      "approving": "Signing...",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "session": {
+      "title": "Session Authorization",
+      "description": "Enable session mode to auto-sign testnet transactions for 30 minutes",
+      "enable": "Enable Session",
+      "disable": "Disable Session",
+      "enabled": "Session Active",
+      "disabled": "Session Disabled",
+      "expiresIn": "Expires in",
+      "signCount": "Transactions signed",
+      "trustedNetworks": "Trusted Networks",
+      "securityRules": "Security Rules",
+      "rules": {
+        "testnetAutoSign": "Testnet transactions are auto-signed",
+        "mainnetConfirm": "Mainnet transactions always require confirmation",
+        "gasLimit": "Transactions exceeding gas limit require confirmation",
+        "timeLimit": "Session expires after 30 minutes"
+      }
+    },
+    "history": {
+      "title": "Signing History",
+      "empty": "No signing history yet",
+      "emptyHint": "Approved and rejected requests will appear here",
+      "status": {
+        "approved": "Approved",
+        "rejected": "Rejected"
+      }
+    },
+    "networks": {
+      "ethereum": "Ethereum",
+      "bsc": "BNB Chain",
+      "polygon": "Polygon",
+      "arbitrum": "Arbitrum",
+      "optimism": "Optimism",
+      "base": "Base",
+      "sepolia": "Sepolia Testnet",
+      "goerli": "Goerli Testnet",
+      "bscTestnet": "BSC Testnet",
+      "mumbai": "Mumbai Testnet"
+    },
+    "password": {
+      "title": "Enter Wallet Password",
+      "description": "Your password is required to sign this transaction",
+      "placeholder": "Enter wallet password",
+      "incorrect": "Incorrect password. Please try again."
+    },
+    "errors": {
+      "connectionFailed": "Failed to connect to WebSocket server",
+      "signFailed": "Failed to sign transaction",
+      "sessionExpired": "Session has expired"
+    }
   },
   "walletConnect": {
     "title": "WalletConnect",

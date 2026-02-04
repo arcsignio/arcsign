@@ -33,6 +33,23 @@ pub enum WsMethod {
     GetBalance,
     /// Ping/health check
     Ping,
+
+    // =========================================
+    // Developer Mode Methods (for Hardhat/Foundry integration)
+    // =========================================
+
+    /// Sign transaction with developer context (script info, project path)
+    DevSignTransaction,
+    /// EIP-191 personal_sign for message signing
+    PersonalSign,
+    /// EIP-712 eth_signTypedData_v4 for structured data signing
+    SignTypedDataV4,
+    /// Get developer session status
+    DevGetSession,
+    /// Create a new developer session (for auto-signing testnets)
+    DevCreateSession,
+    /// End the current developer session
+    DevEndSession,
 }
 
 /// WebSocket response to client
@@ -129,4 +146,175 @@ pub struct TransactionResult {
 pub struct PendingTransactionWithChannel {
     pub transaction: PendingTransaction,
     pub response_sender: tokio::sync::oneshot::Sender<TransactionResult>,
+}
+
+// =========================================
+// Developer Mode Types
+// =========================================
+
+/// Developer context sent with signing requests from Hardhat/Foundry
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DevContext {
+    /// Source script name (e.g., "deploy.ts")
+    #[serde(default)]
+    pub script_name: Option<String>,
+    /// Project directory path
+    #[serde(default)]
+    pub project_path: Option<String>,
+    /// Description of the operation
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Whether using a dedicated dev wallet
+    #[serde(default)]
+    pub is_dev_wallet: bool,
+}
+
+/// Developer transaction request parameters (extends SignTransactionParams)
+#[derive(Debug, Clone, Deserialize)]
+pub struct DevSignTransactionParams {
+    /// BSC address to sign with
+    pub from: String,
+    /// Destination address
+    pub to: String,
+    /// Transaction data (hex encoded)
+    pub data: String,
+    /// Value in wei (hex encoded)
+    #[serde(default)]
+    pub value: String,
+    /// Gas limit
+    #[serde(default)]
+    pub gas: Option<String>,
+    /// Gas price
+    #[serde(default)]
+    pub gas_price: Option<String>,
+    /// Max fee per gas (EIP-1559)
+    #[serde(default)]
+    pub max_fee_per_gas: Option<String>,
+    /// Max priority fee per gas (EIP-1559)
+    #[serde(default)]
+    pub max_priority_fee_per_gas: Option<String>,
+    /// Chain ID (default: 56 for BSC)
+    #[serde(default = "default_chain_id")]
+    pub chain_id: u64,
+    /// Nonce (optional, will be fetched if not provided)
+    #[serde(default)]
+    pub nonce: Option<u64>,
+    /// Developer context
+    #[serde(default)]
+    pub context: Option<DevContext>,
+}
+
+/// EIP-191 personal_sign parameters
+#[derive(Debug, Clone, Deserialize)]
+pub struct PersonalSignParams {
+    /// Address to sign with
+    pub address: String,
+    /// Message to sign (hex or utf-8 string)
+    pub message: String,
+    /// Developer context
+    #[serde(default)]
+    pub context: Option<DevContext>,
+}
+
+/// EIP-712 signTypedData_v4 parameters
+#[derive(Debug, Clone, Deserialize)]
+pub struct SignTypedDataParams {
+    /// Address to sign with
+    pub address: String,
+    /// Typed data as JSON (EIP-712 format)
+    pub typed_data: serde_json::Value,
+    /// Developer context
+    #[serde(default)]
+    pub context: Option<DevContext>,
+}
+
+/// Developer session for auto-signing
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DevSession {
+    /// Whether session is enabled
+    pub enabled: bool,
+    /// Wallet ID associated with session
+    #[serde(default)]
+    pub wallet_id: Option<String>,
+    /// Session creation timestamp (unix ms)
+    pub created_at: u64,
+    /// Session expiration timestamp (unix ms)
+    pub expires_at: u64,
+    /// Networks that auto-sign is enabled for
+    pub trusted_networks: Vec<String>,
+    /// Maximum gas limit for auto-signing (wei)
+    #[serde(default)]
+    pub max_gas_limit: Option<String>,
+    /// Number of signatures in this session
+    pub sign_count: u32,
+}
+
+/// Developer session create request
+#[derive(Debug, Clone, Deserialize)]
+pub struct DevCreateSessionParams {
+    /// Wallet ID to use for session
+    pub wallet_id: String,
+    /// Session duration in minutes (default: 30, max: 120)
+    #[serde(default = "default_session_duration")]
+    pub duration_minutes: u32,
+    /// Networks to trust for auto-signing
+    #[serde(default = "default_trusted_networks")]
+    pub trusted_networks: Vec<String>,
+    /// Maximum gas limit per transaction (wei)
+    #[serde(default)]
+    pub max_gas_limit: Option<String>,
+}
+
+fn default_session_duration() -> u32 {
+    30 // 30 minutes
+}
+
+fn default_trusted_networks() -> Vec<String> {
+    vec![
+        "sepolia".to_string(),
+        "goerli".to_string(),
+        "bsc-testnet".to_string(),
+        "mumbai".to_string(),
+    ]
+}
+
+/// Pending developer request (for UI display)
+#[derive(Debug, Clone, Serialize)]
+pub struct PendingDevRequest {
+    /// Request ID
+    pub request_id: u64,
+    /// Request type
+    pub request_type: DevRequestType,
+    /// Transaction details (for sign requests)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction: Option<PendingTransaction>,
+    /// Message (for personal_sign)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    /// Typed data (for signTypedData)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub typed_data: Option<serde_json::Value>,
+    /// Developer context
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<DevContext>,
+    /// Network identifier (e.g., "ethereum", "bsc", "sepolia")
+    pub network: String,
+    /// Chain ID
+    pub chain_id: u64,
+    /// Whether this can be auto-signed (testnet + session active)
+    pub can_auto_sign: bool,
+}
+
+/// Type of developer request
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum DevRequestType {
+    /// Contract deployment
+    Deploy,
+    /// Contract method call
+    Call,
+    /// Personal message signing
+    PersonalSign,
+    /// Typed data signing (EIP-712)
+    TypedData,
 }

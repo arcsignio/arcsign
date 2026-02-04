@@ -8,7 +8,8 @@
     "settings": "設定",
     "membership": "會員資格",
     "addresses": "地址",
-    "transactions": "交易"
+    "transactions": "交易",
+    "developerMode": "開發者"
   },
   "actions": {
     "create": "建立",
@@ -744,6 +745,93 @@
     "tryAgain": "重試",
     "minimum": "最低",
     "minimumStakeRequired": "最低質押金額為 {{min}} {{symbol}}"
+  },
+  "developer": {
+    "title": "開發者模式",
+    "subtitle": "智能合約開發工具",
+    "connected": "已連線",
+    "disconnected": "未連線",
+    "pendingRequests": "待簽名請求",
+    "history": "簽名紀錄",
+    "sessionSettings": "Session 設定",
+    "noRequests": "沒有待簽名的請求",
+    "noRequestsHint": "來自 Hardhat/Foundry 腳本的請求會顯示在這裡",
+    "waitingForScripts": "等待開發腳本的請求...",
+    "requestType": {
+      "deploy": "部署合約",
+      "call": "呼叫合約",
+      "sign": "簽署訊息"
+    },
+    "requestDetails": {
+      "from": "從",
+      "to": "至",
+      "network": "網路",
+      "chainId": "鏈 ID",
+      "script": "腳本",
+      "gasEstimate": "預估 Gas",
+      "value": "金額",
+      "data": "數據",
+      "method": "方法",
+      "params": "參數"
+    },
+    "actions": {
+      "approve": "批准並簽名",
+      "reject": "拒絕",
+      "viewDetails": "查看詳情",
+      "approving": "簽名中...",
+      "approved": "已批准",
+      "rejected": "已拒絕"
+    },
+    "session": {
+      "title": "Session 授權",
+      "description": "啟用 Session 模式以在 30 分鐘內自動簽署測試網交易",
+      "enable": "啟用 Session",
+      "disable": "停用 Session",
+      "enabled": "Session 已啟用",
+      "disabled": "Session 已停用",
+      "expiresIn": "將於以下時間到期",
+      "signCount": "已簽署交易數",
+      "trustedNetworks": "信任的網路",
+      "securityRules": "安全規則",
+      "rules": {
+        "testnetAutoSign": "測試網交易自動簽署",
+        "mainnetConfirm": "主網交易始終需要確認",
+        "gasLimit": "超過 Gas 上限的交易需要確認",
+        "timeLimit": "Session 在 30 分鐘後過期"
+      }
+    },
+    "history": {
+      "title": "簽名紀錄",
+      "empty": "尚無簽名紀錄",
+      "emptyHint": "已批准和拒絕的請求會顯示在這裡",
+      "status": {
+        "approved": "已批准",
+        "rejected": "已拒絕"
+      }
+    },
+    "networks": {
+      "ethereum": "以太坊",
+      "bsc": "BNB 鏈",
+      "polygon": "Polygon",
+      "arbitrum": "Arbitrum",
+      "optimism": "Optimism",
+      "base": "Base",
+      "sepolia": "Sepolia 測試網",
+      "goerli": "Goerli 測試網",
+      "bscTestnet": "BSC 測試網",
+      "mumbai": "Mumbai 測試網"
+    },
+    "password": {
+      "title": "輸入錢包密碼",
+      "description": "需要您的密碼來簽署此交易",
+      "placeholder": "輸入錢包密碼",
+      "incorrect": "密碼錯誤，請重試。"
+    },
+    "errors": {
+      "connectionFailed": "連接 WebSocket 伺服器失敗",
+      "signFailed": "簽署交易失敗",
+      "sessionExpired": "Session 已過期"
+    }
   },
   "walletConnect": {
     "title": "WalletConnect",
