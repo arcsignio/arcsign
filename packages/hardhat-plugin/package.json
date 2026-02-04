@@ -33,6 +33,10 @@
     "url": "https://github.com/ArcSign/arcsign.git",
     "directory": "packages/hardhat-plugin"
   },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
   "peerDependencies": {
     "ethers": "^6.0.0",
     "hardhat": "^2.0.0"

@@ -13,10 +13,14 @@ export class ArcSignSigner extends AbstractSigner {
   private _address: string;
   private scriptContext: DevContext;
 
+  // Public address property for compatibility with scripts that use signer.address
+  public readonly address: string;
+
   constructor(address: string, client: ArcSignClient, provider: Provider | null = null) {
     super(provider);
     this.client = client;
     this._address = address;
+    this.address = address;
 
     // Detect script context from call stack
     this.scriptContext = this.detectScriptContext();

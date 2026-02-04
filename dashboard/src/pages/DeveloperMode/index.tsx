@@ -28,6 +28,23 @@ import type { Wallet } from '@/types/wallet';
 type Tab = 'requests' | 'history' | 'settings';
 type ViewState = 'wallet-selection' | 'password-entry' | 'main';
 
+// Helper to get network name from chain ID
+function getNetworkName(chainId: number): string {
+  const networks: Record<number, string> = {
+    1: 'Ethereum',
+    5: 'Goerli',
+    11155111: 'Sepolia',
+    56: 'BSC',
+    97: 'BSC Testnet',
+    137: 'Polygon',
+    80001: 'Mumbai',
+    42161: 'Arbitrum',
+    10: 'Optimism',
+    8453: 'Base',
+  };
+  return networks[chainId] || `Chain ${chainId}`;
+}
+
 interface DeveloperModeProps {
   onBack: () => void;
   usbPath: string;
@@ -79,9 +96,32 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
 
     const pollRequests = async () => {
       try {
-        // TODO: Implement tauriApi.getDevPendingRequests()
-        // const requests = await tauriApi.getDevPendingRequests();
-        // setPendingRequests(requests);
+        const pending = await tauriApi.getPendingTransaction();
+        if (pending) {
+          // Convert to DevSignRequest format
+          const request: DevSignRequest = {
+            id: String(pending.request_id),
+            type: pending.to ? 'call' : 'deploy',
+            from: pending.from,
+            to: pending.to || undefined,
+            data: pending.data || undefined,
+            value: pending.value || undefined,
+            network: getNetworkName(pending.chain_id),
+            chainId: pending.chain_id,
+            description: pending.description,
+            status: 'pending',
+            timestamp: Date.now(),
+          };
+
+          // Add to pending requests if not already there
+          setPendingRequests(prev => {
+            const exists = prev.some(r => r.id === request.id);
+            if (!exists) {
+              return [...prev, request];
+            }
+            return prev;
+          });
+        }
         setIsConnected(true);
         setConnectionError(null);
       } catch (err) {
@@ -121,6 +161,7 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
       });
 
       setWalletSessionToken(sessionResponse.token);
+      setPassword(''); // Clear password immediately after validation
       setViewState('main');
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Invalid password';
@@ -140,28 +181,75 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
   };
 
   // Handle approve request
-  const handleApprove = useCallback(async (requestId: string, _password: string) => {
+  const handleApprove = useCallback(async (requestId: string, inputPassword: string) => {
+    const request = pendingRequests.find(r => r.id === requestId);
+    if (!request || !selectedWallet || !walletSessionToken) {
+      throw new Error('Missing request, wallet, or session');
+    }
+
+    if (!inputPassword) {
+      throw new Error('Password is required');
+    }
+
     try {
-      // TODO: Implement signing logic with walletSessionToken
-      // await tauriApi.approveDevSignRequest(requestId, walletSessionToken, usbPath);
+      // Build the transaction to get proper nonce/gas
+      // Use existing session token for API access
+      const buildResult = await tauriApi.buildTransaction({
+        chainId: String(request.chainId),
+        fromAddress: request.from,
+        toAddress: request.to || '',
+        amount: request.value || '0',
+        data: request.data,
+        sessionToken: walletSessionToken,
+      });
+
+      // Sign the transaction with the password
+      // Password is used to decrypt mnemonic, then cleared
+      const signResult = await tauriApi.signTransaction({
+        chainId: String(request.chainId),
+        walletId: selectedWallet.id,
+        password: inputPassword,
+        fromAddress: request.from,
+        unsignedTx: buildResult,
+        usbPath,
+        sessionToken: walletSessionToken,
+      });
+
+      // Respond to the WebSocket with the signed transaction
+      await tauriApi.respondToTransaction({
+        requestId: Number(requestId),
+        success: true,
+        signedTx: signResult.serializedTx,
+        txHash: signResult.txHash,
+      });
 
       // Move to history
-      const request = pendingRequests.find(r => r.id === requestId);
-      if (request) {
-        setPendingRequests(prev => prev.filter(r => r.id !== requestId));
-        setSigningHistory(prev => [...prev, { ...request, status: 'approved' }]);
-      }
+      setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+      setSigningHistory(prev => [...prev, { ...request, status: 'approved', txHash: signResult.txHash }]);
     } catch (err) {
       console.error('Failed to approve request:', err);
+
+      // Respond with error
+      await tauriApi.respondToTransaction({
+        requestId: Number(requestId),
+        success: false,
+        error: err instanceof Error ? err.message : 'Signing failed',
+      });
+
       throw err;
     }
-  }, [pendingRequests, walletSessionToken]);
+    // Note: inputPassword is cleared by the PendingRequests component after this function returns
+  }, [pendingRequests, selectedWallet, walletSessionToken, usbPath]);
 
   // Handle reject request
   const handleReject = useCallback(async (requestId: string) => {
     try {
-      // TODO: Implement rejection logic
-      // await tauriApi.rejectDevSignRequest(requestId);
+      // Respond to WebSocket with rejection
+      await tauriApi.respondToTransaction({
+        requestId: Number(requestId),
+        success: false,
+        error: 'Transaction rejected by user',
+      });
 
       const request = pendingRequests.find(r => r.id === requestId);
       if (request) {

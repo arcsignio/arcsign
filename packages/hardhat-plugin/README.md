@@ -21,25 +21,29 @@ npm install @arcsign/hardhat-plugin
 
 ## Quick Start
 
-### 1. Update your `hardhat.config.ts`
+### 1. Update your `hardhat.config.js`
 
-```typescript
-import "@arcsign/hardhat-plugin";
+```javascript
+require("@nomicfoundation/hardhat-toolbox");
+require("@arcsign/hardhat-plugin");
 
-export default {
+module.exports = {
   solidity: "0.8.20",
   networks: {
     mainnet: {
-      url: process.env.RPC_URL,  // RPC URL is still safe to use env vars
-      accounts: "arcsign",        // ← Use ArcSign instead of private key!
+      url: process.env.RPC_URL,
+      accounts: [],      // Empty - ArcSign provides signers
+      arcsign: true,     // Enable ArcSign for this network
     },
     sepolia: {
       url: process.env.SEPOLIA_RPC_URL,
-      accounts: "arcsign",
+      accounts: [],
+      arcsign: true,
     },
     bsc: {
       url: "https://bsc-dataseed.binance.org/",
-      accounts: "arcsign",
+      accounts: [],
+      arcsign: true,
     },
   },
 };

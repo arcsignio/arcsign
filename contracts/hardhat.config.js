@@ -1,4 +1,5 @@
 require("@nomicfoundation/hardhat-toolbox");
+require("@arcsign/hardhat-plugin");
 require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
@@ -13,17 +14,19 @@ module.exports = {
     }
   },
   networks: {
-    // BSC Testnet
+    // BSC Testnet - uses ArcSign for secure signing
     bscTestnet: {
       url: "https://data-seed-prebsc-1-s1.binance.org:8545",
       chainId: 97,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: [],  // ArcSign plugin will provide signers
+      arcsign: true, // Enable ArcSign for this network
     },
-    // BSC Mainnet
+    // BSC Mainnet - uses ArcSign for secure signing
     bsc: {
       url: "https://bsc-dataseed.binance.org/",
       chainId: 56,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: [],  // ArcSign plugin will provide signers
+      arcsign: true, // Enable ArcSign for this network
     }
   },
   // Etherscan API v2 configuration (unified API key for all chains)
