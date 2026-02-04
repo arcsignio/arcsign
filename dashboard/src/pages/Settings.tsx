@@ -31,14 +31,15 @@ const SETTING_ITEMS: SettingItem[] = [
     descriptionKey: 'settings.apiSettingsDescription',
     icon: '🔗',
   },
-  // Future settings can be added here
-  // {
-  //   id: 'security',
-  //   titleKey: 'settings.securityTitle',
-  //   descriptionKey: 'settings.securityDescription',
-  //   icon: '🔒',
-  // },
 ];
+
+// Developer mode - separate from regular settings
+const DEVELOPER_ITEM: SettingItem = {
+  id: 'developer',
+  titleKey: 'settings.developerModeTitle',
+  descriptionKey: 'settings.developerModeDescription',
+  icon: '🔧',
+};
 
 export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
   const { t } = useTranslation();
@@ -71,6 +72,22 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
             <span className="setting-arrow">→</span>
           </button>
         ))}
+      </div>
+
+      {/* Developer Mode - Separate Section */}
+      <div className="developer-section">
+        <h2 className="developer-section-title">{t('settings.advancedTitle', 'Advanced')}</h2>
+        <button
+          className="setting-item developer-item"
+          onClick={() => onNavigate(DEVELOPER_ITEM.id)}
+        >
+          <span className="setting-icon developer-icon">{DEVELOPER_ITEM.icon}</span>
+          <div className="setting-content">
+            <h3 className="setting-title">{t(DEVELOPER_ITEM.titleKey)}</h3>
+            <p className="setting-description">{t(DEVELOPER_ITEM.descriptionKey)}</p>
+          </div>
+          <span className="setting-arrow">→</span>
+        </button>
       </div>
 
       <style>{`
@@ -173,6 +190,52 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
 
         .setting-item:hover .setting-arrow {
           color: #3b82f6;
+        }
+
+        /* Developer Section */
+        .developer-section {
+          margin-top: 48px;
+          padding-top: 24px;
+          border-top: 1px solid #e5e7eb;
+        }
+
+        .developer-section-title {
+          margin: 0 0 16px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .developer-item {
+          background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+          border-color: #475569;
+        }
+
+        .developer-item .setting-title {
+          color: #fff;
+        }
+
+        .developer-item .setting-description {
+          color: #94a3b8;
+        }
+
+        .developer-item .setting-arrow {
+          color: #64748b;
+        }
+
+        .developer-item:hover {
+          border-color: #3b82f6;
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .developer-item:hover .setting-arrow {
+          color: #60a5fa;
+        }
+
+        .developer-icon {
+          background: rgba(59, 130, 246, 0.2);
         }
       `}</style>
     </div>

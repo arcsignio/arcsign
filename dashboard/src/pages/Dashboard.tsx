@@ -598,13 +598,6 @@ export function Dashboard() {
         <div className="header-actions">
           <LanguageSwitcher variant="toggle" />
           <button
-            onClick={() => setCurrentView("developer")}
-            className="developer-mode-button"
-            title={t('nav.developerMode', 'Developer Mode')}
-          >
-            🔧 {t('nav.developerMode', 'Dev')}
-          </button>
-          <button
             onClick={() => setCurrentView("settings")}
             className="secondary-button"
             title={t('nav.settings')}

@@ -348,7 +348,10 @@
     "membershipTitle": "會員資格",
     "membershipDescription": "查看會員狀態並設定主要驗證地址",
     "apiSettingsTitle": "API 提供者設定",
-    "apiSettingsDescription": "設定區塊鏈 API 提供者（Alchemy、NodeReal、1inch）"
+    "apiSettingsDescription": "設定區塊鏈 API 提供者（Alchemy、NodeReal、1inch）",
+    "advancedTitle": "進階功能",
+    "developerModeTitle": "開發者模式",
+    "developerModeDescription": "簽署 Hardhat/Foundry 交易，無需暴露私鑰"
   },
   "provider": {
     "title": "API 提供者設定",
@@ -751,6 +754,13 @@
     "subtitle": "智能合約開發工具",
     "connected": "已連線",
     "disconnected": "未連線",
+    "selectWallet": "選擇錢包",
+    "selectWalletDescription": "選擇一個錢包用於簽署開發者交易。",
+    "noWallets": "未找到錢包。請先創建一個錢包。",
+    "enterPassword": "輸入錢包密碼",
+    "enterPasswordDescription": "輸入此錢包的密碼以繼續。",
+    "passwordPlaceholder": "錢包密碼",
+    "unlock": "解鎖",
     "pendingRequests": "待簽名請求",
     "history": "簽名紀錄",
     "sessionSettings": "Session 設定",

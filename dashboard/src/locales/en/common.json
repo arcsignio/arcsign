@@ -348,7 +348,10 @@
     "membershipTitle": "Membership",
     "membershipDescription": "View membership status and set primary verification address",
     "apiSettingsTitle": "API Provider Settings",
-    "apiSettingsDescription": "Configure blockchain API providers (Alchemy, NodeReal, 1inch)"
+    "apiSettingsDescription": "Configure blockchain API providers (Alchemy, NodeReal, 1inch)",
+    "advancedTitle": "Advanced",
+    "developerModeTitle": "Developer Mode",
+    "developerModeDescription": "Sign Hardhat/Foundry transactions without exposing private keys"
   },
   "provider": {
     "title": "API Provider Settings",
@@ -751,6 +754,13 @@
     "subtitle": "Smart Contract Development Tools",
     "connected": "Connected",
     "disconnected": "Disconnected",
+    "selectWallet": "Select Wallet",
+    "selectWalletDescription": "Choose a wallet to use for signing developer transactions.",
+    "noWallets": "No wallets found. Please create a wallet first.",
+    "enterPassword": "Enter Wallet Password",
+    "enterPasswordDescription": "Enter the password for this wallet to continue.",
+    "passwordPlaceholder": "Wallet password",
+    "unlock": "Unlock",
     "pendingRequests": "Pending Requests",
     "history": "History",
     "sessionSettings": "Session Settings",
