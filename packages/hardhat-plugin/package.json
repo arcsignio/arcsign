@@ -1,0 +1,50 @@
+{
+  "name": "@arcsign/hardhat-plugin",
+  "version": "1.0.0",
+  "description": "Hardhat plugin for secure transaction signing with ArcSign wallet - No more private keys in .env files",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "prepare": "npm run build",
+    "test": "mocha --exit --recursive 'test/**/*.test.ts'",
+    "lint": "eslint 'src/**/*.ts'"
+  },
+  "keywords": [
+    "hardhat",
+    "hardhat-plugin",
+    "ethereum",
+    "wallet",
+    "signer",
+    "arcsign",
+    "hardware-wallet",
+    "cold-wallet",
+    "smart-contracts",
+    "security"
+  ],
+  "author": "ArcSign Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ArcSign/arcsign.git",
+    "directory": "packages/hardhat-plugin"
+  },
+  "peerDependencies": {
+    "ethers": "^6.0.0",
+    "hardhat": "^2.0.0"
+  },
+  "dependencies": {
+    "ws": "^8.14.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.5.0",
+    "typescript": "^5.0.0",
+    "hardhat": "^2.19.0",
+    "ethers": "^6.9.0"
+  }
+}
