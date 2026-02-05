@@ -179,6 +179,7 @@ async fn handle_sign_transaction(
         max_priority_fee_per_gas: None,
         nonce: None,
         description,
+        script_name: None,  // Not available in legacy mode
         broadcast,
     };
 
@@ -383,6 +384,12 @@ async fn handle_dev_sign_transaction(
         }));
     }
 
+    // Extract script name from context
+    let script_name = tx_params
+        .context
+        .as_ref()
+        .and_then(|c| c.script_name.clone());
+
     // Create pending transaction for UI confirmation
     let pending_tx = PendingTransaction {
         request_id: id,
@@ -397,6 +404,7 @@ async fn handle_dev_sign_transaction(
         max_priority_fee_per_gas: tx_params.max_priority_fee_per_gas.clone(),
         nonce: tx_params.nonce,
         description,
+        script_name,
         broadcast: true, // Developer mode always broadcasts
     };
 

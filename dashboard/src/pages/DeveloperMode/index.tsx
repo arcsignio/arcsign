@@ -113,6 +113,7 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
             network: getNetworkName(pending.chain_id),
             chainId: pending.chain_id,
             description: pending.description,
+            scriptName: pending.script_name || undefined,
             status: 'pending',
             timestamp: Date.now(),
           };

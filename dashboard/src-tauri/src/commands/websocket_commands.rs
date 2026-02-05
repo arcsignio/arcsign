@@ -37,6 +37,8 @@ pub struct PendingTransactionResponse {
     /// Transaction nonce
     pub nonce: Option<u64>,
     pub description: String,
+    /// Source script name (e.g., "deploy.ts")
+    pub script_name: Option<String>,
     pub broadcast: bool,
 }
 
@@ -55,6 +57,7 @@ impl From<&PendingTransaction> for PendingTransactionResponse {
             max_priority_fee_per_gas: tx.max_priority_fee_per_gas.clone(),
             nonce: tx.nonce,
             description: tx.description.clone(),
+            script_name: tx.script_name.clone(),
             broadcast: tx.broadcast,
         }
     }

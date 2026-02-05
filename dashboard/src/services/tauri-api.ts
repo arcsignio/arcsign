@@ -1080,6 +1080,8 @@ export interface PendingTransactionInfo {
   /** Transaction nonce */
   nonce?: number;
   description: string;
+  /** Source script name (e.g., "deploy.ts") */
+  script_name?: string;
   broadcast: boolean;
 }
 

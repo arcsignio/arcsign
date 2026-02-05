@@ -139,6 +139,8 @@ pub struct PendingTransaction {
     pub nonce: Option<u64>,
     /// Human-readable description
     pub description: String,
+    /// Source script name (e.g., "deploy.ts")
+    pub script_name: Option<String>,
     /// Should broadcast after signing
     pub broadcast: bool,
 }
