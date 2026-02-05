@@ -42,7 +42,7 @@ use commands::swap::{
     check_swap_allowance, get_native_token_address, get_swap_tokens,
 };
 use commands::usb::detect_usb;
-use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, rename_wallet, delete_wallet, get_token_balances, validate_passphrase, update_websocket_accounts, AddressCache};
+use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, rename_wallet, delete_wallet, get_token_balances, validate_passphrase, update_websocket_accounts, update_websocket_usb_path, AddressCache};
 use commands::provider::{set_provider_config, get_provider_config, list_provider_configs, delete_provider_config, get_asset_transfers};
 use commands::websocket_commands::{get_pending_transaction, respond_to_transaction, cancel_pending_transaction, PendingTxReceiverState, CurrentPendingTxState};
 use std::collections::HashMap;
@@ -260,6 +260,7 @@ fn main() {
             get_token_balances,
             validate_passphrase,
             update_websocket_accounts,
+            update_websocket_usb_path,
             // Security commands
             enable_screenshot_protection,
             disable_screenshot_protection,

@@ -10,6 +10,7 @@ use super::protocol::{
     // Developer mode types
     DevSignTransactionParams, PersonalSignParams, SignTypedDataParams,
     DevSession, DevCreateSessionParams, DevContext, PendingDevRequest, DevRequestType,
+    GetExplorerApiKeyParams,
 };
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -25,15 +26,18 @@ pub struct HandlerContext {
     pub pending_tx_sender: PendingTxSender,
     /// BSC addresses from the wallet
     pub accounts: Vec<String>,
+    /// USB device path (for reading dev settings)
+    pub usb_path: Option<String>,
     /// Developer session state (shared across connections)
     pub dev_session: Arc<RwLock<Option<DevSession>>>,
 }
 
 impl HandlerContext {
-    pub fn new(pending_tx_sender: PendingTxSender, accounts: Vec<String>) -> Self {
+    pub fn new(pending_tx_sender: PendingTxSender, accounts: Vec<String>, usb_path: Option<String>) -> Self {
         Self {
             pending_tx_sender,
             accounts,
+            usb_path,
             dev_session: Arc::new(RwLock::new(None)),
         }
     }
@@ -42,11 +46,13 @@ impl HandlerContext {
     pub fn with_session(
         pending_tx_sender: PendingTxSender,
         accounts: Vec<String>,
+        usb_path: Option<String>,
         dev_session: Arc<RwLock<Option<DevSession>>>,
     ) -> Self {
         Self {
             pending_tx_sender,
             accounts,
+            usb_path,
             dev_session,
         }
     }
@@ -97,6 +103,10 @@ pub async fn handle_request(
 
         WsMethod::DevEndSession => {
             handle_dev_end_session(request.id, context).await
+        }
+
+        WsMethod::GetExplorerApiKey => {
+            handle_get_explorer_api_key(request.id, request.params, context).await
         }
     }
 }
@@ -659,4 +669,84 @@ fn current_timestamp_ms() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_millis() as u64
+}
+
+/// Handle get_explorer_api_key request
+async fn handle_get_explorer_api_key(
+    id: u64,
+    params: Value,
+    context: &HandlerContext,
+) -> WsResponse {
+    let key_params: GetExplorerApiKeyParams = match serde_json::from_value(params) {
+        Ok(p) => p,
+        Err(e) => return WsResponse::error(id, format!("Invalid parameters: {}", e)),
+    };
+
+    tracing::info!("Getting explorer API key for: {}", key_params.explorer);
+
+    // Use USB path from params or context
+    let usb_path = key_params.usb_path.or_else(|| context.usb_path.clone());
+
+    let usb_path = match usb_path {
+        Some(p) => p,
+        None => {
+            return WsResponse::success(id, json!({
+                "api_key": null,
+                "message": "USB device not connected"
+            }));
+        }
+    };
+
+    // Read settings from USB
+    let settings_path = std::path::PathBuf::from(&usb_path)
+        .join("dev_settings")
+        .join("settings.json");
+
+    if !settings_path.exists() {
+        return WsResponse::success(id, json!({
+            "api_key": null,
+            "message": "No settings file found"
+        }));
+    }
+
+    // Read and parse settings file
+    let content = match std::fs::read_to_string(&settings_path) {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!("Failed to read settings file: {}", e);
+            return WsResponse::success(id, json!({
+                "api_key": null,
+                "message": format!("Failed to read settings: {}", e)
+            }));
+        }
+    };
+
+    let settings: serde_json::Value = match serde_json::from_str(&content) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("Failed to parse settings file: {}", e);
+            return WsResponse::success(id, json!({
+                "api_key": null,
+                "message": format!("Failed to parse settings: {}", e)
+            }));
+        }
+    };
+
+    // Extract the API key based on explorer type
+    let api_key = settings
+        .get("explorerApiKeys")
+        .and_then(|keys| keys.get(&key_params.explorer))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    if api_key.is_some() {
+        tracing::info!("Found API key for {}", key_params.explorer);
+    } else {
+        tracing::info!("No API key found for {}", key_params.explorer);
+    }
+
+    WsResponse::success(id, json!({
+        "api_key": api_key,
+        "explorer": key_params.explorer,
+    }))
 }

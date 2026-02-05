@@ -21,6 +21,8 @@ const WS_PORT: u16 = 9527;
 pub struct WebSocketServer {
     /// Currently connected addresses (from loaded wallet)
     accounts: Arc<RwLock<Vec<String>>>,
+    /// USB device path (for reading dev settings)
+    usb_path: Arc<RwLock<Option<String>>>,
     /// Channel for pending transactions
     pending_tx_sender: PendingTxSender,
     /// Shutdown signal
@@ -32,6 +34,7 @@ impl WebSocketServer {
     pub fn new(pending_tx_sender: PendingTxSender) -> Self {
         Self {
             accounts: Arc::new(RwLock::new(Vec::new())),
+            usb_path: Arc::new(RwLock::new(None)),
             pending_tx_sender,
             shutdown_tx: None,
         }
@@ -42,6 +45,17 @@ impl WebSocketServer {
         let mut acc = self.accounts.write().await;
         *acc = accounts;
         tracing::info!("WebSocket server: updated {} BSC addresses", acc.len());
+    }
+
+    /// Update the USB device path
+    pub async fn update_usb_path(&self, path: Option<String>) {
+        let mut usb = self.usb_path.write().await;
+        *usb = path.clone();
+        if let Some(ref p) = path {
+            tracing::info!("WebSocket server: USB path set to {}", p);
+        } else {
+            tracing::info!("WebSocket server: USB path cleared");
+        }
     }
 
     /// Start the WebSocket server
@@ -56,6 +70,7 @@ impl WebSocketServer {
         self.shutdown_tx = Some(shutdown_tx);
 
         let accounts = Arc::clone(&self.accounts);
+        let usb_path = Arc::clone(&self.usb_path);
         let pending_tx_sender = self.pending_tx_sender.clone();
 
         // Spawn the accept loop
@@ -78,6 +93,7 @@ impl WebSocketServer {
                                 tracing::info!("New WebSocket connection from {}", peer_addr);
 
                                 let accounts = Arc::clone(&accounts);
+                                let usb_path = Arc::clone(&usb_path);
                                 let pending_tx_sender = pending_tx_sender.clone();
 
                                 tokio::spawn(async move {
@@ -85,6 +101,7 @@ impl WebSocketServer {
                                         stream,
                                         peer_addr,
                                         accounts,
+                                        usb_path,
                                         pending_tx_sender,
                                     ).await {
                                         tracing::error!("Connection error: {}", e);
@@ -121,6 +138,7 @@ async fn handle_connection(
     stream: TcpStream,
     peer_addr: SocketAddr,
     accounts: Arc<RwLock<Vec<String>>>,
+    usb_path: Arc<RwLock<Option<String>>>,
     pending_tx_sender: PendingTxSender,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let ws_stream = accept_async(stream).await?;
@@ -142,11 +160,12 @@ async fn handle_connection(
                     }
                 };
 
-                // Get current accounts
+                // Get current accounts and USB path
                 let acc = accounts.read().await.clone();
+                let usb = usb_path.read().await.clone();
 
                 // Create handler context
-                let context = HandlerContext::new(pending_tx_sender.clone(), acc);
+                let context = HandlerContext::new(pending_tx_sender.clone(), acc, usb);
 
                 // Handle request
                 let response = handle_request(request, &context).await;

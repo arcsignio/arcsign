@@ -291,4 +291,29 @@ export class ArcSignClient {
   }> {
     return this.sendRequest("dev_end_session");
   }
+
+  /**
+   * Get block explorer API key from ArcSign settings
+   *
+   * The USB path is retrieved from the Dashboard's server state,
+   * so the plugin doesn't need to know it.
+   *
+   * @param explorer - Explorer type: 'etherscan' | 'bscscan' | 'polygonscan' | 'arbiscan' | 'optimism' | 'basescan' | 'snowtrace'
+   * @returns API key or null if not configured
+   */
+  async getExplorerApiKey(explorer: string): Promise<string | null> {
+    try {
+      const result = await this.sendRequest<{
+        api_key: string | null;
+        explorer: string;
+        message?: string;
+      }>("get_explorer_api_key", {
+        explorer,
+      });
+      return result.api_key;
+    } catch (err) {
+      console.error(`[ArcSign] Failed to get ${explorer} API key:`, err);
+      return null;
+    }
+  }
 }

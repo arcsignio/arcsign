@@ -147,6 +147,19 @@ export async function updateWebsocketAccounts(accounts: string[]): Promise<void>
   }
 }
 
+/**
+ * Update WebSocket server with USB device path
+ * This enables the Hardhat plugin to fetch explorer API keys from dev settings
+ */
+export async function updateWebsocketUsbPath(usbPath: string | null): Promise<void> {
+  try {
+    await invoke("update_websocket_usb_path", { usbPath });
+  } catch (error) {
+    console.error("Failed to update websocket USB path:", error);
+    // Don't throw - this is a non-critical operation
+  }
+}
+
 export async function renameWallet(
   params: RenameWalletParams
 ): Promise<Wallet> {
@@ -1184,6 +1197,7 @@ export const tauriApi = {
   renameWallet,
   deleteWallet,
   updateWebsocketAccounts,
+  updateWebsocketUsbPath,
 
   // Address
   loadAddresses,

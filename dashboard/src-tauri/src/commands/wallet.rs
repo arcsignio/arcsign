@@ -1220,3 +1220,22 @@ pub async fn update_websocket_accounts(
 
     Ok(())
 }
+
+/// Update WebSocket server with USB device path
+/// Called by frontend when USB device is connected/selected
+#[tauri::command]
+pub async fn update_websocket_usb_path(
+    usb_path: Option<String>,
+    ws_server: State<'_, std::sync::Arc<tokio::sync::RwLock<crate::websocket::WebSocketServer>>>,
+) -> Result<(), String> {
+    if let Some(ref path) = usb_path {
+        tracing::info!("Updating WebSocket USB path to: {}", path);
+    } else {
+        tracing::info!("Clearing WebSocket USB path");
+    }
+
+    let server = ws_server.read().await;
+    server.update_usb_path(usb_path).await;
+
+    Ok(())
+}

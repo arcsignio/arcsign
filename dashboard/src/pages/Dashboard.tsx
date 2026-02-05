@@ -317,6 +317,9 @@ export function Dashboard() {
         const usbDevice = devices[0];
         setUsbPath(usbDevice.path);
 
+        // Update WebSocket server with USB path for Hardhat plugin API key integration
+        tauriApi.updateWebsocketUsbPath(usbDevice.path);
+
         // Load wallets from USB
         const walletList = await tauriApi.listWallets(usbDevice.path);
         setWallets(walletList);

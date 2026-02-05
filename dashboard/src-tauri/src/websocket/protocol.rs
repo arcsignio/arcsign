@@ -50,6 +50,9 @@ pub enum WsMethod {
     DevCreateSession,
     /// End the current developer session
     DevEndSession,
+
+    /// Get block explorer API key from developer settings
+    GetExplorerApiKey,
 }
 
 /// WebSocket response to client
@@ -329,4 +332,14 @@ pub enum DevRequestType {
     PersonalSign,
     /// Typed data signing (EIP-712)
     TypedData,
+}
+
+/// Parameters for get_explorer_api_key request
+#[derive(Debug, Clone, Deserialize)]
+pub struct GetExplorerApiKeyParams {
+    /// Explorer type: etherscan, bscscan, polygonscan, arbiscan, optimism, basescan, snowtrace
+    pub explorer: String,
+    /// USB path where settings are stored (optional, uses server's stored path if not provided)
+    #[serde(default)]
+    pub usb_path: Option<String>,
 }
