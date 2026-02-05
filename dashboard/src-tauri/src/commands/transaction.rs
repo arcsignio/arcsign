@@ -17,6 +17,7 @@ use serde::Deserialize;
 use serde_json::json;
 use std::time::Instant;
 use tauri::State;
+use uuid::Uuid;
 use zeroize::Zeroize;
 
 // ============================================================================
@@ -609,6 +610,236 @@ pub async fn sign_message(
     );
 
     Ok(result)
+}
+
+/// Input for dev_mode_sign - signing with Hardhat-provided tx params
+/// This bypasses buildTransaction since Hardhat already provides all params
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DevModeSignInput {
+    /// Wallet ID
+    pub wallet_id: String,
+    /// Wallet password for key derivation
+    pub password: String,
+    /// BIP39 passphrase (optional)
+    #[serde(default)]
+    pub passphrase: String,
+    /// USB path
+    pub usb_path: String,
+    /// From address
+    pub from: String,
+    /// To address (empty for contract deployment)
+    #[serde(default)]
+    pub to: String,
+    /// Transaction data (hex)
+    #[serde(default)]
+    pub data: String,
+    /// Value in wei (hex or decimal string)
+    #[serde(default)]
+    pub value: String,
+    /// Gas limit
+    #[serde(default)]
+    pub gas: String,
+    /// Gas price for legacy tx (hex or decimal)
+    #[serde(default)]
+    pub gas_price: Option<String>,
+    /// Max fee per gas for EIP-1559 (hex or decimal)
+    #[serde(default)]
+    pub max_fee_per_gas: Option<String>,
+    /// Max priority fee per gas for EIP-1559 (hex or decimal)
+    #[serde(default)]
+    pub max_priority_fee_per_gas: Option<String>,
+    /// Chain ID
+    pub chain_id: u64,
+    /// Nonce
+    pub nonce: u64,
+}
+
+/// Sign a transaction with Hardhat-provided parameters (Developer Mode)
+///
+/// This is optimized for developer mode where Hardhat already provides
+/// all transaction parameters (nonce, gas, etc.). No RPC calls needed.
+#[tauri::command]
+pub async fn dev_mode_sign(
+    queue: State<'_, LazyWalletQueue>,
+    mut input: DevModeSignInput,
+) -> Result<serde_json::Value, String> {
+    let start = Instant::now();
+    tracing::info!(
+        "dev_mode_sign called: wallet={}, from={}, to={}, chain_id={}",
+        input.wallet_id,
+        input.from,
+        if input.to.is_empty() { "(deploy)" } else { &input.to },
+        input.chain_id
+    );
+
+    // Parse hex values to decimal strings for Go FFI
+    let value_decimal = parse_hex_to_decimal(&input.value).unwrap_or_else(|| "0".to_string());
+    let gas_limit = parse_hex_to_u64(&input.gas).unwrap_or(21000);
+
+    // Handle EIP-1559 vs legacy gas
+    let (max_fee, max_priority_fee) = if let Some(ref mfpg) = input.max_fee_per_gas {
+        let max_fee = parse_hex_to_decimal(mfpg).unwrap_or_else(|| "0".to_string());
+        let max_priority = input.max_priority_fee_per_gas
+            .as_ref()
+            .and_then(|s| parse_hex_to_decimal(s))
+            .unwrap_or_else(|| "0".to_string());
+        (max_fee, max_priority)
+    } else if let Some(ref gp) = input.gas_price {
+        // Legacy gas price - use it for both max_fee and max_priority
+        let gas_price = parse_hex_to_decimal(gp).unwrap_or_else(|| "0".to_string());
+        (gas_price.clone(), gas_price)
+    } else {
+        ("0".to_string(), "0".to_string())
+    };
+
+    // Determine chain name for Go FFI (must match Go's networkIDToChainID)
+    let chain_name = match input.chain_id {
+        1 => "ethereum",
+        5 => "ethereum-goerli",
+        11155111 => "ethereum-sepolia",
+        56 => "bnb",              // BSC Mainnet
+        97 => "bnb-testnet",      // BSC Testnet
+        137 => "polygon",
+        80001 => "polygon-mumbai",
+        42161 => "arbitrum",
+        10 => "optimism",
+        8453 => "base",
+        _ => "ethereum",          // Default fallback
+    };
+
+    // Build unsigned transaction in the format expected by SignTransaction FFI
+    // chainId must match Go's networkIDToChainID exactly (e.g., "bnb-testnet" not "bnb-testnet-97")
+    let unsigned_tx = json!({
+        "id": format!("dev-{}", Uuid::new_v4()),
+        "chainId": chain_name,
+        "from": input.from,
+        "to": input.to,
+        "amount": value_decimal,
+        "fee": "0", // Will be calculated by signer
+        "chainSpecific": {
+            "chain_id": input.chain_id,
+            "nonce": input.nonce,
+            "gas_limit": gas_limit,
+            "max_fee_per_gas": max_fee,
+            "max_priority_fee_per_gas": max_priority_fee,
+            "data": if input.data.starts_with("0x") {
+                hex::decode(&input.data[2..]).unwrap_or_default()
+            } else if !input.data.is_empty() {
+                hex::decode(&input.data).unwrap_or_default()
+            } else {
+                vec![]
+            },
+            "tx_to": if input.to.is_empty() {
+                "0x0000000000000000000000000000000000000000".to_string()
+            } else {
+                input.to.clone()
+            },
+            "tx_value": value_decimal.clone()
+        }
+    });
+
+    // Build params for SignTransaction FFI
+    let params = json!({
+        "chainId": chain_name,
+        "walletId": input.wallet_id,
+        "password": input.password,
+        "passphrase": input.passphrase,
+        "fromAddress": input.from,
+        "unsignedTx": unsigned_tx,
+        "usbPath": input.usb_path,
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    // Call FFI
+    let result = queue
+        .sign_transaction(params_json)
+        .await
+        .map_err(|e| {
+            tracing::error!("dev_mode_sign FFI error: {}", e);
+            if e.contains("INVALID_PASSWORD") || e.contains("DECRYPTION_ERROR") {
+                AppError::new(
+                    ErrorCode::InvalidPassword,
+                    "Invalid wallet password",
+                )
+            } else if e.contains("WALLET_NOT_FOUND") {
+                AppError::new(
+                    ErrorCode::WalletNotFound,
+                    "Wallet not found",
+                )
+            } else if e.contains("ADDRESS_NOT_FOUND") {
+                AppError::new(
+                    ErrorCode::CliExecutionFailed,
+                    "Address not found in wallet",
+                )
+            } else {
+                AppError::with_details(
+                    ErrorCode::CliExecutionFailed,
+                    "Failed to sign transaction",
+                    e,
+                )
+            }
+        })?;
+
+    // Zero sensitive data
+    input.password.zeroize();
+    input.passphrase.zeroize();
+
+    let elapsed = start.elapsed();
+    tracing::info!(
+        "dev_mode_sign completed in {:?}",
+        elapsed
+    );
+
+    Ok(result)
+}
+
+/// Parse hex string (0x...) to decimal string
+fn parse_hex_to_decimal(hex_str: &str) -> Option<String> {
+    if hex_str.is_empty() || hex_str == "0x" || hex_str == "0x0" {
+        return Some("0".to_string());
+    }
+
+    let hex_str = if hex_str.starts_with("0x") {
+        &hex_str[2..]
+    } else {
+        hex_str
+    };
+
+    // Try parsing as hex
+    if let Ok(value) = u128::from_str_radix(hex_str, 16) {
+        return Some(value.to_string());
+    }
+
+    // If not hex, try parsing as decimal
+    if hex_str.chars().all(|c| c.is_ascii_digit()) {
+        return Some(hex_str.to_string());
+    }
+
+    None
+}
+
+/// Parse hex string to u64
+fn parse_hex_to_u64(hex_str: &str) -> Option<u64> {
+    if hex_str.is_empty() || hex_str == "0x" || hex_str == "0x0" {
+        return Some(0);
+    }
+
+    let hex_str = if hex_str.starts_with("0x") {
+        &hex_str[2..]
+    } else {
+        hex_str
+    };
+
+    // Try parsing as hex
+    if let Ok(value) = u64::from_str_radix(hex_str, 16) {
+        return Some(value);
+    }
+
+    // If not hex, try parsing as decimal
+    hex_str.parse::<u64>().ok()
 }
 
 /// Input parameters for sign_typed_data command

@@ -810,7 +810,7 @@
         "timeLimit": "Session 在 30 分鐘後過期"
       }
     },
-    "history": {
+    "historySection": {
       "title": "簽名紀錄",
       "empty": "尚無簽名紀錄",
       "emptyHint": "已批准和拒絕的請求會顯示在這裡",

@@ -138,17 +138,17 @@ const (
 
 // UnsignedTransaction represents a transaction ready for signing
 type UnsignedTransaction struct {
-	ID             string   // Deterministic transaction ID
-	ChainID        string   // Blockchain identifier
-	From           string   // Source address
-	To             string   // Destination address
-	Amount         *big.Int // Amount in smallest unit
-	Fee            *big.Int // Calculated fee
-	Nonce          *uint64  // Account nonce (Ethereum) or nil (Bitcoin UTXO)
-	SigningPayload []byte   // Binary payload for signing
-	HumanReadable  string   // Human-readable representation
-	ChainSpecific  map[string]interface{}
-	CreatedAt      time.Time
+	ID             string                 `json:"id"`             // Deterministic transaction ID
+	ChainID        string                 `json:"chainId"`        // Blockchain identifier
+	From           string                 `json:"from"`           // Source address
+	To             string                 `json:"to"`             // Destination address
+	Amount         *big.Int               `json:"amount"`         // Amount in smallest unit
+	Fee            *big.Int               `json:"fee"`            // Calculated fee
+	Nonce          *uint64                `json:"nonce"`          // Account nonce (Ethereum) or nil (Bitcoin UTXO)
+	SigningPayload []byte                 `json:"signingPayload"` // Binary payload for signing
+	HumanReadable  string                 `json:"humanReadable"`  // Human-readable representation
+	ChainSpecific  map[string]interface{} `json:"chainSpecific"`
+	CreatedAt      time.Time              `json:"createdAt"`
 }
 
 // FeeEstimate contains fee bounds and confidence level
@@ -166,12 +166,12 @@ type FeeEstimate struct {
 
 // SignedTransaction represents a transaction ready for broadcast
 type SignedTransaction struct {
-	UnsignedTx   *UnsignedTransaction
-	Signature    []byte    // Signature bytes
-	SignedBy     string    // Signing address
-	TxHash       string    // Transaction hash
-	SerializedTx []byte    // Fully serialized transaction
-	SignedAt     time.Time
+	UnsignedTx   *UnsignedTransaction `json:"unsignedTx"`
+	Signature    []byte               `json:"signature"`    // Signature bytes
+	SignedBy     string               `json:"signedBy"`     // Signing address
+	TxHash       string               `json:"txHash"`       // Transaction hash
+	SerializedTx []byte               `json:"serializedTx"` // Fully serialized transaction
+	SignedAt     time.Time            `json:"signedAt"`
 }
 
 // BroadcastReceipt is the receipt of transaction submission

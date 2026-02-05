@@ -467,16 +467,7 @@ func (e *EthereumAdapter) Sign(ctx context.Context, unsigned *chainadapter.Unsig
 		)
 	}
 
-	// Step 3: Validate SigningPayload exists
-	if len(unsigned.SigningPayload) == 0 {
-		return nil, chainadapter.NewNonRetryableError(
-			"ERR_INVALID_PAYLOAD",
-			"SigningPayload is empty",
-			nil,
-		)
-	}
-
-	// Step 4: Reconstruct the EIP-1559 transaction from ChainSpecific data
+	// Step 3: Reconstruct the EIP-1559 transaction from ChainSpecific data
 	// This is necessary to create a properly RLP-encoded signed transaction
 	chainSpecific := unsigned.ChainSpecific
 	if chainSpecific == nil {
@@ -543,11 +534,15 @@ func (e *EthereumAdapter) Sign(ctx context.Context, unsigned *chainadapter.Unsig
 	}
 
 	// Get actual transaction target (tx_to) - may differ from unsigned.To for ERC-20
+	// For contract deployments, tx_to should be empty or zero address
 	txToStr, _ := chainSpecific["tx_to"].(string)
 	if txToStr == "" {
 		txToStr = unsigned.To // Fallback to logical recipient
 	}
-	toAddr := common.HexToAddress(txToStr)
+
+	// Determine if this is a contract deployment
+	// Contract deployment: to is empty or zero address, and data is present
+	isContractDeploy := (txToStr == "" || txToStr == "0x0000000000000000000000000000000000000000") && len(data) > 0
 
 	// Get actual transaction value (tx_value) - 0 for ERC-20 transfers
 	var txValue *big.Int
@@ -559,34 +554,56 @@ func (e *EthereumAdapter) Sign(ctx context.Context, unsigned *chainadapter.Unsig
 	}
 
 	// Create EIP-1559 transaction
-	tx := types.NewTx(&types.DynamicFeeTx{
-		ChainID:   big.NewInt(chainIDVal),
-		Nonce:     nonce,
-		GasFeeCap: maxFeePerGas,
-		GasTipCap: maxPriorityFeePerGas,
-		Gas:       gasLimit,
-		To:        &toAddr,
-		Value:     txValue,
-		Data:      data,
-	})
+	var tx *types.Transaction
+	if isContractDeploy {
+		// Contract deployment: To must be nil
+		tx = types.NewTx(&types.DynamicFeeTx{
+			ChainID:   big.NewInt(chainIDVal),
+			Nonce:     nonce,
+			GasFeeCap: maxFeePerGas,
+			GasTipCap: maxPriorityFeePerGas,
+			Gas:       gasLimit,
+			To:        nil, // nil indicates contract creation
+			Value:     txValue,
+			Data:      data,
+		})
+		fmt.Fprintf(os.Stderr, "[ETH Sign] Contract deployment detected\n")
+	} else {
+		// Regular transfer or contract call
+		toAddr := common.HexToAddress(txToStr)
+		tx = types.NewTx(&types.DynamicFeeTx{
+			ChainID:   big.NewInt(chainIDVal),
+			Nonce:     nonce,
+			GasFeeCap: maxFeePerGas,
+			GasTipCap: maxPriorityFeePerGas,
+			Gas:       gasLimit,
+			To:        &toAddr,
+			Value:     txValue,
+			Data:      data,
+		})
+	}
 
-	// Debug: Verify reconstructed transaction hash matches original signing payload
+	// Compute the signing payload from reconstructed transaction
+	// This allows dev mode to work without pre-computed SigningPayload
 	reconstructedSigner := types.LatestSignerForChainID(big.NewInt(chainIDVal))
 	reconstructedHash := reconstructedSigner.Hash(tx)
-	fmt.Fprintf(os.Stderr, "[ETH Sign] Original SigningPayload: %x\n", unsigned.SigningPayload)
-	fmt.Fprintf(os.Stderr, "[ETH Sign] Reconstructed tx hash:   %x\n", reconstructedHash.Bytes())
-	if string(reconstructedHash.Bytes()) != string(unsigned.SigningPayload) {
-		fmt.Fprintf(os.Stderr, "[ETH Sign] CRITICAL: Hash mismatch! Transaction parameters don't match.\n")
+
+	// Use reconstructed hash as signing payload (required for dev mode where SigningPayload may be empty)
+	signingPayload := reconstructedHash.Bytes()
+
+	// Debug logging
+	fmt.Fprintf(os.Stderr, "[ETH Sign] Original SigningPayload length: %d\n", len(unsigned.SigningPayload))
+	fmt.Fprintf(os.Stderr, "[ETH Sign] Reconstructed tx hash: %x\n", signingPayload)
+	if len(unsigned.SigningPayload) > 0 && string(signingPayload) != string(unsigned.SigningPayload) {
+		fmt.Fprintf(os.Stderr, "[ETH Sign] WARNING: Hash mismatch - using reconstructed hash\n")
 		fmt.Fprintf(os.Stderr, "[ETH Sign] ChainID: %d, Nonce: %d, GasLimit: %d\n", chainIDVal, nonce, gasLimit)
 		fmt.Fprintf(os.Stderr, "[ETH Sign] MaxFeePerGas: %s, MaxPriorityFeePerGas: %s\n", maxFeePerGas.String(), maxPriorityFeePerGas.String())
-		fmt.Fprintf(os.Stderr, "[ETH Sign] To: %s, Value: %s\n", toAddr.Hex(), txValue.String())
+		fmt.Fprintf(os.Stderr, "[ETH Sign] To: %s, Value: %s\n", txToStr, txValue.String())
 		fmt.Fprintf(os.Stderr, "[ETH Sign] Data length: %d\n", len(data))
 	}
 
-	// Step 5: Sign the transaction using go-ethereum's types.SignTx
-	// First, get the private key from the signer's Sign method
-	// We'll sign the payload and extract the signature components
-	signature, err := signer.Sign(unsigned.SigningPayload, unsigned.From)
+	// Step 4: Sign the transaction using the reconstructed signing payload
+	signature, err := signer.Sign(signingPayload, unsigned.From)
 	if err != nil {
 		return nil, chainadapter.NewNonRetryableError(
 			"ERR_SIGNING_FAILED",

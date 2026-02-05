@@ -18,7 +18,7 @@ interface PendingRequestsProps {
   session: DevSession | null;
 }
 
-// Network display info
+// Network display info (keys must match getNetworkName in index.tsx)
 const NETWORK_INFO: Record<string, { name: string; color: string; isTestnet: boolean }> = {
   'ethereum': { name: 'Ethereum Mainnet', color: '#627EEA', isTestnet: false },
   'sepolia': { name: 'Sepolia Testnet', color: '#CFB5F0', isTestnet: true },
@@ -26,6 +26,7 @@ const NETWORK_INFO: Record<string, { name: string; color: string; isTestnet: boo
   'bsc': { name: 'BSC Mainnet', color: '#F3BA2F', isTestnet: false },
   'bsc-testnet': { name: 'BSC Testnet', color: '#F3BA2F', isTestnet: true },
   'polygon': { name: 'Polygon', color: '#8247E5', isTestnet: false },
+  'mumbai': { name: 'Mumbai Testnet', color: '#8247E5', isTestnet: true },
   'arbitrum': { name: 'Arbitrum One', color: '#28A0F0', isTestnet: false },
   'optimism': { name: 'Optimism', color: '#FF0420', isTestnet: false },
   'base': { name: 'Base', color: '#0052FF', isTestnet: false },
@@ -68,10 +69,49 @@ export function PendingRequests({ requests, onApprove, onReject, session }: Pend
     return `${addr.slice(0, 8)}...${addr.slice(-6)}`;
   };
 
-  // Format gas value
-  const formatGas = (gasWei: string) => {
-    const eth = parseFloat(gasWei) / 1e18;
-    return `~${eth.toFixed(4)} ETH`;
+  // Parse hex string to BigInt
+  const parseHex = (hex: string | undefined): bigint => {
+    if (!hex || hex === '' || hex === '0x' || hex === '0x0') return BigInt(0);
+    if (hex.startsWith('0x')) {
+      return BigInt(hex);
+    }
+    // Try parsing as decimal string
+    return BigInt(hex);
+  };
+
+  // Format gas limit (number with commas)
+  const formatGasLimit = (gas: string | undefined): string => {
+    if (!gas) return 'N/A';
+    const value = parseHex(gas);
+    return value.toLocaleString();
+  };
+
+  // Format gas price (to Gwei)
+  const formatGasPrice = (price: string | undefined): string => {
+    if (!price) return 'N/A';
+    const value = parseHex(price);
+    const gwei = Number(value) / 1e9;
+    return `${gwei.toFixed(2)} Gwei`;
+  };
+
+  // Format value (to ETH/BNB)
+  const formatValue = (value: string | undefined, network: string): string => {
+    if (!value || value === '0x0' || value === '0') return '0';
+    const wei = parseHex(value);
+    const eth = Number(wei) / 1e18;
+    const symbol = network.includes('bsc') ? 'BNB' : 'ETH';
+    return `${eth.toFixed(6)} ${symbol}`;
+  };
+
+  // Estimate total cost (gas * gasPrice)
+  const formatEstimatedCost = (request: DevSignRequest): string => {
+    const gas = parseHex(request.gas);
+    const gasPrice = parseHex(request.maxFeePerGas || request.gasPrice);
+    if (gas === BigInt(0) || gasPrice === BigInt(0)) return 'N/A';
+    const costWei = gas * gasPrice;
+    const costEth = Number(costWei) / 1e18;
+    const symbol = request.network.includes('bsc') ? 'BNB' : 'ETH';
+    return `~${costEth.toFixed(6)} ${symbol}`;
   };
 
   if (requests.length === 0) {
@@ -189,21 +229,33 @@ export default {
               <div className="request-summary">
                 <div className="summary-row">
                   <span className="label">From:</span>
-                  <span className="value">{formatAddress(request.from)}</span>
+                  <span className="value mono">{formatAddress(request.from)}</span>
                 </div>
                 {request.to && (
                   <div className="summary-row">
                     <span className="label">To:</span>
-                    <span className="value">{formatAddress(request.to)}</span>
+                    <span className="value mono">{formatAddress(request.to)}</span>
                   </div>
                 )}
                 <div className="summary-row">
-                  <span className="label">Script:</span>
-                  <span className="value script">{request.scriptName || 'Unknown'}</span>
+                  <span className="label">Value:</span>
+                  <span className="value">{formatValue(request.value, request.network)}</span>
                 </div>
                 <div className="summary-row">
-                  <span className="label">Gas:</span>
-                  <span className="value">{formatGas(request.estimatedGas || '0')}</span>
+                  <span className="label">Nonce:</span>
+                  <span className="value">{request.nonce !== undefined ? request.nonce : 'N/A'}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Gas Limit:</span>
+                  <span className="value">{formatGasLimit(request.gas)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Gas Price:</span>
+                  <span className="value">{formatGasPrice(request.maxFeePerGas || request.gasPrice)}</span>
+                </div>
+                <div className="summary-row full-width">
+                  <span className="label">Est. Cost:</span>
+                  <span className="value cost">{formatEstimatedCost(request)}</span>
                 </div>
               </div>
 
@@ -341,7 +393,7 @@ export default {
           padding: 0 20px 16px;
           display: grid;
           grid-template-columns: repeat(2, 1fr);
-          gap: 8px;
+          gap: 8px 16px;
         }
 
         .summary-row {
@@ -353,15 +405,28 @@ export default {
 
         .summary-row .label {
           color: rgba(255, 255, 255, 0.5);
+          min-width: 70px;
         }
 
         .summary-row .value {
-          font-family: monospace;
           color: rgba(255, 255, 255, 0.9);
+        }
+
+        .summary-row .value.mono {
+          font-family: monospace;
         }
 
         .summary-row .value.script {
           color: #a5f3fc;
+        }
+
+        .summary-row .value.cost {
+          color: #fbbf24;
+          font-weight: 500;
+        }
+
+        .summary-row.full-width {
+          grid-column: span 2;
         }
 
         .request-details {

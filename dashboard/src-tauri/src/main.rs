@@ -35,6 +35,7 @@ use commands::security::{
 use commands::transaction::{
     build_transaction, sign_transaction, broadcast_transaction,
     query_transaction_status, estimate_fee, sign_message, sign_typed_data,
+    dev_mode_sign,
 };
 use commands::swap::{
     get_swap_quote, build_swap_transaction, get_swap_approval,
@@ -276,6 +277,8 @@ fn main() {
             broadcast_transaction,
             query_transaction_status,
             estimate_fee,
+            // Developer mode signing (bypasses buildTransaction, uses Hardhat params directly)
+            dev_mode_sign,
             // WalletConnect signing commands
             sign_message,
             sign_typed_data,

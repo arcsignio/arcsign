@@ -163,7 +163,11 @@ export class ArcSignSigner extends AbstractSigner {
     }
 
     console.log(`[ArcSign] ✓ Transaction signed`);
-    return result.signed_tx;
+
+    // The signed_tx from ArcSign is base64 encoded - convert to hex with 0x prefix
+    // RPC nodes expect hex format for eth_sendRawTransaction
+    const signedTxHex = this.base64ToHex(result.signed_tx);
+    return signedTxHex;
   }
 
   /**
@@ -193,5 +197,16 @@ export class ArcSignSigner extends AbstractSigner {
       return `${address.slice(0, 6)}...${address.slice(-4)}`;
     }
     return address;
+  }
+
+  /**
+   * Convert base64 encoded string to hex with 0x prefix
+   * ArcSign returns signed transactions in base64, but RPC expects hex
+   */
+  private base64ToHex(base64: string): string {
+    // Decode base64 to bytes
+    const bytes = Buffer.from(base64, "base64");
+    // Convert to hex with 0x prefix
+    return "0x" + bytes.toString("hex");
   }
 }

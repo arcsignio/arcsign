@@ -173,6 +173,11 @@ async fn handle_sign_transaction(
         data: tx_params.data.clone(),
         value: tx_params.value.clone(),
         chain_id: tx_params.chain_id,
+        gas: tx_params.gas.clone(),
+        gas_price: tx_params.gas_price.clone(),
+        max_fee_per_gas: None,  // Not supported in legacy SignTransactionParams
+        max_priority_fee_per_gas: None,
+        nonce: None,
         description,
         broadcast,
     };
@@ -386,6 +391,11 @@ async fn handle_dev_sign_transaction(
         data: tx_params.data.clone(),
         value: tx_params.value.clone(),
         chain_id: tx_params.chain_id,
+        gas: tx_params.gas.clone(),
+        gas_price: tx_params.gas_price.clone(),
+        max_fee_per_gas: tx_params.max_fee_per_gas.clone(),
+        max_priority_fee_per_gas: tx_params.max_priority_fee_per_gas.clone(),
+        nonce: tx_params.nonce,
         description,
         broadcast: true, // Developer mode always broadcasts
     };

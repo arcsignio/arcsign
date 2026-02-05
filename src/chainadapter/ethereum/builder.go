@@ -104,12 +104,11 @@ func (tb *TransactionBuilder) Build(
 			gasLimit = 65000
 		}
 	} else {
-		// Native ETH transfer
-		toAddr = common.HexToAddress(req.To)
+		// Native ETH transfer or contract deployment/call
 		value = req.Amount
 
-		// Parse data field (memo) for native transfers
-		// Memo can be hex-encoded contract call data or plain text
+		// Parse data field (memo) for contract calls/deployments
+		// Memo can be hex-encoded contract call data or bytecode
 		if req.Memo != "" {
 			if len(req.Memo) >= 2 && req.Memo[:2] == "0x" {
 				data = common.FromHex(req.Memo)
@@ -117,6 +116,12 @@ func (tb *TransactionBuilder) Build(
 				data = []byte(req.Memo)
 			}
 		}
+
+		// Set to address (nil for contract deployment)
+		if req.To != "" {
+			toAddr = common.HexToAddress(req.To)
+		}
+		// If req.To is empty, toAddr remains zero value
 	}
 
 	// Override gas limit from chain-specific if provided
@@ -126,17 +131,36 @@ func (tb *TransactionBuilder) Build(
 		}
 	}
 
+	// Determine if this is a contract deployment (empty to address with data)
+	isContractDeploy := req.To == "" && len(data) > 0
+
 	// Create EIP-1559 transaction
-	tx := types.NewTx(&types.DynamicFeeTx{
-		ChainID:   tb.chainID,
-		Nonce:     nonce,
-		GasFeeCap: maxFeePerGas,
-		GasTipCap: maxPriorityFeePerGas,
-		Gas:       gasLimit,
-		To:        &toAddr,
-		Value:     value,
-		Data:      data,
-	})
+	var tx *types.Transaction
+	if isContractDeploy {
+		// Contract deployment: To must be nil
+		tx = types.NewTx(&types.DynamicFeeTx{
+			ChainID:   tb.chainID,
+			Nonce:     nonce,
+			GasFeeCap: maxFeePerGas,
+			GasTipCap: maxPriorityFeePerGas,
+			Gas:       gasLimit,
+			To:        nil, // nil indicates contract creation
+			Value:     value,
+			Data:      data,
+		})
+	} else {
+		// Regular transfer or contract call
+		tx = types.NewTx(&types.DynamicFeeTx{
+			ChainID:   tb.chainID,
+			Nonce:     nonce,
+			GasFeeCap: maxFeePerGas,
+			GasTipCap: maxPriorityFeePerGas,
+			Gas:       gasLimit,
+			To:        &toAddr,
+			Value:     value,
+			Data:      data,
+		})
+	}
 
 	// Generate transaction ID (hash without signature)
 	signer := types.LatestSignerForChainID(tb.chainID)
@@ -199,15 +223,18 @@ func (tb *TransactionBuilder) validateRequest(req *chainadapter.TransactionReque
 	}
 
 	// Validate To address
+	// Note: Empty 'to' is allowed for contract deployments when data (memo) is provided
 	if req.To == "" {
-		return chainadapter.NewNonRetryableError(
-			chainadapter.ErrCodeInvalidAddress,
-			"to address is required",
-			nil,
-		)
-	}
-
-	if !tb.isValidAddress(req.To) {
+		// Check if this is a contract deployment (has data/memo)
+		if req.Memo == "" {
+			return chainadapter.NewNonRetryableError(
+				chainadapter.ErrCodeInvalidAddress,
+				"to address is required (or provide data for contract deployment)",
+				nil,
+			)
+		}
+		// Contract deployment: to is empty, memo contains bytecode
+	} else if !tb.isValidAddress(req.To) {
 		return chainadapter.NewNonRetryableError(
 			chainadapter.ErrCodeInvalidAddress,
 			fmt.Sprintf("invalid to address: %s", req.To),

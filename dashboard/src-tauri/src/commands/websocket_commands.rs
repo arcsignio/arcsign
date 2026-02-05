@@ -26,6 +26,16 @@ pub struct PendingTransactionResponse {
     pub data: String,
     pub value: String,
     pub chain_id: u64,
+    /// Gas limit (from Hardhat)
+    pub gas: Option<String>,
+    /// Gas price for legacy tx
+    pub gas_price: Option<String>,
+    /// Max fee per gas (EIP-1559)
+    pub max_fee_per_gas: Option<String>,
+    /// Max priority fee per gas (EIP-1559)
+    pub max_priority_fee_per_gas: Option<String>,
+    /// Transaction nonce
+    pub nonce: Option<u64>,
     pub description: String,
     pub broadcast: bool,
 }
@@ -39,6 +49,11 @@ impl From<&PendingTransaction> for PendingTransactionResponse {
             data: tx.data.clone(),
             value: tx.value.clone(),
             chain_id: tx.chain_id,
+            gas: tx.gas.clone(),
+            gas_price: tx.gas_price.clone(),
+            max_fee_per_gas: tx.max_fee_per_gas.clone(),
+            max_priority_fee_per_gas: tx.max_priority_fee_per_gas.clone(),
+            nonce: tx.nonce,
             description: tx.description.clone(),
             broadcast: tx.broadcast,
         }
@@ -84,17 +99,35 @@ pub async fn get_pending_transaction(
     }
 }
 
+/// Input for respond_to_transaction command
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RespondToTransactionInput {
+    pub request_id: u64,
+    pub success: bool,
+    #[serde(default)]
+    pub tx_hash: Option<String>,
+    #[serde(default)]
+    pub signed_tx: Option<String>,
+    #[serde(default)]
+    pub error: Option<String>,
+}
+
 /// Respond to a pending transaction
 /// Called by frontend after user confirms with password (or rejects)
 #[tauri::command]
 pub async fn respond_to_transaction(
-    request_id: u64,
-    success: bool,
-    tx_hash: Option<String>,
-    signed_tx: Option<String>,
-    error: Option<String>,
+    input: RespondToTransactionInput,
     current_pending: State<'_, CurrentPendingTxState>,
 ) -> Result<(), String> {
+    let RespondToTransactionInput {
+        request_id,
+        success,
+        tx_hash,
+        signed_tx,
+        error,
+    } = input;
+
     tracing::info!(
         "Transaction response: request_id={}, success={}, tx_hash={:?}",
         request_id,

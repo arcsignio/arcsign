@@ -19,30 +19,30 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PendingRequests } from './PendingRequests';
-import { SessionSettings } from './SessionSettings';
+// import { SessionSettings } from './SessionSettings'; // Hidden for now - will be added later
 import { SigningHistory } from './SigningHistory';
 import tauriApi from '@/services/tauri-api';
 import type { DevSignRequest, DevSession } from '@/types/developer';
 import type { Wallet } from '@/types/wallet';
 
-type Tab = 'requests' | 'history' | 'settings';
-type ViewState = 'wallet-selection' | 'password-entry' | 'main';
+type Tab = 'requests' | 'history'; // 'settings' hidden for now
+type ViewState = 'wallet-selection' | 'main';  // Removed password-entry - password entered when signing
 
-// Helper to get network name from chain ID
+// Helper to get network key from chain ID (must match NETWORK_INFO keys in PendingRequests.tsx)
 function getNetworkName(chainId: number): string {
   const networks: Record<number, string> = {
-    1: 'Ethereum',
-    5: 'Goerli',
-    11155111: 'Sepolia',
-    56: 'BSC',
-    97: 'BSC Testnet',
-    137: 'Polygon',
-    80001: 'Mumbai',
-    42161: 'Arbitrum',
-    10: 'Optimism',
-    8453: 'Base',
+    1: 'ethereum',
+    5: 'goerli',
+    11155111: 'sepolia',
+    56: 'bsc',
+    97: 'bsc-testnet',
+    137: 'polygon',
+    80001: 'mumbai',
+    42161: 'arbitrum',
+    10: 'optimism',
+    8453: 'base',
   };
-  return networks[chainId] || `Chain ${chainId}`;
+  return networks[chainId] || `chain-${chainId}`;
 }
 
 interface DeveloperModeProps {
@@ -57,8 +57,7 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
   const [viewState, setViewState] = useState<ViewState>('wallet-selection');
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [selectedWallet, setSelectedWallet] = useState<Wallet | null>(null);
-  const [password, setPassword] = useState('');
-  const [walletSessionToken, setWalletSessionToken] = useState<string | null>(null);
+  // Note: No password or session state - password is entered when signing, session created on-demand
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,7 +65,7 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
   const [activeTab, setActiveTab] = useState<Tab>('requests');
   const [pendingRequests, setPendingRequests] = useState<DevSignRequest[]>([]);
   const [signingHistory, setSigningHistory] = useState<DevSignRequest[]>([]);
-  const [session, setSession] = useState<DevSession | null>(null);
+  const [session, _setSession] = useState<DevSession | null>(null); // setSession hidden - will be used when Session Settings is enabled
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
@@ -106,6 +105,11 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
             to: pending.to || undefined,
             data: pending.data || undefined,
             value: pending.value || undefined,
+            gas: pending.gas || undefined,
+            gasPrice: pending.gas_price || undefined,
+            maxFeePerGas: pending.max_fee_per_gas || undefined,
+            maxPriorityFeePerGas: pending.max_priority_fee_per_gas || undefined,
+            nonce: pending.nonce,
             network: getNetworkName(pending.chain_id),
             chainId: pending.chain_id,
             description: pending.description,
@@ -136,55 +140,26 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
     return () => clearInterval(interval);
   }, [viewState]);
 
-  // Handle wallet selection
+  // Handle wallet selection - go directly to main view (no password needed here)
   const handleSelectWallet = (wallet: Wallet) => {
     setSelectedWallet(wallet);
-    setPassword('');
     setError(null);
-    setViewState('password-entry');
+    setViewState('main');  // Go directly to main view
   };
 
-  // Handle password submission
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedWallet || !password) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Validate password by creating a wallet session
-      const sessionResponse = await tauriApi.createWalletSession({
-        walletId: selectedWallet.id,
-        password,
-        usbPath,
-      });
-
-      setWalletSessionToken(sessionResponse.token);
-      setPassword(''); // Clear password immediately after validation
-      setViewState('main');
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Invalid password';
-      setError(errorMessage);
-      console.error('Password validation failed:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle back from password entry
-  const handleBackToWalletSelection = () => {
+  // Handle back to wallet selection (currently unused, but kept for potential future use)
+  const _handleBackToWalletSelection = () => {
     setSelectedWallet(null);
-    setPassword('');
     setError(null);
     setViewState('wallet-selection');
   };
+  void _handleBackToWalletSelection; // Suppress unused variable warning
 
-  // Handle approve request
+  // Handle approve request - uses devModeSign (bypasses buildTransaction, uses Hardhat params directly)
   const handleApprove = useCallback(async (requestId: string, inputPassword: string) => {
     const request = pendingRequests.find(r => r.id === requestId);
-    if (!request || !selectedWallet || !walletSessionToken) {
-      throw new Error('Missing request, wallet, or session');
+    if (!request || !selectedWallet) {
+      throw new Error('Missing request or wallet');
     }
 
     if (!inputPassword) {
@@ -192,27 +167,22 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
     }
 
     try {
-      // Build the transaction to get proper nonce/gas
-      // Use existing session token for API access
-      const buildResult = await tauriApi.buildTransaction({
-        chainId: String(request.chainId),
-        fromAddress: request.from,
-        toAddress: request.to || '',
-        amount: request.value || '0',
-        data: request.data,
-        sessionToken: walletSessionToken,
-      });
-
-      // Sign the transaction with the password
-      // Password is used to decrypt mnemonic, then cleared
-      const signResult = await tauriApi.signTransaction({
-        chainId: String(request.chainId),
+      // Use devModeSign - takes Hardhat params directly, no session/buildTransaction needed
+      // Hardhat already provides: from, to, data, value, gas, gasPrice/EIP-1559, chainId, nonce
+      const signResult = await tauriApi.devModeSign({
         walletId: selectedWallet.id,
         password: inputPassword,
-        fromAddress: request.from,
-        unsignedTx: buildResult,
         usbPath,
-        sessionToken: walletSessionToken,
+        from: request.from,
+        to: request.to || '',
+        data: request.data || '0x',
+        value: request.value || '0x0',
+        gas: request.gas || '0x5208', // 21000 default
+        gasPrice: request.gasPrice,
+        maxFeePerGas: request.maxFeePerGas,
+        maxPriorityFeePerGas: request.maxPriorityFeePerGas,
+        chainId: request.chainId,
+        nonce: request.nonce || 0,
       });
 
       // Respond to the WebSocket with the signed transaction
@@ -239,7 +209,7 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
       throw err;
     }
     // Note: inputPassword is cleared by the PendingRequests component after this function returns
-  }, [pendingRequests, selectedWallet, walletSessionToken, usbPath]);
+  }, [pendingRequests, selectedWallet, usbPath]);
 
   // Handle reject request
   const handleReject = useCallback(async (requestId: string) => {
@@ -261,31 +231,25 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
     }
   }, [pendingRequests]);
 
-  // Handle session toggle
-  const handleSessionToggle = useCallback(async (enabled: boolean) => {
-    if (enabled && selectedWallet) {
-      setSession({
-        enabled: true,
-        walletId: selectedWallet.id,
-        createdAt: Date.now(),
-        expiresAt: Date.now() + 30 * 60 * 1000, // 30 minutes
-        trustedNetworks: ['sepolia', 'goerli', 'bsc-testnet'],
-        signCount: 0,
-      });
-    } else {
-      setSession(null);
-    }
-  }, [selectedWallet]);
+  // Handle session toggle - hidden for now, will be added later
+  // const handleSessionToggle = useCallback(async (enabled: boolean) => {
+  //   if (enabled && selectedWallet) {
+  //     setSession({
+  //       enabled: true,
+  //       walletId: selectedWallet.id,
+  //       createdAt: Date.now(),
+  //       expiresAt: Date.now() + 30 * 60 * 1000, // 30 minutes
+  //       trustedNetworks: ['sepolia', 'goerli', 'bsc-testnet'],
+  //       signCount: 0,
+  //     });
+  //   } else {
+  //     setSession(null);
+  //   }
+  // }, [selectedWallet]);
 
-  // Handle exit developer mode (revoke session)
-  const handleExit = async () => {
-    if (walletSessionToken) {
-      try {
-        await tauriApi.revokeWalletSession({ token: walletSessionToken });
-      } catch (err) {
-        console.error('Failed to revoke wallet session:', err);
-      }
-    }
+  // Handle exit developer mode
+  const handleExit = () => {
+    // No session to revoke - sessions are created on-demand when signing
     onBack();
   };
 
@@ -357,73 +321,6 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
     );
   }
 
-  // Render password entry view
-  if (viewState === 'password-entry') {
-    return (
-      <div className="developer-mode">
-        <header className="dev-header">
-          <div className="dev-header-left">
-            <button onClick={handleBackToWalletSelection} className="back-button">
-              ← {t('actions.back')}
-            </button>
-            <h1>🔧 {t('developer.title', 'Developer Mode')}</h1>
-          </div>
-        </header>
-
-        <main className="dev-content">
-          <div className="password-entry">
-            <div className="selected-wallet-card">
-              <div className="wallet-icon">👛</div>
-              <div className="wallet-info">
-                <span className="wallet-name">{selectedWallet?.name}</span>
-                <span className="wallet-id">{selectedWallet?.id.substring(0, 8)}...</span>
-              </div>
-            </div>
-
-            <h2>{t('developer.enterPassword', 'Enter Wallet Password')}</h2>
-            <p className="password-description">
-              {t('developer.enterPasswordDescription', 'Enter the password for this wallet to continue.')}
-            </p>
-
-            {error && (
-              <div className="error-banner">
-                ⚠️ {error}
-              </div>
-            )}
-
-            <form onSubmit={handlePasswordSubmit} className="password-form">
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={t('developer.passwordPlaceholder', 'Wallet password')}
-                className="password-input"
-                autoFocus
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                className="primary-button"
-                disabled={!password || isLoading}
-              >
-                {isLoading ? (
-                  <span className="button-loading">
-                    <span className="spinner small" />
-                    {t('common.loading', 'Loading...')}
-                  </span>
-                ) : (
-                  t('developer.unlock', 'Unlock')
-                )}
-              </button>
-            </form>
-          </div>
-        </main>
-
-        <style>{passwordEntryStyles}</style>
-      </div>
-    );
-  }
-
   // Render main developer mode interface
   return (
     <div className="developer-mode">
@@ -473,12 +370,7 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
         >
           📜 {t('developer.history', 'History')}
         </button>
-        <button
-          className={`dev-tab ${activeTab === 'settings' ? 'active' : ''}`}
-          onClick={() => setActiveTab('settings')}
-        >
-          ⚙️ {t('developer.sessionSettings', 'Session Settings')}
-        </button>
+        {/* Session Settings tab - hidden for now, will be added later */}
       </nav>
 
       {/* Tab Content */}
@@ -494,12 +386,7 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
         {activeTab === 'history' && (
           <SigningHistory history={signingHistory} />
         )}
-        {activeTab === 'settings' && (
-          <SessionSettings
-            session={session}
-            onToggle={handleSessionToggle}
-          />
-        )}
+        {/* Session Settings content - hidden for now */}
       </main>
 
       <style>{`
@@ -836,193 +723,5 @@ const walletSelectionStyles = `
   .wallet-arrow {
     font-size: 20px;
     color: rgba(255, 255, 255, 0.4);
-  }
-`;
-
-// Styles for password entry view
-const passwordEntryStyles = `
-  .developer-mode {
-    min-height: 100vh;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    color: #fff;
-  }
-
-  .dev-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 24px;
-    background: rgba(0, 0, 0, 0.2);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .dev-header-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .dev-header h1 {
-    margin: 0;
-    font-size: 24px;
-    font-weight: 600;
-  }
-
-  .back-button {
-    padding: 8px 16px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
-    color: #fff;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .back-button:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  .dev-content {
-    padding: 24px;
-    max-width: 400px;
-    margin: 0 auto;
-  }
-
-  .password-entry {
-    text-align: center;
-  }
-
-  .selected-wallet-card {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    padding: 20px;
-    margin-bottom: 32px;
-    background: rgba(59, 130, 246, 0.1);
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    border-radius: 12px;
-  }
-
-  .wallet-icon {
-    font-size: 40px;
-  }
-
-  .wallet-info {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    text-align: left;
-  }
-
-  .wallet-name {
-    font-size: 18px;
-    font-weight: 600;
-    color: #fff;
-  }
-
-  .wallet-id {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.5);
-    font-family: monospace;
-  }
-
-  .password-entry h2 {
-    margin: 0 0 8px 0;
-    font-size: 20px;
-    font-weight: 600;
-  }
-
-  .password-description {
-    margin: 0 0 24px 0;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 14px;
-  }
-
-  .error-banner {
-    padding: 12px 16px;
-    margin-bottom: 16px;
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    border-radius: 8px;
-    color: #fca5a5;
-    text-align: left;
-  }
-
-  .password-form {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .password-input {
-    padding: 14px 16px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
-    color: #fff;
-    font-size: 16px;
-    outline: none;
-    transition: all 0.2s;
-  }
-
-  .password-input:focus {
-    border-color: #3b82f6;
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .password-input::placeholder {
-    color: rgba(255, 255, 255, 0.4);
-  }
-
-  .password-input:disabled {
-    opacity: 0.5;
-  }
-
-  .primary-button {
-    padding: 14px 24px;
-    background: #3b82f6;
-    border: none;
-    border-radius: 8px;
-    color: #fff;
-    font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .primary-button:hover:not(:disabled) {
-    background: #2563eb;
-  }
-
-  .primary-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .button-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-  }
-
-  .spinner {
-    width: 32px;
-    height: 32px;
-    border: 3px solid rgba(255, 255, 255, 0.1);
-    border-top-color: #fff;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  .spinner.small {
-    width: 16px;
-    height: 16px;
-    border-width: 2px;
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
   }
 `;

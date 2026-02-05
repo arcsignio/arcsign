@@ -810,7 +810,7 @@
         "timeLimit": "Session expires after 30 minutes"
       }
     },
-    "history": {
+    "historySection": {
       "title": "Signing History",
       "empty": "No signing history yet",
       "emptyHint": "Approved and rejected requests will appear here",

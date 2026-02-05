@@ -578,6 +578,73 @@ export async function signTransaction(
   }
 }
 
+/**
+ * Developer Mode signing - uses Hardhat-provided tx params directly
+ * Bypasses buildTransaction since Hardhat already provides all params
+ */
+export interface DevModeSignParams {
+  walletId: string;
+  password: string;
+  passphrase?: string;
+  usbPath: string;
+  from: string;
+  to: string;
+  data: string;
+  value: string;
+  gas: string;
+  gasPrice?: string;
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
+  chainId: number;
+  nonce: number;
+}
+
+export interface DevModeSignResponse {
+  txHash: string;
+  signature: string;
+  serializedTx: string;
+  signedBy: string;
+}
+
+export async function devModeSign(
+  params: DevModeSignParams
+): Promise<DevModeSignResponse> {
+  console.log("🔧 [tauri-api] devModeSign called:", {
+    walletId: params.walletId,
+    from: params.from,
+    to: params.to || "(deploy)",
+    chainId: params.chainId,
+    nonce: params.nonce,
+  });
+
+  try {
+    const result = await invoke<DevModeSignResponse>("dev_mode_sign", {
+      input: {
+        walletId: params.walletId,
+        password: params.password,
+        passphrase: params.passphrase || "",
+        usbPath: params.usbPath,
+        from: params.from,
+        to: params.to || "",
+        data: params.data || "0x",
+        value: params.value || "0x0",
+        gas: params.gas || "0x5208", // 21000 default
+        gasPrice: params.gasPrice,
+        maxFeePerGas: params.maxFeePerGas,
+        maxPriorityFeePerGas: params.maxPriorityFeePerGas,
+        chainId: params.chainId,
+        nonce: params.nonce,
+      },
+    });
+    console.log("🔧 [tauri-api] devModeSign response:", result);
+    console.log("🔧 [tauri-api] devModeSign serializedTx:", result.serializedTx, "type:", typeof result.serializedTx);
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] devModeSign error:", error);
+    throw parseError(error);
+  }
+}
+
 export async function broadcastTransaction(
   params: BroadcastTransactionParams
 ): Promise<BroadcastTransactionResponse> {
@@ -1002,6 +1069,16 @@ export interface PendingTransactionInfo {
   data: string;
   value: string;
   chain_id: number;
+  /** Gas limit (from Hardhat) */
+  gas?: string;
+  /** Gas price for legacy tx */
+  gas_price?: string;
+  /** Max fee per gas (EIP-1559) */
+  max_fee_per_gas?: string;
+  /** Max priority fee per gas (EIP-1559) */
+  max_priority_fee_per_gas?: string;
+  /** Transaction nonce */
+  nonce?: number;
   description: string;
   broadcast: boolean;
 }
@@ -1022,6 +1099,10 @@ export async function getPendingTransaction(): Promise<PendingTransactionInfo | 
 
 /**
  * Respond to a pending transaction after user confirms/rejects
+ *
+ * Note: Tauri's command parameter handling requires special care with Option<T> types.
+ * We must NOT send explicit `null` values - instead, omit the fields entirely.
+ * This allows Rust's Option<T> to properly receive None.
  */
 export async function respondToTransaction(params: {
   requestId: number;
@@ -1030,20 +1111,37 @@ export async function respondToTransaction(params: {
   signedTx?: string;
   error?: string;
 }): Promise<void> {
-  console.log("📝 [tauri-api] respondToTransaction called:", {
+  console.log("📝 [tauri-api] respondToTransaction called:", params);
+
+  // Validate requestId to prevent "null expected usize" JSON error
+  if (params.requestId === undefined || params.requestId === null || Number.isNaN(params.requestId)) {
+    console.warn("⚠️ [tauri-api] respondToTransaction skipped: invalid requestId", params.requestId);
+    return;
+  }
+
+  // Build invoke params - wrapped in 'input' object to match Rust struct
+  // Using camelCase since Rust struct has #[serde(rename_all = "camelCase")]
+  const inputData: Record<string, unknown> = {
     requestId: params.requestId,
     success: params.success,
-    txHash: params.txHash,
-  });
+  };
+
+  // Only add optional fields if they have actual values (serde(default) handles missing fields)
+  if (params.txHash !== undefined && params.txHash !== null) {
+    inputData.txHash = params.txHash;
+  }
+  if (params.signedTx !== undefined && params.signedTx !== null) {
+    inputData.signedTx = params.signedTx;
+  }
+  if (params.error !== undefined && params.error !== null) {
+    inputData.error = params.error;
+  }
+
+  console.log("📝 [tauri-api] respondToTransaction input:", JSON.stringify(inputData));
 
   try {
-    await invoke("respond_to_transaction", {
-      requestId: params.requestId,
-      success: params.success,
-      txHash: params.txHash || null,
-      signedTx: params.signedTx || null,
-      error: params.error || null,
-    });
+    // Wrap in 'input' to match Rust command parameter name
+    await invoke("respond_to_transaction", { input: inputData });
     console.log("📝 [tauri-api] respondToTransaction success");
   } catch (error) {
     console.error("🔴 [tauri-api] respondToTransaction error:", error);
@@ -1096,6 +1194,7 @@ export const tauriApi = {
   // Transaction Operations (ChainAdapter)
   buildTransaction,
   signTransaction,
+  devModeSign,  // Developer Mode signing (bypasses buildTransaction)
   broadcastTransaction,
   queryTransactionStatus,
   estimateFee,

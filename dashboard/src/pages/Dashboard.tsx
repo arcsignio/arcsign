@@ -5,7 +5,7 @@
  * Generated: 2025-10-17
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   useDashboardStore,
   useSelectedWallet,
@@ -62,6 +62,7 @@ export function Dashboard() {
   const [pendingTransaction, setPendingTransaction] = useState<PendingTransactionInfo | null>(null);
   const [isSigningTransaction, setIsSigningTransaction] = useState(false);
   const [rejectCooldown, setRejectCooldown] = useState(false); // Prevent immediate re-polling after reject
+  const prevViewRef = useRef<View>("list"); // Track previous view for developer mode cleanup
 
   const {
     wallets,
@@ -92,9 +93,43 @@ export function Dashboard() {
       },
     });
 
+  // Clear pending transaction when entering/leaving developer mode
+  // This ensures DeveloperMode page handles all signing requests and prevents
+  // old TransactionSignDialog from appearing after leaving developer mode
+  useEffect(() => {
+    const prevView = prevViewRef.current;
+
+    if (currentView === 'developer') {
+      // Entering developer mode: clear local and backend pending state
+      if (pendingTransaction) {
+        console.log("🔧 Entering developer mode, clearing pending transaction from Dashboard");
+        setPendingTransaction(null);
+      }
+      tauriApi.cancelPendingTransaction().catch(() => {
+        // Ignore errors - transaction might not exist
+      });
+    } else if (prevView === 'developer') {
+      // Leaving developer mode: clear any pending state that might have accumulated
+      console.log("🔧 Leaving developer mode, clearing pending transactions");
+      setPendingTransaction(null);
+      setRejectCooldown(true); // Prevent immediate polling
+      tauriApi.cancelPendingTransaction().catch(() => {
+        // Ignore errors - transaction might not exist
+      });
+      // Reset cooldown after a delay
+      setTimeout(() => setRejectCooldown(false), 2000);
+    }
+
+    // Update previous view ref
+    prevViewRef.current = currentView;
+  }, [currentView]);
+
   // Poll for pending transactions from mint-page
+  // Note: Skip polling when in developer mode - DeveloperMode page handles its own polling
   useEffect(() => {
     const pollPendingTransactions = async () => {
+      // Don't poll in developer mode - let DeveloperMode page handle it
+      if (currentView === 'developer') return;
       // Don't poll if we're already handling a transaction or in cooldown
       if (isSigningTransaction || pendingTransaction || rejectCooldown) return;
 
@@ -113,7 +148,7 @@ export function Dashboard() {
     // Poll every 500ms for pending transactions
     const interval = setInterval(pollPendingTransactions, 500);
     return () => clearInterval(interval);
-  }, [isSigningTransaction, pendingTransaction, rejectCooldown]);
+  }, [isSigningTransaction, pendingTransaction, rejectCooldown, currentView]);
 
   // Helper: Convert hex value to decimal wei string
   const hexToDecimalWei = (hexValue: string): string => {

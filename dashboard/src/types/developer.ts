@@ -31,8 +31,23 @@ export interface DevSignRequest {
   /** Value in wei (hex encoded) */
   value?: string;
 
-  /** Estimated gas cost in wei */
+  /** Estimated gas cost in wei (legacy) */
   estimatedGas?: string;
+
+  /** Gas limit (from Hardhat) */
+  gas?: string;
+
+  /** Gas price for legacy tx (hex) */
+  gasPrice?: string;
+
+  /** Max fee per gas for EIP-1559 (hex) */
+  maxFeePerGas?: string;
+
+  /** Max priority fee per gas for EIP-1559 (hex) */
+  maxPriorityFeePerGas?: string;
+
+  /** Transaction nonce */
+  nonce?: number;
 
   /** Network identifier (e.g., 'ethereum', 'bsc', 'sepolia') */
   network: string;

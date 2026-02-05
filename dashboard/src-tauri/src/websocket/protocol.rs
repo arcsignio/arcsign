@@ -127,6 +127,16 @@ pub struct PendingTransaction {
     pub data: String,
     pub value: String,
     pub chain_id: u64,
+    /// Gas limit (from Hardhat)
+    pub gas: Option<String>,
+    /// Gas price for legacy tx
+    pub gas_price: Option<String>,
+    /// Max fee per gas (EIP-1559)
+    pub max_fee_per_gas: Option<String>,
+    /// Max priority fee per gas (EIP-1559)
+    pub max_priority_fee_per_gas: Option<String>,
+    /// Transaction nonce
+    pub nonce: Option<u64>,
     /// Human-readable description
     pub description: String,
     /// Should broadcast after signing
