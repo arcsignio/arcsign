@@ -21,11 +21,13 @@ import { useTranslation } from 'react-i18next';
 import { PendingRequests } from './PendingRequests';
 // import { SessionSettings } from './SessionSettings'; // Hidden for now - will be added later
 import { SigningHistory } from './SigningHistory';
+import { DevSettings } from './DevSettings';
 import tauriApi from '@/services/tauri-api';
 import type { DevSignRequest, DevSession } from '@/types/developer';
+import type { DevSettings as DevSettingsType } from '@/services/tauri-api';
 import type { Wallet } from '@/types/wallet';
 
-type Tab = 'requests' | 'history'; // 'settings' hidden for now
+type Tab = 'requests' | 'history' | 'settings';
 type ViewState = 'wallet-selection' | 'main';  // Removed password-entry - password entered when signing
 
 // Helper to get network key from chain ID (must match NETWORK_INFO keys in PendingRequests.tsx)
@@ -65,6 +67,7 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
   const [activeTab, setActiveTab] = useState<Tab>('requests');
   const [pendingRequests, setPendingRequests] = useState<DevSignRequest[]>([]);
   const [signingHistory, setSigningHistory] = useState<DevSignRequest[]>([]);
+  const [devSettings, setDevSettings] = useState<DevSettingsType | null>(null);
   const [session, _setSession] = useState<DevSession | null>(null); // setSession hidden - will be used when Session Settings is enabled
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -172,6 +175,17 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
       console.warn('Failed to load signing history:', err);
       // Non-fatal - continue with empty history
       setSigningHistory([]);
+    }
+
+    // Load developer settings from USB
+    try {
+      const settings = await tauriApi.loadDevSettings({ usbPath });
+      setDevSettings(settings);
+      console.log('⚙️ Loaded dev settings');
+    } catch (err) {
+      console.warn('Failed to load dev settings:', err);
+      // Non-fatal - continue with default settings
+      setDevSettings(null);
     }
 
     setViewState('main');  // Go directly to main view
@@ -333,6 +347,12 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
     onBack();
   };
 
+  // Handle saving developer settings
+  const handleSaveSettings = useCallback(async (settings: DevSettingsType) => {
+    await tauriApi.saveDevSettings({ usbPath, settings });
+    setDevSettings(settings);
+  }, [usbPath]);
+
   // Render wallet selection view
   if (viewState === 'wallet-selection') {
     return (
@@ -450,7 +470,12 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
         >
           📜 {t('developer.history', 'History')}
         </button>
-        {/* Session Settings tab - hidden for now, will be added later */}
+        <button
+          className={`dev-tab ${activeTab === 'settings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('settings')}
+        >
+          ⚙️ {t('developer.settings', 'Settings')}
+        </button>
       </nav>
 
       {/* Tab Content */}
@@ -466,7 +491,12 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
         {activeTab === 'history' && (
           <SigningHistory history={signingHistory} />
         )}
-        {/* Session Settings content - hidden for now */}
+        {activeTab === 'settings' && (
+          <DevSettings
+            settings={devSettings}
+            onSave={handleSaveSettings}
+          />
+        )}
       </main>
 
       <style>{`

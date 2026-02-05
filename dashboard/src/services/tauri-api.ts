@@ -1242,6 +1242,10 @@ export const tauriApi = {
   loadDevSigningHistory,
   appendDevSigningHistory,
   clearDevSigningHistory,
+
+  // Developer Mode Settings
+  loadDevSettings,
+  saveDevSettings,
 };
 
 /**
@@ -1685,6 +1689,72 @@ export async function clearDevSigningHistory(params: {
     console.log("📜 [tauri-api] clearDevSigningHistory success");
   } catch (error) {
     console.error("🔴 [tauri-api] clearDevSigningHistory error:", error);
+    throw parseError(error);
+  }
+}
+
+// ============================================================================
+// Developer Mode Settings
+// ============================================================================
+
+/**
+ * Block explorer API keys for contract verification
+ */
+export interface ExplorerApiKeys {
+  etherscan?: string;
+  bscscan?: string;
+  polygonscan?: string;
+  arbiscan?: string;
+  optimism?: string;
+  basescan?: string;
+  snowtrace?: string;
+}
+
+/**
+ * Developer mode settings
+ * Stored on USB device
+ */
+export interface DevSettings {
+  version: number;
+  explorerApiKeys: ExplorerApiKeys;
+  updatedAt: number;
+}
+
+/**
+ * Load developer settings
+ */
+export async function loadDevSettings(params: {
+  usbPath: string;
+}): Promise<DevSettings> {
+  console.log("⚙️ [tauri-api] loadDevSettings called");
+  try {
+    const result = await invoke<DevSettings>("load_dev_settings", {
+      usbPath: params.usbPath,
+    });
+    console.log("⚙️ [tauri-api] loadDevSettings success");
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] loadDevSettings error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Save developer settings
+ */
+export async function saveDevSettings(params: {
+  usbPath: string;
+  settings: DevSettings;
+}): Promise<void> {
+  console.log("⚙️ [tauri-api] saveDevSettings called");
+  try {
+    await invoke("save_dev_settings", {
+      usbPath: params.usbPath,
+      settings: params.settings,
+    });
+    console.log("⚙️ [tauri-api] saveDevSettings success");
+  } catch (error) {
+    console.error("🔴 [tauri-api] saveDevSettings error:", error);
     throw parseError(error);
   }
 }

@@ -313,6 +313,9 @@ fn main() {
             commands::dev_history::load_dev_signing_history,
             commands::dev_history::append_dev_signing_history,
             commands::dev_history::clear_dev_signing_history,
+            // Developer mode settings commands
+            commands::dev_settings::load_dev_settings,
+            commands::dev_settings::save_dev_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
