@@ -13,6 +13,33 @@ interface SigningHistoryProps {
   history: DevSignRequest[];
 }
 
+/**
+ * Get block explorer transaction URL based on chainId
+ */
+const getBlockExplorerTxUrl = (chainId: number, txHash: string): string | null => {
+  const explorers: Record<number, string> = {
+    // Mainnets
+    1: 'https://etherscan.io',
+    137: 'https://polygonscan.com',
+    56: 'https://bscscan.com',
+    42161: 'https://arbiscan.io',
+    10: 'https://optimistic.etherscan.io',
+    43114: 'https://snowtrace.io',
+    8453: 'https://basescan.org',
+    // Testnets
+    11155111: 'https://sepolia.etherscan.io',
+    80001: 'https://mumbai.polygonscan.com',
+    97: 'https://testnet.bscscan.com',
+    421614: 'https://sepolia.arbiscan.io',
+    11155420: 'https://sepolia-optimism.etherscan.io',
+    43113: 'https://testnet.snowtrace.io',
+    84532: 'https://sepolia.basescan.org',
+  };
+
+  const baseUrl = explorers[chainId];
+  return baseUrl ? `${baseUrl}/tx/${txHash}` : null;
+};
+
 export function SigningHistory({ history }: SigningHistoryProps) {
   const { t } = useTranslation();
 
@@ -95,7 +122,21 @@ export function SigningHistory({ history }: SigningHistoryProps) {
               {item.txHash && (
                 <div className="detail-row">
                   <span className="label">Tx Hash:</span>
-                  <span className="value mono">{formatAddress(item.txHash)}</span>
+                  {(() => {
+                    const explorerUrl = getBlockExplorerTxUrl(item.chainId, item.txHash);
+                    return explorerUrl ? (
+                      <a
+                        href={explorerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="value mono tx-link"
+                      >
+                        {formatAddress(item.txHash)} ↗
+                      </a>
+                    ) : (
+                      <span className="value mono">{formatAddress(item.txHash)}</span>
+                    );
+                  })()}
                 </div>
               )}
               <div className="detail-row">
@@ -189,6 +230,18 @@ export function SigningHistory({ history }: SigningHistoryProps) {
 
         .detail-row .value.script {
           color: #a5f3fc;
+        }
+
+        .tx-link {
+          color: #60a5fa;
+          text-decoration: none;
+          cursor: pointer;
+          transition: color 0.2s;
+        }
+
+        .tx-link:hover {
+          text-decoration: underline;
+          color: #93c5fd;
         }
       `}</style>
     </div>
