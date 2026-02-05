@@ -1235,6 +1235,11 @@ export const tauriApi = {
   createWalletSession,
   validateWalletSession,
   revokeWalletSession,
+
+  // Developer Mode Signing History
+  loadDevSigningHistory,
+  appendDevSigningHistory,
+  clearDevSigningHistory,
 };
 
 /**
@@ -1593,6 +1598,91 @@ export async function revokeWalletSession(params: {
     return result;
   } catch (error) {
     console.error("🔴 [tauri-api] revokeWalletSession error:", error);
+    throw parseError(error);
+  }
+}
+
+// ============================================================================
+// Developer Mode Signing History
+// ============================================================================
+
+/**
+ * Signing history entry for developer mode
+ * Stored on USB device, per-wallet basis
+ */
+export interface SigningHistoryEntry {
+  id: string;
+  type: "deploy" | "call" | "sign";
+  description?: string;
+  from: string;
+  to?: string;
+  network: string;
+  chainId: number;
+  status: "approved" | "rejected";
+  timestamp: number;
+  txHash?: string;
+  value?: string;
+}
+
+/**
+ * Load developer signing history for a wallet
+ */
+export async function loadDevSigningHistory(params: {
+  usbPath: string;
+  walletId: string;
+}): Promise<SigningHistoryEntry[]> {
+  console.log("📜 [tauri-api] loadDevSigningHistory called:", params.walletId);
+  try {
+    const result = await invoke<SigningHistoryEntry[]>("load_dev_signing_history", {
+      usbPath: params.usbPath,
+      walletId: params.walletId,
+    });
+    console.log("📜 [tauri-api] loadDevSigningHistory success:", result.length, "entries");
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] loadDevSigningHistory error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Append a new entry to developer signing history
+ */
+export async function appendDevSigningHistory(params: {
+  usbPath: string;
+  walletId: string;
+  entry: SigningHistoryEntry;
+}): Promise<void> {
+  console.log("📜 [tauri-api] appendDevSigningHistory called:", params.entry.id);
+  try {
+    await invoke("append_dev_signing_history", {
+      usbPath: params.usbPath,
+      walletId: params.walletId,
+      entry: params.entry,
+    });
+    console.log("📜 [tauri-api] appendDevSigningHistory success");
+  } catch (error) {
+    console.error("🔴 [tauri-api] appendDevSigningHistory error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Clear all developer signing history for a wallet
+ */
+export async function clearDevSigningHistory(params: {
+  usbPath: string;
+  walletId: string;
+}): Promise<void> {
+  console.log("📜 [tauri-api] clearDevSigningHistory called:", params.walletId);
+  try {
+    await invoke("clear_dev_signing_history", {
+      usbPath: params.usbPath,
+      walletId: params.walletId,
+    });
+    console.log("📜 [tauri-api] clearDevSigningHistory success");
+  } catch (error) {
+    console.error("🔴 [tauri-api] clearDevSigningHistory error:", error);
     throw parseError(error);
   }
 }

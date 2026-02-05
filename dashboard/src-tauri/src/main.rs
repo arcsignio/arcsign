@@ -309,6 +309,10 @@ fn main() {
             commands::walletconnect::load_wc_sessions,
             commands::walletconnect::delete_wc_session,
             commands::walletconnect::delete_all_wc_sessions,
+            // Developer mode signing history commands
+            commands::dev_history::load_dev_signing_history,
+            commands::dev_history::append_dev_signing_history,
+            commands::dev_history::clear_dev_signing_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

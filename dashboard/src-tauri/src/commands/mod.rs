@@ -5,6 +5,7 @@
 
 pub mod app;
 pub mod auth;
+pub mod dev_history;
 pub mod membership;
 pub mod provider;
 pub mod security;

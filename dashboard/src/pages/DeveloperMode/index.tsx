@@ -141,9 +141,38 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
   }, [viewState]);
 
   // Handle wallet selection - go directly to main view (no password needed here)
-  const handleSelectWallet = (wallet: Wallet) => {
+  const handleSelectWallet = async (wallet: Wallet) => {
     setSelectedWallet(wallet);
     setError(null);
+
+    // Load persisted signing history from USB
+    try {
+      const history = await tauriApi.loadDevSigningHistory({
+        usbPath,
+        walletId: wallet.id,
+      });
+      // Convert to DevSignRequest format
+      const devRequests: DevSignRequest[] = history.map(entry => ({
+        id: entry.id,
+        type: entry.type as 'deploy' | 'call' | 'sign',
+        description: entry.description,
+        from: entry.from,
+        to: entry.to,
+        network: entry.network,
+        chainId: entry.chainId,
+        status: entry.status as 'approved' | 'rejected',
+        timestamp: entry.timestamp,
+        txHash: entry.txHash,
+        value: entry.value,
+      }));
+      setSigningHistory(devRequests);
+      console.log(`📜 Loaded ${devRequests.length} history entries for wallet ${wallet.id}`);
+    } catch (err) {
+      console.warn('Failed to load signing history:', err);
+      // Non-fatal - continue with empty history
+      setSigningHistory([]);
+    }
+
     setViewState('main');  // Go directly to main view
   };
 
@@ -194,8 +223,34 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
       });
 
       // Move to history
+      const historyEntry = { ...request, status: 'approved' as const, txHash: signResult.txHash, timestamp: Date.now() };
       setPendingRequests(prev => prev.filter(r => r.id !== requestId));
-      setSigningHistory(prev => [...prev, { ...request, status: 'approved', txHash: signResult.txHash }]);
+      setSigningHistory(prev => [...prev, historyEntry]);
+
+      // Persist to USB
+      try {
+        await tauriApi.appendDevSigningHistory({
+          usbPath,
+          walletId: selectedWallet.id,
+          entry: {
+            id: historyEntry.id,
+            type: historyEntry.type,
+            description: historyEntry.description,
+            from: historyEntry.from,
+            to: historyEntry.to,
+            network: historyEntry.network,
+            chainId: historyEntry.chainId,
+            status: 'approved',
+            timestamp: historyEntry.timestamp,
+            txHash: historyEntry.txHash,
+            value: historyEntry.value,
+          },
+        });
+        console.log('📜 Saved approved entry to history');
+      } catch (err) {
+        console.warn('Failed to persist signing history:', err);
+        // Non-fatal - history still in memory for current session
+      }
     } catch (err) {
       console.error('Failed to approve request:', err);
 
@@ -222,14 +277,38 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
       });
 
       const request = pendingRequests.find(r => r.id === requestId);
-      if (request) {
+      if (request && selectedWallet) {
+        const historyEntry = { ...request, status: 'rejected' as const, timestamp: Date.now() };
         setPendingRequests(prev => prev.filter(r => r.id !== requestId));
-        setSigningHistory(prev => [...prev, { ...request, status: 'rejected' }]);
+        setSigningHistory(prev => [...prev, historyEntry]);
+
+        // Persist to USB
+        try {
+          await tauriApi.appendDevSigningHistory({
+            usbPath,
+            walletId: selectedWallet.id,
+            entry: {
+              id: historyEntry.id,
+              type: historyEntry.type,
+              description: historyEntry.description,
+              from: historyEntry.from,
+              to: historyEntry.to,
+              network: historyEntry.network,
+              chainId: historyEntry.chainId,
+              status: 'rejected',
+              timestamp: historyEntry.timestamp,
+              value: historyEntry.value,
+            },
+          });
+          console.log('📜 Saved rejected entry to history');
+        } catch (err) {
+          console.warn('Failed to persist signing history:', err);
+        }
       }
     } catch (err) {
       console.error('Failed to reject request:', err);
     }
-  }, [pendingRequests]);
+  }, [pendingRequests, selectedWallet, usbPath]);
 
   // Handle session toggle - hidden for now, will be added later
   // const handleSessionToggle = useCallback(async (enabled: boolean) => {
