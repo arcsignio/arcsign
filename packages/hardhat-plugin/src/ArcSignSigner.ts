@@ -11,7 +11,6 @@ import path from "path";
 export class ArcSignSigner extends AbstractSigner {
   private client: ArcSignClient;
   private _address: string;
-  private scriptContext: DevContext;
 
   // Public address property for compatibility with scripts that use signer.address
   public readonly address: string;
@@ -21,26 +20,49 @@ export class ArcSignSigner extends AbstractSigner {
     this.client = client;
     this._address = address;
     this.address = address;
+  }
 
-    // Detect script context from call stack
-    this.scriptContext = this.detectScriptContext();
+  /**
+   * Get current script context (detected at call time)
+   */
+  private getCurrentScriptContext(): DevContext {
+    return this.detectScriptContext();
   }
 
   /**
    * Detect script context from stack trace
+   * Note: Should be called at signing time to capture the actual script
    */
   private detectScriptContext(): DevContext {
     const stack = new Error().stack || "";
     const lines = stack.split("\n");
 
-    // Look for scripts/ directory in stack
+    // Debug: log stack trace to help troubleshoot
+    console.log("[ArcSign] Stack trace for script detection:");
+    lines.slice(0, 10).forEach(line => console.log("  ", line));
+
+    // Look for scripts/ directory or common deploy patterns in stack
     for (const line of lines) {
-      const match = line.match(/at.*\((.+\.(ts|js)):\d+:\d+\)/);
+      // Match both formats: "at func (path:line:col)" and "at path:line:col"
+      const match = line.match(/(?:at\s+(?:[\w.<>]+\s+)?)?(?:\()?([^()]+\.(ts|js)):\d+:\d+/);
       if (match) {
         const filePath = match[1];
-        if (filePath.includes("scripts/") || filePath.includes("deploy")) {
+        // Skip node_modules and internal files
+        if (filePath.includes("node_modules")) continue;
+
+        // Check for common script patterns
+        if (filePath.includes("scripts/") ||
+            filePath.includes("deploy") ||
+            filePath.includes("hardhat") ||
+            filePath.endsWith(".ts") ||
+            filePath.endsWith(".js")) {
+          const scriptName = path.basename(filePath);
+          // Skip if it's our own files
+          if (scriptName.includes("ArcSign")) continue;
+
+          console.log("[ArcSign] Detected script:", scriptName);
           return {
-            script_name: path.basename(filePath),
+            script_name: scriptName,
             project_path: path.dirname(filePath),
             is_dev_wallet: true,
           };
@@ -48,6 +70,7 @@ export class ArcSignSigner extends AbstractSigner {
       }
     }
 
+    console.log("[ArcSign] Could not detect script name from stack trace");
     return {
       is_dev_wallet: true,
     };
@@ -79,7 +102,7 @@ export class ArcSignSigner extends AbstractSigner {
     console.log(`[ArcSign] ⏳ Waiting for approval in ArcSign Dashboard...`);
 
     const result = await this.client.personalSign(this._address, messageStr, {
-      ...this.scriptContext,
+      ...this.getCurrentScriptContext(),
       description: "Sign Message",
     });
 
@@ -114,7 +137,7 @@ export class ArcSignSigner extends AbstractSigner {
     console.log(`[ArcSign] ⏳ Waiting for approval in ArcSign Dashboard...`);
 
     const result = await this.client.signTypedData(this._address, typedData, {
-      ...this.scriptContext,
+      ...this.getCurrentScriptContext(),
       description: "Sign Typed Data",
     });
 
@@ -153,7 +176,7 @@ export class ArcSignSigner extends AbstractSigner {
       chainId: Number(network.chainId),
       nonce: resolvedTx.nonce !== undefined ? Number(resolvedTx.nonce) : undefined,
       context: {
-        ...this.scriptContext,
+        ...this.getCurrentScriptContext(),
         description: resolvedTx.to ? "Contract Call" : "Deploy Contract",
       },
     });
