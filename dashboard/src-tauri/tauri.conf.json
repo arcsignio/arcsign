@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "ArcSign",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "tauri": {
     "allowlist": {
@@ -33,7 +33,14 @@
         "removeFile": true,
         "renameFile": true,
         "exists": true,
-        "scope": ["$RESOURCE/**", "$APP/**", "$HOME/**", "/Volumes/**", "/media/**", "/mnt/**"]
+        "scope": [
+          "$RESOURCE/**",
+          "$APP/**",
+          "$HOME/**",
+          "/Volumes/**",
+          "/media/**",
+          "/mnt/**"
+        ]
       },
       "path": {
         "all": true
