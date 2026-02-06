@@ -518,6 +518,7 @@ pub async fn estimate_fee(
 
 /// Input parameters for sign_message command
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SignMessageInput {
     /// Wallet ID (UUID)
     pub wallet_id: String,
@@ -844,6 +845,7 @@ fn parse_hex_to_u64(hex_str: &str) -> Option<u64> {
 
 /// Input parameters for sign_typed_data command
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SignTypedDataInput {
     /// Wallet ID (UUID)
     pub wallet_id: String,

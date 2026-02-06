@@ -11,6 +11,8 @@ use super::protocol::{
     DevSignTransactionParams, PersonalSignParams, SignTypedDataParams,
     DevSession, DevCreateSessionParams, DevContext, PendingDevRequest, DevRequestType,
     GetExplorerApiKeyParams,
+    // Message signing types
+    PendingMessageSign, PendingMessageSignWithChannel, MessageSignResult, MessageSignType,
 };
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -20,10 +22,16 @@ use tokio::sync::{mpsc, oneshot, RwLock};
 pub type PendingTxSender = mpsc::UnboundedSender<PendingTransactionWithChannel>;
 pub type PendingTxReceiver = mpsc::UnboundedReceiver<PendingTransactionWithChannel>;
 
+/// Channel for sending pending message sign requests to the UI
+pub type PendingMsgSender = mpsc::UnboundedSender<PendingMessageSignWithChannel>;
+pub type PendingMsgReceiver = mpsc::UnboundedReceiver<PendingMessageSignWithChannel>;
+
 /// Handler context with access to app state
 pub struct HandlerContext {
     /// Channel to send pending transactions to UI
     pub pending_tx_sender: PendingTxSender,
+    /// Channel to send pending message sign requests to UI
+    pub pending_msg_sender: PendingMsgSender,
     /// BSC addresses from the wallet
     pub accounts: Vec<String>,
     /// USB device path (for reading dev settings)
@@ -33,9 +41,15 @@ pub struct HandlerContext {
 }
 
 impl HandlerContext {
-    pub fn new(pending_tx_sender: PendingTxSender, accounts: Vec<String>, usb_path: Option<String>) -> Self {
+    pub fn new(
+        pending_tx_sender: PendingTxSender,
+        pending_msg_sender: PendingMsgSender,
+        accounts: Vec<String>,
+        usb_path: Option<String>,
+    ) -> Self {
         Self {
             pending_tx_sender,
+            pending_msg_sender,
             accounts,
             usb_path,
             dev_session: Arc::new(RwLock::new(None)),
@@ -45,12 +59,14 @@ impl HandlerContext {
     /// Create with shared session state
     pub fn with_session(
         pending_tx_sender: PendingTxSender,
+        pending_msg_sender: PendingMsgSender,
         accounts: Vec<String>,
         usb_path: Option<String>,
         dev_session: Arc<RwLock<Option<DevSession>>>,
     ) -> Self {
         Self {
             pending_tx_sender,
+            pending_msg_sender,
             accounts,
             usb_path,
             dev_session,
@@ -487,17 +503,71 @@ async fn handle_personal_sign(
         .context
         .as_ref()
         .and_then(|c| c.description.clone())
-        .unwrap_or_else(|| "Sign Message".to_string());
+        .unwrap_or_else(|| "Sign Message (EIP-191)".to_string());
 
-    tracing::info!("Personal sign request: {} for {}", description, short_address(&sign_params.address));
+    // Try to decode hex message to readable string
+    let message_readable = decode_hex_message(&sign_params.message);
 
-    // TODO: Create pending sign request for UI
-    // For now, return placeholder
-    WsResponse::success(id, json!({
-        "status": "pending",
-        "message": "Personal sign request queued for approval",
-        "address": sign_params.address,
-    }))
+    tracing::info!(
+        "Personal sign request: {} for {} (message: {})",
+        description,
+        short_address(&sign_params.address),
+        message_readable.as_deref().unwrap_or(&sign_params.message)
+    );
+
+    // Create pending message sign request
+    let pending_request = PendingMessageSign {
+        request_id: id,
+        address: sign_params.address.clone(),
+        sign_type: MessageSignType::PersonalSign,
+        message: Some(sign_params.message.clone()),
+        message_readable,
+        typed_data: None,
+        context: sign_params.context.clone(),
+        description,
+    };
+
+    // Create oneshot channel for receiving the result from UI
+    let (response_sender, response_receiver) = oneshot::channel::<MessageSignResult>();
+
+    // Create pending request with channel
+    let pending_with_channel = PendingMessageSignWithChannel {
+        request: pending_request,
+        response_sender,
+    };
+
+    // Send to UI for confirmation
+    if let Err(e) = context.pending_msg_sender.send(pending_with_channel) {
+        return WsResponse::error(id, format!("Failed to queue sign request: {}", e));
+    }
+
+    tracing::info!("Personal sign request {} queued for user confirmation", id);
+
+    // Wait for user confirmation (with 5 minute timeout)
+    match tokio::time::timeout(
+        std::time::Duration::from_secs(300),
+        response_receiver,
+    ).await {
+        Ok(Ok(result)) => {
+            if result.success {
+                tracing::info!("Personal sign {} confirmed by user", id);
+                WsResponse::success(id, json!({
+                    "signature": result.signature,
+                }))
+            } else {
+                tracing::info!("Personal sign {} rejected: {:?}", id, result.error);
+                WsResponse::error(id, result.error.unwrap_or_else(|| "Sign request rejected".to_string()))
+            }
+        }
+        Ok(Err(_)) => {
+            tracing::warn!("Personal sign {} response channel closed", id);
+            WsResponse::error(id, "Sign request cancelled")
+        }
+        Err(_) => {
+            tracing::warn!("Personal sign {} timed out", id);
+            WsResponse::error(id, "Sign request timed out (5 minutes)")
+        }
+    }
 }
 
 /// Handle signTypedData_v4 request (EIP-712)
@@ -519,21 +589,79 @@ async fn handle_sign_typed_data(
         ));
     }
 
+    // Try to extract description from typed data or context
     let description = sign_params
         .context
         .as_ref()
         .and_then(|c| c.description.clone())
-        .unwrap_or_else(|| "Sign Typed Data".to_string());
+        .unwrap_or_else(|| {
+            // Try to get primary type from typed data
+            sign_params.typed_data
+                .get("primaryType")
+                .and_then(|v| v.as_str())
+                .map(|t| format!("Sign {} (EIP-712)", t))
+                .unwrap_or_else(|| "Sign Typed Data (EIP-712)".to_string())
+        });
 
-    tracing::info!("SignTypedData request: {} for {}", description, short_address(&sign_params.address));
+    tracing::info!(
+        "SignTypedData request: {} for {}",
+        description,
+        short_address(&sign_params.address)
+    );
 
-    // TODO: Create pending sign request for UI
-    // For now, return placeholder
-    WsResponse::success(id, json!({
-        "status": "pending",
-        "message": "Typed data sign request queued for approval",
-        "address": sign_params.address,
-    }))
+    // Create pending message sign request
+    let pending_request = PendingMessageSign {
+        request_id: id,
+        address: sign_params.address.clone(),
+        sign_type: MessageSignType::TypedData,
+        message: None,
+        message_readable: None,
+        typed_data: Some(sign_params.typed_data.clone()),
+        context: sign_params.context.clone(),
+        description,
+    };
+
+    // Create oneshot channel for receiving the result from UI
+    let (response_sender, response_receiver) = oneshot::channel::<MessageSignResult>();
+
+    // Create pending request with channel
+    let pending_with_channel = PendingMessageSignWithChannel {
+        request: pending_request,
+        response_sender,
+    };
+
+    // Send to UI for confirmation
+    if let Err(e) = context.pending_msg_sender.send(pending_with_channel) {
+        return WsResponse::error(id, format!("Failed to queue sign request: {}", e));
+    }
+
+    tracing::info!("SignTypedData request {} queued for user confirmation", id);
+
+    // Wait for user confirmation (with 5 minute timeout)
+    match tokio::time::timeout(
+        std::time::Duration::from_secs(300),
+        response_receiver,
+    ).await {
+        Ok(Ok(result)) => {
+            if result.success {
+                tracing::info!("SignTypedData {} confirmed by user", id);
+                WsResponse::success(id, json!({
+                    "signature": result.signature,
+                }))
+            } else {
+                tracing::info!("SignTypedData {} rejected: {:?}", id, result.error);
+                WsResponse::error(id, result.error.unwrap_or_else(|| "Sign request rejected".to_string()))
+            }
+        }
+        Ok(Err(_)) => {
+            tracing::warn!("SignTypedData {} response channel closed", id);
+            WsResponse::error(id, "Sign request cancelled")
+        }
+        Err(_) => {
+            tracing::warn!("SignTypedData {} timed out", id);
+            WsResponse::error(id, "Sign request timed out (5 minutes)")
+        }
+    }
 }
 
 /// Handle dev_get_session request
@@ -631,6 +759,36 @@ async fn handle_dev_end_session(
             "status": "no_session",
             "message": "No active session to end"
         }))
+    }
+}
+
+/// Try to decode a hex message to a readable UTF-8 string
+fn decode_hex_message(hex_msg: &str) -> Option<String> {
+    // Remove 0x prefix if present
+    let hex_str = hex_msg.strip_prefix("0x").unwrap_or(hex_msg);
+
+    // Try to decode hex to bytes
+    let bytes: Result<Vec<u8>, _> = (0..hex_str.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex_str[i..i + 2], 16))
+        .collect();
+
+    let bytes = match bytes {
+        Ok(b) => b,
+        Err(_) => return None,
+    };
+
+    // Try to convert to UTF-8 string
+    match String::from_utf8(bytes) {
+        Ok(s) => {
+            // Only return if it looks like readable text (mostly printable chars)
+            if s.chars().all(|c| c.is_ascii_graphic() || c.is_ascii_whitespace()) {
+                Some(s)
+            } else {
+                None
+            }
+        }
+        Err(_) => None,
     }
 }
 

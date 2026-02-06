@@ -14,6 +14,13 @@ module.exports = {
     }
   },
   networks: {
+    // Sepolia Testnet - for testing Developer Mode
+    sepolia: {
+      url: "https://eth-sepolia.g.alchemy.com/v2/1zXEi-hsnrgtd82vEvuYx",
+      chainId: 11155111,
+      accounts: [],  // ArcSign plugin will provide signers
+      arcsign: true, // Enable ArcSign for this network
+    },
     // BSC Testnet - uses ArcSign for secure signing
     bscTestnet: {
       url: "https://data-seed-prebsc-1-s1.binance.org:8545",

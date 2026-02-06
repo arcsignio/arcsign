@@ -14,6 +14,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "test:dev-mode": "node scripts/test-dev-mode.mjs",
     "version:sync": "node ../scripts/version.js"
   },
   "dependencies": {
@@ -49,6 +50,7 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
     "vite": "^5.0.12",
-    "vitest": "^1.2.1"
+    "vitest": "^1.2.1",
+    "ws": "^8.19.0"
   }
 }

@@ -343,3 +343,56 @@ pub struct GetExplorerApiKeyParams {
     #[serde(default)]
     pub usb_path: Option<String>,
 }
+
+// =========================================
+// Message Signing Types (EIP-191, EIP-712)
+// =========================================
+
+/// Pending message sign request (for UI display)
+#[derive(Debug, Clone, Serialize)]
+pub struct PendingMessageSign {
+    /// Request ID
+    pub request_id: u64,
+    /// Signing address
+    pub address: String,
+    /// Request type (personal_sign or typed_data)
+    pub sign_type: MessageSignType,
+    /// Raw message (for personal_sign, hex encoded)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    /// Human-readable message (decoded from hex if possible)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_readable: Option<String>,
+    /// Typed data (for EIP-712)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub typed_data: Option<serde_json::Value>,
+    /// Developer context
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<DevContext>,
+    /// Description
+    pub description: String,
+}
+
+/// Message sign type
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum MessageSignType {
+    /// EIP-191 personal_sign
+    PersonalSign,
+    /// EIP-712 signTypedData_v4
+    TypedData,
+}
+
+/// Message sign result from UI
+#[derive(Debug, Clone)]
+pub struct MessageSignResult {
+    pub success: bool,
+    pub signature: Option<String>,
+    pub error: Option<String>,
+}
+
+/// Pending message sign with response channel (internal use)
+pub struct PendingMessageSignWithChannel {
+    pub request: PendingMessageSign,
+    pub response_sender: tokio::sync::oneshot::Sender<MessageSignResult>,
+}

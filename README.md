@@ -1915,6 +1915,45 @@ Successfully verified contract on BSCScan.
 | Base | 8453 | Base Sepolia (84532) |
 | Avalanche | 43114 | Fuji (43113) |
 
+### 測試 Developer Mode
+
+我們提供完整的測試腳本來驗證 Developer Mode 功能：
+
+#### WebSocket 測試 (不需要區塊鏈)
+
+```bash
+cd dashboard
+npm run test:dev-mode
+```
+
+互動式選單測試所有 WebSocket 功能：
+- personal_sign (EIP-191)
+- sign_typed_data_v4 (EIP-712)
+- dev_sign_transaction
+- get_explorer_api_key
+- Session 管理 (create/get/end)
+
+#### Hardhat Plugin 測試
+
+```bash
+cd contracts
+
+# 測試 Plugin 所有功能 (不需要密碼)
+npx hardhat run scripts/test-hardhat-plugin.js --network sepolia
+
+# 測試 Explorer API Key
+npx hardhat run scripts/test-explorer-api.js --network sepolia
+
+# 測試簽名 + 區塊鏈交易 (需要密碼和 ETH)
+npx hardhat run scripts/test-dev-mode.js --network sepolia
+```
+
+| 腳本 | 測試內容 | 需要密碼 | 需要 ETH |
+|------|----------|---------|---------|
+| test-hardhat-plugin.js | Plugin 所有功能 | ✗ | ✗ |
+| test-explorer-api.js | Explorer API Keys | ✗ | ✗ |
+| test-dev-mode.js | 簽名 + 區塊鏈交易 | ✓ | ✓ |
+
 ### 完整文檔
 
 詳細使用說明請參考 [@arcsign/hardhat-plugin README](packages/hardhat-plugin/README.md)。

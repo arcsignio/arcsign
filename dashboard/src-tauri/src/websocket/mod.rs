@@ -14,8 +14,10 @@ mod handler;
 mod protocol;
 
 pub use server::WebSocketServer;
-pub use handler::{PendingTxSender, PendingTxReceiver};
+pub use handler::{PendingTxSender, PendingTxReceiver, PendingMsgSender, PendingMsgReceiver};
 pub use protocol::{
     WsRequest, WsResponse, WsMethod, PendingTransaction,
     TransactionResult, PendingTransactionWithChannel,
+    // Message signing types
+    PendingMessageSign, PendingMessageSignWithChannel, MessageSignResult, MessageSignType,
 };

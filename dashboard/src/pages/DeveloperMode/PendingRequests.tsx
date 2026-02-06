@@ -2,19 +2,23 @@
  * Pending Requests Component
  *
  * Displays signing requests from Hardhat/Foundry scripts.
- * Shows decoded calldata, gas estimates, and network info.
+ * Supports both transaction signing and message signing (EIP-191, EIP-712).
  *
  * Created: 2026-02-04
+ * Updated: 2026-02-06 - Added message signing support
  */
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DevSignRequest, DevSession } from '@/types/developer';
+import type { DevSignRequest, DevSession, DevMessageSignRequest } from '@/types/developer';
 
 interface PendingRequestsProps {
   requests: DevSignRequest[];
+  messageRequests: DevMessageSignRequest[];
   onApprove: (requestId: string, password: string) => Promise<void>;
   onReject: (requestId: string) => Promise<void>;
+  onApproveMessage: (requestId: number, password: string) => Promise<void>;
+  onRejectMessage: (requestId: number) => Promise<void>;
   session: DevSession | null;
 }
 
@@ -32,9 +36,18 @@ const NETWORK_INFO: Record<string, { name: string; color: string; isTestnet: boo
   'base': { name: 'Base', color: '#0052FF', isTestnet: false },
 };
 
-export function PendingRequests({ requests, onApprove, onReject, session }: PendingRequestsProps) {
+export function PendingRequests({
+  requests,
+  messageRequests,
+  onApprove,
+  onReject,
+  onApproveMessage,
+  onRejectMessage,
+  session,
+}: PendingRequestsProps) {
   const { t } = useTranslation();
   const [selectedRequest, setSelectedRequest] = useState<string | null>(null);
+  const [selectedMessageRequest, setSelectedMessageRequest] = useState<number | null>(null);
   const [password, setPassword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +72,31 @@ export function PendingRequests({ requests, onApprove, onReject, session }: Pend
     try {
       await onReject(requestId);
       setSelectedRequest(null);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleApproveMessage = async (requestId: number) => {
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      await onApproveMessage(requestId, password);
+      setPassword('');
+      setSelectedMessageRequest(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to sign message');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRejectMessage = async (requestId: number) => {
+    setIsProcessing(true);
+    try {
+      await onRejectMessage(requestId);
+      setSelectedMessageRequest(null);
     } finally {
       setIsProcessing(false);
     }
@@ -114,7 +152,9 @@ export function PendingRequests({ requests, onApprove, onReject, session }: Pend
     return `~${costEth.toFixed(6)} ${symbol}`;
   };
 
-  if (requests.length === 0) {
+  const totalRequests = requests.length + messageRequests.length;
+
+  if (totalRequests === 0) {
     return (
       <div className="empty-requests">
         <div className="empty-icon">📋</div>
@@ -191,10 +231,143 @@ export default {
     <div className="pending-requests">
       <h2>
         📋 {t('developer.pendingRequests', 'Pending Requests')}
-        <span className="count">({requests.length})</span>
+        <span className="count">({totalRequests})</span>
       </h2>
 
       <div className="requests-list">
+        {/* Message Signing Requests */}
+        {messageRequests.map((request) => {
+          const isSelected = selectedMessageRequest === request.requestId;
+
+          return (
+            <div
+              key={`msg-${request.requestId}`}
+              className={`request-card message-request ${isSelected ? 'expanded' : ''}`}
+            >
+              {/* Request Header */}
+              <div
+                className="request-header"
+                onClick={() => setSelectedMessageRequest(isSelected ? null : request.requestId)}
+              >
+                <div className="request-type">
+                  {request.signType === 'personal_sign' ? '✍️' : '📋'}
+                  <span>{request.description}</span>
+                </div>
+                <div
+                  className="network-badge"
+                  style={{
+                    backgroundColor: request.signType === 'personal_sign' ? '#8B5CF630' : '#F5920030',
+                    color: request.signType === 'personal_sign' ? '#8B5CF6' : '#F59200',
+                  }}
+                >
+                  {request.signType === 'personal_sign' ? '🔐 EIP-191' : '📝 EIP-712'}
+                </div>
+              </div>
+
+              {/* Request Summary */}
+              <div className="request-summary">
+                <div className="summary-row full-width">
+                  <span className="label">Address:</span>
+                  <span className="value mono">{formatAddress(request.address)}</span>
+                </div>
+                {request.scriptName && (
+                  <div className="summary-row full-width">
+                    <span className="label">Script:</span>
+                    <span className="value script">{request.scriptName}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Expanded Details */}
+              {isSelected && (
+                <div className="request-details">
+                  {/* Message Content for personal_sign */}
+                  {request.signType === 'personal_sign' && (
+                    <div className="message-section">
+                      <h4>📝 {t('developer.messageToSign', 'Message to Sign')}</h4>
+                      {request.messageReadable ? (
+                        <div className="message-content readable">
+                          {request.messageReadable}
+                        </div>
+                      ) : (
+                        <pre className="raw-data">{request.message || '0x'}</pre>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Typed Data for EIP-712 */}
+                  {request.signType === 'typed_data' && request.typedData && (
+                    <div className="typed-data-section">
+                      <h4>📋 {t('developer.typedData', 'Typed Data (EIP-712)')}</h4>
+
+                      {/* Domain Info */}
+                      {request.typedData.domain && (
+                        <div className="domain-info">
+                          <span className="domain-label">Domain:</span>
+                          <span className="domain-value">
+                            {request.typedData.domain.name || 'Unknown'}
+                            {request.typedData.domain.version && ` v${request.typedData.domain.version}`}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Primary Type */}
+                      {request.typedData.primaryType && (
+                        <div className="primary-type">
+                          <span className="method-name">{request.typedData.primaryType}</span>
+                        </div>
+                      )}
+
+                      {/* Message Data */}
+                      <pre className="params">
+                        {JSON.stringify(request.typedData.message, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* Error */}
+                  {error && selectedMessageRequest === request.requestId && (
+                    <div className="error-message">
+                      ⚠️ {error}
+                    </div>
+                  )}
+
+                  {/* Password Input */}
+                  <div className="password-section">
+                    <label>{t('developer.enterPassword', 'Enter wallet password to sign')}</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Wallet password"
+                      disabled={isProcessing}
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="action-buttons">
+                    <button
+                      className="reject-button"
+                      onClick={() => handleRejectMessage(request.requestId)}
+                      disabled={isProcessing}
+                    >
+                      ✗ {t('common.reject', 'Reject')}
+                    </button>
+                    <button
+                      className="approve-button"
+                      onClick={() => handleApproveMessage(request.requestId)}
+                      disabled={isProcessing || !password}
+                    >
+                      {isProcessing ? '⏳' : '✓'} {t('common.sign', 'Sign')}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Transaction Requests */}
         {requests.map((request) => {
           const networkInfo = NETWORK_INFO[request.network] || {
             name: request.network,
@@ -280,7 +453,7 @@ export default {
                   </div>
 
                   {/* Error */}
-                  {error && (
+                  {error && selectedRequest === request.id && (
                     <div className="error-message">
                       ⚠️ {error}
                     </div>
@@ -356,6 +529,10 @@ export default {
           border-radius: 12px;
           overflow: hidden;
           transition: all 0.2s;
+        }
+
+        .request-card.message-request {
+          border-left: 3px solid #8B5CF6;
         }
 
         .request-card:hover {
@@ -436,7 +613,9 @@ export default {
         }
 
         .calldata-section,
-        .raw-data-section {
+        .raw-data-section,
+        .message-section,
+        .typed-data-section {
           margin-bottom: 16px;
         }
 
@@ -466,6 +645,39 @@ export default {
           color: #a5f3fc;
           overflow-x: auto;
           max-height: 150px;
+        }
+
+        .message-content {
+          padding: 16px;
+          background: rgba(0, 0, 0, 0.3);
+          border-radius: 8px;
+          font-size: 14px;
+          line-height: 1.5;
+          color: rgba(255, 255, 255, 0.9);
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+
+        .message-content.readable {
+          border-left: 3px solid #22c55e;
+        }
+
+        .domain-info {
+          margin-bottom: 8px;
+          font-size: 13px;
+        }
+
+        .domain-label {
+          color: rgba(255, 255, 255, 0.5);
+          margin-right: 8px;
+        }
+
+        .domain-value {
+          color: rgba(255, 255, 255, 0.9);
+        }
+
+        .primary-type {
+          margin-bottom: 12px;
         }
 
         .error-message {

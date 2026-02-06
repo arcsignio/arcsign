@@ -1177,6 +1177,177 @@ export async function cancelPendingTransaction(): Promise<void> {
   }
 }
 
+// ============================================================================
+// Message Signing API (EIP-191 personal_sign, EIP-712 signTypedData)
+// ============================================================================
+
+export interface PendingMessageSignInfo {
+  requestId: number;
+  address: string;
+  signType: string;  // "personal_sign" or "typed_data"
+  message?: string;
+  messageReadable?: string;
+  typedData?: unknown;
+  description: string;
+  scriptName?: string;
+  projectPath?: string;
+}
+
+/**
+ * Get pending message sign request (if any)
+ * Dashboard should poll this to check for message signing requests
+ */
+export async function getPendingMessageSign(): Promise<PendingMessageSignInfo | null> {
+  try {
+    const result = await invoke<PendingMessageSignInfo | null>("get_pending_message_sign");
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] getPendingMessageSign error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Respond to a pending message sign request after user confirms/rejects
+ */
+export async function respondToMessageSign(params: {
+  requestId: number;
+  success: boolean;
+  signature?: string;
+  error?: string;
+}): Promise<void> {
+  console.log("✍️ [tauri-api] respondToMessageSign called:", params);
+
+  // Validate requestId
+  if (params.requestId === undefined || params.requestId === null || Number.isNaN(params.requestId)) {
+    console.warn("⚠️ [tauri-api] respondToMessageSign skipped: invalid requestId", params.requestId);
+    return;
+  }
+
+  const inputData: Record<string, unknown> = {
+    requestId: params.requestId,
+    success: params.success,
+  };
+
+  if (params.signature !== undefined && params.signature !== null) {
+    inputData.signature = params.signature;
+  }
+  if (params.error !== undefined && params.error !== null) {
+    inputData.error = params.error;
+  }
+
+  console.log("✍️ [tauri-api] respondToMessageSign input:", JSON.stringify(inputData));
+
+  try {
+    await invoke("respond_to_message_sign", { input: inputData });
+    console.log("✍️ [tauri-api] respondToMessageSign success");
+  } catch (error) {
+    console.error("🔴 [tauri-api] respondToMessageSign error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Cancel the current pending message sign request
+ */
+export async function cancelPendingMessageSign(): Promise<void> {
+  try {
+    await invoke("cancel_pending_message_sign");
+    console.log("✍️ [tauri-api] cancelPendingMessageSign success");
+  } catch (error) {
+    console.error("🔴 [tauri-api] cancelPendingMessageSign error:", error);
+    throw parseError(error);
+  }
+}
+
+// ============================================================================
+// Message Signing Commands (EIP-191, EIP-712)
+// ============================================================================
+
+export interface SignMessageParams {
+  walletId: string;
+  password: string;
+  passphrase?: string;
+  usbPath: string;
+  address: string;
+  message: string;  // hex encoded message
+}
+
+export interface SignMessageResponse {
+  signature: string;
+  address: string;
+}
+
+/**
+ * Sign a message (EIP-191 personal_sign)
+ */
+export async function signMessage(params: SignMessageParams): Promise<SignMessageResponse> {
+  console.log("✍️ [tauri-api] signMessage called:", {
+    walletId: params.walletId,
+    address: params.address,
+  });
+
+  try {
+    const result = await invoke<SignMessageResponse>("sign_message", {
+      input: {
+        walletId: params.walletId,
+        password: params.password,
+        passphrase: params.passphrase || "",
+        usbPath: params.usbPath,
+        address: params.address,
+        message: params.message,
+      },
+    });
+    console.log("✍️ [tauri-api] signMessage success");
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] signMessage error:", error);
+    throw parseError(error);
+  }
+}
+
+export interface SignTypedDataParams {
+  walletId: string;
+  password: string;
+  passphrase?: string;
+  usbPath: string;
+  address: string;
+  typedData: unknown;  // EIP-712 typed data object
+}
+
+export interface SignTypedDataResponse {
+  signature: string;
+  address: string;
+}
+
+/**
+ * Sign typed data (EIP-712 signTypedData_v4)
+ */
+export async function signTypedData(params: SignTypedDataParams): Promise<SignTypedDataResponse> {
+  console.log("✍️ [tauri-api] signTypedData called:", {
+    walletId: params.walletId,
+    address: params.address,
+  });
+
+  try {
+    const result = await invoke<SignTypedDataResponse>("sign_typed_data", {
+      input: {
+        walletId: params.walletId,
+        password: params.password,
+        passphrase: params.passphrase || "",
+        usbPath: params.usbPath,
+        address: params.address,
+        typedData: JSON.stringify(params.typedData),
+      },
+    });
+    console.log("✍️ [tauri-api] signTypedData success");
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] signTypedData error:", error);
+    throw parseError(error);
+  }
+}
+
 /**
  * Typed Tauri API wrapper
  * Provides type-safe access to all Tauri commands
@@ -1232,6 +1403,15 @@ export const tauriApi = {
   getPendingTransaction,
   respondToTransaction,
   cancelPendingTransaction,
+
+  // WebSocket Pending Message Sign (EIP-191, EIP-712)
+  getPendingMessageSign,
+  respondToMessageSign,
+  cancelPendingMessageSign,
+
+  // Message Signing (EIP-191, EIP-712)
+  signMessage,
+  signTypedData,
 
   // Membership (NFT verification)
   checkAllMemberships,

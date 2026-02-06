@@ -157,3 +157,54 @@ export interface DevWsResponse {
   result?: unknown;
   error?: string;
 }
+
+/**
+ * Message signing request (EIP-191 personal_sign or EIP-712 signTypedData)
+ */
+export interface DevMessageSignRequest {
+  /** Unique request ID */
+  requestId: number;
+
+  /** Signing address */
+  address: string;
+
+  /** Sign type: personal_sign or typed_data */
+  signType: 'personal_sign' | 'typed_data';
+
+  /** Raw message (hex encoded, for personal_sign) */
+  message?: string;
+
+  /** Human-readable message (decoded from hex) */
+  messageReadable?: string;
+
+  /** Typed data (for EIP-712) */
+  typedData?: EIP712TypedData;
+
+  /** Description */
+  description: string;
+
+  /** Source script name */
+  scriptName?: string;
+
+  /** Project path */
+  projectPath?: string;
+}
+
+/**
+ * EIP-712 Typed Data structure
+ */
+export interface EIP712TypedData {
+  types: {
+    EIP712Domain: Array<{ name: string; type: string }>;
+    [key: string]: Array<{ name: string; type: string }>;
+  };
+  primaryType: string;
+  domain: {
+    name?: string;
+    version?: string;
+    chainId?: number;
+    verifyingContract?: string;
+    salt?: string;
+  };
+  message: Record<string, unknown>;
+}

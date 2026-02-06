@@ -5,7 +5,7 @@
  * Only accepts connections from localhost for security.
  */
 
-use super::handler::{handle_request, HandlerContext, PendingTxSender};
+use super::handler::{handle_request, HandlerContext, PendingTxSender, PendingMsgSender};
 use super::protocol::{WsRequest, WsResponse};
 use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;
@@ -25,17 +25,20 @@ pub struct WebSocketServer {
     usb_path: Arc<RwLock<Option<String>>>,
     /// Channel for pending transactions
     pending_tx_sender: PendingTxSender,
+    /// Channel for pending message sign requests
+    pending_msg_sender: PendingMsgSender,
     /// Shutdown signal
     shutdown_tx: Option<mpsc::Sender<()>>,
 }
 
 impl WebSocketServer {
     /// Create a new WebSocket server
-    pub fn new(pending_tx_sender: PendingTxSender) -> Self {
+    pub fn new(pending_tx_sender: PendingTxSender, pending_msg_sender: PendingMsgSender) -> Self {
         Self {
             accounts: Arc::new(RwLock::new(Vec::new())),
             usb_path: Arc::new(RwLock::new(None)),
             pending_tx_sender,
+            pending_msg_sender,
             shutdown_tx: None,
         }
     }
@@ -72,6 +75,7 @@ impl WebSocketServer {
         let accounts = Arc::clone(&self.accounts);
         let usb_path = Arc::clone(&self.usb_path);
         let pending_tx_sender = self.pending_tx_sender.clone();
+        let pending_msg_sender = self.pending_msg_sender.clone();
 
         // Spawn the accept loop
         tokio::spawn(async move {
@@ -95,6 +99,7 @@ impl WebSocketServer {
                                 let accounts = Arc::clone(&accounts);
                                 let usb_path = Arc::clone(&usb_path);
                                 let pending_tx_sender = pending_tx_sender.clone();
+                                let pending_msg_sender = pending_msg_sender.clone();
 
                                 tokio::spawn(async move {
                                     if let Err(e) = handle_connection(
@@ -103,6 +108,7 @@ impl WebSocketServer {
                                         accounts,
                                         usb_path,
                                         pending_tx_sender,
+                                        pending_msg_sender,
                                     ).await {
                                         tracing::error!("Connection error: {}", e);
                                     }
@@ -140,6 +146,7 @@ async fn handle_connection(
     accounts: Arc<RwLock<Vec<String>>>,
     usb_path: Arc<RwLock<Option<String>>>,
     pending_tx_sender: PendingTxSender,
+    pending_msg_sender: PendingMsgSender,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let ws_stream = accept_async(stream).await?;
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
@@ -165,7 +172,12 @@ async fn handle_connection(
                 let usb = usb_path.read().await.clone();
 
                 // Create handler context
-                let context = HandlerContext::new(pending_tx_sender.clone(), acc, usb);
+                let context = HandlerContext::new(
+                    pending_tx_sender.clone(),
+                    pending_msg_sender.clone(),
+                    acc,
+                    usb,
+                );
 
                 // Handle request
                 let response = handle_request(request, &context).await;

@@ -44,7 +44,12 @@ use commands::swap::{
 use commands::usb::detect_usb;
 use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, rename_wallet, delete_wallet, get_token_balances, validate_passphrase, update_websocket_accounts, update_websocket_usb_path, AddressCache};
 use commands::provider::{set_provider_config, get_provider_config, list_provider_configs, delete_provider_config, get_asset_transfers};
-use commands::websocket_commands::{get_pending_transaction, respond_to_transaction, cancel_pending_transaction, PendingTxReceiverState, CurrentPendingTxState};
+use commands::websocket_commands::{
+    get_pending_transaction, respond_to_transaction, cancel_pending_transaction,
+    get_pending_message_sign, respond_to_message_sign, cancel_pending_message_sign,
+    PendingTxReceiverState, CurrentPendingTxState,
+    PendingMsgReceiverState, CurrentPendingMsgState,
+};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant; // T045: Startup time logging
@@ -195,6 +200,7 @@ fn main() {
 
             // Start WebSocket server for mint-page integration
             let (pending_tx_sender, pending_tx_receiver) = mpsc::unbounded_channel();
+            let (pending_msg_sender, pending_msg_receiver) = mpsc::unbounded_channel();
 
             // Store receiver in app state for UI to receive pending transactions
             let receiver_state: PendingTxReceiverState = Arc::new(Mutex::new(pending_tx_receiver));
@@ -204,8 +210,16 @@ fn main() {
             let current_pending_state: CurrentPendingTxState = Arc::new(Mutex::new(None));
             app.manage(current_pending_state);
 
+            // Store message sign receiver in app state
+            let msg_receiver_state: PendingMsgReceiverState = Arc::new(Mutex::new(pending_msg_receiver));
+            app.manage(msg_receiver_state);
+
+            // Store current pending message sign state
+            let current_msg_state: CurrentPendingMsgState = Arc::new(Mutex::new(None));
+            app.manage(current_msg_state);
+
             // Create and start WebSocket server
-            let ws_server = Arc::new(tokio::sync::RwLock::new(WebSocketServer::new(pending_tx_sender)));
+            let ws_server = Arc::new(tokio::sync::RwLock::new(WebSocketServer::new(pending_tx_sender, pending_msg_sender)));
             app.manage(ws_server.clone());
 
             // Start WebSocket server in background
@@ -305,6 +319,10 @@ fn main() {
             get_pending_transaction,
             respond_to_transaction,
             cancel_pending_transaction,
+            // WebSocket commands (pending message sign requests)
+            get_pending_message_sign,
+            respond_to_message_sign,
+            cancel_pending_message_sign,
             // WalletConnect commands (session persistence)
             commands::walletconnect::save_wc_sessions,
             commands::walletconnect::load_wc_sessions,

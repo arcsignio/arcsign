@@ -23,7 +23,7 @@ import { PendingRequests } from './PendingRequests';
 import { SigningHistory } from './SigningHistory';
 import { DevSettings } from './DevSettings';
 import tauriApi from '@/services/tauri-api';
-import type { DevSignRequest, DevSession } from '@/types/developer';
+import type { DevSignRequest, DevSession, DevMessageSignRequest } from '@/types/developer';
 import type { DevSettings as DevSettingsType } from '@/services/tauri-api';
 import type { Wallet } from '@/types/wallet';
 
@@ -66,6 +66,7 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
   // Main interface state
   const [activeTab, setActiveTab] = useState<Tab>('requests');
   const [pendingRequests, setPendingRequests] = useState<DevSignRequest[]>([]);
+  const [pendingMessageRequests, setPendingMessageRequests] = useState<DevMessageSignRequest[]>([]);
   const [signingHistory, setSigningHistory] = useState<DevSignRequest[]>([]);
   const [devSettings, setDevSettings] = useState<DevSettingsType | null>(null);
   const [session, _setSession] = useState<DevSession | null>(null); // setSession hidden - will be used when Session Settings is enabled
@@ -98,6 +99,7 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
 
     const pollRequests = async () => {
       try {
+        // Poll for pending transactions
         const pending = await tauriApi.getPendingTransaction();
         if (pending) {
           // Convert to DevSignRequest format
@@ -130,6 +132,33 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
             return prev;
           });
         }
+
+        // Poll for pending message sign requests
+        const pendingMsg = await tauriApi.getPendingMessageSign();
+        if (pendingMsg) {
+          // Convert to DevMessageSignRequest format
+          const msgRequest: DevMessageSignRequest = {
+            requestId: pendingMsg.requestId,
+            address: pendingMsg.address,
+            signType: pendingMsg.signType as 'personal_sign' | 'typed_data',
+            message: pendingMsg.message,
+            messageReadable: pendingMsg.messageReadable,
+            typedData: pendingMsg.typedData as DevMessageSignRequest['typedData'],
+            description: pendingMsg.description,
+            scriptName: pendingMsg.scriptName,
+            projectPath: pendingMsg.projectPath,
+          };
+
+          // Add to pending message requests if not already there
+          setPendingMessageRequests(prev => {
+            const exists = prev.some(r => r.requestId === msgRequest.requestId);
+            if (!exists) {
+              return [...prev, msgRequest];
+            }
+            return prev;
+          });
+        }
+
         setIsConnected(true);
         setConnectionError(null);
       } catch (err) {
@@ -325,6 +354,86 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
     }
   }, [pendingRequests, selectedWallet, usbPath]);
 
+  // Handle approve message sign request (EIP-191 / EIP-712)
+  const handleApproveMessage = useCallback(async (requestId: number, inputPassword: string) => {
+    const request = pendingMessageRequests.find(r => r.requestId === requestId);
+    if (!request || !selectedWallet) {
+      throw new Error('Missing request or wallet');
+    }
+
+    if (!inputPassword) {
+      throw new Error('Password is required');
+    }
+
+    try {
+      let signature: string;
+
+      if (request.signType === 'personal_sign') {
+        // Use sign_message for EIP-191
+        const signResult = await tauriApi.signMessage({
+          walletId: selectedWallet.id,
+          password: inputPassword,
+          usbPath,
+          address: request.address,
+          message: request.message || '',
+        });
+        signature = signResult.signature;
+      } else {
+        // Use sign_typed_data for EIP-712
+        const signResult = await tauriApi.signTypedData({
+          walletId: selectedWallet.id,
+          password: inputPassword,
+          usbPath,
+          address: request.address,
+          typedData: request.typedData,
+        });
+        signature = signResult.signature;
+      }
+
+      // Respond to the WebSocket with the signature
+      await tauriApi.respondToMessageSign({
+        requestId,
+        success: true,
+        signature,
+      });
+
+      // Remove from pending
+      setPendingMessageRequests(prev => prev.filter(r => r.requestId !== requestId));
+
+      console.log(`✍️ Message signed: ${request.signType}`);
+    } catch (err) {
+      console.error('Failed to sign message:', err);
+
+      // Respond with error
+      await tauriApi.respondToMessageSign({
+        requestId,
+        success: false,
+        error: err instanceof Error ? err.message : 'Signing failed',
+      });
+
+      throw err;
+    }
+  }, [pendingMessageRequests, selectedWallet, usbPath]);
+
+  // Handle reject message sign request
+  const handleRejectMessage = useCallback(async (requestId: number) => {
+    try {
+      // Respond to WebSocket with rejection
+      await tauriApi.respondToMessageSign({
+        requestId,
+        success: false,
+        error: 'Sign request rejected by user',
+      });
+
+      // Remove from pending
+      setPendingMessageRequests(prev => prev.filter(r => r.requestId !== requestId));
+
+      console.log('✗ Message sign request rejected');
+    } catch (err) {
+      console.error('Failed to reject message sign request:', err);
+    }
+  }, []);
+
   // Handle session toggle - hidden for now, will be added later
   // const handleSessionToggle = useCallback(async (enabled: boolean) => {
   //   if (enabled && selectedWallet) {
@@ -460,8 +569,8 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
           onClick={() => setActiveTab('requests')}
         >
           📋 {t('developer.pendingRequests', 'Pending Requests')}
-          {pendingRequests.length > 0 && (
-            <span className="badge">{pendingRequests.length}</span>
+          {(pendingRequests.length + pendingMessageRequests.length) > 0 && (
+            <span className="badge">{pendingRequests.length + pendingMessageRequests.length}</span>
           )}
         </button>
         <button
@@ -483,8 +592,11 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
         {activeTab === 'requests' && (
           <PendingRequests
             requests={pendingRequests}
+            messageRequests={pendingMessageRequests}
             onApprove={handleApprove}
             onReject={handleReject}
+            onApproveMessage={handleApproveMessage}
+            onRejectMessage={handleRejectMessage}
             session={session}
           />
         )}
