@@ -6,12 +6,13 @@ Hardhat plugin for secure transaction signing with ArcSign wallet.
 
 ## Features
 
-- Sign transactions using your ArcSign cold wallet
-- Private keys never leave the USB device
-- Visual confirmation in ArcSign Dashboard for each transaction
-- Session mode for rapid testnet development
-- Full EIP-191 and EIP-712 signing support
-- Works with Hardhat's existing deployment scripts
+- 🔐 Sign transactions using your ArcSign cold wallet
+- 🔑 Private keys never leave the USB device
+- 👁️ Visual confirmation in ArcSign Dashboard for each transaction
+- ⚡ Session mode for rapid testnet development
+- ✍️ Full EIP-191 and EIP-712 signing support
+- 📝 Works with Hardhat's existing deployment scripts (no changes needed!)
+- 🔍 Auto-inject Block Explorer API keys for contract verification
 
 ## Installation
 
@@ -161,6 +162,56 @@ await hre.arcsign.provider.createSession({
 // End session
 await hre.arcsign.provider.endSession();
 ```
+
+## Contract Verification
+
+ArcSign automatically injects Block Explorer API keys when you run `npx hardhat verify`. No need to configure API keys in `.env` files!
+
+### Setup API Keys
+
+1. Open ArcSign Dashboard
+2. Go to Developer Mode → Settings tab
+3. Add your Block Explorer API keys (Etherscan, BSCScan, etc.)
+
+### Usage
+
+```bash
+# Deploy your contract
+npx hardhat run scripts/deploy.ts --network bscTestnet
+
+# Verify - API key is auto-injected from ArcSign!
+npx hardhat verify --network bscTestnet 0xYourContractAddress "constructor" "args"
+```
+
+Terminal output:
+
+```text
+[ArcSign] Network "bscTestnet" will use ArcSign wallet for signing
+[ArcSign] Checking for bscscan API key...
+[ArcSign] Found bscscan API key, injecting into config...
+[ArcSign] Injected API key successfully
+Successfully verified contract MyContract on the block explorer.
+https://testnet.bscscan.com/address/0xYourContractAddress#code
+```
+
+### Supported Block Explorers
+
+| Explorer | Networks | Get API Key |
+|----------|----------|-------------|
+| Etherscan | Ethereum, Sepolia | [etherscan.io/apis](https://etherscan.io/apis) |
+| BSCScan | BSC, BSC Testnet | [bscscan.com/apis](https://bscscan.com/apis) |
+| Polygonscan | Polygon, Mumbai, Amoy | [polygonscan.com/apis](https://polygonscan.com/apis) |
+| Arbiscan | Arbitrum, Arbitrum Sepolia | [arbiscan.io/apis](https://arbiscan.io/apis) |
+| Optimism | Optimism, Optimism Sepolia | [optimistic.etherscan.io/apis](https://optimistic.etherscan.io/apis) |
+| Basescan | Base, Base Sepolia | [basescan.org/apis](https://basescan.org/apis) |
+| Snowtrace | Avalanche, Avalanche Fuji | [snowtrace.io/apis](https://snowtrace.io/apis) |
+
+### Fallback Behavior
+
+If ArcSign Dashboard is not running or no API key is configured:
+
+- The plugin falls back to `hardhat.config.js` etherscan settings
+- You can still use traditional `.env` configuration as a backup
 
 ## Troubleshooting
 

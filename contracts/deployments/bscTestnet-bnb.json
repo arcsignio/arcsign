@@ -2,10 +2,10 @@
   "network": "bscTestnet",
   "chainId": 97,
   "contractType": "ArcSignProTestnet",
-  "arcSignProAddress": "0x6CB59d29BE5b618eeca9Bc5374648477256f109A",
+  "arcSignProAddress": "0x600dD7eFB4f0dd64B38FEf3d9C8cf660BF6bFa23",
   "paymentToken": "BNB (native)",
   "price": "0.001 tBNB",
   "treasuryAddress": "0x2e26cbd533ac3e98d3b650c7f89406ebb6f2f634",
-  "deployedAt": "2025-12-23T00:47:58.993Z",
-  "deployer": "0x2e26cbD533Ac3E98d3B650c7f89406EbB6f2f634"
+  "deployedAt": "2026-02-06T00:06:05.308Z",
+  "deployer": "0x2e26cbd533ac3e98d3b650c7f89406ebb6f2f634"
 }

@@ -19,6 +19,7 @@
 - [架構設計](#架構設計)
 - [性能指標](#性能指標)
 - [安全最佳實踐](#安全最佳實踐)
+- [開發者模式 - 智能合約開發](#開發者模式---智能合約開發)
 - [開發指南](#開發指南)
 - [故障排除](#故障排除)
 - [路線圖](#路線圖)
@@ -1746,6 +1747,177 @@ BIP39密碼充當"第25個詞":
 - 從助記詞測試完整恢復
 - 更新USB驅動器 (如果老化)
 - 審查和更新備份
+
+---
+
+## 開發者模式 - 智能合約開發
+
+ArcSign 開發者模式讓智能合約開發者在開發流程中安全簽署交易，**完全取代 .env 私鑰存儲方式**。
+
+### 核心價值
+
+```
+傳統方式 (不安全):
+├── .env 文件包含私鑰
+├── 私鑰容易洩漏 (Git, 截圖, 終端歷史)
+└── 多人協作風險高
+
+ArcSign 方式 (安全):
+├── 私鑰永遠不離開 USB 設備
+├── 每筆交易在 Dashboard 確認
+└── 開發腳本完全不需要修改
+```
+
+### 快速開始
+
+#### 1. 安裝 Hardhat Plugin
+
+```bash
+npm install @arcsign/hardhat-plugin
+```
+
+#### 2. 配置 hardhat.config.js
+
+```javascript
+require("@nomicfoundation/hardhat-toolbox");
+require("@arcsign/hardhat-plugin");
+
+module.exports = {
+  solidity: "0.8.20",
+  networks: {
+    mainnet: {
+      url: process.env.RPC_URL,
+      accounts: [],      // 空陣列 - ArcSign 提供簽名器
+      arcsign: true,     // 啟用 ArcSign
+    },
+    bscTestnet: {
+      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+      accounts: [],
+      arcsign: true,
+    },
+  },
+};
+```
+
+#### 3. 開啟 ArcSign Dashboard
+
+1. 啟動 ArcSign Dashboard
+2. 解鎖你的錢包
+3. 點擊 🔧 進入開發者模式
+
+#### 4. 執行部署腳本
+
+```bash
+npx hardhat run scripts/deploy.ts --network bscTestnet
+```
+
+**關鍵點：你的部署腳本不需要任何修改！**
+
+```typescript
+// scripts/deploy.ts - 標準 Hardhat 腳本
+import { ethers } from "hardhat";
+
+async function main() {
+  const [deployer] = await ethers.getSigners();
+  // ↑ 自動返回 ArcSign 簽名器，不需要私鑰
+
+  console.log("Deploying with:", deployer.address);
+
+  const Token = await ethers.getContractFactory("MyToken");
+  const token = await Token.deploy();
+  // ↑ 此時 Dashboard 會顯示簽名請求
+
+  await token.waitForDeployment();
+  console.log("Deployed to:", await token.getAddress());
+}
+
+main().catch(console.error);
+```
+
+### 運作原理
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     開發者終端機                              │
+├─────────────────────────────────────────────────────────────┤
+│  $ npx hardhat run scripts/deploy.ts --network mainnet      │
+│                                                             │
+│  開發者腳本調用 ethers.getSigners()                          │
+│                     │                                       │
+│                     ▼                                       │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  @arcsign/hardhat-plugin                            │   │
+│  │                                                     │   │
+│  │  攔截 getSigners() → 返回 ArcSignSigner             │   │
+│  │  當需要簽名時 → 透過 WebSocket 發送到 Dashboard      │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                     │                                       │
+│                     │ WebSocket (127.0.0.1:9527)           │
+│                     ▼                                       │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  ArcSign Dashboard (開發者模式)                      │   │
+│  │                                                     │   │
+│  │  📋 待簽名請求                                       │   │
+│  │  ├── Deploy MyToken.sol                            │   │
+│  │  ├── Network: Ethereum Mainnet                     │   │
+│  │  ├── Gas: ~0.05 ETH                                │   │
+│  │  └── [確認] [拒絕]                                  │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                     │                                       │
+│                     ▼                                       │
+│              Go FFI (SecureSigner)                          │
+│              私鑰永不離開 USB                                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 合約驗證
+
+ArcSign 也支援自動注入 Block Explorer API Key，不需要在 .env 設定：
+
+```bash
+# 在 Dashboard Settings 設定好 API Key 後
+npx hardhat verify --network bscTestnet 0xYourContractAddress
+```
+
+終端機輸出：
+
+```text
+[ArcSign] Checking for bscscan API key...
+[ArcSign] Found bscscan API key, injecting into config...
+[ArcSign] Injected API key successfully
+Successfully verified contract on BSCScan.
+```
+
+### Session 模式 (可選)
+
+對於密集的測試網開發，可以啟用 Session 模式：
+
+1. 開發者模式 → Session Settings
+2. 啟用 Session Mode
+3. 測試網交易將自動簽名 30 分鐘
+
+**安全規則**：
+
+- ✅ 測試網可自動簽名
+- 🔒 主網永遠需要手動確認
+- ⏰ Session 最長 2 小時
+- 📊 可設定單筆 Gas 上限
+
+### 支援的網絡
+
+| 網絡 | Chain ID | 測試網 |
+|------|----------|--------|
+| Ethereum | 1 | Sepolia (11155111) |
+| BNB Chain | 56 | BSC Testnet (97) |
+| Polygon | 137 | Amoy (80002) |
+| Arbitrum | 42161 | Arbitrum Sepolia (421614) |
+| Optimism | 10 | Optimism Sepolia (11155420) |
+| Base | 8453 | Base Sepolia (84532) |
+| Avalanche | 43114 | Fuji (43113) |
+
+### 完整文檔
+
+詳細使用說明請參考 [@arcsign/hardhat-plugin README](packages/hardhat-plugin/README.md)。
 
 ---
 
