@@ -150,17 +150,19 @@ task("verify", async (taskArgs, hre, runSuper) => {
           const etherscanConfig = config.etherscan;
 
           // Handle both single string and object format for apiKey
-          if (typeof etherscanConfig.apiKey === "string") {
-            // If it's already a string, keep it (user configured)
+          if (typeof etherscanConfig.apiKey === "string" && etherscanConfig.apiKey.length > 0) {
+            // If it's already a non-empty string, keep it (user configured)
             console.log(`[ArcSign] API key already configured, using existing...`);
-          } else if (!etherscanConfig.apiKey) {
-            // Set as single API key if none exists
+          } else if (!etherscanConfig.apiKey || etherscanConfig.apiKey === "") {
+            // Set as single API key if none exists or is empty
             etherscanConfig.apiKey = apiKey;
+            console.log(`[ArcSign] Injected API key successfully`);
           } else {
             // It's an object, set for the specific network
             const networkKey = getEtherscanNetworkKey(chainId);
             if (networkKey) {
               (etherscanConfig.apiKey as Record<string, string>)[networkKey] = apiKey;
+              console.log(`[ArcSign] Injected API key for ${networkKey}`);
             }
           }
         } else {
