@@ -45,7 +45,28 @@ export async function checkTokenWhitelist(
     };
   }
 
-  // If no contract address, treat as native token
+  // NFTs (erc721/erc1155) without contract address should be warned
+  // These are often spam/scam NFT airdrops
+  if (category === 'erc721' || category === 'erc1155') {
+    if (!contractAddress || contractAddress === '0x0000000000000000000000000000000000000000') {
+      console.warn(`[tokenWhitelist] NFT without contract address - marking as suspicious`);
+      return {
+        isKnown: false,
+        shouldWarn: true,
+        reason: 'unknown_token',
+      };
+    }
+    // NFTs are not in CoinGecko token lists, so always warn for NFTs not in whitelist
+    // Skip the whitelist check and mark as unknown
+    console.log(`[tokenWhitelist] NFT transfer detected (${category}), marking as unverified`);
+    return {
+      isKnown: false,
+      shouldWarn: true,
+      reason: 'unknown_token',
+    };
+  }
+
+  // If no contract address for ERC20, treat as native token
   if (!contractAddress || contractAddress === '0x0000000000000000000000000000000000000000') {
     return {
       isKnown: true,

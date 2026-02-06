@@ -4,7 +4,7 @@
  * Now supports querying ALL supported EVM chains simultaneously
  */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import tauriApi, {
   type AssetTransfer,
@@ -104,6 +104,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   const [loadingChains, setLoadingChains] = useState<string[]>([]);
   const [chainStats, setChainStats] = useState<Record<string, number>>({});
   const [tokenWarnings, setTokenWarnings] = useState<Map<string, TokenCheckResult>>(new Map());
+  const [showUnverifiedTokens, setShowUnverifiedTokens] = useState(false);
+  const [unverifiedTokenCount, setUnverifiedTokenCount] = useState(0);
 
   // Fetch transfers from all EVM chains
   const fetchAllChainTransfers = useCallback(
@@ -214,6 +216,32 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
     checkTokens();
   }, [transfers]);
 
+  // Filter out unverified tokens (not in whitelist) and count them
+  const filteredTransfers = useMemo(() => {
+    // Wait for tokenWarnings to be populated
+    if (tokenWarnings.size === 0 && transfers.length > 0) {
+      // While checking, show all transfers
+      return transfers;
+    }
+
+    const unverifiedTransfers: TransferWithNetwork[] = [];
+    const verifiedTransfers: TransferWithNetwork[] = [];
+
+    transfers.forEach(transfer => {
+      const warning = tokenWarnings.get(transfer.uniqueId);
+      // shouldWarn === true means token is NOT in whitelist
+      if (warning?.shouldWarn === true) {
+        unverifiedTransfers.push(transfer);
+      } else {
+        verifiedTransfers.push(transfer);
+      }
+    });
+
+    setUnverifiedTokenCount(unverifiedTransfers.length);
+
+    return showUnverifiedTokens ? transfers : verifiedTransfers;
+  }, [transfers, showUnverifiedTokens, tokenWarnings]);
+
   // Determine if transfer is incoming or outgoing
   const getTransferDirection = (transfer: AssetTransfer): "in" | "out" => {
     return transfer.to.toLowerCase() === address.toLowerCase() ? "in" : "out";
@@ -278,6 +306,22 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         </div>
       )}
 
+      {/* Unverified token filter notice */}
+      {unverifiedTokenCount > 0 && (
+        <div className="scam-filter-notice">
+          <span className="scam-icon">🛡️</span>
+          <span>
+            已過濾 {unverifiedTokenCount} 筆未驗證的交易（不在白名單內）
+          </span>
+          <button
+            onClick={() => setShowUnverifiedTokens(!showUnverifiedTokens)}
+            className="toggle-scam-button"
+          >
+            {showUnverifiedTokens ? "隱藏" : "顯示"}
+          </button>
+        </div>
+      )}
+
       {!error && transfers.length === 0 && !isLoading && (
         <div className="empty-state">
           <div className="empty-icon">📭</div>
@@ -286,9 +330,9 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         </div>
       )}
 
-      {transfers.length > 0 && (
+      {filteredTransfers.length > 0 && (
         <div className="transfers-list">
-          {transfers.map((transfer, index) => {
+          {filteredTransfers.map((transfer, index) => {
             const direction = getTransferDirection(transfer);
             const categoryStyle =
               CATEGORY_STYLES[transfer.category] || CATEGORY_STYLES.external;
@@ -496,6 +540,40 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         .chain-stat.error {
           background: #fef2f2;
           color: #dc2626;
+        }
+
+        .scam-filter-notice {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 12px 16px;
+          background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+          border: 1px solid #f59e0b;
+          border-radius: 8px;
+          margin-bottom: 16px;
+          font-size: 14px;
+          color: #92400e;
+        }
+
+        .scam-icon {
+          font-size: 18px;
+        }
+
+        .toggle-scam-button {
+          padding: 4px 12px;
+          background: #f59e0b;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 500;
+          transition: background 0.2s;
+        }
+
+        .toggle-scam-button:hover {
+          background: #d97706;
         }
 
         .chain-dot {
