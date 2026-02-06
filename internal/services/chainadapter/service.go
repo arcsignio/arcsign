@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"os"
 	"sync"
 	"time"
 
@@ -88,9 +89,26 @@ func (s *Service) GetAdapter(ctx context.Context, chainId string, rpcEndpoint st
 		return adapter, nil
 	}
 
-	// Create RPC client
-	// Note: rpcEndpoint is already resolved at the beginning of this function
-	rpcClient, err := caRPC.NewHTTPRPCClient([]string{rpcEndpoint}, 30*time.Second, nil)
+	// Create RPC client with all available endpoints for failover
+	// If user provided a custom endpoint, use only that; otherwise use all from registry
+	var endpoints []string
+	if rpcEndpoint == getDefaultRPCEndpoint(chainId) {
+		// Using default - get all endpoints (primary + backups) for failover
+		allEndpoints, err := rpc.DefaultRegistry.GetAllRPCEndpoints(chainId)
+		if err != nil || len(allEndpoints) == 0 {
+			endpoints = []string{rpcEndpoint}
+		} else {
+			endpoints = allEndpoints
+		}
+	} else {
+		// User provided custom endpoint - use only that
+		endpoints = []string{rpcEndpoint}
+	}
+
+	// Log endpoints for debugging
+	fmt.Fprintf(os.Stderr, "[ChainAdapter] Creating RPC client for %s with %d endpoint(s): %v\n", chainId, len(endpoints), endpoints)
+
+	rpcClient, err := caRPC.NewHTTPRPCClient(endpoints, 30*time.Second, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RPC client: %w", err)
 	}
