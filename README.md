@@ -1888,20 +1888,65 @@ npx hardhat verify --network bscTestnet 0xYourContractAddress
 Successfully verified contract on BSCScan.
 ```
 
-### Session 模式 (可選)
+### Session 模式 (自動簽名)
 
-對於密集的測試網開發，可以啟用 Session 模式：
+對於密集的測試網開發，可以啟用 Session 模式來自動簽名交易：
 
-1. 開發者模式 → Session Settings
-2. 啟用 Session Mode
-3. 測試網交易將自動簽名 30 分鐘
+#### 啟動 Session
 
-**安全規則**：
+1. 開發者模式 → Settings → Session Settings
+2. 點擊「Start Session」
+3. 輸入錢包密碼（僅需一次）
+4. 測試網交易將自動簽名 30 分鐘
 
-- ✅ 測試網可自動簽名
-- 🔒 主網永遠需要手動確認
-- ⏰ Session 最長 2 小時
-- 📊 可設定單筆 Gas 上限
+#### 運作原理
+
+```text
+開始 Session:
+  用戶輸入密碼 → Dashboard → Go FFI
+                              ↓
+                    驗證密碼、解鎖錢包
+                              ↓
+                    SecureSigner (XOR 三分片保護)
+                    私鑰安全儲存在記憶體中
+                              ↓
+                    返回 session_token
+
+自動簽名:
+  Hardhat 發送交易 → WebSocket → Dashboard
+                                    ↓
+                    檢查: session 有效 + 是測試網?
+                                    ↓
+                    Go FFI: 使用 SecureSigner 簽名
+                                    ↓
+                    返回已簽名交易 (無需密碼)
+```
+
+#### 安全規則
+
+| 網路類型 | 行為 |
+| -------- | ---- |
+| **Testnet** (Sepolia, Goerli, BSC Testnet...) | ✅ 自動簽名 |
+| **Mainnet** (Ethereum, BSC, Polygon...) | 🔒 永遠需要手動確認 |
+
+**Session 限制**：
+
+- ⏰ 預設 30 分鐘，最長 2 小時
+- 🔐 私鑰使用 XOR 三分片保護，僅在簽名瞬間重組
+- 🧹 Session 結束時安全清除所有敏感資料
+- 📊 Dashboard 顯示簽名次數和剩餘時間
+
+#### 測試 Session 功能
+
+```bash
+# 在 Dashboard 開啟 Session 後執行
+cd contracts
+npx hardhat run scripts/test-dev-mode.js --network sepolia
+
+# 預期輸出:
+# [ArcSign] ✓ Transaction auto-signed (session active)
+# Transaction confirmed in block: 10221130
+```
 
 ### 支援的網絡
 
