@@ -6,7 +6,8 @@
  */
 
 use super::handler::{handle_request, HandlerContext, PendingTxSender, PendingMsgSender};
-use super::protocol::{WsRequest, WsResponse};
+use super::protocol::{WsRequest, WsResponse, DevSession};
+use crate::ffi::LazyWalletQueue;
 use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -27,6 +28,10 @@ pub struct WebSocketServer {
     pending_tx_sender: PendingTxSender,
     /// Channel for pending message sign requests
     pending_msg_sender: PendingMsgSender,
+    /// FFI wallet queue for session-based signing
+    wallet_queue: Option<LazyWalletQueue>,
+    /// Developer session state (shared across connections)
+    dev_session: Arc<RwLock<Option<DevSession>>>,
     /// Shutdown signal
     shutdown_tx: Option<mpsc::Sender<()>>,
 }
@@ -39,8 +44,49 @@ impl WebSocketServer {
             usb_path: Arc::new(RwLock::new(None)),
             pending_tx_sender,
             pending_msg_sender,
+            wallet_queue: None,
+            dev_session: Arc::new(RwLock::new(None)),
             shutdown_tx: None,
         }
+    }
+
+    /// Create a new WebSocket server with FFI wallet queue for auto-signing
+    pub fn with_wallet_queue(
+        pending_tx_sender: PendingTxSender,
+        pending_msg_sender: PendingMsgSender,
+        wallet_queue: LazyWalletQueue,
+    ) -> Self {
+        Self {
+            accounts: Arc::new(RwLock::new(Vec::new())),
+            usb_path: Arc::new(RwLock::new(None)),
+            pending_tx_sender,
+            pending_msg_sender,
+            wallet_queue: Some(wallet_queue),
+            dev_session: Arc::new(RwLock::new(None)),
+            shutdown_tx: None,
+        }
+    }
+
+    /// Get shared dev session state
+    pub fn dev_session(&self) -> Arc<RwLock<Option<DevSession>>> {
+        Arc::clone(&self.dev_session)
+    }
+
+    /// Update dev session (called from Tauri commands)
+    pub async fn set_dev_session(&self, session: Option<DevSession>) {
+        let mut s = self.dev_session.write().await;
+        if let Some(ref sess) = session {
+            tracing::info!(
+                "WebSocket server: session SET - enabled={}, expires_at={}, networks={:?}, token={:?}",
+                sess.enabled,
+                sess.expires_at,
+                sess.trusted_networks,
+                sess.session_token.as_ref().map(|t| format!("{}...", &t[..8.min(t.len())]))
+            );
+        } else {
+            tracing::info!("WebSocket server: session CLEARED");
+        }
+        *s = session;
     }
 
     /// Update the list of available BSC addresses
@@ -76,6 +122,8 @@ impl WebSocketServer {
         let usb_path = Arc::clone(&self.usb_path);
         let pending_tx_sender = self.pending_tx_sender.clone();
         let pending_msg_sender = self.pending_msg_sender.clone();
+        let wallet_queue = self.wallet_queue.clone();
+        let dev_session = Arc::clone(&self.dev_session);
 
         // Spawn the accept loop
         tokio::spawn(async move {
@@ -100,6 +148,8 @@ impl WebSocketServer {
                                 let usb_path = Arc::clone(&usb_path);
                                 let pending_tx_sender = pending_tx_sender.clone();
                                 let pending_msg_sender = pending_msg_sender.clone();
+                                let wallet_queue = wallet_queue.clone();
+                                let dev_session = Arc::clone(&dev_session);
 
                                 tokio::spawn(async move {
                                     if let Err(e) = handle_connection(
@@ -109,6 +159,8 @@ impl WebSocketServer {
                                         usb_path,
                                         pending_tx_sender,
                                         pending_msg_sender,
+                                        wallet_queue,
+                                        dev_session,
                                     ).await {
                                         tracing::error!("Connection error: {}", e);
                                     }
@@ -147,6 +199,8 @@ async fn handle_connection(
     usb_path: Arc<RwLock<Option<String>>>,
     pending_tx_sender: PendingTxSender,
     pending_msg_sender: PendingMsgSender,
+    wallet_queue: Option<LazyWalletQueue>,
+    dev_session: Arc<RwLock<Option<DevSession>>>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let ws_stream = accept_async(stream).await?;
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
@@ -171,12 +225,14 @@ async fn handle_connection(
                 let acc = accounts.read().await.clone();
                 let usb = usb_path.read().await.clone();
 
-                // Create handler context
-                let context = HandlerContext::new(
+                // Create handler context with session state and wallet queue
+                let context = HandlerContext::with_session_and_queue(
                     pending_tx_sender.clone(),
                     pending_msg_sender.clone(),
                     acc,
                     usb,
+                    Arc::clone(&dev_session),
+                    wallet_queue.clone(),
                 );
 
                 // Handle request

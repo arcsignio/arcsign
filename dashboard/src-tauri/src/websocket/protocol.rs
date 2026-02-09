@@ -251,6 +251,9 @@ pub struct DevSession {
     /// Wallet ID associated with session
     #[serde(default)]
     pub wallet_id: Option<String>,
+    /// Session token for FFI auto-signing (from Go side)
+    #[serde(default)]
+    pub session_token: Option<String>,
     /// Session creation timestamp (unix ms)
     pub created_at: u64,
     /// Session expiration timestamp (unix ms)

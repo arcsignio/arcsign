@@ -1440,6 +1440,11 @@ export const tauriApi = {
   // Developer Mode Settings
   loadDevSettings,
   saveDevSettings,
+
+  // Developer Mode Session (Auto-signing)
+  createDevSession,
+  getDevSession,
+  endDevSession,
 };
 
 /**
@@ -1949,6 +1954,114 @@ export async function saveDevSettings(params: {
     console.log("⚙️ [tauri-api] saveDevSettings success");
   } catch (error) {
     console.error("🔴 [tauri-api] saveDevSettings error:", error);
+    throw parseError(error);
+  }
+}
+
+// ============================================================================
+// Developer Mode Session (Auto-signing for testnets)
+// ============================================================================
+
+export interface CreateDevSessionParams {
+  walletId: string;
+  password: string;
+  passphrase?: string;
+  usbPath: string;
+  durationMinutes?: number;
+  trustedNetworks?: string[];
+}
+
+export interface CreateDevSessionResponse {
+  sessionToken: string;
+  expiresAt: number;
+  trustedNetworks: string[];
+  addresses: string[];
+}
+
+export interface GetDevSessionParams {
+  sessionToken: string;
+}
+
+export interface GetDevSessionResponse {
+  active: boolean;
+  walletId?: string;
+  expiresAt?: number;
+  remainingMs?: number;
+  signCount?: number;
+  trustedNetworks?: string[];
+  addresses?: string[];
+  message?: string;
+}
+
+/**
+ * Create a developer session for auto-signing testnets.
+ * User enters password once, session lasts for configured duration.
+ */
+export async function createDevSession(
+  params: CreateDevSessionParams
+): Promise<CreateDevSessionResponse> {
+  console.log("🔓 [tauri-api] createDevSession called:", {
+    walletId: params.walletId,
+    durationMinutes: params.durationMinutes,
+  });
+
+  try {
+    const result = await invoke<CreateDevSessionResponse>("create_dev_session", {
+      walletId: params.walletId,
+      password: params.password,
+      passphrase: params.passphrase || null,
+      usbPath: params.usbPath,
+      durationMinutes: params.durationMinutes || 30,
+      trustedNetworks: params.trustedNetworks || [
+        "sepolia",
+        "goerli",
+        "bsc-testnet",
+        "mumbai",
+      ],
+    });
+    console.log("🔓 [tauri-api] createDevSession success, expires:", result.expiresAt);
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] createDevSession error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Get information about an active developer session
+ */
+export async function getDevSession(
+  params: GetDevSessionParams
+): Promise<GetDevSessionResponse> {
+  console.log("📋 [tauri-api] getDevSession called");
+
+  try {
+    const result = await invoke<GetDevSessionResponse>("get_dev_session", {
+      sessionToken: params.sessionToken,
+    });
+    console.log("📋 [tauri-api] getDevSession success, active:", result.active);
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] getDevSession error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * End a developer session and clear all stored keys
+ */
+export async function endDevSession(params: {
+  sessionToken: string;
+}): Promise<void> {
+  console.log("🔒 [tauri-api] endDevSession called");
+
+  try {
+    await invoke("end_dev_session", {
+      sessionToken: params.sessionToken,
+    });
+    console.log("🔒 [tauri-api] endDevSession success");
+  } catch (error) {
+    console.error("🔴 [tauri-api] endDevSession error:", error);
     throw parseError(error);
   }
 }

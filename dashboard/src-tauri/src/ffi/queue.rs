@@ -345,6 +345,30 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+
+    // ========================================================================
+    // Developer Mode Session Operations
+    // ========================================================================
+    /// Create a developer session for auto-signing testnets
+    CreateDevSession {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Sign transaction using dev session (no password required)
+    DevSessionSign {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Get dev session info
+    GetDevSession {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// End dev session
+    EndDevSession {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
 }
 
 /// WalletQueue serializes all wallet operations through a single-threaded queue.
@@ -613,6 +637,27 @@ impl WalletQueue {
                 }
                 WalletCommand::SignTypedData { params_json, respond_to } => {
                     let result = library.sign_typed_data(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                // Developer Mode Session Operations
+                WalletCommand::CreateDevSession { params_json, respond_to } => {
+                    let result = library.create_dev_session(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::DevSessionSign { params_json, respond_to } => {
+                    let result = library.dev_session_sign(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::GetDevSession { params_json, respond_to } => {
+                    let result = library.get_dev_session(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::EndDevSession { params_json, respond_to } => {
+                    let result = library.end_dev_session(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -1443,13 +1488,94 @@ impl WalletQueue {
         .await
         .map_err(|e| format!("Task join error: {}", e))?
     }
+
+    // ========================================================================
+    // Developer Mode Session Operations
+    // ========================================================================
+
+    /// Create a developer session for auto-signing testnets.
+    pub async fn create_dev_session(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::CreateDevSession {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Sign transaction using dev session (no password required).
+    pub async fn dev_session_sign(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::DevSessionSign {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Get dev session info.
+    pub async fn get_dev_session(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::GetDevSession {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// End dev session.
+    pub async fn end_dev_session(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::EndDevSession {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
 }
 
 /// Lazy-initialized WalletQueue wrapper
 /// Initializes the queue on first use
+#[derive(Clone)]
 pub struct LazyWalletQueue {
     library: Arc<WalletLibrary>,
-    queue: OnceLock<WalletQueue>,
+    queue: Arc<OnceLock<WalletQueue>>,
 }
 
 impl LazyWalletQueue {
@@ -1457,7 +1583,7 @@ impl LazyWalletQueue {
     pub fn new(library: Arc<WalletLibrary>) -> Self {
         Self {
             library,
-            queue: OnceLock::new(),
+            queue: Arc::new(OnceLock::new()),
         }
     }
 
@@ -1696,5 +1822,29 @@ impl LazyWalletQueue {
     /// Sign EIP-712 typed data (eth_signTypedData_v4)
     pub async fn sign_typed_data(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().sign_typed_data(params_json).await
+    }
+
+    // ========================================================================
+    // Developer Mode Session Operations
+    // ========================================================================
+
+    /// Create a developer session for auto-signing testnets
+    pub async fn create_dev_session(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().create_dev_session(params_json).await
+    }
+
+    /// Sign transaction using dev session (no password required)
+    pub async fn dev_session_sign(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().dev_session_sign(params_json).await
+    }
+
+    /// Get dev session info
+    pub async fn get_dev_session(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().get_dev_session(params_json).await
+    }
+
+    /// End dev session
+    pub async fn end_dev_session(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().end_dev_session(params_json).await
     }
 }

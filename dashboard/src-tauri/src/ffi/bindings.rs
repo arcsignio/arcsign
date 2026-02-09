@@ -161,6 +161,23 @@ type SignMessageFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// EIP-712 eth_signTypedData_v4 implementation
 type SignTypedDataFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+// Developer Mode session management function types
+/// Function signature for CreateDevSession: char* CreateDevSession(char* params)
+/// Creates a developer session for auto-signing testnets
+type CreateDevSessionFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for DevSessionSign: char* DevSessionSign(char* params)
+/// Signs a transaction using an active dev session (no password required)
+type DevSessionSignFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for GetDevSession: char* GetDevSession(char* params)
+/// Gets information about an active dev session
+type GetDevSessionFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for EndDevSession: char* EndDevSession(char* params)
+/// Ends a developer session and clears stored keys
+type EndDevSessionFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 // ============================================================================
 // WalletLibrary - Dynamic Library Wrapper (T016, T017)
 // ============================================================================
@@ -232,6 +249,11 @@ pub struct WalletLibrary {
     // WalletConnect signing function symbols
     sign_message: Symbol<'static, SignMessageFn>,
     sign_typed_data: Symbol<'static, SignTypedDataFn>,
+    // Developer Mode session function symbols
+    create_dev_session: Symbol<'static, CreateDevSessionFn>,
+    dev_session_sign: Symbol<'static, DevSessionSignFn>,
+    get_dev_session: Symbol<'static, GetDevSessionFn>,
+    end_dev_session: Symbol<'static, EndDevSessionFn>,
 }
 
 impl WalletLibrary {
@@ -470,6 +492,23 @@ impl WalletLibrary {
                 .get(b"SignTypedData")
                 .map_err(|e| format!("SignTypedData symbol not found: {}", e))?;
 
+            // Load Developer Mode session symbols
+            let create_dev_session: Symbol<CreateDevSessionFn> = lib
+                .get(b"CreateDevSession")
+                .map_err(|e| format!("CreateDevSession symbol not found: {}", e))?;
+
+            let dev_session_sign: Symbol<DevSessionSignFn> = lib
+                .get(b"DevSessionSign")
+                .map_err(|e| format!("DevSessionSign symbol not found: {}", e))?;
+
+            let get_dev_session: Symbol<GetDevSessionFn> = lib
+                .get(b"GetDevSession")
+                .map_err(|e| format!("GetDevSession symbol not found: {}", e))?;
+
+            let end_dev_session: Symbol<EndDevSessionFn> = lib
+                .get(b"EndDevSession")
+                .map_err(|e| format!("EndDevSession symbol not found: {}", e))?;
+
             // Extend symbol lifetime to 'static (safe because Library lives for program duration)
             let go_free: Symbol<'static, GoFreeFn> = std::mem::transmute(go_free);
             let get_version: Symbol<'static, GetVersionFn> = std::mem::transmute(get_version);
@@ -514,6 +553,10 @@ impl WalletLibrary {
             let revoke_wallet_session_token: Symbol<'static, RevokeWalletSessionTokenFn> = std::mem::transmute(revoke_wallet_session_token);
             let sign_message: Symbol<'static, SignMessageFn> = std::mem::transmute(sign_message);
             let sign_typed_data: Symbol<'static, SignTypedDataFn> = std::mem::transmute(sign_typed_data);
+            let create_dev_session: Symbol<'static, CreateDevSessionFn> = std::mem::transmute(create_dev_session);
+            let dev_session_sign: Symbol<'static, DevSessionSignFn> = std::mem::transmute(dev_session_sign);
+            let get_dev_session: Symbol<'static, GetDevSessionFn> = std::mem::transmute(get_dev_session);
+            let end_dev_session: Symbol<'static, EndDevSessionFn> = std::mem::transmute(end_dev_session);
 
             Ok(WalletLibrary {
                 lib: Arc::new(lib),
@@ -560,6 +603,10 @@ impl WalletLibrary {
                 revoke_wallet_session_token,
                 sign_message,
                 sign_typed_data,
+                create_dev_session,
+                dev_session_sign,
+                get_dev_session,
+                end_dev_session,
             })
         }
     }
@@ -1418,6 +1465,111 @@ impl WalletLibrary {
     /// ```
     pub fn sign_typed_data(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.sign_typed_data, params_json)
+    }
+
+    // =========================================================================
+    // Developer Mode Session Methods
+    // =========================================================================
+
+    /// Create a developer session for auto-signing testnets.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "walletId": "wallet-uuid",
+    ///   "password": "wallet-password",
+    ///   "passphrase": "optional-bip39-passphrase",
+    ///   "usbPath": "/path/to/usb",
+    ///   "durationMinutes": 30,
+    ///   "trustedNetworks": ["sepolia", "goerli", "bsc-testnet"]
+    /// }
+    /// ```
+    ///
+    /// Returns:
+    /// ```json
+    /// {
+    ///   "sessionToken": "dev_xxx...",
+    ///   "expiresAt": 1234567890000,
+    ///   "trustedNetworks": ["sepolia", "goerli"],
+    ///   "addresses": ["0x..."]
+    /// }
+    /// ```
+    pub fn create_dev_session(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.create_dev_session, params_json)
+    }
+
+    /// Sign a transaction using an active dev session (no password required).
+    /// Only works for testnet transactions in trusted networks.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "sessionToken": "dev_xxx...",
+    ///   "chainId": 11155111,
+    ///   "from": "0x...",
+    ///   "to": "0x...",
+    ///   "data": "0x...",
+    ///   "value": "0",
+    ///   "gas": "21000",
+    ///   "gasPrice": "1000000000",
+    ///   "nonce": 0
+    /// }
+    /// ```
+    ///
+    /// Returns:
+    /// ```json
+    /// {
+    ///   "signedTx": "0x...",
+    ///   "txHash": "0x...",
+    ///   "signedBy": "0x..."
+    /// }
+    /// ```
+    pub fn dev_session_sign(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.dev_session_sign, params_json)
+    }
+
+    /// Get information about an active dev session.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "sessionToken": "dev_xxx..."
+    /// }
+    /// ```
+    ///
+    /// Returns:
+    /// ```json
+    /// {
+    ///   "active": true,
+    ///   "walletId": "...",
+    ///   "expiresAt": 1234567890000,
+    ///   "remainingMs": 60000,
+    ///   "signCount": 5,
+    ///   "trustedNetworks": ["sepolia"],
+    ///   "addresses": ["0x..."]
+    /// }
+    /// ```
+    pub fn get_dev_session(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.get_dev_session, params_json)
+    }
+
+    /// End a developer session and clear all stored keys.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "sessionToken": "dev_xxx..."
+    /// }
+    /// ```
+    ///
+    /// Returns:
+    /// ```json
+    /// {
+    ///   "status": "ended"
+    /// }
+    /// ```
+    pub fn end_dev_session(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.end_dev_session, params_json)
     }
 }
 

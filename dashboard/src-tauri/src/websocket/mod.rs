@@ -11,7 +11,7 @@
 
 mod server;
 mod handler;
-mod protocol;
+pub mod protocol;
 
 pub use server::WebSocketServer;
 pub use handler::{PendingTxSender, PendingTxReceiver, PendingMsgSender, PendingMsgReceiver};
@@ -20,4 +20,6 @@ pub use protocol::{
     TransactionResult, PendingTransactionWithChannel,
     // Message signing types
     PendingMessageSign, PendingMessageSignWithChannel, MessageSignResult, MessageSignType,
+    // Developer mode types
+    DevSession,
 };

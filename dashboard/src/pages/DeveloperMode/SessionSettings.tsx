@@ -4,6 +4,7 @@
  * Allows developers to configure auto-signing sessions for testnets.
  *
  * Created: 2026-02-04
+ * Updated: 2026-02-09 - Added password dialog for session creation
  */
 
 import { useState } from 'react';
@@ -12,20 +13,60 @@ import type { DevSession } from '@/types/developer';
 
 interface SessionSettingsProps {
   session: DevSession | null;
-  onToggle: (enabled: boolean) => Promise<void>;
+  onStartSession: (password: string) => Promise<void>;
+  onEndSession: () => Promise<void>;
 }
 
-export function SessionSettings({ session, onToggle }: SessionSettingsProps) {
+export function SessionSettings({ session, onStartSession, onEndSession }: SessionSettingsProps) {
   const { t } = useTranslation();
   const [isToggling, setIsToggling] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  const handleToggle = async () => {
+  const handleStartClick = () => {
+    setShowPasswordDialog(true);
+    setPassword('');
+    setError(null);
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password) {
+      setError('Password is required');
+      return;
+    }
+
     setIsToggling(true);
+    setError(null);
+
     try {
-      await onToggle(!session?.enabled);
+      await onStartSession(password);
+      setShowPasswordDialog(false);
+      setPassword('');
+    } catch (err) {
+      console.error('Failed to start session:', err);
+      setError(err instanceof Error ? err.message : 'Failed to start session');
     } finally {
       setIsToggling(false);
     }
+  };
+
+  const handleEndSession = async () => {
+    setIsToggling(true);
+    try {
+      await onEndSession();
+    } catch (err) {
+      console.error('Failed to end session:', err);
+    } finally {
+      setIsToggling(false);
+    }
+  };
+
+  const handleCancelDialog = () => {
+    setShowPasswordDialog(false);
+    setPassword('');
+    setError(null);
   };
 
   // Calculate remaining time
@@ -61,13 +102,23 @@ export function SessionSettings({ session, onToggle }: SessionSettingsProps) {
             )}
           </div>
 
-          <button
-            className={`toggle-button ${session?.enabled ? 'deactivate' : 'activate'}`}
-            onClick={handleToggle}
-            disabled={isToggling}
-          >
-            {isToggling ? '...' : session?.enabled ? t('developer.endSession', 'End Session') : t('developer.startSession', 'Start Session')}
-          </button>
+          {session?.enabled ? (
+            <button
+              className="toggle-button deactivate"
+              onClick={handleEndSession}
+              disabled={isToggling}
+            >
+              {isToggling ? '...' : t('developer.endSession', 'End Session')}
+            </button>
+          ) : (
+            <button
+              className="toggle-button activate"
+              onClick={handleStartClick}
+              disabled={isToggling}
+            >
+              {t('developer.startSession', 'Start Session')}
+            </button>
+          )}
         </div>
 
         {session?.enabled && (
@@ -89,6 +140,49 @@ export function SessionSettings({ session, onToggle }: SessionSettingsProps) {
           </div>
         )}
       </div>
+
+      {/* Password Dialog */}
+      {showPasswordDialog && (
+        <div className="password-dialog-overlay">
+          <div className="password-dialog">
+            <h3>🔐 {t('developer.enterPassword', 'Enter Wallet Password')}</h3>
+            <p>{t('developer.passwordForSession', 'Enter your wallet password to start a 30-minute auto-signing session.')}</p>
+
+            <form onSubmit={handlePasswordSubmit}>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                autoFocus
+                className="password-input"
+              />
+
+              {error && (
+                <div className="error-message">⚠️ {error}</div>
+              )}
+
+              <div className="dialog-buttons">
+                <button
+                  type="button"
+                  className="cancel-button"
+                  onClick={handleCancelDialog}
+                  disabled={isToggling}
+                >
+                  {t('actions.cancel', 'Cancel')}
+                </button>
+                <button
+                  type="submit"
+                  className="submit-button"
+                  disabled={isToggling || !password}
+                >
+                  {isToggling ? '...' : t('developer.startSession', 'Start Session')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Security Rules */}
       <div className="rules-section">
@@ -233,6 +327,108 @@ export function SessionSettings({ session, onToggle }: SessionSettingsProps) {
         .info-row .value.networks {
           font-family: monospace;
           color: #a5f3fc;
+        }
+
+        /* Password Dialog Styles */
+        .password-dialog-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .password-dialog {
+          background: #1a1a2e;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 16px;
+          padding: 24px;
+          width: 400px;
+          max-width: 90%;
+        }
+
+        .password-dialog h3 {
+          margin: 0 0 8px;
+          font-size: 18px;
+        }
+
+        .password-dialog p {
+          margin: 0 0 20px;
+          color: rgba(255, 255, 255, 0.6);
+          font-size: 14px;
+        }
+
+        .password-input {
+          width: 100%;
+          padding: 12px 16px;
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 8px;
+          color: #fff;
+          font-size: 16px;
+          margin-bottom: 16px;
+        }
+
+        .password-input:focus {
+          outline: none;
+          border-color: #3b82f6;
+        }
+
+        .error-message {
+          padding: 10px 12px;
+          background: rgba(239, 68, 68, 0.2);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          border-radius: 6px;
+          color: #fca5a5;
+          font-size: 14px;
+          margin-bottom: 16px;
+        }
+
+        .dialog-buttons {
+          display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+        }
+
+        .cancel-button {
+          padding: 10px 20px;
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 8px;
+          color: #fff;
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .cancel-button:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.2);
+        }
+
+        .submit-button {
+          padding: 10px 20px;
+          background: #3b82f6;
+          border: none;
+          border-radius: 8px;
+          color: #fff;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .submit-button:hover:not(:disabled) {
+          background: #2563eb;
+        }
+
+        .submit-button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
         .rules-section h3 {

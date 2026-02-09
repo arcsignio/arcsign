@@ -189,14 +189,16 @@ fn main() {
             // T018: Initialize LazyWalletQueue (defers actual initialization until first use)
             // T042: Symbol caching is already implemented in WalletLibrary::load()
             // T068: Only create queue if library loaded successfully
-            if let Some(lib) = library_for_setup {
+            let wallet_queue: Option<LazyWalletQueue> = if let Some(lib) = library_for_setup {
                 // Create lazy queue - actual WalletQueue will be initialized on first use from async context
                 let queue = LazyWalletQueue::new(lib);
-                app.manage(queue);
+                app.manage(queue.clone());
                 tracing::info!("✓ Lazy queue registered (will initialize on first use from async context)");
+                Some(queue)
             } else {
                 tracing::warn!("⚠ FFI queue not available - commands will use CLI fallback");
-            }
+                None
+            };
 
             // Start WebSocket server for mint-page integration
             let (pending_tx_sender, pending_tx_receiver) = mpsc::unbounded_channel();
@@ -218,8 +220,14 @@ fn main() {
             let current_msg_state: CurrentPendingMsgState = Arc::new(Mutex::new(None));
             app.manage(current_msg_state);
 
-            // Create and start WebSocket server
-            let ws_server = Arc::new(tokio::sync::RwLock::new(WebSocketServer::new(pending_tx_sender, pending_msg_sender)));
+            // Create and start WebSocket server (with wallet queue for session-based auto-signing)
+            let ws_server = Arc::new(tokio::sync::RwLock::new(
+                if let Some(queue) = wallet_queue {
+                    WebSocketServer::with_wallet_queue(pending_tx_sender, pending_msg_sender, queue)
+                } else {
+                    WebSocketServer::new(pending_tx_sender, pending_msg_sender)
+                }
+            ));
             app.manage(ws_server.clone());
 
             // Start WebSocket server in background
@@ -335,6 +343,11 @@ fn main() {
             // Developer mode settings commands
             commands::dev_settings::load_dev_settings,
             commands::dev_settings::save_dev_settings,
+            // Developer mode session commands
+            commands::dev_session::create_dev_session,
+            commands::dev_session::get_dev_session,
+            commands::dev_session::dev_session_sign,
+            commands::dev_session::end_dev_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

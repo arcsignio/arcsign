@@ -19,7 +19,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PendingRequests } from './PendingRequests';
-// import { SessionSettings } from './SessionSettings'; // Hidden for now - will be added later
+import { SessionSettings } from './SessionSettings';
 import { SigningHistory } from './SigningHistory';
 import { DevSettings } from './DevSettings';
 import tauriApi from '@/services/tauri-api';
@@ -69,7 +69,8 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
   const [pendingMessageRequests, setPendingMessageRequests] = useState<DevMessageSignRequest[]>([]);
   const [signingHistory, setSigningHistory] = useState<DevSignRequest[]>([]);
   const [devSettings, setDevSettings] = useState<DevSettingsType | null>(null);
-  const [session, _setSession] = useState<DevSession | null>(null); // setSession hidden - will be used when Session Settings is enabled
+  const [session, setSession] = useState<DevSession | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
@@ -434,25 +435,53 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
     }
   }, []);
 
-  // Handle session toggle - hidden for now, will be added later
-  // const handleSessionToggle = useCallback(async (enabled: boolean) => {
-  //   if (enabled && selectedWallet) {
-  //     setSession({
-  //       enabled: true,
-  //       walletId: selectedWallet.id,
-  //       createdAt: Date.now(),
-  //       expiresAt: Date.now() + 30 * 60 * 1000, // 30 minutes
-  //       trustedNetworks: ['sepolia', 'goerli', 'bsc-testnet'],
-  //       signCount: 0,
-  //     });
-  //   } else {
-  //     setSession(null);
-  //   }
-  // }, [selectedWallet]);
+  // Handle starting a session - creates auto-signing session with password
+  const handleStartSession = useCallback(async (password: string) => {
+    if (!selectedWallet) {
+      throw new Error('No wallet selected');
+    }
+
+    const result = await tauriApi.createDevSession({
+      walletId: selectedWallet.id,
+      password,
+      usbPath,
+      durationMinutes: 30,
+      trustedNetworks: ['sepolia', 'goerli', 'bsc-testnet', 'mumbai'],
+    });
+
+    setSessionToken(result.sessionToken);
+    setSession({
+      enabled: true,
+      walletId: selectedWallet.id,
+      createdAt: Date.now(),
+      expiresAt: result.expiresAt,
+      trustedNetworks: result.trustedNetworks,
+      signCount: 0,
+    });
+
+    console.log('🔓 Session started, expires:', new Date(result.expiresAt).toLocaleString());
+  }, [selectedWallet, usbPath]);
+
+  // Handle ending a session
+  const handleEndSession = useCallback(async () => {
+    if (sessionToken) {
+      await tauriApi.endDevSession({ sessionToken });
+      console.log('🔒 Session ended');
+    }
+    setSessionToken(null);
+    setSession(null);
+  }, [sessionToken]);
 
   // Handle exit developer mode
-  const handleExit = () => {
-    // No session to revoke - sessions are created on-demand when signing
+  const handleExit = async () => {
+    // End any active session before exiting
+    if (sessionToken) {
+      try {
+        await handleEndSession();
+      } catch (err) {
+        console.error('Failed to end session on exit:', err);
+      }
+    }
     onBack();
   };
 
@@ -604,10 +633,18 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
           <SigningHistory history={signingHistory} />
         )}
         {activeTab === 'settings' && (
-          <DevSettings
-            settings={devSettings}
-            onSave={handleSaveSettings}
-          />
+          <>
+            <SessionSettings
+              session={session}
+              onStartSession={handleStartSession}
+              onEndSession={handleEndSession}
+            />
+            <div style={{ marginTop: '32px' }} />
+            <DevSettings
+              settings={devSettings}
+              onSave={handleSaveSettings}
+            />
+          </>
         )}
       </main>
 

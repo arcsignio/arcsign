@@ -185,11 +185,22 @@ export class ArcSignSigner extends AbstractSigner {
       throw new Error("No signed transaction returned");
     }
 
-    console.log(`[ArcSign] ✓ Transaction signed`);
+    const isAutoSigned = (result as { auto_signed?: boolean }).auto_signed;
+    if (isAutoSigned) {
+      console.log(`[ArcSign] ✓ Transaction auto-signed (session active)`);
+    } else {
+      console.log(`[ArcSign] ✓ Transaction signed (manual approval)`);
+    }
 
-    // The signed_tx from ArcSign is base64 encoded - convert to hex with 0x prefix
-    // RPC nodes expect hex format for eth_sendRawTransaction
-    const signedTxHex = this.base64ToHex(result.signed_tx);
+    // Auto-signed transactions from Go are already hex (0x...), manual from CLI are base64
+    let signedTxHex: string;
+    if (isAutoSigned && result.signed_tx.startsWith("0x")) {
+      // Already hex format from Go FFI
+      signedTxHex = result.signed_tx;
+    } else {
+      // Base64 encoded from CLI - convert to hex
+      signedTxHex = this.base64ToHex(result.signed_tx);
+    }
     return signedTxHex;
   }
 

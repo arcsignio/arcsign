@@ -14,6 +14,7 @@ use super::protocol::{
     // Message signing types
     PendingMessageSign, PendingMessageSignWithChannel, MessageSignResult, MessageSignType,
 };
+use crate::ffi::LazyWalletQueue;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot, RwLock};
@@ -38,6 +39,8 @@ pub struct HandlerContext {
     pub usb_path: Option<String>,
     /// Developer session state (shared across connections)
     pub dev_session: Arc<RwLock<Option<DevSession>>>,
+    /// FFI wallet queue for session-based auto-signing
+    pub wallet_queue: Option<LazyWalletQueue>,
 }
 
 impl HandlerContext {
@@ -53,6 +56,7 @@ impl HandlerContext {
             accounts,
             usb_path,
             dev_session: Arc::new(RwLock::new(None)),
+            wallet_queue: None,
         }
     }
 
@@ -70,6 +74,26 @@ impl HandlerContext {
             accounts,
             usb_path,
             dev_session,
+            wallet_queue: None,
+        }
+    }
+
+    /// Create with shared session state and wallet queue for auto-signing
+    pub fn with_session_and_queue(
+        pending_tx_sender: PendingTxSender,
+        pending_msg_sender: PendingMsgSender,
+        accounts: Vec<String>,
+        usb_path: Option<String>,
+        dev_session: Arc<RwLock<Option<DevSession>>>,
+        wallet_queue: Option<LazyWalletQueue>,
+    ) -> Self {
+        Self {
+            pending_tx_sender,
+            pending_msg_sender,
+            accounts,
+            usb_path,
+            dev_session,
+            wallet_queue,
         }
     }
 }
@@ -350,11 +374,23 @@ async fn handle_dev_sign_transaction(
     // Check if we can auto-sign (testnet + active session)
     let can_auto_sign = {
         let session = context.dev_session.read().await;
+        let now = current_timestamp_ms();
         if let Some(ref s) = *session {
+            tracing::info!(
+                "Session check: enabled={}, expires_at={}, now={}, expired={}, network={}, trusted={:?}, in_trusted={}",
+                s.enabled,
+                s.expires_at,
+                now,
+                s.expires_at <= now,
+                network,
+                s.trusted_networks,
+                s.trusted_networks.contains(&network)
+            );
             s.enabled
-                && s.expires_at > current_timestamp_ms()
+                && s.expires_at > now
                 && s.trusted_networks.contains(&network)
         } else {
+            tracing::info!("No active session found in context");
             false
         }
     };
@@ -389,25 +425,83 @@ async fn handle_dev_sign_transaction(
         can_auto_sign
     );
 
-    // If can auto-sign, proceed automatically
+    // If can auto-sign, proceed automatically using FFI
     if can_auto_sign {
-        // Update session sign count
-        {
-            let mut session = context.dev_session.write().await;
-            if let Some(ref mut s) = *session {
-                s.sign_count += 1;
+        // Get session token for FFI call
+        let session_token = {
+            let session = context.dev_session.read().await;
+            session.as_ref().and_then(|s| s.session_token.clone())
+        };
+
+        // Verify we have wallet queue and session token
+        tracing::info!("Checking FFI requirements: wallet_queue={}, session_token={:?}",
+            context.wallet_queue.is_some(),
+            session_token.as_ref().map(|t| format!("{}...", &t[..8.min(t.len())]))
+        );
+        match (&context.wallet_queue, session_token) {
+            (Some(queue), Some(token)) => {
+                tracing::info!("Auto-signing transaction using session token");
+
+                // Build sign params for FFI (Go expects camelCase)
+                let sign_params = serde_json::json!({
+                    "sessionToken": token,
+                    "chainId": tx_params.chain_id,
+                    "from": tx_params.from,
+                    "to": tx_params.to,
+                    "data": tx_params.data,
+                    "value": tx_params.value,
+                    "gas": tx_params.gas,
+                    "gasPrice": tx_params.gas_price,
+                    "maxFeePerGas": tx_params.max_fee_per_gas,
+                    "maxPriorityFeePerGas": tx_params.max_priority_fee_per_gas,
+                    "nonce": tx_params.nonce,
+                });
+
+                // Call FFI for signing
+                match queue.dev_session_sign(sign_params.to_string()).await {
+                    Ok(result_json) => {
+                        // Check for error in result
+                        if let Some(error) = result_json.get("error").and_then(|e| e.as_str()) {
+                            tracing::error!("FFI signing error: {}", error);
+                            return WsResponse::error(id, error.to_string());
+                        }
+
+                        // Update session sign count
+                        {
+                            let mut session = context.dev_session.write().await;
+                            if let Some(ref mut s) = *session {
+                                s.sign_count += 1;
+                            }
+                        }
+
+                        // Note: Go FFI returns camelCase
+                        let tx_hash = result_json.get("txHash").and_then(|v| v.as_str());
+                        let signed_tx = result_json.get("signedTx").and_then(|v| v.as_str());
+
+                        tracing::info!("Auto-sign successful: tx_hash={:?}", tx_hash);
+
+                        return WsResponse::success(id, json!({
+                            "status": "success",
+                            "tx_hash": tx_hash,
+                            "signed_tx": signed_tx,
+                            "network": network,
+                            "auto_signed": true,
+                        }));
+                    }
+                    Err(e) => {
+                        tracing::error!("FFI auto-sign failed: {}", e);
+                        // Fall through to manual signing
+                        tracing::info!("Falling back to manual signing");
+                    }
+                }
+            }
+            (None, _) => {
+                tracing::warn!("Wallet queue not available for auto-signing, falling back to manual");
+            }
+            (_, None) => {
+                tracing::warn!("Session token not available for auto-signing, falling back to manual");
             }
         }
-
-        // TODO: Implement actual signing here
-        // For now, return a placeholder indicating auto-sign happened
-        return WsResponse::success(id, json!({
-            "status": "auto_signed",
-            "network": network,
-            "request_type": request_type,
-            "description": description,
-            "message": "Transaction auto-signed (session mode)"
-        }));
     }
 
     // Extract script name from context
@@ -712,6 +806,7 @@ async fn handle_dev_create_session(
     let new_session = DevSession {
         enabled: true,
         wallet_id: Some(create_params.wallet_id.clone()),
+        session_token: None, // WebSocket-only session; real session via Tauri command
         created_at: now,
         expires_at: now + (duration_minutes as u64 * 60 * 1000),
         trusted_networks: create_params.trusted_networks,
