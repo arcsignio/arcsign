@@ -15,21 +15,33 @@ interface SettingItem {
   id: string;
   titleKey: string;
   descriptionKey: string;
-  icon: string;
+  icon: React.ReactNode;
 }
+
+const IconShield = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+);
+
+const IconLink = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+);
+
+const IconWrench = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+);
 
 const SETTING_ITEMS: SettingItem[] = [
   {
     id: 'membership',
     titleKey: 'settings.membershipTitle',
     descriptionKey: 'settings.membershipDescription',
-    icon: '⭐',
+    icon: <IconShield />,
   },
   {
     id: 'api-settings',
     titleKey: 'settings.apiSettingsTitle',
     descriptionKey: 'settings.apiSettingsDescription',
-    icon: '🔗',
+    icon: <IconLink />,
   },
 ];
 
@@ -38,7 +50,7 @@ const DEVELOPER_ITEM: SettingItem = {
   id: 'developer',
   titleKey: 'settings.developerModeTitle',
   descriptionKey: 'settings.developerModeDescription',
-  icon: '🔧',
+  icon: <IconWrench />,
 };
 
 export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
@@ -47,7 +59,8 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
   return (
     <div className="settings-page">
       <button onClick={onBack} className="back-button">
-        ← {t('settings.backToWallets')}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:'inline',verticalAlign:'middle',marginRight:4}}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        {t('settings.backToWallets')}
       </button>
 
       <header className="settings-header">
@@ -69,7 +82,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
               <h3 className="setting-title">{t(item.titleKey)}</h3>
               <p className="setting-description">{t(item.descriptionKey)}</p>
             </div>
-            <span className="setting-arrow">→</span>
+            <span className="setting-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
           </button>
         ))}
       </div>
@@ -86,7 +99,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
             <h3 className="setting-title">{t(DEVELOPER_ITEM.titleKey)}</h3>
             <p className="setting-description">{t(DEVELOPER_ITEM.descriptionKey)}</p>
           </div>
-          <span className="setting-arrow">→</span>
+          <span className="setting-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
         </button>
       </div>
 
@@ -166,8 +179,8 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
         }
 
         .setting-item:hover {
-          border-color: #3b82f6;
-          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+          border-color: #2dd4bf;
+          box-shadow: 0 2px 12px rgba(45, 212, 191, 0.1);
         }
 
         .setting-icon {
@@ -206,7 +219,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
         }
 
         .setting-item:hover .setting-arrow {
-          color: #3b82f6;
+          color: #0d9488;
         }
 
         /* Developer Section */

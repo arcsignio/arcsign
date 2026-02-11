@@ -848,7 +848,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       {/* Error Display */}
       {error && (
         <div className="error-banner">
-          <span className="error-icon">⚠️</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <span>{error}</span>
           <button onClick={() => setError(null)}>✕</button>
         </div>
@@ -862,7 +862,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 
           {swappableTokens.length === 0 ? (
             <div className="no-tokens">
-              <span className="no-tokens-icon">📭</span>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
               <p>{t('swap.noTokensForSwap')}</p>
               <p className="supported-chains">{t('swap.supportedChains')}</p>
               <button className="secondary-button" onClick={onBack}>

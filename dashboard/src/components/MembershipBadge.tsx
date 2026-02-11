@@ -10,6 +10,12 @@ interface MembershipBadgeProps {
   onClick?: () => void;
 }
 
+const ShieldIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style={{display:'inline',verticalAlign:'middle',marginRight:3}}>
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+  </svg>
+);
+
 export function MembershipBadge({ onClick }: MembershipBadgeProps) {
   const membership = useMembershipStatus();
   const walletLimit = useWalletLimitInfo();
@@ -22,7 +28,7 @@ export function MembershipBadge({ onClick }: MembershipBadgeProps) {
     >
       <div className="badge-content">
         <span className={`badge-label ${membership.isPro ? 'pro' : 'free'}`}>
-          {membership.isPro ? '⭐ Pro' : 'Free'}
+          {membership.isPro ? <><ShieldIcon /> Pro</> : 'Free'}
         </span>
         <span className="badge-info">
           {walletLimit.current}/{walletLimit.limit} wallets
@@ -34,8 +40,8 @@ export function MembershipBadge({ onClick }: MembershipBadgeProps) {
           display: flex;
           align-items: center;
           padding: 8px 16px;
-          background: ${membership.isPro ? 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)' : '#f9fafb'};
-          border: 2px solid ${membership.isPro ? '#f0b90b' : '#e5e7eb'};
+          background: ${membership.isPro ? 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)' : '#f9fafb'};
+          border: 1.5px solid ${membership.isPro ? '#2dd4bf' : '#e5e7eb'};
           border-radius: 12px;
           cursor: pointer;
           transition: all 0.2s;
@@ -45,7 +51,7 @@ export function MembershipBadge({ onClick }: MembershipBadgeProps) {
         .membership-badge:hover {
           transform: translateY(-1px);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-          border-color: ${membership.isPro ? '#d4a00a' : '#d1d5db'};
+          border-color: ${membership.isPro ? '#14b8a6' : '#d1d5db'};
         }
 
         .badge-content {
@@ -63,8 +69,8 @@ export function MembershipBadge({ onClick }: MembershipBadgeProps) {
         }
 
         .badge-label.pro {
-          background: #f0b90b;
-          color: #000;
+          background: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%);
+          color: white;
         }
 
         .badge-label.free {

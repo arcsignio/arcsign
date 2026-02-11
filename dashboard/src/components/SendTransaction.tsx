@@ -96,15 +96,15 @@ function getExplorerUrl(network: string, txHash: string): string {
 // Get network display icon (using Internal Network IDs)
 function getNetworkIcon(network: string): string {
   const icons: Record<string, string> = {
-    "eth-mainnet": "⟠",
-    "polygon-mainnet": "⬡",
-    "arbitrum-mainnet": "🔵",
-    "optimism-mainnet": "🔴",
-    "base-mainnet": "🔷",
-    "bnb-mainnet": "🟡",
-    "eth-sepolia": "🧪",
+    "eth-mainnet": "E",
+    "polygon-mainnet": "P",
+    "arbitrum-mainnet": "A",
+    "optimism-mainnet": "O",
+    "base-mainnet": "B",
+    "bnb-mainnet": "N",
+    "eth-sepolia": "T",
   };
-  return icons[network] || "🔗";
+  return icons[network] || "?";
 }
 
 
@@ -426,7 +426,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {/* Error Display */}
       {error && (
         <div className="error-banner">
-          <span className="error-icon">⚠️</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <span>{error}</span>
           <button onClick={() => setError(null)}>✕</button>
         </div>
@@ -440,7 +440,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
           {availableTokens.length === 0 ? (
             <div className="no-tokens">
-              <span className="no-tokens-icon">📭</span>
+              <span className="no-tokens-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>
               <p>No tokens with balance available to send</p>
               <button className="secondary-button" onClick={onBack}>
                 Go Back
@@ -579,7 +579,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
                       onClick={() => setFeeSpeed(speed)}
                     >
                       <span className="fee-speed">
-                        {speed === "slow" ? "🐢" : speed === "normal" ? "🚗" : "🚀"}
+                        <span className={`speed-dot speed-${speed}`} />
                         {speed.charAt(0).toUpperCase() + speed.slice(1)}
                       </span>
                       <span className="fee-estimate">
@@ -598,7 +598,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           {/* ERC-20 Notice */}
           {isERC20 && (
             <div className="erc20-notice">
-              <span className="notice-icon">ℹ️</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
               <span>This is an ERC-20 token. Gas fees will be paid in ETH.</span>
             </div>
           )}
@@ -676,7 +676,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {/* Step 3: Password Entry */}
       {step === "password" && (
         <div className="password-form">
-          <div className="password-icon">🔐</div>
+          <div className="password-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
           <h3>Enter Wallet Password</h3>
           <p className="password-description">
             Your password is required to sign this transaction securely.
@@ -738,7 +738,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {/* Step 6: Success */}
       {step === "success" && broadcastResult && selectedToken && (
         <div className="success-view">
-          <div className="success-icon">✅</div>
+          <div className="success-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
           <h3>Transaction Submitted!</h3>
           <p className="success-message">
             Your transaction has been submitted to the {selectedToken.networkLabel} network.
@@ -771,7 +771,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {/* Error State */}
       {step === "error" && (
         <div className="error-view">
-          <div className="error-icon-large">❌</div>
+          <div className="error-icon-large"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
           <h3>Transaction Failed</h3>
           <p className="error-message">{error}</p>
           <div className="error-actions">
@@ -892,7 +892,17 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
 
         .network-icon {
-          font-size: 16px;
+          font-size: 12px;
+          font-weight: 700;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(135deg, #0d9488, #2dd4bf);
+          color: white;
+          flex-shrink: 0;
         }
 
         .testnet-badge {
@@ -1258,15 +1268,29 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
 
         .fee-option.selected {
-          background: #dbeafe;
-          border-color: #3b82f6;
+          background: #f0fdfa;
+          border-color: #2dd4bf;
         }
 
         .fee-speed {
           flex: 1;
           font-weight: 500;
           color: #374151;
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
+
+        .speed-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+
+        .speed-slow { background: #f59e0b; }
+        .speed-normal { background: #2dd4bf; }
+        .speed-fast { background: #10b981; }
 
         .fee-estimate {
           font-size: 14px;

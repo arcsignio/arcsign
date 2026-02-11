@@ -309,7 +309,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
       {/* Unverified token filter notice */}
       {unverifiedTokenCount > 0 && (
         <div className="scam-filter-notice">
-          <span className="scam-icon">🛡️</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           <span>
             已過濾 {unverifiedTokenCount} 筆未驗證的交易（不在白名單內）
           </span>
@@ -324,7 +324,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
       {!error && transfers.length === 0 && !isLoading && (
         <div className="empty-state">
-          <div className="empty-icon">📭</div>
+          <div className="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
           <h3>No Transactions Found</h3>
           <p>This address has no transaction history on supported EVM chains.</p>
         </div>

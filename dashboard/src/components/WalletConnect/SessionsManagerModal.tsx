@@ -115,7 +115,7 @@ export const SessionsManagerModal: React.FC<SessionsManagerModalProps> = ({
         <div className="sessions-modal-content">
           {sessions.length === 0 ? (
             <div className="no-sessions">
-              <div className="no-sessions-icon">🔗</div>
+              <div className="no-sessions-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></div>
               <p>{t('walletConnect.noConnections')}</p>
               <p className="no-sessions-hint">{t('walletConnect.noConnectionsHint')}</p>
             </div>
@@ -138,7 +138,7 @@ export const SessionsManagerModal: React.FC<SessionsManagerModalProps> = ({
                           }}
                         />
                       ) : (
-                        <span className="default-icon">🌐</span>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
                       )}
                     </div>
 

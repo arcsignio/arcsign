@@ -36,7 +36,7 @@ code {
   align-items: center;
   margin-bottom: 2rem;
   padding-bottom: 1.5rem;
-  border-bottom: 2px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .header-title-section {
@@ -90,24 +90,31 @@ code {
 
 /* Buttons */
 .primary-button {
-  background-color: #3b82f6;
+  background: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%);
   color: white;
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 0.5rem;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(13, 148, 136, 0.2);
 }
 
 .primary-button:hover:not(:disabled) {
-  background-color: #2563eb;
+  box-shadow: 0 4px 12px rgba(45, 212, 191, 0.35);
+  transform: translateY(-1px);
+}
+
+.primary-button:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .primary-button:disabled {
-  background-color: #9ca3af;
+  background: #d1d5db;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .primary-button.large {
@@ -117,9 +124,9 @@ code {
 
 .secondary-button {
   background-color: white;
-  color: #3b82f6;
+  color: #374151;
   padding: 0.75rem 1.5rem;
-  border: 2px solid #3b82f6;
+  border: 1.5px solid #d1d5db;
   border-radius: 0.5rem;
   font-size: 1rem;
   font-weight: 500;
@@ -128,11 +135,13 @@ code {
 }
 
 .secondary-button:hover:not(:disabled) {
-  background-color: #eff6ff;
+  border-color: #2dd4bf;
+  color: #0d9488;
+  background-color: #f0fdfa;
 }
 
 .secondary-button:disabled {
-  border-color: #9ca3af;
+  border-color: #e5e7eb;
   color: #9ca3af;
   cursor: not-allowed;
 }
@@ -168,7 +177,7 @@ code {
 }
 
 .back-button:hover {
-  color: #3b82f6;
+  color: #0d9488;
 }
 
 /* Wallet List */
@@ -191,21 +200,24 @@ code {
 
 .wallet-card {
   background: white;
-  border: 2px solid #e5e7eb;
+  border: 1.5px solid #e5e7eb;
   border-radius: 0.75rem;
   padding: 1.5rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .wallet-card:hover {
-  border-color: #3b82f6;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border-color: #2dd4bf;
+  box-shadow: 0 4px 16px rgba(45, 212, 191, 0.12);
+  transform: translateY(-2px);
 }
 
 .wallet-card.selected {
-  border-color: #3b82f6;
-  background-color: #eff6ff;
+  border-color: #2dd4bf;
+  background: linear-gradient(135deg, #f0fdfa 0%, #f5fffe 100%);
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.1);
 }
 
 .wallet-card.locked {
@@ -372,8 +384,8 @@ code {
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: #2dd4bf;
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.12);
 }
 
 .form-group small {
@@ -462,9 +474,9 @@ code {
 .feature-tag {
   display: inline-block;
   padding: 0.25rem 0.75rem;
-  background: #f0fdf4;
-  color: #15803d;
-  border: 1px solid #bbf7d0;
+  background: #f0fdfa;
+  color: #0d9488;
+  border: 1px solid #99f6e4;
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 500;
@@ -504,8 +516,8 @@ code {
 
 /* Info Sections */
 .selected-wallet-info {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
   border-radius: 0.5rem;
   padding: 1rem;
   margin-top: 2rem;
@@ -514,13 +526,13 @@ code {
 .selected-wallet-info h3 {
   font-size: 1rem;
   font-weight: 600;
-  color: #1e40af;
+  color: #0f766e;
   margin-bottom: 0.5rem;
 }
 
 .selected-wallet-info .wallet-id {
   font-size: 0.875rem;
-  color: #3b82f6;
+  color: #0d9488;
   font-family: monospace;
 }
 
@@ -589,10 +601,22 @@ code {
 }
 
 .warning-message li::before {
-  content: "⚠️";
+  content: "!";
   position: absolute;
   left: 0;
-  font-size: 1rem;
+  width: 18px;
+  height: 18px;
+  background: #f59e0b;
+  color: white;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 18px;
+  top: 2px;
 }
 
 /* Countdown Timer */
@@ -656,13 +680,13 @@ code {
 }
 
 .mnemonic-word:hover {
-  border-color: #3b82f6;
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+  border-color: #2dd4bf;
+  box-shadow: 0 2px 4px rgba(45, 212, 191, 0.2);
   transform: translateY(-1px);
 }
 
 .word-number {
-  background: #3b82f6;
+  background: linear-gradient(135deg, #0d9488, #2dd4bf);
   color: white;
   font-size: 0.75rem;
   font-weight: 600;
@@ -766,7 +790,7 @@ code {
 /* Confirm Button */
 .confirm-button {
   width: 100%;
-  background: #3b82f6;
+  background: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%);
   color: white;
   padding: 1rem 2rem;
   border: none;
@@ -776,13 +800,12 @@ code {
   cursor: pointer;
   transition: all 0.2s;
   margin-top: 1.5rem;
-  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 6px -1px rgba(13, 148, 136, 0.3);
 }
 
 .confirm-button:hover:not(:disabled) {
-  background: #2563eb;
   transform: translateY(-2px);
-  box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.5);
+  box-shadow: 0 6px 12px -1px rgba(45, 212, 191, 0.4);
 }
 
 .confirm-button:active:not(:disabled) {

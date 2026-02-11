@@ -744,7 +744,7 @@ export function WalletDetail({
                 boxShadow: "0 4px 14px rgba(102, 126, 234, 0.4)",
               }}
             >
-              🔐
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
             </div>
             <h3
               style={{
@@ -781,7 +781,7 @@ export function WalletDetail({
                 animation: "shake 0.4s ease-in-out",
               }}
             >
-              <span style={{ fontSize: "1.25rem" }}>⚠️</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               <span
                 style={{
                   color: "#991b1b",
@@ -1005,7 +1005,7 @@ export function WalletDetail({
                 gap: "0.75rem",
               }}
             >
-              <span style={{ fontSize: "1.25rem" }}>⚠️</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               <span
                 style={{
                   color: "#991b1b",
@@ -1400,7 +1400,7 @@ export function WalletDetail({
                   e.currentTarget.style.background = walletConnect.sessions.length > 0 ? "#ecfdf5" : "transparent";
                 }}
               >
-                <span>🔗</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
                 {walletConnect.sessions.length > 0 && (
                   <span>{walletConnect.sessions.length}</span>
                 )}
@@ -1480,7 +1480,7 @@ export function WalletDetail({
                   e.currentTarget.style.background = showScamTokens ? "#fef3c7" : "transparent";
                 }}
               >
-                <span>🛡️</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 <span>{filteredScamCount}</span>
               </button>
             )}
@@ -1502,7 +1502,7 @@ export function WalletDetail({
                 e.currentTarget.style.background = "transparent";
               }}
             >
-              🌐
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
             </button>
           </div>
         </div>
@@ -1686,7 +1686,7 @@ export function WalletDetail({
                   fontSize: "1.125rem",
                 }}
               >
-                {action.disabled ? "🔒" : action.icon}
+                {action.disabled ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" fill="none" stroke="currentColor" strokeWidth="2"/><path d="M7 11V7a5 5 0 0110 0v4" fill="none" stroke="currentColor" strokeWidth="2"/></svg> : action.icon}
               </div>
               <span style={{ fontSize: "0.75rem", color: action.disabled ? "#94a3b8" : "#64748b" }}>
                 {action.label}
@@ -1770,7 +1770,7 @@ export function WalletDetail({
                 onMouseEnter={(e) => { e.currentTarget.style.background = "#f1f5f9"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
               >
-                <span style={{ fontSize: "1.25rem" }}>🔗</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
                 <div>
                   <div style={{ fontWeight: "500", color: "#1e293b" }}>WalletConnect</div>
                   <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
@@ -1857,7 +1857,7 @@ export function WalletDetail({
                 color: "#64748b",
               }}
             >
-              <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📭</div>
+              <div style={{ marginBottom: "1rem" }}><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
               <p>{t('walletDetail.noTokensFound')}</p>
             </div>
           ) : (
@@ -2084,7 +2084,7 @@ export function WalletDetail({
             color: "#64748b",
           }}
         >
-          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🖼️</div>
+          <div style={{ marginBottom: "1rem" }}><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
           <p
             style={{
               marginBottom: "0.5rem",
@@ -2137,7 +2137,7 @@ export function WalletDetail({
             fontSize: "0.875rem",
           }}
         >
-          ⚠️ {error}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {error}
         </div>
       )}
 
@@ -2479,7 +2479,7 @@ export function WalletDetail({
                             gap: "0.5rem",
                           }}
                         >
-                          <span style={{ color: "#d97706", flexShrink: 0 }}>⚠️</span>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                           <div style={{ fontSize: "0.75rem", color: "#92400e", lineHeight: "1.4" }}>
                             <strong>{t('walletDetail.disclaimer')}</strong> {t('walletDetail.disclaimerText')}
                             <br />
