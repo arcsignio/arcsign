@@ -632,7 +632,11 @@ export function Dashboard() {
     <div className="dashboard">
       <header className="dashboard-header">
         <div className="header-title-section">
-          <h1>{t("dashboard.title")}</h1>
+          <img src="/logo.png" alt="ArcSign" className="header-logo" />
+          <div className="header-brand">
+            <h1>{t("dashboard.title")}</h1>
+            <span className="header-tagline">Secure Multi-Chain Wallet</span>
+          </div>
           <MembershipBadge onClick={() => setCurrentView("membership")} />
         </div>
         <div className="header-actions">
@@ -683,11 +687,20 @@ export function Dashboard() {
         </div>
       ) : !hasWallets ? (
         <div className="empty-state">
+          <div className="empty-state-icon">
+            <img src="/logo.png" alt="ArcSign" className="empty-logo" />
+          </div>
           <h2>{t("dashboard.noWalletsFound")}</h2>
-          <p>{t("dashboard.createFirstWalletDesc")}</p>
+          <p className="empty-desc">{t("dashboard.createFirstWalletDesc")}</p>
           <button onClick={handleCreateWallet} className="primary-button large">
             {t("dashboard.createFirstWallet")}
           </button>
+          <div className="empty-features">
+            <span className="feature-tag">54+ Chains</span>
+            <span className="feature-tag">DEX Swap</span>
+            <span className="feature-tag">WalletConnect</span>
+            <span className="feature-tag">USB Cold Storage</span>
+          </div>
         </div>
       ) : (
         <div className="wallet-list">

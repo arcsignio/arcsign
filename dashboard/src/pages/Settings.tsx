@@ -90,6 +90,23 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
         </button>
       </div>
 
+      {/* About ArcSign */}
+      <div className="about-section">
+        <div className="about-card">
+          <img src="/logo.png" alt="ArcSign" className="about-logo" />
+          <div className="about-info">
+            <h3 className="about-title">ArcSign</h3>
+            <p className="about-version">v1.1.2</p>
+            <p className="about-desc">Secure Multi-Chain HD Wallet</p>
+          </div>
+          <div className="about-links">
+            <a href="https://arcsign.io" target="_blank" rel="noopener noreferrer" className="about-link">arcsign.io</a>
+            <span className="about-separator">·</span>
+            <a href="https://x.com/ArcSignWallet" target="_blank" rel="noopener noreferrer" className="about-link">@ArcSignWallet</a>
+          </div>
+        </div>
+      </div>
+
       <style>{`
         .settings-page {
           max-width: 800px;
@@ -236,6 +253,80 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
 
         .developer-icon {
           background: rgba(59, 130, 246, 0.2);
+        }
+
+        /* About Section */
+        .about-section {
+          margin-top: 48px;
+          padding-top: 24px;
+          border-top: 1px solid #e5e7eb;
+        }
+
+        .about-card {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+          padding: 32px 20px;
+          text-align: center;
+        }
+
+        .about-logo {
+          width: 56px;
+          height: 56px;
+          object-fit: contain;
+          opacity: 0.9;
+        }
+
+        .about-info {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 2px;
+        }
+
+        .about-title {
+          margin: 0;
+          font-size: 18px;
+          font-weight: 700;
+          color: #111827;
+        }
+
+        .about-version {
+          margin: 0;
+          font-size: 13px;
+          color: #9ca3af;
+          font-weight: 500;
+          font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        .about-desc {
+          margin: 4px 0 0;
+          font-size: 13px;
+          color: #6b7280;
+        }
+
+        .about-links {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 4px;
+        }
+
+        .about-link {
+          font-size: 13px;
+          color: #3b82f6;
+          text-decoration: none;
+          font-weight: 500;
+        }
+
+        .about-link:hover {
+          text-decoration: underline;
+        }
+
+        .about-separator {
+          color: #d1d5db;
+          font-size: 12px;
         }
       `}</style>
     </div>

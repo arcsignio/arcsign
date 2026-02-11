@@ -2,7 +2,7 @@
  * LoadingSpinner Component
  * Feature: User Dashboard for Wallet Management
  * Task: T094 - Loading spinners and skeleton screens
- * Generated: 2025-10-17
+ * Updated: Brand-integrated loading animation with ArcSign logo
  */
 
 import React from 'react';
@@ -14,8 +14,9 @@ interface LoadingSpinnerProps {
 }
 
 /**
- * Reusable loading spinner component
- * Used throughout the app to indicate loading states
+ * Branded loading spinner component
+ * Shows ArcSign logo with orbital ring animation for lg size,
+ * falls back to simple spinner for sm/md
  */
 export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   size = 'md',
@@ -25,17 +26,76 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   const sizeClasses = {
     sm: 'h-4 w-4',
     md: 'h-8 w-8',
-    lg: 'h-12 w-12',
+    lg: 'h-16 w-16',
   };
 
+  // For large size, use branded logo spinner
+  if (size === 'lg') {
+    return (
+      <div className={`flex flex-col items-center justify-center ${className}`}>
+        <div className="logo-spinner" style={{ width: 64, height: 64, position: 'relative' }}>
+          <img
+            src="/logo.png"
+            alt="Loading"
+            style={{
+              width: 48,
+              height: 48,
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              objectFit: 'contain',
+            }}
+          />
+          <svg
+            width="64"
+            height="64"
+            viewBox="0 0 64 64"
+            style={{ animation: 'spin 1.5s linear infinite' }}
+          >
+            <circle
+              cx="32"
+              cy="32"
+              r="30"
+              fill="none"
+              stroke="#e5e7eb"
+              strokeWidth="2"
+            />
+            <circle
+              cx="32"
+              cy="32"
+              r="30"
+              fill="none"
+              stroke="#2dd4bf"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeDasharray="60 140"
+            />
+          </svg>
+        </div>
+        {message && (
+          <p className="mt-3 text-sm text-gray-600">{message}</p>
+        )}
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // For sm/md, use compact spinner with brand color
   return (
     <div className={`flex flex-col items-center justify-center ${className}`}>
       <svg
-        className={`animate-spin text-blue-600 ${sizeClasses[size]}`}
+        className={`animate-spin ${sizeClasses[size]}`}
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"
         aria-label="Loading"
+        style={{ color: '#2dd4bf' }}
       >
         <circle
           className="opacity-25"

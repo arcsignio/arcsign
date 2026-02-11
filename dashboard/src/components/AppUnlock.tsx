@@ -116,15 +116,11 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
         <LanguageSwitcher variant="toggle" />
       </div>
 
-      {/* Logo - top right */}
-      <div className="top-right">
-        <img src="/logo.png" alt="ArcSign Logo" className="top-logo" />
-      </div>
-
       <div className="unlock-container">
         <div className="unlock-header">
-          <h1>🔐 ArcSign</h1>
-          <p className="subtitle">Secure Cold Wallet Management</p>
+          <img src="/logo.png" alt="ArcSign Logo" className="unlock-logo" />
+          <h1>ArcSign</h1>
+          <p className="subtitle">Secure Multi-Chain Cold Wallet</p>
         </div>
 
         {isFirstTime ? (
@@ -237,9 +233,22 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: linear-gradient(135deg, #0a1c32 0%, #0f2b46 40%, #134e5e 100%);
           padding: 20px;
           position: relative;
+          overflow: hidden;
+        }
+
+        .app-unlock::before {
+          content: '';
+          position: absolute;
+          top: -50%;
+          left: -50%;
+          width: 200%;
+          height: 200%;
+          background: radial-gradient(circle at 30% 50%, rgba(45, 212, 191, 0.06) 0%, transparent 50%),
+                      radial-gradient(circle at 70% 30%, rgba(94, 234, 212, 0.04) 0%, transparent 40%);
+          pointer-events: none;
         }
 
         .top-left {
@@ -260,17 +269,11 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
 
-        .top-right {
-          position: absolute;
-          top: 20px;
-          right: 20px;
-          z-index: 10;
-        }
-
-        .top-logo {
-          width: 128px;
-          height: 128px;
+        .unlock-logo {
+          width: 72px;
+          height: 72px;
           object-fit: contain;
+          margin-bottom: 8px;
         }
 
         .unlock-container {
@@ -326,8 +329,8 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
         .security-note {
           margin-bottom: 24px;
           padding: 16px;
-          background: #f0f9ff;
-          border-left: 4px solid #3b82f6;
+          background: #f0fdfa;
+          border-left: 4px solid #2dd4bf;
           border-radius: 4px;
           font-size: 13px;
           line-height: 1.5;
@@ -336,13 +339,13 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
         .security-note strong {
           display: block;
           margin-bottom: 8px;
-          color: #1e40af;
+          color: #0f766e;
         }
 
         .security-note ul {
           margin: 0;
           padding-left: 20px;
-          color: #1e40af;
+          color: #0f766e;
         }
 
         .security-note li {
@@ -397,7 +400,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
         .btn-primary {
           width: 100%;
           padding: 14px 24px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%);
           color: white;
           border: none;
           border-radius: 8px;
@@ -409,7 +412,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
 
         .btn-primary:hover:not(:disabled) {
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+          box-shadow: 0 4px 12px rgba(45, 212, 191, 0.4);
         }
 
         .btn-primary:active:not(:disabled) {

@@ -136,13 +136,14 @@ function AppContent() {
     return (
       <div className="app-error">
         <div className="error-container">
-          <h1>⚠️ USB Drive Required</h1>
-          <p>{usbError || 'No USB drive detected'}</p>
+          <img src="/logo.png" alt="ArcSign" className="error-logo" />
+          <h1>USB Drive Required</h1>
+          <p>{usbError || 'No USB drive detected. Please connect a USB drive to get started.'}</p>
           <button
             onClick={() => window.location.reload()}
             className="retry-button"
           >
-            Retry
+            Retry Detection
           </button>
         </div>
 
@@ -152,45 +153,56 @@ function AppContent() {
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #f3f4f6;
+            background: linear-gradient(135deg, #0a1c32 0%, #0f2b46 40%, #134e5e 100%);
             padding: 20px;
           }
 
           .error-container {
             text-align: center;
             background: white;
-            padding: 40px;
+            padding: 48px 40px;
             border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 480px;
+          }
+
+          .error-logo {
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+            margin-bottom: 20px;
+            opacity: 0.6;
           }
 
           .error-container h1 {
-            margin: 0 0 16px;
-            font-size: 28px;
+            margin: 0 0 12px;
+            font-size: 24px;
+            font-weight: 700;
             color: #1a1a1a;
           }
 
           .error-container p {
-            margin: 0 0 24px;
+            margin: 0 0 28px;
             color: #666;
             line-height: 1.6;
+            font-size: 15px;
           }
 
           .retry-button {
             padding: 12px 32px;
-            background: #3b82f6;
+            background: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%);
             color: white;
             border: none;
             border-radius: 8px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.2s;
           }
 
           .retry-button:hover {
-            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(45, 212, 191, 0.4);
           }
         `}</style>
       </div>
@@ -241,7 +253,10 @@ function AppContent() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #f3f4f6;
+          background: linear-gradient(135deg, #0a1c32 0%, #0f2b46 40%, #134e5e 100%);
+        }
+        .app-loading p {
+          color: rgba(255, 255, 255, 0.7) !important;
         }
       `}</style>
     </div>
