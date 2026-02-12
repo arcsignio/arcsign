@@ -107,9 +107,9 @@ export const PairingModal: React.FC<PairingModalProps> = ({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             {/* WalletConnect Icon */}
-            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
               <svg
-                className="w-6 h-6 text-blue-600"
+                className="w-6 h-6 text-teal-600"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -156,10 +156,10 @@ export const PairingModal: React.FC<PairingModalProps> = ({
         </p>
 
         {/* Info Box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+        <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 mb-4">
           <div className="flex gap-2">
             <svg
-              className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5"
+              className="w-5 h-5 text-teal-600 flex-shrink-0 mt-0.5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -171,9 +171,9 @@ export const PairingModal: React.FC<PairingModalProps> = ({
                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <div className="text-sm text-blue-900">
+            <div className="text-sm text-teal-900">
               <p className="font-medium mb-1">{t('walletConnect.howToGetUri')}</p>
-              <ol className="list-decimal list-inside space-y-1 text-blue-800">
+              <ol className="list-decimal list-inside space-y-1 text-teal-800">
                 <li>{t('walletConnect.step1')}</li>
                 <li>{t('walletConnect.step2')}</li>
                 <li>{t('walletConnect.step3')}</li>
@@ -203,7 +203,7 @@ export const PairingModal: React.FC<PairingModalProps> = ({
               onKeyDown={handleKeyDown}
               placeholder={t('walletConnect.uriPlaceholder')}
               disabled={loading}
-              className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
+              className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
                 error ? 'border-red-500' : 'border-gray-300'
               }`}
               autoFocus
@@ -264,7 +264,7 @@ export const PairingModal: React.FC<PairingModalProps> = ({
           <button
             onClick={handleConnect}
             disabled={loading || !uri.trim()}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {loading ? (
               <>

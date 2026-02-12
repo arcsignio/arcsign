@@ -44,19 +44,19 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
 
   const confirmButtonClasses = {
     danger: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
-    primary: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500',
+    primary: 'bg-teal-600 hover:bg-teal-700 focus:ring-teal-500',
     warning: 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500',
   };
 
   const iconColors = {
     danger: 'text-red-600',
-    primary: 'text-blue-600',
+    primary: 'text-teal-600',
     warning: 'text-yellow-600',
   };
 
   const iconBackgrounds = {
     danger: 'bg-red-100',
-    primary: 'bg-blue-100',
+    primary: 'bg-teal-100',
     warning: 'bg-yellow-100',
   };
 

@@ -112,7 +112,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
             fontSize: '0.875rem',
             fontWeight: currentLanguage === code ? 600 : 400,
             color: currentLanguage === code ? '#ffffff' : '#4b5563',
-            backgroundColor: currentLanguage === code ? '#3b82f6' : '#ffffff',
+            backgroundColor: currentLanguage === code ? '#2dd4bf' : '#ffffff',
             border: 'none',
             cursor: 'pointer',
             transition: 'all 0.15s ease',

@@ -20,7 +20,7 @@ interface AddressRowProps {
  * Category badge colors
  */
 const categoryColors: Record<string, string> = {
-  base: 'bg-blue-100 text-blue-800',
+  base: 'bg-teal-100 text-teal-800',
   layer2: 'bg-purple-100 text-purple-800',
   regional: 'bg-green-100 text-green-800',
   cosmos: 'bg-pink-100 text-pink-800',
@@ -115,7 +115,7 @@ export const AddressRow: React.FC<AddressRowProps> = ({ address, style, onCopy, 
       {/* Address Value */}
       <div className="flex-1 min-w-0">
         <code
-          className="text-sm text-gray-600 font-mono cursor-pointer hover:text-blue-600"
+          className="text-sm text-gray-600 font-mono cursor-pointer hover:text-teal-600"
           title={address.address}
           onClick={() => onCopy?.(address.address, address.symbol)}
         >
@@ -139,7 +139,7 @@ export const AddressRow: React.FC<AddressRowProps> = ({ address, style, onCopy, 
         {onCopy && (
           <button
             onClick={() => onCopy(address.address, address.symbol)}
-            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            className="p-2 text-gray-500 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
             title="Copy address"
             data-testid="copy-button"
           >

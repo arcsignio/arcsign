@@ -816,7 +816,7 @@ export function Dashboard() {
                   }
                 }}
                 placeholder={t("dashboard.enterWalletPasswordPlaceholder")}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                 autoFocus
                 disabled={isLoadingAddresses}
               />
@@ -826,7 +826,7 @@ export function Dashboard() {
               <button
                 onClick={handleLoadAddresses}
                 disabled={isLoadingAddresses || !passwordForAddresses}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isLoadingAddresses ? t("common.loading") : t("dashboard.unlockWallet")}
               </button>

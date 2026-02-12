@@ -239,7 +239,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
             className={`w-full px-4 py-3 border rounded-md font-mono text-sm focus:outline-none focus:ring-2 ${
               errors.mnemonic
                 ? "border-red-500 focus:ring-red-500"
-                : "border-gray-300 focus:ring-blue-500"
+                : "border-gray-300 focus:ring-teal-500"
             }`}
             placeholder={t('mnemonic.enterRecoveryPhrase')}
             disabled={isImporting}
@@ -269,7 +269,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
             className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
               errors.password
                 ? "border-red-500 focus:ring-red-500"
-                : "border-gray-300 focus:ring-blue-500"
+                : "border-gray-300 focus:ring-teal-500"
             }`}
             placeholder={t('security.enterStrongPassword')}
             disabled={isImporting}
@@ -295,7 +295,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
             className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
               errors.confirmPassword
                 ? "border-red-500 focus:ring-red-500"
-                : "border-gray-300 focus:ring-blue-500"
+                : "border-gray-300 focus:ring-teal-500"
             }`}
             placeholder={t('security.reenterPassword')}
             disabled={isImporting}
@@ -314,7 +314,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
               type="checkbox"
               id="usePassphrase"
               {...register("usePassphrase")}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
               disabled={isImporting}
             />
             <label
@@ -340,7 +340,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
                 className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                   errors.passphrase
                     ? "border-red-500 focus:ring-red-500"
-                    : "border-gray-300 focus:ring-blue-500"
+                    : "border-gray-300 focus:ring-teal-500"
                 }`}
                 placeholder={t('security.enterBip39Passphrase')}
                 disabled={isImporting}
@@ -372,7 +372,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
             className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
               errors.name
                 ? "border-red-500 focus:ring-red-500"
-                : "border-gray-300 focus:ring-blue-500"
+                : "border-gray-300 focus:ring-teal-500"
             }`}
             placeholder={t('wallet.myMainWallet')}
             disabled={isImporting}
@@ -397,7 +397,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
           <button
             type="submit"
             disabled={isImporting}
-            className="flex-1 px-6 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 px-6 py-3 bg-teal-600 text-white font-medium rounded-md hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isImporting ? t('wallet.importing') : t('wallet.importWallet')}
           </button>

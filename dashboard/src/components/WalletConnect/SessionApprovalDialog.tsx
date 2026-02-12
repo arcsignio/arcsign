@@ -159,7 +159,7 @@ export const SessionApprovalDialog: React.FC<SessionApprovalDialogProps> = ({
                 href={dApp.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:text-blue-800 truncate block"
+                className="text-sm text-teal-600 hover:text-teal-800 truncate block"
               >
                 {dApp.url}
               </a>
@@ -254,7 +254,7 @@ export const SessionApprovalDialog: React.FC<SessionApprovalDialogProps> = ({
                       <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                       <span className="text-gray-700">{getChainName(chain)}</span>
                       {requiredChains.includes(chain) && (
-                        <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                        <span className="text-xs px-2 py-0.5 bg-teal-100 text-teal-700 rounded">
                           Required
                         </span>
                       )}
@@ -301,7 +301,7 @@ export const SessionApprovalDialog: React.FC<SessionApprovalDialogProps> = ({
                   {allMethods.map((method) => (
                     <li key={method} className="text-sm">
                       <div className="flex items-start gap-2">
-                        <span className="w-2 h-2 bg-blue-500 rounded-full mt-1.5"></span>
+                        <span className="w-2 h-2 bg-teal-500 rounded-full mt-1.5"></span>
                         <div className="flex-1">
                           <code className="text-xs bg-gray-200 px-1.5 py-0.5 rounded text-gray-800">
                             {method}
@@ -377,7 +377,7 @@ export const SessionApprovalDialog: React.FC<SessionApprovalDialogProps> = ({
           <button
             onClick={handleApprove}
             disabled={loading}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {loading ? (
               <>

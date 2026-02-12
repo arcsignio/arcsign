@@ -86,8 +86,8 @@ export const InactivityWarningDialog: React.FC<InactivityWarningDialogProps> = (
         </div>
 
         {/* Security Message */}
-        <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-md">
-          <p className="text-xs text-blue-800">
+        <div className="mb-6 p-3 bg-teal-50 border border-teal-200 rounded-md">
+          <p className="text-xs text-teal-800">
             <strong>{t('inactivity.securityNotice')}</strong> {t('inactivity.needPassword')}
           </p>
         </div>
@@ -96,7 +96,7 @@ export const InactivityWarningDialog: React.FC<InactivityWarningDialogProps> = (
         <div className="flex gap-3">
           <button
             onClick={onContinue}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="flex-1 px-4 py-2 bg-teal-600 text-white font-medium rounded-md hover:bg-teal-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
             autoFocus
           >
             {t('inactivity.unlockContinue')}

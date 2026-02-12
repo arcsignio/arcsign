@@ -332,7 +332,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
 
         .provider-settings .add-button {
           padding: 10px 20px;
-          background: #3b82f6;
+          background: #2dd4bf;
           color: white;
           border: none;
           border-radius: 8px;
@@ -343,7 +343,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         }
 
         .provider-settings .add-button:hover {
-          background: #2563eb;
+          background: #0d9488;
         }
 
         .provider-settings .add-button:disabled {
@@ -409,7 +409,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         .provider-settings .form-group input:focus,
         .provider-settings .form-group select:focus {
           outline: none;
-          border-color: #3b82f6;
+          border-color: #2dd4bf;
           box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
@@ -440,7 +440,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         .provider-settings .submit-button {
           width: 100%;
           padding: 12px;
-          background: #3b82f6;
+          background: #2dd4bf;
           color: white;
           border: none;
           border-radius: 8px;
@@ -451,7 +451,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         }
 
         .provider-settings .submit-button:hover {
-          background: #2563eb;
+          background: #0d9488;
         }
 
         .provider-settings .submit-button:disabled {
@@ -586,7 +586,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         }
 
         .provider-settings .help-text a {
-          color: #3b82f6;
+          color: #2dd4bf;
           text-decoration: none;
         }
 

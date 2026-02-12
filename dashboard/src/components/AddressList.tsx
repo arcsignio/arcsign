@@ -133,7 +133,7 @@ export const AddressList: React.FC<AddressListProps> = ({
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
           <p className="text-gray-600">{t('address.loadingAddresses')}</p>
         </div>
       </div>
@@ -197,7 +197,7 @@ export const AddressList: React.FC<AddressListProps> = ({
             id="category-filter"
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
             data-testid="category-filter"
           >
             {CATEGORY_KEYS.map((cat) => (
@@ -224,7 +224,7 @@ export const AddressList: React.FC<AddressListProps> = ({
               placeholder={t('address.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
               data-testid="search-input"
             />
           </div>
@@ -312,7 +312,7 @@ export const AddressList: React.FC<AddressListProps> = ({
                   setSearchQuery('');
                   setSelectedCategory('all');
                 }}
-                className="mt-4 px-4 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                className="mt-4 px-4 py-2 text-sm text-teal-600 hover:text-teal-800 hover:bg-teal-50 rounded transition-colors"
               >
                 {t('address.clearFilters')}
               </button>

@@ -396,7 +396,7 @@ export const SessionsManagerModal: React.FC<SessionsManagerModalProps> = ({
         .add-btn {
           flex: 1;
           padding: 12px 16px;
-          background: #3b82f6;
+          background: #2dd4bf;
           color: white;
           border: none;
           border-radius: 10px;
@@ -407,7 +407,7 @@ export const SessionsManagerModal: React.FC<SessionsManagerModalProps> = ({
         }
 
         .add-btn:hover {
-          background: #2563eb;
+          background: #0d9488;
         }
 
         .disconnect-all-btn {

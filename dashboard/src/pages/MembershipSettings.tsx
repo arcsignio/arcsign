@@ -1017,7 +1017,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         .back-button {
           background: none;
           border: none;
-          color: #3b82f6;
+          color: #2dd4bf;
           cursor: pointer;
           font-size: 14px;
           padding: 8px 0;
@@ -1099,8 +1099,8 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         }
 
         .refresh-btn:hover:not(:disabled) {
-          border-color: #3b82f6;
-          color: #3b82f6;
+          border-color: #2dd4bf;
+          color: #2dd4bf;
         }
 
         .refresh-btn:disabled {
@@ -1299,7 +1299,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         }
 
         .address-item:hover {
-          border-color: #3b82f6;
+          border-color: #2dd4bf;
         }
 
         .address-item.selected {
@@ -1573,7 +1573,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         .tx-link-small {
           display: inline-block;
           margin-top: 12px;
-          color: #3b82f6;
+          color: #2dd4bf;
           text-decoration: none;
           font-size: 13px;
         }
@@ -1719,7 +1719,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
 
         .unlock-btn {
           padding: 12px 24px;
-          background: #3b82f6;
+          background: #2dd4bf;
           color: white;
           border: none;
           border-radius: 8px;
@@ -1730,7 +1730,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         }
 
         .unlock-btn:hover {
-          background: #2563eb;
+          background: #0d9488;
           transform: translateY(-1px);
         }
 
@@ -1776,7 +1776,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
 
         .retry-btn {
           padding: 8px 16px;
-          background: #3b82f6;
+          background: #2dd4bf;
           color: white;
           border: none;
           border-radius: 6px;
@@ -1785,7 +1785,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         }
 
         .retry-btn:hover {
-          background: #2563eb;
+          background: #0d9488;
         }
 
         .device-detail-row {
@@ -1838,7 +1838,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
 
         .copy-btn {
           padding: 6px 12px;
-          background: #3b82f6;
+          background: #2dd4bf;
           color: white;
           border: none;
           border-radius: 6px;
@@ -1849,7 +1849,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         }
 
         .copy-btn:hover {
-          background: #2563eb;
+          background: #0d9488;
         }
 
         /* Device Bindings */

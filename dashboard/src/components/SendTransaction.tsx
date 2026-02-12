@@ -832,10 +832,10 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           align-items: center;
           gap: 6px;
           padding: 6px 12px;
-          background: #dbeafe;
+          background: #ccfbf1;
           border-radius: 20px;
           font-size: 13px;
-          color: #1d4ed8;
+          color: #0f766e;
           font-weight: 500;
         }
 
@@ -987,8 +987,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .token-type {
           display: inline-block;
           padding: 2px 6px;
-          background: #dbeafe;
-          color: #1d4ed8;
+          background: #ccfbf1;
+          color: #0f766e;
           border-radius: 4px;
           font-size: 10px;
           font-weight: 500;
@@ -1101,8 +1101,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .erc20-tag {
           font-size: 11px;
           padding: 2px 6px;
-          background: #dbeafe;
-          color: #1d4ed8;
+          background: #ccfbf1;
+          color: #0f766e;
           border-radius: 4px;
           font-weight: 500;
         }
@@ -1177,9 +1177,9 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
 
         .chain-option.selected {
-          background: #dbeafe;
-          border-color: #3b82f6;
-          color: #1d4ed8;
+          background: #ccfbf1;
+          border-color: #2dd4bf;
+          color: #0f766e;
         }
 
         .address-input {
@@ -1194,7 +1194,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
         .address-input:focus {
           outline: none;
-          border-color: #3b82f6;
+          border-color: #2dd4bf;
           box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
@@ -1225,7 +1225,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
         .amount-input:focus {
           outline: none;
-          border-color: #3b82f6;
+          border-color: #2dd4bf;
           box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
@@ -1237,7 +1237,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           cursor: pointer;
           font-size: 13px;
           font-weight: 600;
-          color: #3b82f6;
+          color: #2dd4bf;
         }
 
         .max-button:hover {
@@ -1305,7 +1305,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .primary-button {
           width: 100%;
           padding: 14px 24px;
-          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          background: linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%);
           color: white;
           border: none;
           border-radius: 10px;
@@ -1386,11 +1386,11 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
         .review-value.amount {
           font-size: 18px;
-          color: #2563eb;
+          color: #0d9488;
         }
 
         .review-row.highlight {
-          background: #dbeafe;
+          background: #ccfbf1;
           margin: 0 -16px;
           padding: 12px 16px;
           border-radius: 8px;
@@ -1448,7 +1448,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
         .password-input:focus {
           outline: none;
-          border-color: #3b82f6;
+          border-color: #2dd4bf;
           box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
@@ -1497,7 +1497,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           width: 48px;
           height: 48px;
           border: 4px solid #e5e7eb;
-          border-top-color: #3b82f6;
+          border-top-color: #2dd4bf;
           border-radius: 50%;
           animation: spin 1s linear infinite;
           margin: 0 auto 24px;
@@ -1567,8 +1567,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .explorer-link {
           display: block;
           padding: 12px;
-          background: #dbeafe;
-          color: #1d4ed8;
+          background: #ccfbf1;
+          color: #0f766e;
           text-decoration: none;
           border-radius: 8px;
           font-weight: 500;
@@ -1576,7 +1576,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
 
         .explorer-link:hover {
-          background: #bfdbfe;
+          background: #99f6e4;
         }
 
         /* Error View */

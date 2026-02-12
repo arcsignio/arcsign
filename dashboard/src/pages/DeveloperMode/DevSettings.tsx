@@ -304,7 +304,7 @@ export function DevSettings({ settings, onSave }: DevSettingsProps) {
 
         .btn-save {
           padding: 8px 16px;
-          background: #3b82f6;
+          background: #2dd4bf;
           border: none;
           border-radius: 6px;
           color: white;
@@ -315,7 +315,7 @@ export function DevSettings({ settings, onSave }: DevSettingsProps) {
         }
 
         .btn-save:hover:not(:disabled) {
-          background: #2563eb;
+          background: #0d9488;
         }
 
         .btn-save:disabled {

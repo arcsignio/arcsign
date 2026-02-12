@@ -42,7 +42,7 @@ interface TransferWithNetwork extends AssetTransfer {
 
 // Category display names and colors
 const CATEGORY_STYLES: Record<string, { label: string; color: string }> = {
-  external: { label: "Transfer", color: "#3b82f6" },
+  external: { label: "Transfer", color: "#2dd4bf" },
   internal: { label: "Internal", color: "#6b7280" },
   erc20: { label: "ERC-20", color: "#10b981" },
   erc721: { label: "NFT", color: "#8b5cf6" },
@@ -477,7 +477,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
         .refresh-button {
           padding: 8px 16px;
-          background: #3b82f6;
+          background: #2dd4bf;
           color: white;
           border: none;
           border-radius: 8px;
@@ -487,7 +487,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         }
 
         .refresh-button:hover:not(:disabled) {
-          background: #2563eb;
+          background: #0d9488;
         }
 
         .refresh-button:disabled {
@@ -511,8 +511,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         .loading-spinner-small {
           width: 16px;
           height: 16px;
-          border: 2px solid #bfdbfe;
-          border-top-color: #3b82f6;
+          border: 2px solid #99f6e4;
+          border-top-color: #2dd4bf;
           border-radius: 50%;
           animation: spin 1s linear infinite;
         }
@@ -751,7 +751,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         }
 
         .explorer-link {
-          color: #3b82f6;
+          color: #2dd4bf;
           text-decoration: none;
           margin-left: auto;
         }
@@ -769,7 +769,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           width: 40px;
           height: 40px;
           border: 3px solid #e5e7eb;
-          border-top-color: #3b82f6;
+          border-top-color: #2dd4bf;
           border-radius: 50%;
           animation: spin 1s linear infinite;
           margin: 0 auto 16px;

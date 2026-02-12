@@ -1551,7 +1551,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 }
 
 .token-search-input:focus {
-  border-color: #3b82f6;
+  border-color: #2dd4bf;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -1838,10 +1838,10 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 .half-button,
 .max-button {
   padding: 6px 12px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
   border-radius: 6px;
-  color: #2563eb;
+  color: #0d9488;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -1850,7 +1850,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 
 .half-button:hover,
 .max-button:hover {
-  background: #dbeafe;
+  background: #ccfbf1;
 }
 
 /* Swap Direction Button */
@@ -1965,9 +1965,9 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 }
 
 .slippage-options button.selected {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  color: #2563eb;
+  background: #f0fdfa;
+  border-color: #2dd4bf;
+  color: #0d9488;
 }
 
 /* Loading State */
@@ -2067,7 +2067,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 }
 
 .provider-option.selected {
-  background: #eff6ff;
+  background: #f0fdfa;
 }
 
 .provider-option .provider-logo {
@@ -2095,7 +2095,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 }
 
 .check-mark {
-  color: #3b82f6;
+  color: #2dd4bf;
   font-weight: bold;
 }
 
@@ -2164,8 +2164,8 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 }
 
 .token-item.selected {
-  background: #eff6ff;
-  border-color: #3b82f6;
+  background: #f0fdfa;
+  border-color: #2dd4bf;
 }
 
 .token-item.disabled {
@@ -2370,7 +2370,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 }
 
 .amount-input-wrapper input:focus {
-  border-color: #3b82f6;
+  border-color: #2dd4bf;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -2380,10 +2380,10 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 
 .max-button {
   padding: 8px 16px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
   border-radius: 8px;
-  color: #2563eb;
+  color: #0d9488;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -2391,7 +2391,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 }
 
 .max-button:hover {
-  background: #dbeafe;
+  background: #ccfbf1;
 }
 
 .balance-display {
@@ -2517,9 +2517,9 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 }
 
 .slippage-option.selected {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  color: #2563eb;
+  background: #f0fdfa;
+  border-color: #2dd4bf;
+  color: #0d9488;
 }
 
 /* Primary and Secondary Buttons */
@@ -2685,7 +2685,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 }
 
 .password-input:focus {
-  border-color: #3b82f6;
+  border-color: #2dd4bf;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -2782,13 +2782,13 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 .tx-hash-link {
   font-family: monospace;
   font-size: 14px;
-  color: #2563eb;
+  color: #0d9488;
   text-decoration: none;
   transition: color 0.2s;
 }
 
 .tx-hash-link:hover {
-  color: #1d4ed8;
+  color: #0f766e;
 }
 
 .success-actions {
@@ -2963,17 +2963,17 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 .preset-button {
   flex: 1;
   padding: 8px 12px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
   border-radius: 6px;
   font-size: 12px;
-  color: #2563eb;
+  color: #0d9488;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .preset-button:hover {
-  background: #dbeafe;
+  background: #ccfbf1;
 }
 
 .unlimited-warning {

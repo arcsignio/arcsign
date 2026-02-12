@@ -95,18 +95,18 @@ export function SignatureToast({ notification, onDismiss }: SignatureToastProps)
         w-80 rounded-lg shadow-lg border overflow-hidden
         transition-all duration-300 ease-out
         ${isExiting ? 'opacity-0 translate-x-full' : 'opacity-100 translate-x-0'}
-        ${isSuccess ? 'bg-green-50 border-green-200' : isPending ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}
+        ${isSuccess ? 'bg-green-50 border-green-200' : isPending ? 'bg-teal-50 border-teal-200' : 'bg-red-50 border-red-200'}
       `}
     >
       {/* Header */}
-      <div className={`px-4 py-2 flex items-center justify-between ${isSuccess ? 'bg-green-100' : isPending ? 'bg-blue-100' : 'bg-red-100'}`}>
+      <div className={`px-4 py-2 flex items-center justify-between ${isSuccess ? 'bg-green-100' : isPending ? 'bg-teal-100' : 'bg-red-100'}`}>
         <div className="flex items-center gap-2">
           {isSuccess ? (
             <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           ) : isPending ? (
-            <svg className="w-5 h-5 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-teal-600 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -115,7 +115,7 @@ export function SignatureToast({ notification, onDismiss }: SignatureToastProps)
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           )}
-          <span className={`font-medium text-sm ${isSuccess ? 'text-green-800' : isPending ? 'text-blue-800' : 'text-red-800'}`}>
+          <span className={`font-medium text-sm ${isSuccess ? 'text-green-800' : isPending ? 'text-teal-800' : 'text-red-800'}`}>
             {isSuccess ? t('walletconnect.signatureSuccess', 'Signature Successful') :
              isPending ? t('walletconnect.signaturePending', 'Signing...') :
              t('walletconnect.signatureFailed', 'Signature Failed')}
@@ -123,7 +123,7 @@ export function SignatureToast({ notification, onDismiss }: SignatureToastProps)
         </div>
         <button
           onClick={handleDismiss}
-          className={`p-1 rounded hover:bg-opacity-50 ${isSuccess ? 'hover:bg-green-200 text-green-600' : isPending ? 'hover:bg-blue-200 text-blue-600' : 'hover:bg-red-200 text-red-600'}`}
+          className={`p-1 rounded hover:bg-opacity-50 ${isSuccess ? 'hover:bg-green-200 text-green-600' : isPending ? 'hover:bg-teal-200 text-teal-600' : 'hover:bg-red-200 text-red-600'}`}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -154,7 +154,7 @@ export function SignatureToast({ notification, onDismiss }: SignatureToastProps)
                   href={explorerUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800"
+                  className="text-teal-600 hover:text-teal-800"
                   title={t('walletconnect.viewOnExplorer', 'View on Explorer')}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

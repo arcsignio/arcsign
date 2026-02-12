@@ -1829,7 +1829,7 @@ export function WalletDetail({
               cursor: "pointer",
               borderBottom:
                 activeTab === tab.id
-                  ? "2px solid #3b82f6"
+                  ? "2px solid #2dd4bf"
                   : "2px solid transparent",
               transition: "all 0.2s",
             }}
@@ -1963,10 +1963,10 @@ export function WalletDetail({
                           borderRadius: "0.25rem",
                           background: token.network.includes("sepolia")
                             ? "#fef3c7"
-                            : "#dbeafe",
+                            : "#ccfbf1",
                           color: token.network.includes("sepolia")
                             ? "#d97706"
-                            : "#2563eb",
+                            : "#0d9488",
                           fontWeight: "500",
                         }}
                       >

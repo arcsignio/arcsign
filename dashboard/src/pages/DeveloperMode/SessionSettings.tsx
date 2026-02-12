@@ -376,7 +376,7 @@ export function SessionSettings({ session, onStartSession, onEndSession }: Sessi
 
         .password-input:focus {
           outline: none;
-          border-color: #3b82f6;
+          border-color: #2dd4bf;
         }
 
         .error-message {
@@ -412,7 +412,7 @@ export function SessionSettings({ session, onStartSession, onEndSession }: Sessi
 
         .submit-button {
           padding: 10px 20px;
-          background: #3b82f6;
+          background: #2dd4bf;
           border: none;
           border-radius: 8px;
           color: #fff;
@@ -423,7 +423,7 @@ export function SessionSettings({ session, onStartSession, onEndSession }: Sessi
         }
 
         .submit-button:hover:not(:disabled) {
-          background: #2563eb;
+          background: #0d9488;
         }
 
         .submit-button:disabled {

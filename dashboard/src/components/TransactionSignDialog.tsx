@@ -153,7 +153,7 @@ export function TransactionSignDialog({
           {/* Action type */}
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Action</span>
-            <span className={`font-medium ${transaction.broadcast ? 'text-green-600' : 'text-blue-600'}`}>
+            <span className={`font-medium ${transaction.broadcast ? 'text-green-600' : 'text-teal-600'}`}>
               {transaction.broadcast ? 'Sign & Broadcast' : 'Sign Only'}
             </span>
           </div>
@@ -186,7 +186,7 @@ export function TransactionSignDialog({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter your wallet password"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
             disabled={isLoading}
             autoFocus
           />
@@ -211,7 +211,7 @@ export function TransactionSignDialog({
           <button
             onClick={handleConfirm}
             disabled={isLoading || !usbConnected || !password}
-            className="flex-1 px-4 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-3 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Signing...' : 'Sign Transaction'}
           </button>

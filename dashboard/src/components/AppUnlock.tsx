@@ -376,7 +376,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
 
         .form-group input:focus {
           outline: none;
-          border-color: #3b82f6;
+          border-color: #2dd4bf;
         }
 
         .form-group input:disabled {

@@ -160,7 +160,7 @@ export const ReceiveAddressModal: React.FC<ReceiveAddressModalProps> = ({
               />
             ) : (
               <div className="w-48 h-48 flex items-center justify-center bg-gray-100 rounded">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
               </div>
             )}
           </div>
@@ -192,7 +192,7 @@ export const ReceiveAddressModal: React.FC<ReceiveAddressModalProps> = ({
             className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
               copied
                 ? 'bg-green-600 text-white'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-teal-600 text-white hover:bg-teal-700'
             }`}
           >
             {copied ? (
@@ -220,8 +220,8 @@ export const ReceiveAddressModal: React.FC<ReceiveAddressModalProps> = ({
         </div>
 
         {/* Warning - Different message for EVM vs non-EVM chains */}
-        <div className={`px-6 py-3 border-t ${isEVMChain ? 'bg-blue-50 border-blue-100' : 'bg-yellow-50 border-yellow-100'}`}>
-          <p className={`text-xs flex items-start gap-2 ${isEVMChain ? 'text-blue-800' : 'text-yellow-800'}`}>
+        <div className={`px-6 py-3 border-t ${isEVMChain ? 'bg-teal-50 border-teal-100' : 'bg-yellow-50 border-yellow-100'}`}>
+          <p className={`text-xs flex items-start gap-2 ${isEVMChain ? 'text-teal-800' : 'text-yellow-800'}`}>
             <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {isEVMChain ? (
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

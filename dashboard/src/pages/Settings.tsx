@@ -130,7 +130,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
         .back-button {
           background: none;
           border: none;
-          color: #3b82f6;
+          color: #2dd4bf;
           cursor: pointer;
           font-size: 14px;
           padding: 8px 0;
@@ -256,7 +256,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
         }
 
         .developer-item:hover {
-          border-color: #3b82f6;
+          border-color: #2dd4bf;
           box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
 
@@ -328,7 +328,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
 
         .about-link {
           font-size: 13px;
-          color: #3b82f6;
+          color: #2dd4bf;
           text-decoration: none;
           font-weight: 500;
         }

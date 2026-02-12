@@ -117,7 +117,7 @@ export const LibraryCrashDialog: React.FC<LibraryCrashDialogProps> = ({
         <div className="space-y-3">
           <button
             onClick={onReload}
-            className="w-full px-4 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="w-full px-4 py-3 bg-teal-600 text-white font-semibold rounded-md hover:bg-teal-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
             autoFocus
           >
             {t('libraryCrash.reloadApp')}

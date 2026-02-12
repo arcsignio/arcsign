@@ -388,7 +388,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
 
       {isLoadingMetrics ? (
         <div className="text-center py-8">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <div className="animate-spin w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto mb-4"></div>
           <p className="text-sm text-gray-600">{t('staking.loadingMetrics')}</p>
         </div>
       ) : (
@@ -401,7 +401,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
             <button
               key={option.id}
               onClick={() => handleSelectOption(option)}
-              className="w-full p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-left"
+              className="w-full p-4 border border-gray-200 rounded-lg hover:border-teal-500 hover:bg-teal-50 transition-all text-left"
             >
               <div className="flex items-center gap-4">
                 {/* Provider logo */}
@@ -418,7 +418,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold">{option.inputSymbol}</span>
                     <span className="text-gray-400">→</span>
-                    <span className="font-semibold text-blue-600">{option.outputSymbol}</span>
+                    <span className="font-semibold text-teal-600">{option.outputSymbol}</span>
                     <span className="text-gray-500">({option.providerName})</span>
                     {option.provider.verified && (
                       <span className="text-green-600 text-xs bg-green-50 px-1.5 py-0.5 rounded">
@@ -470,7 +470,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
           setSelectedOption(null);
           setStep("selectOption");
         }}
-        className="mb-4 text-blue-600 hover:text-blue-800 flex items-center gap-1"
+        className="mb-4 text-teal-600 hover:text-teal-800 flex items-center gap-1"
       >
         &larr; {t('staking.changeOption')}
       </button>
@@ -486,7 +486,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
           <div className="flex items-center gap-2">
             <span className="font-semibold">{selectedOption?.inputSymbol}</span>
             <span className="text-gray-400">→</span>
-            <span className="font-semibold text-blue-600">{selectedOption?.outputSymbol}</span>
+            <span className="font-semibold text-teal-600">{selectedOption?.outputSymbol}</span>
             <span className="text-gray-500">({selectedOption?.providerName})</span>
           </div>
           <div className="text-sm text-gray-500">{selectedOption?.chainName}</div>
@@ -510,13 +510,13 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.0"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
           <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
             <span className="text-gray-500">{selectedOption?.inputSymbol}</span>
             <button
               onClick={handleSetMaxAmount}
-              className="text-blue-600 text-sm hover:text-blue-800"
+              className="text-teal-600 text-sm hover:text-teal-800"
             >
               MAX
             </button>
@@ -567,7 +567,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         <button
           onClick={handleReview}
           disabled={!isValidAmount(amount) || isLoading}
-          className="flex-1 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? t('common.loading') : t('staking.reviewTransaction')}
         </button>
@@ -616,8 +616,8 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         )}
       </div>
 
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
-        <p className="text-sm text-blue-800">
+      <div className="p-4 bg-teal-50 border border-teal-200 rounded-lg mb-6">
+        <p className="text-sm text-teal-800">
           <strong>{t('staking.note')}:</strong> {t('staking.liquidStakingExplanation', {
             outputToken: selectedOption?.outputSymbol,
           })}
@@ -639,7 +639,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         </button>
         <button
           onClick={handleProceedToPassword}
-          className="flex-1 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="flex-1 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
         >
           {t('staking.confirmStake')}
         </button>
@@ -662,7 +662,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
           value={walletPassword}
           onChange={(e) => setWalletPassword(e.target.value)}
           placeholder={t('staking.passwordPlaceholder')}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
           autoFocus
         />
       </div>
@@ -697,7 +697,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
   // Render signing/broadcasting step
   const renderProgress = () => (
     <div className="staking-progress text-center py-8">
-      <div className="animate-spin w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+      <div className="animate-spin w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full mx-auto mb-4"></div>
       <h2 className="text-xl font-semibold mb-2">
         {step === "signing" ? t('staking.signingTransaction') : t('staking.broadcastingTransaction')}
       </h2>
@@ -728,7 +728,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
             href={getExplorerTxUrl(selectedOption.asset.chainId, txHash)}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:text-blue-800 text-sm"
+            className="text-teal-600 hover:text-teal-800 text-sm"
           >
             {t('staking.viewOnExplorer')} &rarr;
           </a>
@@ -737,7 +737,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
 
       <button
         onClick={onBack}
-        className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        className="w-full py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
       >
         {t('staking.done')}
       </button>
@@ -765,7 +765,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
             setError(null);
             setStep("input");
           }}
-          className="flex-1 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="flex-1 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
         >
           {t('staking.tryAgain')}
         </button>

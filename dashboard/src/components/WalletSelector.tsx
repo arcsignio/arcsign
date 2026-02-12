@@ -154,7 +154,7 @@ export const WalletSelector: React.FC<WalletSelectorProps> = ({
             key={wallet.id}
             className={`wallet-card border rounded-lg p-4 cursor-pointer transition-all ${
               selectedWalletId === wallet.id
-                ? 'border-blue-500 bg-blue-50 selected'
+                ? 'border-teal-500 bg-teal-50 selected'
                 : 'border-gray-300 hover:border-gray-400 hover:shadow-md'
             }`}
             onClick={() => handleSelect(wallet.id)}
@@ -176,7 +176,7 @@ export const WalletSelector: React.FC<WalletSelectorProps> = ({
                           cancelRename();
                         }
                       }}
-                      className="w-full px-2 py-1 text-sm border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-2 py-1 text-sm border border-teal-500 rounded focus:outline-none focus:ring-2 focus:ring-teal-500"
                       maxLength={50}
                       autoFocus
                       disabled={isRenaming}
@@ -188,7 +188,7 @@ export const WalletSelector: React.FC<WalletSelectorProps> = ({
                       <button
                         onClick={() => submitRename(wallet.id)}
                         disabled={isRenaming}
-                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                        className="px-2 py-1 text-xs bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50"
                       >
                         {isRenaming ? t('common.saving') : t('common.save')}
                       </button>
@@ -214,7 +214,7 @@ export const WalletSelector: React.FC<WalletSelectorProps> = ({
                     e.stopPropagation();
                     startRename(wallet);
                   }}
-                  className="ml-2 p-1 text-gray-500 hover:text-blue-600 rounded hover:bg-gray-100 transition-colors"
+                  className="ml-2 p-1 text-gray-500 hover:text-teal-600 rounded hover:bg-gray-100 transition-colors"
                   title={t('wallet.renameWallet')}
                   aria-label={t('wallet.rename')}
                 >

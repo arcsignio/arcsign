@@ -711,7 +711,7 @@ export default {
 
         .password-section input:focus {
           outline: none;
-          border-color: #3b82f6;
+          border-color: #2dd4bf;
         }
 
         .action-buttons {
