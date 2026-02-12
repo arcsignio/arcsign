@@ -148,15 +148,15 @@ const personalSignHandler: RequestHandler = async (
 
   try {
     // Note: Tauri command expects parameters wrapped in 'input' object
-    // with snake_case field names matching Rust struct
+    // with camelCase field names matching Rust struct (serde rename_all = "camelCase")
     // Result format from Go FFI via Rust: { signature, messageHash, signedBy }
     // (The success/data wrapper is stripped by Rust layer)
     const result = await invoke<{ signature: string; messageHash: string; signedBy: string } | string>('sign_message', {
       input: {
-        wallet_id: context.walletId,
+        walletId: context.walletId,
         password: approval.password,
         passphrase: context.passphrase,
-        usb_path: context.usbPath,
+        usbPath: context.usbPath,
         address: context.address,
         message: rawMessage,
       }
