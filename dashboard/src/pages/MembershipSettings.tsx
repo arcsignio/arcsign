@@ -13,9 +13,10 @@
  * - 2 NFTs: 7 wallets, etc.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboardStore, useMembershipStatus } from '@/stores/dashboardStore';
+import { useSessionStore } from '@/stores/sessionStore';
 import tauriApi, {
   type BuildTransactionResponse,
   type SignTransactionResponse,
@@ -55,8 +56,11 @@ const MEMBERSHIP_PRICE = IS_TESTNET ? '5000000000000000000' : '30000000000000000
 const APPROVE_SELECTOR = '0x095ea7b3';
 // NFT mint function selector
 const MINT_SELECTOR = '0x1249c58b';
+// NFT bindDevice function selector: bindDevice(uint256 tokenId, bytes32 deviceHash)
+const BIND_DEVICE_SELECTOR = '0x2754da0a'; // keccak256("bindDevice(uint256,bytes32)")[:4]
 
 type MintStep = 'idle' | 'approve' | 'approving' | 'waiting_confirmation' | 'mint' | 'minting' | 'success' | 'error';
+type BindStep = 'idle' | 'binding' | 'success' | 'error';
 
 // Convert technical error messages to user-friendly messages
 const formatUserFriendlyError = (errorMessage: string): string => {
@@ -138,8 +142,27 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   // Selected address for minting (temporary, not persisted)
   const [selectedMintAddress, setSelectedMintAddress] = useState<string | null>(null);
 
+  // NFT binding state
+  const [bindStep, setBindStep] = useState<BindStep>('idle');
+  const [bindError, setBindError] = useState<string | null>(null);
+  const [bindingTokenId, setBindingTokenId] = useState<number | null>(null);
+  const [bindingAddress, setBindingAddress] = useState<string | null>(null);
+  const [bindTxHash, setBindTxHash] = useState<string | null>(null);
+  const [showBindPasswordDialog, setShowBindPasswordDialog] = useState(false);
+  const [bindWalletPassword, setBindWalletPassword] = useState('');
+
   const membership = useMembershipStatus();
   const { wallets, setMembership } = useDashboardStore();
+
+  // Ref for scrolling to device section after mint
+  const deviceSectionRef = useRef<HTMLElement>(null);
+
+  // Scroll to device binding section
+  const scrollToDeviceSection = useCallback(() => {
+    if (deviceSectionRef.current) {
+      deviceSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
 
   // Get selected wallet info for minting
   const getSelectedWallet = useCallback(() => {
@@ -152,6 +175,14 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   useEffect(() => {
     loadBscAddressesAndCheckMembership();
   }, [wallets]);
+
+  // Re-check membership when deviceStatus is loaded (for binding verification)
+  useEffect(() => {
+    if (deviceStatus?.deviceIdHash && bscAddresses.length > 0) {
+      // Re-check with deviceHash to verify binding
+      checkAllMemberships(bscAddresses.map(a => a.address), deviceStatus.deviceIdHash);
+    }
+  }, [deviceStatus?.deviceIdHash]);
 
   const loadBscAddressesAndCheckMembership = async () => {
     setIsLoading(true);
@@ -178,9 +209,30 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
 
       setBscAddresses(addresses);
 
-      // Auto-check membership across ALL addresses
+      // Try to auto-load device status using session token (no password needed)
+      let deviceIdHash: string | undefined;
+      const sessionToken = useSessionStore.getState().getToken();
+
+      if (sessionToken) {
+        try {
+          console.log('[MembershipSettings] Using session token to load device status');
+          const status = await tauriApi.getDeviceMembershipStatusWithToken({ token: sessionToken });
+          setDeviceStatus(status);
+          setIsDeviceLocked(false);
+          deviceIdHash = status.deviceIdHash;
+          console.log('[MembershipSettings] Device status loaded via session token:', {
+            deviceId: status.deviceId,
+            deviceIdHash: status.deviceIdHash?.slice(0, 10) + '...',
+          });
+        } catch (err) {
+          console.log('[MembershipSettings] Session token failed, device will need manual unlock:', err);
+          // Token expired or invalid - user will need to unlock manually
+        }
+      }
+
+      // Check membership with deviceHash if available
       if (addresses.length > 0) {
-        await checkAllMemberships(addresses.map(a => a.address));
+        await checkAllMemberships(addresses.map(a => a.address), deviceIdHash);
       }
     } catch (err) {
       console.error('Failed to load BSC addresses:', err);
@@ -191,24 +243,30 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   };
 
   // Check membership across ALL BSC addresses
-  const checkAllMemberships = async (addresses: string[]) => {
+  // If deviceHash is provided, only bound NFTs count for Pro status
+  const checkAllMemberships = async (addresses: string[], deviceHash?: string) => {
     setIsChecking(true);
     setError(null);
 
     try {
-      const result: AggregatedMembershipStatus = await tauriApi.checkAllMemberships(addresses);
+      const result: AggregatedMembershipStatus = await tauriApi.checkAllMemberships(addresses, deviceHash);
 
       setMembership({
         isPro: result.isPro,
         nftCount: result.totalNftCount,
+        boundNftCount: result.boundNftCount,
         daysRemaining: result.daysRemaining,
         walletLimit: result.walletLimit,
         addressNftCounts: result.addressNftCounts,
+        bindingRequired: result.bindingRequired,
       });
 
       if (result.isPro) {
-        setSuccessMessage(t('membership.proMembershipVerified', { count: result.totalNftCount }));
+        setSuccessMessage(t('membership.proMembershipVerified', { count: result.boundNftCount }));
         setTimeout(() => setSuccessMessage(null), 3000);
+      } else if (result.totalNftCount > 0 && result.boundNftCount === 0) {
+        // User has NFTs but none are bound to this device
+        setError(t('membership.nftNotBound', { count: result.totalNftCount }));
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('membership.failedToCheckMembership');
@@ -220,9 +278,114 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
 
   const handleRefresh = () => {
     if (bscAddresses.length > 0) {
-      checkAllMemberships(bscAddresses.map(a => a.address));
+      // Use deviceHash if available for binding verification
+      checkAllMemberships(bscAddresses.map(a => a.address), deviceStatus?.deviceIdHash);
     }
     // Device info refresh requires re-unlocking (for security)
+  };
+
+  // Handle bind NFT to device
+  const handleBindNft = (address: string, tokenId: number) => {
+    if (!deviceStatus?.deviceIdHash) {
+      setError(t('membership.unlockDeviceFirst'));
+      scrollToDeviceSection();
+      return;
+    }
+    setBindingAddress(address);
+    setBindingTokenId(tokenId);
+    setBindWalletPassword('');
+    setBindError(null);
+    setShowBindPasswordDialog(true);
+  };
+
+  // Execute bind transaction
+  const executeBindDevice = async () => {
+    if (!bindWalletPassword || !bindingAddress || bindingTokenId === null || !deviceStatus?.deviceIdHash) return;
+
+    setShowBindPasswordDialog(false);
+    setBindStep('binding');
+    setBindError(null);
+
+    try {
+      // Find the wallet for this address
+      const wallet = bscAddresses.find(a => a.address === bindingAddress);
+      if (!wallet) {
+        throw new Error('Wallet not found');
+      }
+
+      // Encode bindDevice(uint256 tokenId, bytes32 deviceHash)
+      const tokenIdHex = bindingTokenId.toString(16).padStart(64, '0');
+      const deviceHashPadded = deviceStatus.deviceIdHash.replace('0x', '').padStart(64, '0');
+      const data = BIND_DEVICE_SELECTOR + tokenIdHex + deviceHashPadded;
+
+      console.log('[bindDevice] Building transaction:', {
+        tokenId: bindingTokenId,
+        deviceHash: deviceStatus.deviceIdHash,
+        data,
+      });
+
+      // Build transaction
+      const buildResult: BuildTransactionResponse = await tauriApi.buildTransaction({
+        chainId: CHAIN_ID,
+        from: bindingAddress,
+        to: CONTRACT_ADDRESS,
+        amount: '0', // No value transfer
+        data,
+        usbPath,
+        appPassword: bindWalletPassword, // Required for authentication
+      });
+
+      // Sign transaction
+      const signResult: SignTransactionResponse = await tauriApi.signTransaction({
+        chainId: CHAIN_ID,
+        walletId: wallet.walletId,
+        password: bindWalletPassword,
+        passphrase: wallet.hasPassphrase ? '' : undefined,
+        fromAddress: bindingAddress,
+        unsignedTx: buildResult,
+        usbPath,
+      });
+
+      // Broadcast transaction
+      const broadcastResult = await tauriApi.broadcastTransaction({
+        chainId: CHAIN_ID,
+        signedTx: signResult,
+        usbPath,
+        appPassword: bindWalletPassword, // Required for authentication
+      });
+
+      setBindTxHash(broadcastResult.txHash);
+      console.log('[bindDevice] Transaction broadcast:', broadcastResult.txHash);
+
+      // Wait for confirmation
+      let attempts = 0;
+      const maxAttempts = 30;
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        const status: QueryTransactionStatusResponse = await tauriApi.queryTransactionStatus({
+          chainId: CHAIN_ID,
+          txHash: broadcastResult.txHash,
+          usbPath,
+        });
+
+        if (status.status === 'confirmed') {
+          setBindStep('success');
+          // Refresh membership status
+          handleRefresh();
+          return;
+        } else if (status.status === 'failed') {
+          throw new Error('Transaction failed');
+        }
+        attempts++;
+      }
+      throw new Error('Transaction confirmation timeout');
+    } catch (err) {
+      console.error('[bindDevice] Error:', err);
+      setBindError(err instanceof Error ? err.message : 'Binding failed');
+      setBindStep('error');
+    } finally {
+      setBindWalletPassword('');
+    }
   };
 
   // Load device membership status from USB storage - requires password
@@ -526,7 +689,11 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       setMintStep('success');
       // Refresh membership status after successful mint
       if (bscAddresses.length > 0) {
-        setTimeout(() => checkAllMemberships(bscAddresses.map(a => a.address)), 2000);
+        setTimeout(() => {
+          checkAllMemberships(bscAddresses.map(a => a.address), deviceStatus?.deviceIdHash);
+          // After mint success, scroll to device binding section for binding
+          scrollToDeviceSection();
+        }, 2000);
       }
     } else {
       setMintError(result.error || t('membership.mintFailed'));
@@ -593,6 +760,14 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
               <span className="label">{t('membership.totalNftsOwned')}</span>
               <span className="value">{membership.nftCount}</span>
             </div>
+            {membership.bindingRequired && (
+              <div className="detail-row">
+                <span className="label">{t('membership.boundNfts')}</span>
+                <span className={`value ${membership.boundNftCount > 0 ? 'success' : 'warning'}`}>
+                  {membership.boundNftCount} / {membership.nftCount}
+                </span>
+              </div>
+            )}
             <div className="detail-row">
               <span className="label">{t('membership.walletLimit')}</span>
               <span className="value">{membership.walletLimit} {t('membership.walletsUnit')}</span>
@@ -609,16 +784,97 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
             )}
           </div>
 
-          {/* NFT breakdown by address */}
+          {/* Unbound NFT Warning */}
+          {membership.nftCount > 0 && membership.boundNftCount === 0 && (
+            <div className="unbound-warning">
+              <div className="warning-icon">⚠️</div>
+              <div className="warning-content">
+                <p className="warning-title">{t('membership.unboundNftWarningTitle')}</p>
+                <p className="warning-message">{t('membership.unboundNftWarningMessage')}</p>
+                <button onClick={scrollToDeviceSection} className="bind-now-btn">
+                  {t('membership.bindNow')} →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* NFT breakdown by address with binding status */}
           {membership.addressNftCounts && membership.addressNftCounts.length > 0 && (
             <div className="nft-breakdown">
               <h4>{t('membership.nftBreakdown')}</h4>
               {membership.addressNftCounts.map((item) => (
-                <div key={item.address} className="breakdown-row">
-                  <span className="breakdown-address">{formatAddress(item.address)}</span>
-                  <span className="breakdown-count">{item.nftCount} {t('membership.nfts')}</span>
+                <div key={item.address} className="breakdown-address-section">
+                  <div className="breakdown-row">
+                    <span className="breakdown-address">{formatAddress(item.address)}</span>
+                    <span className="breakdown-count">{item.boundCount}/{item.nftCount} {t('membership.bound')}</span>
+                  </div>
+                  {/* Token list with binding status */}
+                  {item.tokens && item.tokens.length > 0 && (
+                    <div className="token-list">
+                      {item.tokens.map((token) => (
+                        <div key={token.tokenId} className={`token-row ${token.isBound ? 'bound' : 'unbound'}`}>
+                          <span className="token-id">#{token.tokenId}</span>
+                          <span className={`token-status ${token.isBound ? 'bound' : 'unbound'}`}>
+                            {token.isBound ? `✓ ${t('membership.boundToDevice')}` :
+                             token.boundDeviceHash !== '0x0000000000000000000000000000000000000000000000000000000000000000'
+                               ? `⚠ ${t('membership.boundToOther')}`
+                               : `○ ${t('membership.notBound')}`}
+                          </span>
+                          {!token.isBound && token.boundDeviceHash === '0x0000000000000000000000000000000000000000000000000000000000000000' && deviceStatus?.deviceIdHash && (
+                            <button
+                              className="bind-token-btn"
+                              onClick={() => handleBindNft(item.address, token.tokenId)}
+                              disabled={bindStep === 'binding'}
+                            >
+                              {bindStep === 'binding' && bindingTokenId === token.tokenId
+                                ? t('membership.binding')
+                                : t('membership.bindToThisDevice')}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Bind transaction status */}
+          {bindStep !== 'idle' && (
+            <div className={`bind-status ${bindStep}`}>
+              {bindStep === 'binding' && (
+                <div className="binding-progress">
+                  <span className="spinner">⏳</span>
+                  <span>{t('membership.bindingInProgress')}</span>
+                </div>
+              )}
+              {bindStep === 'success' && (
+                <div className="bind-success">
+                  <span>✓ {t('membership.bindSuccess')}</span>
+                  {bindTxHash && (
+                    <a
+                      href={`${BLOCK_EXPLORER_URL}/tx/${bindTxHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="tx-link"
+                    >
+                      {t('membership.viewTransaction')}
+                    </a>
+                  )}
+                  <button onClick={() => setBindStep('idle')} className="dismiss-btn">
+                    {t('actions.close')}
+                  </button>
+                </div>
+              )}
+              {bindStep === 'error' && (
+                <div className="bind-error">
+                  <span>✗ {bindError || t('membership.bindFailed')}</span>
+                  <button onClick={() => setBindStep('idle')} className="retry-btn">
+                    {t('actions.close')}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -753,8 +1009,12 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
                   {t('membership.viewTransaction')} →
                 </a>
               )}
-              <button onClick={cancelMint} className="mint-btn done">
-                {t('membership.done')}
+              <div className="binding-reminder">
+                <p>⚠️ {t('membership.bindingRequired')}</p>
+                <p className="binding-hint">{t('membership.bindingRequiredHint')}</p>
+              </div>
+              <button onClick={() => { cancelMint(); scrollToDeviceSection(); }} className="mint-btn done">
+                {t('membership.proceedToBinding')}
               </button>
             </div>
           )}
@@ -837,7 +1097,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       )}
 
       {/* Device Information Section */}
-      <section className="device-section">
+      <section className="device-section" ref={deviceSectionRef}>
         <h2>{t('membership.deviceInformation')}</h2>
         <p className="section-description">
           {t('membership.deviceDescription')}
@@ -964,6 +1224,47 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
                 className="confirm-btn"
               >
                 {t('security.unlock')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bind NFT Password Dialog */}
+      {showBindPasswordDialog && (
+        <div className="password-overlay">
+          <div className="password-dialog">
+            <h3>{t('membership.bindNftTitle')}</h3>
+            <p className="password-hint">
+              {t('membership.bindNftHint', { tokenId: bindingTokenId })}
+            </p>
+            <input
+              type="password"
+              value={bindWalletPassword}
+              onChange={(e) => setBindWalletPassword(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && executeBindDevice()}
+              placeholder={t('membership.walletPassword')}
+              autoFocus
+              className="password-input"
+            />
+            <div className="password-actions">
+              <button
+                onClick={() => {
+                  setShowBindPasswordDialog(false);
+                  setBindWalletPassword('');
+                  setBindingTokenId(null);
+                  setBindingAddress(null);
+                }}
+                className="cancel-btn"
+              >
+                {t('actions.cancel')}
+              </button>
+              <button
+                onClick={executeBindDevice}
+                disabled={!bindWalletPassword}
+                className="confirm-btn"
+              >
+                {t('membership.bindNow')}
               </button>
             </div>
           </div>
@@ -1197,6 +1498,83 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         .breakdown-count {
           font-weight: 500;
           color: #f0b90b;
+        }
+
+        /* Unbound NFT Warning */
+        .unbound-warning {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          margin-top: 16px;
+          padding: 16px;
+          background: #fef3c7;
+          border: 2px solid #f59e0b;
+          border-radius: 12px;
+        }
+
+        .unbound-warning .warning-icon {
+          font-size: 24px;
+          flex-shrink: 0;
+        }
+
+        .unbound-warning .warning-content {
+          flex: 1;
+        }
+
+        .unbound-warning .warning-title {
+          margin: 0 0 4px;
+          font-weight: 600;
+          color: #92400e;
+        }
+
+        .unbound-warning .warning-message {
+          margin: 0 0 12px;
+          font-size: 14px;
+          color: #a16207;
+        }
+
+        .bind-now-btn {
+          padding: 8px 16px;
+          background: #f59e0b;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+
+        .bind-now-btn:hover {
+          background: #d97706;
+        }
+
+        /* Binding Reminder in Success State */
+        .binding-reminder {
+          margin: 16px 0;
+          padding: 12px 16px;
+          background: #fef3c7;
+          border-radius: 8px;
+          text-align: center;
+        }
+
+        .binding-reminder p {
+          margin: 0;
+          color: #92400e;
+        }
+
+        .binding-reminder .binding-hint {
+          font-size: 14px;
+          margin-top: 4px;
+          color: #a16207;
+        }
+
+        /* Status value colors */
+        .value.success {
+          color: #10b981;
+        }
+
+        .value.warning {
+          color: #f59e0b;
         }
 
         /* Upgrade Section */

@@ -55,22 +55,30 @@ pub struct CheckMembershipInput {
 pub struct CheckAllMembershipsInput {
     /// List of BSC wallet addresses to check
     pub addresses: Vec<String>,
+    /// Device hash (keccak256 of device ID) for binding verification
+    /// If provided, only NFTs bound to this device are counted as valid Pro membership
+    #[serde(default)]
+    pub device_hash: Option<String>,
 }
 
 /// Aggregated membership status for all wallets
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AggregatedMembershipStatus {
-    /// Total NFTs owned across all addresses
+    /// Total NFTs owned across all addresses (regardless of binding)
     pub total_nft_count: u64,
-    /// Whether any address has Pro membership
+    /// Total NFTs bound to this device
+    pub bound_nft_count: u64,
+    /// Whether user has valid Pro membership (requires device binding)
     pub is_pro: bool,
     /// Days until earliest expiration (0 if no NFT)
     pub days_remaining: u64,
-    /// Wallet limit based on total NFTs: 5 + (total_nft_count * 5)
+    /// Wallet limit based on BOUND NFTs: 1 + (bound_nft_count * 3)
     pub wallet_limit: u64,
     /// Individual address NFT counts
     pub address_nft_counts: Vec<AddressNftCount>,
+    /// Whether device hash was provided for binding check
+    pub binding_required: bool,
 }
 
 /// NFT count for a single address
@@ -78,7 +86,24 @@ pub struct AggregatedMembershipStatus {
 #[serde(rename_all = "camelCase")]
 pub struct AddressNftCount {
     pub address: String,
+    /// Total NFTs owned by this address
     pub nft_count: u64,
+    /// NFTs bound to this device
+    pub bound_count: u64,
+    /// Detailed token info (token ID, bound status, bound device hash)
+    pub tokens: Vec<TokenInfo>,
+}
+
+/// Individual token info
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenInfo {
+    /// Token ID
+    pub token_id: u64,
+    /// Whether this token is bound to the queried device
+    pub is_bound: bool,
+    /// Device hash this token is bound to (0x00...00 if not bound)
+    pub bound_device_hash: String,
 }
 
 /// JSON-RPC request structure
@@ -148,6 +173,46 @@ fn create_get_memberships_call(contract: &str, address: &str) -> serde_json::Val
         "to": contract,
         "data": data
     })
+}
+
+/// Create eth_call request for tokenOfOwnerByIndex(address, uint256)
+/// Returns uint256 tokenId
+fn create_token_of_owner_by_index_call(contract: &str, address: &str, index: u64) -> serde_json::Value {
+    // Function selector for tokenOfOwnerByIndex(address,uint256): 0x2f745c59
+    // keccak256("tokenOfOwnerByIndex(address,uint256)")[:4]
+    let selector = "2f745c59";
+    let encoded_addr = encode_address(address);
+    let encoded_index = format!("{:064x}", index);
+    let data = format!("0x{}{}{}", selector, encoded_addr, encoded_index);
+
+    serde_json::json!({
+        "to": contract,
+        "data": data
+    })
+}
+
+/// Create eth_call request for deviceBindings(uint256)
+/// Returns bytes32 deviceHash
+fn create_device_bindings_call(contract: &str, token_id: u64) -> serde_json::Value {
+    // Function selector for deviceBindings(uint256): 0xd6fd7d5c
+    // keccak256("deviceBindings(uint256)")[:4]
+    let selector = "d6fd7d5c";
+    let encoded_token_id = format!("{:064x}", token_id);
+    let data = format!("0x{}{}", selector, encoded_token_id);
+
+    serde_json::json!({
+        "to": contract,
+        "data": data
+    })
+}
+
+/// Parse bytes32 result from eth_call (for device hash)
+fn parse_bytes32_result(hex: &str) -> String {
+    let hex = hex.trim_start_matches("0x");
+    if hex.is_empty() || hex.len() < 64 {
+        return "0x0000000000000000000000000000000000000000000000000000000000000000".to_string();
+    }
+    format!("0x{}", &hex[..64])
 }
 
 /// Parse boolean result from eth_call
@@ -327,13 +392,169 @@ async fn get_nft_balance(client: &reqwest::Client, address: &str) -> Result<u64,
         .unwrap_or(0))
 }
 
+/// Get token ID at index for an address (internal helper)
+async fn get_token_of_owner_by_index(client: &reqwest::Client, address: &str, index: u64) -> Result<u64, Error> {
+    let request = JsonRpcRequest {
+        jsonrpc: "2.0",
+        method: "eth_call",
+        params: vec![
+            create_token_of_owner_by_index_call(ARCSIGN_PRO_CONTRACT, address, index),
+            serde_json::json!("latest"),
+        ],
+        id: 1,
+    };
+
+    let response = client
+        .post(BSC_RPC_URL)
+        .json(&request)
+        .send()
+        .await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::NetworkError,
+            format!("Failed to query BSC: {}", e),
+        ))?;
+
+    let rpc_response: JsonRpcResponse = response
+        .json()
+        .await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::SerializationError,
+            format!("Failed to parse RPC response: {}", e),
+        ))?;
+
+    if let Some(error) = rpc_response.error {
+        return Err(Error::new(
+            crate::error::ErrorCode::ContractError,
+            format!("Contract call failed: {}", error.message),
+        ));
+    }
+
+    Ok(rpc_response
+        .result
+        .as_ref()
+        .map(|r| parse_uint256_result(r))
+        .unwrap_or(0))
+}
+
+/// Get device binding hash for a token ID (internal helper)
+async fn get_device_binding(client: &reqwest::Client, token_id: u64) -> Result<String, Error> {
+    let request = JsonRpcRequest {
+        jsonrpc: "2.0",
+        method: "eth_call",
+        params: vec![
+            create_device_bindings_call(ARCSIGN_PRO_CONTRACT, token_id),
+            serde_json::json!("latest"),
+        ],
+        id: 1,
+    };
+
+    let response = client
+        .post(BSC_RPC_URL)
+        .json(&request)
+        .send()
+        .await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::NetworkError,
+            format!("Failed to query BSC: {}", e),
+        ))?;
+
+    let rpc_response: JsonRpcResponse = response
+        .json()
+        .await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::SerializationError,
+            format!("Failed to parse RPC response: {}", e),
+        ))?;
+
+    if let Some(error) = rpc_response.error {
+        return Err(Error::new(
+            crate::error::ErrorCode::ContractError,
+            format!("Contract call failed: {}", error.message),
+        ));
+    }
+
+    Ok(rpc_response
+        .result
+        .as_ref()
+        .map(|r| parse_bytes32_result(r))
+        .unwrap_or_else(|| "0x0000000000000000000000000000000000000000000000000000000000000000".to_string()))
+}
+
+/// Get tokens with binding info for an address
+/// Returns (bound_count, total_count, token_infos)
+async fn get_tokens_with_binding(client: &reqwest::Client, address: &str, device_hash: &str) -> Result<(u64, u64, Vec<TokenInfo>), Error> {
+    // Get total NFT balance
+    let balance = get_nft_balance(client, address).await?;
+
+    if balance == 0 {
+        return Ok((0, 0, vec![]));
+    }
+
+    let mut bound_count = 0u64;
+    let mut tokens = Vec::new();
+
+    // Check each token's device binding
+    for i in 0..balance {
+        // Get token ID at index
+        let token_id = get_token_of_owner_by_index(client, address, i).await?;
+
+        // Get device binding for this token
+        let binding = get_device_binding(client, token_id).await?;
+
+        // Compare with our device hash (case-insensitive)
+        let is_bound = binding.to_lowercase() == device_hash.to_lowercase();
+        if is_bound {
+            bound_count += 1;
+            tracing::info!("Token {} is bound to this device", token_id);
+        } else {
+            tracing::info!("Token {} is NOT bound (binding: {}, device: {})", token_id, binding, device_hash);
+        }
+
+        tokens.push(TokenInfo {
+            token_id,
+            is_bound,
+            bound_device_hash: binding,
+        });
+    }
+
+    Ok((bound_count, balance, tokens))
+}
+
+/// Get tokens without binding verification (when no device hash provided)
+async fn get_tokens_without_binding(client: &reqwest::Client, address: &str) -> Result<(u64, Vec<TokenInfo>), Error> {
+    // Get total NFT balance
+    let balance = get_nft_balance(client, address).await?;
+
+    if balance == 0 {
+        return Ok((0, vec![]));
+    }
+
+    let mut tokens = Vec::new();
+
+    // Get each token's info
+    for i in 0..balance {
+        let token_id = get_token_of_owner_by_index(client, address, i).await?;
+        let binding = get_device_binding(client, token_id).await?;
+
+        tokens.push(TokenInfo {
+            token_id,
+            is_bound: false, // Can't verify without device hash
+            bound_device_hash: binding,
+        });
+    }
+
+    Ok((balance, tokens))
+}
+
 /// Check membership across ALL BSC addresses (Tauri command)
 /// Returns aggregated NFT count and wallet limit
+/// If device_hash is provided, only NFTs bound to this device are counted for Pro status
 #[tauri::command]
 pub async fn check_all_memberships(
     input: CheckAllMembershipsInput,
 ) -> Result<AggregatedMembershipStatus, Error> {
-    tracing::info!("check_all_memberships: {} addresses", input.addresses.len());
+    tracing::info!("check_all_memberships: {} addresses, device_hash: {:?}",
+        input.addresses.len(), input.device_hash.as_ref().map(|h| &h[..10.min(h.len())]));
 
     // Create HTTP client with timeout
     let client = reqwest::Client::builder()
@@ -345,7 +566,9 @@ pub async fn check_all_memberships(
         ))?;
 
     let mut total_nft_count = 0u64;
+    let mut bound_nft_count = 0u64;
     let mut address_nft_counts = Vec::new();
+    let binding_required = input.device_hash.is_some();
 
     // Check each address
     for address in &input.addresses {
@@ -355,42 +578,76 @@ pub async fn check_all_memberships(
             continue;
         }
 
-        match get_nft_balance(&client, address).await {
-            Ok(nft_count) => {
-                tracing::info!("Address {} has {} NFTs", address, nft_count);
-                total_nft_count += nft_count;
-                address_nft_counts.push(AddressNftCount {
-                    address: address.clone(),
-                    nft_count,
-                });
+        // If device_hash is provided, check binding; otherwise just count NFTs
+        if let Some(ref device_hash) = input.device_hash {
+            match get_tokens_with_binding(&client, address, device_hash).await {
+                Ok((bound, total, tokens)) => {
+                    tracing::info!("Address {} has {} NFTs ({} bound)", address, total, bound);
+                    total_nft_count += total;
+                    bound_nft_count += bound;
+                    address_nft_counts.push(AddressNftCount {
+                        address: address.clone(),
+                        nft_count: total,
+                        bound_count: bound,
+                        tokens,
+                    });
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to check address {}: {}", address, e);
+                    address_nft_counts.push(AddressNftCount {
+                        address: address.clone(),
+                        nft_count: 0,
+                        bound_count: 0,
+                        tokens: vec![],
+                    });
+                }
             }
-            Err(e) => {
-                tracing::warn!("Failed to check address {}: {}", address, e);
-                // Continue checking other addresses
-                address_nft_counts.push(AddressNftCount {
-                    address: address.clone(),
-                    nft_count: 0,
-                });
+        } else {
+            // No device hash - get tokens but can't verify binding to this device
+            match get_tokens_without_binding(&client, address).await {
+                Ok((nft_count, tokens)) => {
+                    tracing::info!("Address {} has {} NFTs (binding not verified - no deviceHash)", address, nft_count);
+                    total_nft_count += nft_count;
+                    // Don't add to bound_nft_count - we can't verify without deviceHash
+                    address_nft_counts.push(AddressNftCount {
+                        address: address.clone(),
+                        nft_count,
+                        bound_count: 0, // Cannot verify binding without deviceHash
+                        tokens,
+                    });
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to check address {}: {}", address, e);
+                    address_nft_counts.push(AddressNftCount {
+                        address: address.clone(),
+                        nft_count: 0,
+                        bound_count: 0,
+                        tokens: vec![],
+                    });
+                }
             }
         }
     }
 
-    let is_pro = total_nft_count > 0;
+    // Pro status requires bound NFTs when device_hash is provided
+    let is_pro = bound_nft_count > 0;
     let days_remaining = if is_pro { 365u64 } else { 0u64 };
-    // Formula: 1 + (nft_count * 3)
-    let wallet_limit = 1 + (total_nft_count * 3);
+    // Formula: 1 + (bound_nft_count * 3)
+    let wallet_limit = 1 + (bound_nft_count * 3);
 
     tracing::info!(
-        "Aggregated membership: total_nft_count={}, is_pro={}, wallet_limit={}",
-        total_nft_count, is_pro, wallet_limit
+        "Aggregated membership: total_nft_count={}, bound_nft_count={}, is_pro={}, wallet_limit={}, binding_required={}",
+        total_nft_count, bound_nft_count, is_pro, wallet_limit, binding_required
     );
 
     Ok(AggregatedMembershipStatus {
         total_nft_count,
+        bound_nft_count,
         is_pro,
         days_remaining,
         wallet_limit,
         address_nft_counts,
+        binding_required,
     })
 }
 

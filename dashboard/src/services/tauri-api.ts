@@ -1448,23 +1448,58 @@ export const tauriApi = {
 };
 
 /**
+ * Individual token info
+ */
+export interface TokenInfo {
+  /** Token ID */
+  tokenId: number;
+  /** Whether this token is bound to the queried device */
+  isBound: boolean;
+  /** Device hash this token is bound to (0x00...00 if not bound) */
+  boundDeviceHash: string;
+}
+
+/**
+ * NFT count and token info for a single address
+ */
+export interface AddressNftCount {
+  address: string;
+  nftCount: number;
+  boundCount: number;
+  /** Detailed token info */
+  tokens: TokenInfo[];
+}
+
+/**
  * Aggregated membership status response
  */
 export interface AggregatedMembershipStatus {
+  /** Total NFTs owned across all addresses (regardless of binding) */
   totalNftCount: number;
+  /** Total NFTs bound to this device */
+  boundNftCount: number;
+  /** Whether user has valid Pro membership (requires device binding) */
   isPro: boolean;
   daysRemaining: number;
+  /** Wallet limit based on BOUND NFTs: 1 + (boundNftCount * 3) */
   walletLimit: number;
-  addressNftCounts: { address: string; nftCount: number }[];
+  addressNftCounts: AddressNftCount[];
+  /** Whether device hash was provided for binding check */
+  bindingRequired: boolean;
 }
 
 /**
  * Check membership NFT count across ALL BSC addresses
+ * @param addresses List of BSC wallet addresses to check
+ * @param deviceHash Optional device hash for binding verification. If provided, only bound NFTs count as Pro.
  */
-export async function checkAllMemberships(addresses: string[]): Promise<AggregatedMembershipStatus> {
+export async function checkAllMemberships(
+  addresses: string[],
+  deviceHash?: string
+): Promise<AggregatedMembershipStatus> {
   try {
     return await invoke<AggregatedMembershipStatus>("check_all_memberships", {
-      input: { addresses },
+      input: { addresses, deviceHash },
     });
   } catch (error) {
     throw parseError(error);

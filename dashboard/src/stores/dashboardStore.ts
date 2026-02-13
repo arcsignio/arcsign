@@ -9,6 +9,7 @@ import { persist } from 'zustand/middleware';
 import type { Wallet } from '@/types/wallet';
 import type { Address, AddressFilter } from '@/types/address';
 import { Category } from '@/types/address';
+import type { TokenInfo } from '@/services/tauri-api';
 
 /**
  * Membership status for Pro tier verification
@@ -19,18 +20,22 @@ import { Category } from '@/types/address';
  * - Pro (n NFTs): 1 + (n * 3) wallets
  */
 interface MembershipState {
-  /** Whether user is a Pro member (owns at least 1 NFT) */
+  /** Whether user is a Pro member (requires NFT + device binding) */
   isPro: boolean;
   /** Total NFTs owned across all BSC addresses */
   nftCount: number;
+  /** NFTs bound to this device */
+  boundNftCount: number;
   /** Days remaining until membership expires */
   daysRemaining: number;
-  /** Wallet creation limit: 1 + (nftCount * 3) */
+  /** Wallet creation limit: 1 + (boundNftCount * 3) */
   walletLimit: number;
   /** NFT count breakdown by address */
-  addressNftCounts: { address: string; nftCount: number }[];
+  addressNftCounts: { address: string; nftCount: number; boundCount: number; tokens: TokenInfo[] }[];
   /** IDs of wallets that are locked due to exceeding the limit */
   lockedWalletIds: string[];
+  /** Whether device binding is required for Pro status */
+  bindingRequired: boolean;
 }
 
 /**
@@ -120,10 +125,12 @@ interface DashboardState {
 const initialMembership: MembershipState = {
   isPro: false,
   nftCount: 0,
+  boundNftCount: 0,
   daysRemaining: 0,
   walletLimit: 1, // Free tier default: 1 + (0 * 3) = 1
   addressNftCounts: [],
   lockedWalletIds: [],
+  bindingRequired: true, // Binding is required for Pro status
 };
 
 const initialState = {
