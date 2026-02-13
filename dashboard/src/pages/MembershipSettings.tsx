@@ -1153,18 +1153,23 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
 
             <div className="device-detail-row">
               <span className="device-label">{t('membership.walletLimitUsb')}</span>
-              <span className="device-value">{deviceStatus.walletLimit} {t('membership.walletsUnit')}</span>
+              <span className="device-value">
+                {/* Use the higher of chain or device limit (chain is authoritative for on-chain bindings) */}
+                {Math.max(membership.walletLimit, deviceStatus.walletLimit)} {t('membership.walletsUnit')}
+              </span>
             </div>
 
             <div className="device-detail-row">
               <span className="device-label">{t('membership.currentWallets')}</span>
-              <span className="device-value">{deviceStatus.walletCount} / {deviceStatus.walletLimit}</span>
+              <span className="device-value">{deviceStatus.walletCount} / {Math.max(membership.walletLimit, deviceStatus.walletLimit)}</span>
             </div>
 
             <div className="device-detail-row">
               <span className="device-label">{t('membership.canCreateMore')}</span>
-              <span className={`device-value ${deviceStatus.canCreateWallet ? 'success' : 'warning'}`}>
-                {deviceStatus.canCreateWallet ? `✓ ${t('membership.yes')}` : `✗ ${t('membership.limitReached')}`}
+              <span className={`device-value ${deviceStatus.walletCount < Math.max(membership.walletLimit, deviceStatus.walletLimit) ? 'success' : 'warning'}`}>
+                {deviceStatus.walletCount < Math.max(membership.walletLimit, deviceStatus.walletLimit)
+                  ? `✓ ${t('membership.yes')}`
+                  : `✗ ${t('membership.limitReached')}`}
               </span>
             </div>
 
@@ -1187,7 +1192,8 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
               </div>
             )}
 
-            {deviceStatus.memberships.length === 0 && membership.isPro && (
+            {/* Only show binding hint if chain membership shows unboud NFTs */}
+            {deviceStatus.memberships.length === 0 && membership.nftCount > 0 && membership.boundNftCount === 0 && (
               <div className="binding-hint">
                 <p>💡 <strong>{t('membership.bindingTip')}</strong> {t('membership.bindingTipMessage')}</p>
                 <p>{t('membership.bindingTipDescription')}</p>
