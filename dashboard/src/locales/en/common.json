@@ -609,7 +609,7 @@
     "pressEnter": "Press",
     "toUnlock": "to unlock"
   },
-  "mnemonic": {
+  "mnemonicBackup": {
     "title": "Backup Your Mnemonic Phrase",
     "importantWarning": "IMPORTANT - Read Carefully:",
     "writeDown": "Write down these words in order on paper",

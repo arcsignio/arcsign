@@ -609,7 +609,7 @@
     "pressEnter": "按下",
     "toUnlock": "以解鎖"
   },
-  "mnemonic": {
+  "mnemonicBackup": {
     "title": "備份您的助記詞",
     "importantWarning": "重要提示 - 請仔細閱讀：",
     "writeDown": "按順序在紙上寫下這些詞",

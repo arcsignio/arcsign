@@ -112,25 +112,25 @@ export function MnemonicDisplay({ mnemonic, onConfirm }: MnemonicDisplayProps) {
 
   return (
     <div className="mnemonic-display">
-      <h2>{t('mnemonic.title')}</h2>
+      <h2>{t('mnemonicBackup.title')}</h2>
 
       {/* Security Warning */}
       <div className="warning-message">
-        <strong><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {t('mnemonic.importantWarning')}</strong>
+        <strong><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {t('mnemonicBackup.importantWarning')}</strong>
         <ul>
-          <li>{t('mnemonic.writeDown')}</li>
-          <li>{t('mnemonic.storeSecurely')}</li>
+          <li>{t('mnemonicBackup.writeDown')}</li>
+          <li>{t('mnemonicBackup.storeSecurely')}</li>
           <li>{t('mnemonic.neverShare')}</li>
           <li>{t('mnemonic.cannotRecover')}</li>
-          <li>{t('mnemonic.screenshotProtection')}</li>
+          <li>{t('mnemonicBackup.screenshotProtection')}</li>
         </ul>
       </div>
 
       {/* Countdown Timer */}
       <div className="countdown">
         <p>
-          {t('mnemonic.autoCloseIn')}{' '}
-          <strong>{timeRemaining} {t('mnemonic.secondsUnit')}</strong>
+          {t('mnemonicBackup.autoCloseIn')}{' '}
+          <strong>{timeRemaining} {t('mnemonicBackup.secondsUnit')}</strong>
         </p>
       </div>
 
@@ -147,20 +147,20 @@ export function MnemonicDisplay({ mnemonic, onConfirm }: MnemonicDisplayProps) {
       {/* Copy Button */}
       <div className="copy-section">
         <button onClick={handleCopy} type="button" className="copy-button">
-          {copied ? t('mnemonic.copied') : t('mnemonic.copyToClipboard')}
+          {copied ? t('mnemonicBackup.copied') : t('mnemonicBackup.copyToClipboard')}
         </button>
         <small className="warning">
-          {t('mnemonic.clipboardWarning')}
+          {t('mnemonicBackup.clipboardWarning')}
         </small>
       </div>
 
       {/* Confirmation Checklist */}
       <div className="confirmation-checklist">
-        <p>{t('mnemonic.beforeContinuing')}</p>
+        <p>{t('mnemonicBackup.beforeContinuing')}</p>
         <ul>
-          <li>✓ {t('mnemonic.writtenAllWords', { count: mnemonicWords.length })}</li>
-          <li>✓ {t('mnemonic.storedBackup')}</li>
-          <li>✓ {t('mnemonic.verifiedSpelling')}</li>
+          <li>✓ {t('mnemonicBackup.writtenAllWords', { count: mnemonicWords.length })}</li>
+          <li>✓ {t('mnemonicBackup.storedBackup')}</li>
+          <li>✓ {t('mnemonicBackup.verifiedSpelling')}</li>
         </ul>
       </div>
 
@@ -172,13 +172,13 @@ export function MnemonicDisplay({ mnemonic, onConfirm }: MnemonicDisplayProps) {
         type="button"
       >
         {canConfirm
-          ? t('mnemonic.confirmBackedUp')
-          : t('mnemonic.waitSeconds')}
+          ? t('mnemonicBackup.confirmBackedUp')
+          : t('mnemonicBackup.waitSeconds')}
       </button>
 
       {!canConfirm && (
         <small className="button-disabled-notice">
-          {t('mnemonic.buttonEnableNotice')}
+          {t('mnemonicBackup.buttonEnableNotice')}
         </small>
       )}
     </div>
