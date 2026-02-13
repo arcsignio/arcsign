@@ -687,6 +687,27 @@ extern char* AddMembershipBinding(char* params);
 //   "nftContract": "0x..."
 // }
 extern char* RemoveMembershipBinding(char* params);
+
+// SyncMembershipBindingWithToken adds a membership binding using session token instead of password.
+// This allows frontend to sync on-chain bindings to USB without re-entering password.
+//
+// Input JSON: {
+//   "token": "session-token",
+//   "nftTokenId": "1",
+//   "nftContract": "0x...",
+//   "chainId": "bnb",
+//   "boundAddress": "0x..."
+// }
+extern char* SyncMembershipBindingWithToken(char* params);
+
+// RemoveMembershipBindingWithToken removes a membership binding using session token.
+//
+// Input JSON: {
+//   "token": "session-token",
+//   "nftTokenId": "1",
+//   "nftContract": "0x..."
+// }
+extern char* RemoveMembershipBindingWithToken(char* params);
 extern char* CreateSessionToken(char* params);
 extern char* ValidateSessionToken(char* params);
 extern char* RevokeSessionToken(char* params);
@@ -744,6 +765,90 @@ extern char* SignMessage(char* params);
 //	}
 //
 extern char* SignTypedData(char* params);
+
+// CreateDevSession creates a new developer session for auto-signing.
+// The session stores pre-derived signing keys in memory for fast signing.
+//
+// Input JSON: {
+//   "walletId": "wallet-uuid",
+//   "password": "wallet-password",
+//   "passphrase": "optional-bip39-passphrase",
+//   "usbPath": "/Volumes/ArcSign",
+//   "durationMinutes": 30,
+//   "trustedNetworks": ["sepolia", "goerli", "bsc-testnet"]
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "sessionToken": "dev_xxx...",
+//     "expiresAt": 1234567890000,
+//     "trustedNetworks": ["sepolia", "goerli"],
+//     "addresses": ["0x..."]
+//   }
+// }
+extern char* CreateDevSession(char* params);
+
+// DevSessionSign signs a transaction using a developer session (no password needed).
+// Only works for testnet transactions in trusted networks.
+//
+// Input JSON: {
+//   "sessionToken": "dev_xxx...",
+//   "chainId": 11155111,
+//   "from": "0x...",
+//   "to": "0x...",
+//   "data": "0x...",
+//   "value": "0",
+//   "gas": "21000",
+//   "gasPrice": "1000000000",
+//   "maxFeePerGas": "1000000000",
+//   "maxPriorityFeePerGas": "1000000000",
+//   "nonce": 0
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "signedTx": "0x...",
+//     "txHash": "0x...",
+//     "signedBy": "0x..."
+//   }
+// }
+extern char* DevSessionSign(char* params);
+
+// GetDevSession returns information about a developer session.
+//
+// Input JSON: {
+//   "sessionToken": "dev_xxx..."
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "active": true,
+//     "walletId": "...",
+//     "expiresAt": 1234567890000,
+//     "remainingMs": 60000,
+//     "signCount": 5,
+//     "trustedNetworks": ["sepolia"],
+//     "addresses": ["0x..."]
+//   }
+// }
+extern char* GetDevSession(char* params);
+
+// EndDevSession terminates a developer session and clears all stored keys.
+//
+// Input JSON: {
+//   "sessionToken": "dev_xxx..."
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "status": "ended"
+//   }
+// }
+extern char* EndDevSession(char* params);
 
 #ifdef __cplusplus
 }
