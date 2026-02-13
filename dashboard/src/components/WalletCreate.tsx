@@ -88,7 +88,8 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
       return;
     }
 
-    // Check device membership limit using session token
+    // Check device membership for device info (not for blocking)
+    // Chain-based membership (walletLimitInfo) is the authoritative source for Pro status
     const sessionToken = getToken();
     if (sessionToken && data.usbPath) {
       setIsCheckingDevice(true);
@@ -100,7 +101,9 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
         setDeviceStatus(deviceMembership);
 
         // Device-level wallet limit check
-        if (!deviceMembership.canCreateWallet) {
+        // Only block if BOTH chain and device say limit reached
+        // Chain membership is authoritative (has real-time on-chain NFT binding status)
+        if (!deviceMembership.canCreateWallet && !walletLimitInfo.canCreate) {
           setError(
             t('wallet.deviceLimitReached', {
               current: deviceMembership.walletCount,
@@ -110,6 +113,8 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
           setIsCheckingDevice(false);
           return;
         }
+        // If chain says Pro but device says limit reached, trust chain
+        // This can happen when NFT is bound but device hasn't synced yet
       } catch (err) {
         console.error('Failed to check device membership:', err);
         // Continue with wallet creation even if device check fails
