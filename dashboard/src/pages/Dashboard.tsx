@@ -36,6 +36,10 @@ import type { Wallet } from "@/types/wallet";
 
 type View = "list" | "create" | "import" | "addresses" | "settings" | "api-settings" | "membership" | "detail" | "developer";
 
+// ArcSign Pro NFT contract address on BSC Mainnet
+const NFT_CONTRACT = '0x02EA7B4870Aa0553EF357Af6475727f1E01c7b2F';
+const CHAIN_ID = 'bnb';
+
 export function Dashboard() {
   const { t } = useTranslation();
   const [currentView, setCurrentView] = useState<View>("list");
@@ -350,6 +354,100 @@ export function Dashboard() {
         if (sessionToken) {
           try {
             const membershipStatus = await tauriApi.getDeviceMembershipStatusWithToken({ token: sessionToken });
+
+            // Sync on-chain binding state with USB storage
+            // This ensures Pro status is always up-to-date with chain state
+            if (membershipStatus.deviceIdHash && bscAddresses.length > 0) {
+              try {
+                console.log("🔄 [Dashboard] Syncing on-chain membership state...");
+
+                // Get on-chain status for all BSC addresses
+                const onChainStatus = await tauriApi.checkAllMemberships(
+                  bscAddresses,
+                  membershipStatus.deviceIdHash
+                );
+
+                let needsRefresh = false;
+
+                // Sync: Add bindings that are on-chain but not in USB
+                for (const addrInfo of onChainStatus.addressNftCounts) {
+                  for (const token of addrInfo.tokens || []) {
+                    // Check if this token is bound to our device on-chain
+                    const isOnChainBound = token.boundDeviceHash?.toLowerCase() === membershipStatus.deviceIdHash.toLowerCase();
+
+                    if (isOnChainBound) {
+                      // Check if this binding exists in USB
+                      const existsInUsb = membershipStatus.memberships.some(
+                        m => m.nftTokenId === String(token.tokenId)
+                      );
+
+                      if (!existsInUsb) {
+                        console.log(`🔄 [Dashboard] Syncing token ${token.tokenId} binding to USB`);
+                        try {
+                          await tauriApi.syncMembershipBindingWithToken({
+                            token: sessionToken,
+                            nftTokenId: String(token.tokenId),
+                            nftContract: NFT_CONTRACT,
+                            chainId: CHAIN_ID,
+                            boundAddress: addrInfo.address,
+                          });
+                          needsRefresh = true;
+                        } catch (syncErr) {
+                          console.warn(`Failed to sync token ${token.tokenId}:`, syncErr);
+                        }
+                      }
+                    }
+                  }
+                }
+
+                // Remove: Delete USB bindings that no longer exist on-chain
+                for (const usbBinding of membershipStatus.memberships) {
+                  // Find the address info for this binding
+                  const onChainAddr = onChainStatus.addressNftCounts.find(
+                    a => a.address.toLowerCase() === usbBinding.boundAddress.toLowerCase()
+                  );
+
+                  // Check if this token is still bound to our device on-chain
+                  const stillBound = onChainAddr?.tokens?.some(
+                    t => String(t.tokenId) === usbBinding.nftTokenId &&
+                        t.boundDeviceHash?.toLowerCase() === membershipStatus.deviceIdHash.toLowerCase()
+                  );
+
+                  if (!stillBound) {
+                    console.log(`🔄 [Dashboard] Removing stale binding for token ${usbBinding.nftTokenId}`);
+                    try {
+                      await tauriApi.removeMembershipBindingWithToken({
+                        token: sessionToken,
+                        nftTokenId: usbBinding.nftTokenId,
+                        nftContract: usbBinding.nftContract,
+                      });
+                      needsRefresh = true;
+                    } catch (removeErr) {
+                      console.warn(`Failed to remove token ${usbBinding.nftTokenId}:`, removeErr);
+                    }
+                  }
+                }
+
+                // If we made any changes, reload membership status
+                if (needsRefresh) {
+                  console.log("🔄 [Dashboard] Reloading membership status after sync");
+                  const updatedStatus = await tauriApi.getDeviceMembershipStatusWithToken({ token: sessionToken });
+                  setMembership({
+                    walletLimit: updatedStatus.walletLimit,
+                    nftCount: updatedStatus.memberships.length,
+                    isPro: updatedStatus.memberships.length > 0,
+                    lockedWalletIds: updatedStatus.lockedWalletIds || [],
+                  });
+                  console.log("✅ [Dashboard] Membership sync complete");
+                  return;
+                }
+              } catch (syncErr) {
+                console.warn("Failed to sync on-chain membership:", syncErr);
+                // Non-critical - continue with USB membership info
+              }
+            }
+
+            // Set membership from USB if no sync needed
             setMembership({
               walletLimit: membershipStatus.walletLimit,
               nftCount: membershipStatus.memberships.length,

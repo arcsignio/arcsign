@@ -457,6 +457,36 @@ func (sm *SessionManager) RecalculateLockedWallets(usbPath string) {
 	}
 }
 
+// UpdateMembershipsAndRecalculate updates session memberships and recalculates locked wallets.
+// This should be called after adding/removing membership bindings to keep the session in sync.
+func (sm *SessionManager) UpdateMembershipsAndRecalculate(usbPath string, memberships []MembershipBinding) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	now := time.Now()
+	for _, session := range sm.sessions {
+		if session.UsbPath == usbPath && now.Before(session.ExpiresAt) {
+			// Update session memberships
+			session.Memberships = memberships
+
+			// Re-read wallets from filesystem
+			walletsFromFS := loadWalletsFromFilesystem(usbPath)
+
+			// Recalculate locked wallets based on NEW NFT count
+			nftCount := len(memberships)
+			lockedIds := calculateLockedWallets(walletsFromFS, nftCount)
+
+			// Update session locked wallets
+			session.LockedWalletIds = lockedIds
+
+			fmt.Printf("[UpdateMembershipsAndRecalculate] Updated memberships (count=%d) and locked wallets for %s: %v\n",
+				nftCount, usbPath, lockedIds)
+			return
+		}
+	}
+	fmt.Printf("[UpdateMembershipsAndRecalculate] No session found for %s\n", usbPath)
+}
+
 // ============================================================================
 // Encryption helpers for provider key storage
 // ============================================================================

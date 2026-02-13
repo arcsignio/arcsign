@@ -132,6 +132,14 @@ type AddMembershipBindingFn = unsafe extern "C" fn(*const c_char) -> *mut c_char
 /// Function signature for RemoveMembershipBinding: char* RemoveMembershipBinding(char* params)
 type RemoveMembershipBindingFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+/// Function signature for SyncMembershipBindingWithToken: char* SyncMembershipBindingWithToken(char* params)
+/// Uses session token instead of password for authentication
+type SyncMembershipBindingWithTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for RemoveMembershipBindingWithToken: char* RemoveMembershipBindingWithToken(char* params)
+/// Uses session token instead of password for authentication
+type RemoveMembershipBindingWithTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 // Session management function types
 /// Function signature for CreateSessionToken: char* CreateSessionToken(char* params)
 type CreateSessionTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
@@ -238,6 +246,8 @@ pub struct WalletLibrary {
     get_device_membership_status_with_token: Symbol<'static, GetDeviceMembershipStatusWithTokenFn>,
     add_membership_binding: Symbol<'static, AddMembershipBindingFn>,
     remove_membership_binding: Symbol<'static, RemoveMembershipBindingFn>,
+    sync_membership_binding_with_token: Symbol<'static, SyncMembershipBindingWithTokenFn>,
+    remove_membership_binding_with_token: Symbol<'static, RemoveMembershipBindingWithTokenFn>,
     // Session management function symbols
     create_session_token: Symbol<'static, CreateSessionTokenFn>,
     validate_session_token: Symbol<'static, ValidateSessionTokenFn>,
@@ -457,6 +467,14 @@ impl WalletLibrary {
                 .get(b"RemoveMembershipBinding")
                 .map_err(|e| format!("RemoveMembershipBinding symbol not found: {}", e))?;
 
+            let sync_membership_binding_with_token: Symbol<SyncMembershipBindingWithTokenFn> = lib
+                .get(b"SyncMembershipBindingWithToken")
+                .map_err(|e| format!("SyncMembershipBindingWithToken symbol not found: {}", e))?;
+
+            let remove_membership_binding_with_token: Symbol<RemoveMembershipBindingWithTokenFn> = lib
+                .get(b"RemoveMembershipBindingWithToken")
+                .map_err(|e| format!("RemoveMembershipBindingWithToken symbol not found: {}", e))?;
+
             // Load Session management symbols
             let create_session_token: Symbol<CreateSessionTokenFn> = lib
                 .get(b"CreateSessionToken")
@@ -545,6 +563,8 @@ impl WalletLibrary {
             let get_device_membership_status_with_token: Symbol<'static, GetDeviceMembershipStatusWithTokenFn> = std::mem::transmute(get_device_membership_status_with_token);
             let add_membership_binding: Symbol<'static, AddMembershipBindingFn> = std::mem::transmute(add_membership_binding);
             let remove_membership_binding: Symbol<'static, RemoveMembershipBindingFn> = std::mem::transmute(remove_membership_binding);
+            let sync_membership_binding_with_token: Symbol<'static, SyncMembershipBindingWithTokenFn> = std::mem::transmute(sync_membership_binding_with_token);
+            let remove_membership_binding_with_token: Symbol<'static, RemoveMembershipBindingWithTokenFn> = std::mem::transmute(remove_membership_binding_with_token);
             let create_session_token: Symbol<'static, CreateSessionTokenFn> = std::mem::transmute(create_session_token);
             let validate_session_token: Symbol<'static, ValidateSessionTokenFn> = std::mem::transmute(validate_session_token);
             let revoke_session_token: Symbol<'static, RevokeSessionTokenFn> = std::mem::transmute(revoke_session_token);
@@ -595,6 +615,8 @@ impl WalletLibrary {
                 get_device_membership_status_with_token,
                 add_membership_binding,
                 remove_membership_binding,
+                sync_membership_binding_with_token,
+                remove_membership_binding_with_token,
                 create_session_token,
                 validate_session_token,
                 revoke_session_token,
@@ -643,6 +665,14 @@ impl WalletLibrary {
                 {
                     let lib_dir = exe_dir.join("lib");
                     paths.push(lib_dir.join(lib_name).to_string_lossy().to_string());
+                }
+
+                // Development environment: target/debug/../../libarcsign.dylib = src-tauri/libarcsign.dylib
+                // Only in debug builds to avoid cluttering production search paths
+                #[cfg(debug_assertions)]
+                {
+                    let dev_lib_path = exe_dir.join("../..").join(lib_name);
+                    paths.push(dev_lib_path.to_string_lossy().to_string());
                 }
             }
         }
@@ -1283,6 +1313,38 @@ impl WalletLibrary {
     /// ```
     pub fn remove_membership_binding(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.remove_membership_binding, params_json)
+    }
+
+    /// Sync a membership binding using session token (no password needed).
+    ///
+    /// Call this to sync on-chain bindings to USB storage.
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "token": "session-token",
+    ///   "nftTokenId": "1",
+    ///   "nftContract": "0x...",
+    ///   "chainId": "bnb",
+    ///   "boundAddress": "0x..."
+    /// }
+    /// ```
+    pub fn sync_membership_binding_with_token(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.sync_membership_binding_with_token, params_json)
+    }
+
+    /// Remove a membership binding using session token (no password needed).
+    ///
+    /// Input JSON format:
+    /// ```json
+    /// {
+    ///   "token": "session-token",
+    ///   "nftTokenId": "1",
+    ///   "nftContract": "0x..."
+    /// }
+    /// ```
+    pub fn remove_membership_binding_with_token(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.remove_membership_binding_with_token, params_json)
     }
 
     /// Create a new session token after validating credentials.

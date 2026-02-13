@@ -957,6 +957,88 @@ pub async fn get_device_membership_status_with_token(
     })
 }
 
+/// Input for sync_membership_binding_with_token (session-based)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncMembershipBindingWithTokenInput {
+    pub token: String,
+    pub nft_token_id: String,
+    pub nft_contract: String,
+    pub chain_id: String,
+    pub bound_address: String,
+}
+
+/// Input for remove_membership_binding_with_token (session-based)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoveMembershipBindingWithTokenInput {
+    pub token: String,
+    pub nft_token_id: String,
+    pub nft_contract: String,
+}
+
+/// Sync NFT membership binding to USB using session token (Tauri command)
+/// Used to sync on-chain binding state to USB storage without requiring password
+#[tauri::command]
+pub async fn sync_membership_binding_with_token(
+    input: SyncMembershipBindingWithTokenInput,
+    queue: State<'_, LazyWalletQueue>,
+) -> Result<serde_json::Value, Error> {
+    tracing::info!(
+        "sync_membership_binding_with_token: tokenId={}, address={}",
+        input.nft_token_id, input.bound_address
+    );
+
+    let params = serde_json::json!({
+        "token": input.token,
+        "nftTokenId": input.nft_token_id,
+        "nftContract": input.nft_contract,
+        "chainId": input.chain_id,
+        "boundAddress": input.bound_address,
+    });
+
+    let result = queue
+        .sync_membership_binding_with_token(params.to_string())
+        .await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::FfiStorageError,
+            format!("Failed to sync membership binding: {}", e),
+        ))?;
+
+    tracing::info!("Membership binding synced successfully");
+    Ok(result)
+}
+
+/// Remove NFT membership binding from USB using session token (Tauri command)
+/// Used when on-chain binding no longer exists
+#[tauri::command]
+pub async fn remove_membership_binding_with_token(
+    input: RemoveMembershipBindingWithTokenInput,
+    queue: State<'_, LazyWalletQueue>,
+) -> Result<serde_json::Value, Error> {
+    tracing::info!(
+        "remove_membership_binding_with_token: tokenId={}",
+        input.nft_token_id
+    );
+
+    let params = serde_json::json!({
+        "token": input.token,
+        "nftTokenId": input.nft_token_id,
+        "nftContract": input.nft_contract,
+    });
+
+    let result = queue
+        .remove_membership_binding_with_token(params.to_string())
+        .await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::FfiStorageError,
+            format!("Failed to remove membership binding: {}", e),
+        ))?;
+
+    tracing::info!("Membership binding removed successfully");
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -369,8 +369,28 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         });
 
         if (status.status === 'confirmed') {
+          // Save binding to USB storage FIRST
+          try {
+            await tauriApi.addDeviceMembershipBinding({
+              usbPath,
+              appPassword: bindWalletPassword,
+              nftTokenId: String(bindingTokenId),
+              nftContract: CONTRACT_ADDRESS,
+              chainId: CHAIN_ID,
+              boundAddress: bindingAddress,
+              signature: '', // No signature needed for local storage
+            });
+            console.log('[bindDevice] Saved binding to USB storage');
+
+            // Reload device status to get updated lockedWalletIds
+            await loadDeviceMembershipStatus(bindWalletPassword);
+          } catch (saveErr) {
+            console.error('[bindDevice] Failed to save binding to USB:', saveErr);
+            // Continue anyway - chain binding succeeded
+          }
+
           setBindStep('success');
-          // Refresh membership status
+          // Refresh membership status from chain
           handleRefresh();
           return;
         } else if (status.status === 'failed') {

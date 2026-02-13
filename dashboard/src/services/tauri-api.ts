@@ -1421,6 +1421,8 @@ export const tauriApi = {
   getDeviceMembershipStatusWithToken,
   addDeviceMembershipBinding,
   removeDeviceMembershipBinding,
+  syncMembershipBindingWithToken,
+  removeMembershipBindingWithToken,
 
   // Session Management
   createSession,
@@ -1664,6 +1666,70 @@ export async function removeDeviceMembershipBinding(params: {
     console.log("🔐 [tauri-api] removeDeviceMembershipBinding success");
   } catch (error) {
     console.error("🔴 [tauri-api] removeDeviceMembershipBinding error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Sync NFT membership binding to USB using session token
+ * Used to sync on-chain binding state to USB storage without requiring password
+ * Call this when on-chain binding exists but USB doesn't have it
+ */
+export async function syncMembershipBindingWithToken(params: {
+  token: string;
+  nftTokenId: string;
+  nftContract: string;
+  chainId: string;
+  boundAddress: string;
+}): Promise<void> {
+  console.log("🔐 [tauri-api] syncMembershipBindingWithToken called:", {
+    nftTokenId: params.nftTokenId,
+    chainId: params.chainId,
+    boundAddress: params.boundAddress,
+  });
+
+  try {
+    await invoke("sync_membership_binding_with_token", {
+      input: {
+        token: params.token,
+        nftTokenId: params.nftTokenId,
+        nftContract: params.nftContract,
+        chainId: params.chainId,
+        boundAddress: params.boundAddress,
+      },
+    });
+    console.log("🔐 [tauri-api] syncMembershipBindingWithToken success");
+  } catch (error) {
+    console.error("🔴 [tauri-api] syncMembershipBindingWithToken error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
+ * Remove NFT membership binding from USB using session token
+ * Used when on-chain binding no longer exists (NFT transferred, unbind, etc.)
+ */
+export async function removeMembershipBindingWithToken(params: {
+  token: string;
+  nftTokenId: string;
+  nftContract: string;
+}): Promise<void> {
+  console.log("🔐 [tauri-api] removeMembershipBindingWithToken called:", {
+    nftTokenId: params.nftTokenId,
+    nftContract: params.nftContract,
+  });
+
+  try {
+    await invoke("remove_membership_binding_with_token", {
+      input: {
+        token: params.token,
+        nftTokenId: params.nftTokenId,
+        nftContract: params.nftContract,
+      },
+    });
+    console.log("🔐 [tauri-api] removeMembershipBindingWithToken success");
+  } catch (error) {
+    console.error("🔴 [tauri-api] removeMembershipBindingWithToken error:", error);
     throw parseError(error);
   }
 }

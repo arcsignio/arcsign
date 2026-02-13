@@ -3760,6 +3760,11 @@ func AddMembershipBinding(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
+	// Update session memberships and recalculate locked wallets
+	// This ensures the session reflects the new membership immediately
+	sm := initSessionManager()
+	sm.UpdateMembershipsAndRecalculate(input.USBPath, appConfig.GetMemberships())
+
 	output := map[string]interface{}{
 		"success":     true,
 		"walletLimit": appConfig.GetWalletLimit(),
@@ -3828,6 +3833,230 @@ func RemoveMembershipBinding(params *C.char) *C.char {
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
+
+	// Update session memberships and recalculate locked wallets
+	// This ensures the session reflects the removed membership immediately
+	sm := initSessionManager()
+	sm.UpdateMembershipsAndRecalculate(input.USBPath, appConfig.GetMemberships())
+
+	output := map[string]interface{}{
+		"removed":     removed,
+		"walletLimit": appConfig.GetWalletLimit(),
+	}
+
+	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+// ============================================================
+// Session-based Membership Sync FFI Exports
+// ============================================================
+
+//export SyncMembershipBindingWithToken
+// SyncMembershipBindingWithToken adds a membership binding using session token instead of password.
+// This allows frontend to sync on-chain bindings to USB without re-entering password.
+//
+// Input JSON: {
+//   "token": "session-token",
+//   "nftTokenId": "1",
+//   "nftContract": "0x...",
+//   "chainId": "bnb",
+//   "boundAddress": "0x..."
+// }
+func SyncMembershipBindingWithToken(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		debugLog(fmt.Sprintf("SyncMembershipBindingWithToken completed in %v", elapsed))
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		Token        string `json:"token"`
+		NftTokenId   string `json:"nftTokenId"`
+		NftContract  string `json:"nftContract"`
+		ChainId      string `json:"chainId"`
+		BoundAddress string `json:"boundAddress"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate required fields
+	if input.Token == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Token is required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	if input.NftTokenId == "" || input.NftContract == "" || input.BoundAddress == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Missing required fields")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Get session manager and validate token
+	sm := initSessionManager()
+	session, err := sm.ValidateToken(input.Token)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidPassword, fmt.Sprintf("Invalid session token: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Get decrypted password from session
+	appPassword, err := sm.GetProviderKey(input.Token)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidPassword, fmt.Sprintf("Failed to get session key: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	// Load app config using decrypted password
+	appConfig, err := app.LoadAppConfig(appPassword, session.UsbPath)
+	if err != nil {
+		response := NewErrorResponse(ErrAppConfigLoad, fmt.Sprintf("Failed to load app config: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Add membership binding
+	binding := app.MembershipBinding{
+		NftTokenId:   input.NftTokenId,
+		NftContract:  input.NftContract,
+		ChainId:      input.ChainId,
+		BoundAddress: input.BoundAddress,
+		BoundAt:      time.Now(),
+		Signature:    "", // No signature for synced bindings
+		IsValid:      true,
+	}
+
+	if err := appConfig.AddMembership(binding); err != nil {
+		response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Failed to add membership: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Save updated config
+	if err := app.SaveAppConfig(appConfig, appPassword, session.UsbPath); err != nil {
+		response := NewErrorResponse(ErrAppConfigSave, fmt.Sprintf("Failed to save app config: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Update session memberships and recalculate locked wallets
+	sm.UpdateMembershipsAndRecalculate(session.UsbPath, appConfig.GetMemberships())
+
+	output := map[string]interface{}{
+		"success":     true,
+		"walletLimit": appConfig.GetWalletLimit(),
+	}
+
+	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export RemoveMembershipBindingWithToken
+// RemoveMembershipBindingWithToken removes a membership binding using session token.
+//
+// Input JSON: {
+//   "token": "session-token",
+//   "nftTokenId": "1",
+//   "nftContract": "0x..."
+// }
+func RemoveMembershipBindingWithToken(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		debugLog(fmt.Sprintf("RemoveMembershipBindingWithToken completed in %v", elapsed))
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			jsonBytes, _ := json.Marshal(response)
+			_ = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON := C.GoString(params)
+	var input struct {
+		Token       string `json:"token"`
+		NftTokenId  string `json:"nftTokenId"`
+		NftContract string `json:"nftContract"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate required fields
+	if input.Token == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Token is required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	if input.NftTokenId == "" || input.NftContract == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Missing required fields")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Get session manager and validate token
+	sm := initSessionManager()
+	session, err := sm.ValidateToken(input.Token)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidPassword, fmt.Sprintf("Invalid session token: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Get decrypted password from session
+	appPassword, err := sm.GetProviderKey(input.Token)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidPassword, fmt.Sprintf("Failed to get session key: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	// Load app config using decrypted password
+	appConfig, err := app.LoadAppConfig(appPassword, session.UsbPath)
+	if err != nil {
+		response := NewErrorResponse(ErrAppConfigLoad, fmt.Sprintf("Failed to load app config: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Remove membership binding
+	removed := appConfig.RemoveMembership(input.NftTokenId, input.NftContract)
+
+	// Save updated config
+	if err := app.SaveAppConfig(appConfig, appPassword, session.UsbPath); err != nil {
+		response := NewErrorResponse(ErrAppConfigSave, fmt.Sprintf("Failed to save app config: %v", err))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Update session memberships and recalculate locked wallets
+	sm.UpdateMembershipsAndRecalculate(session.UsbPath, appConfig.GetMemberships())
 
 	output := map[string]interface{}{
 		"removed":     removed,

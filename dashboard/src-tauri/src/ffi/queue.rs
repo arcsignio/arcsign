@@ -299,6 +299,16 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Sync membership binding using session token (no password required)
+    SyncMembershipBindingWithToken {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Remove membership binding using session token (no password required)
+    RemoveMembershipBindingWithToken {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
     // ========================================================================
     // Session Management Operations
     // ========================================================================
@@ -595,6 +605,16 @@ impl WalletQueue {
                 }
                 WalletCommand::GetDeviceMembershipStatusWithToken { params_json, respond_to } => {
                     let result = library.get_device_membership_status_with_token(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::SyncMembershipBindingWithToken { params_json, respond_to } => {
+                    let result = library.sync_membership_binding_with_token(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::RemoveMembershipBindingWithToken { params_json, respond_to } => {
+                    let result = library.remove_membership_binding_with_token(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -1329,6 +1349,46 @@ impl WalletQueue {
         .map_err(|e| format!("Task join error: {}", e))?
     }
 
+    /// Sync membership binding using session token (no password required).
+    /// Used to sync on-chain NFT binding state to USB storage.
+    pub async fn sync_membership_binding_with_token(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::SyncMembershipBindingWithToken {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Remove membership binding using session token (no password required).
+    /// Used to remove USB binding when NFT is no longer bound on-chain.
+    pub async fn remove_membership_binding_with_token(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::RemoveMembershipBindingWithToken {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
     // ========================================================================
     // Session Management Operations
     // ========================================================================
@@ -1774,6 +1834,18 @@ impl LazyWalletQueue {
     /// Get device membership status using session token (no password required)
     pub async fn get_device_membership_status_with_token(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().get_device_membership_status_with_token(params_json).await
+    }
+
+    /// Sync membership binding using session token (no password required)
+    /// Used to sync on-chain NFT binding state to USB storage.
+    pub async fn sync_membership_binding_with_token(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().sync_membership_binding_with_token(params_json).await
+    }
+
+    /// Remove membership binding using session token (no password required)
+    /// Used to remove USB binding when NFT is no longer bound on-chain.
+    pub async fn remove_membership_binding_with_token(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().remove_membership_binding_with_token(params_json).await
     }
 
     // ========================================================================
