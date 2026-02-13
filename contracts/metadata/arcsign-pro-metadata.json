@@ -1,0 +1,41 @@
+{
+  "name": "ArcSign Pro Membership",
+  "description": "ArcSign Pro Membership NFT — Secure multi-chain HD wallet with USB-only cold storage. Unlock unlimited wallets across 54+ blockchain networks, built-in DEX swap, WalletConnect integration, and priority support. Valid for 1 year from mint date.",
+  "image": "",
+  "external_url": "https://arcsign.io",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Pro"
+    },
+    {
+      "trait_type": "Duration",
+      "value": "1 Year"
+    },
+    {
+      "trait_type": "Network",
+      "value": "BNB Chain"
+    },
+    {
+      "trait_type": "Token Standard",
+      "value": "ERC-721"
+    },
+    {
+      "display_type": "number",
+      "trait_type": "Chains Supported",
+      "value": 54
+    },
+    {
+      "trait_type": "USB Cold Storage",
+      "value": "Yes"
+    },
+    {
+      "trait_type": "DEX Swap",
+      "value": "Yes"
+    },
+    {
+      "trait_type": "WalletConnect",
+      "value": "Yes"
+    }
+  ]
+}

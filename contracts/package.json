@@ -7,7 +7,10 @@
     "test": "hardhat test",
     "deploy:testnet": "hardhat run scripts/deploy.js --network bscTestnet",
     "deploy:mainnet": "hardhat run scripts/deploy.js --network bsc",
-    "verify": "hardhat verify --network bsc"
+    "verify": "hardhat verify --network bsc",
+    "upload:metadata": "node scripts/upload-metadata.js",
+    "set-uri:mainnet": "hardhat run scripts/set-base-uri.js --network bsc",
+    "set-uri:testnet": "hardhat run scripts/set-base-uri.js --network bscTestnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
