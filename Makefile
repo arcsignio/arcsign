@@ -98,6 +98,21 @@ build-lib-macos: check-cgo
 	lipo -create -output $(LIB_DIR)/$(LIB_NAME).dylib $(LIB_DIR)/$(LIB_NAME)_arm64.dylib $(LIB_DIR)/$(LIB_NAME)_amd64.dylib
 	@echo "✓ Created universal binary"
 	@echo ""
+	@echo "Fixing install names..."
+	install_name_tool -id @rpath/$(LIB_NAME).dylib $(LIB_DIR)/$(LIB_NAME).dylib
+	install_name_tool -change $(LIB_NAME)_arm64.dylib @rpath/$(LIB_NAME).dylib $(LIB_DIR)/$(LIB_NAME).dylib
+	install_name_tool -change $(LIB_NAME)_amd64.dylib @rpath/$(LIB_NAME).dylib $(LIB_DIR)/$(LIB_NAME).dylib
+	@echo "✓ Fixed install names"
+	@echo ""
+	@echo "Signing library (ad-hoc)..."
+	codesign --force --sign - $(LIB_DIR)/$(LIB_NAME).dylib
+	@echo "✓ Library signed"
+	@echo ""
+	@echo "Copying to target/debug..."
+	@mkdir -p $(LIB_DIR)/target/debug
+	cp $(LIB_DIR)/$(LIB_NAME).dylib $(LIB_DIR)/target/debug/
+	@echo "✓ Copied to target/debug"
+	@echo ""
 	@echo "✓ Built: $(LIB_DIR)/$(LIB_NAME).dylib"
 	@if [ -f "$(LIB_DIR)/$(LIB_NAME).dylib" ]; then \
 		echo "✓ File exists"; \
