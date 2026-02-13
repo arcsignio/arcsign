@@ -878,8 +878,8 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
             </div>
           )}
 
-          {/* Show upgrade options if not Pro */}
-          {!membership.isPro && mintStep === 'idle' && bscAddresses.length > 0 && (
+          {/* Show mint options - Pro users can also mint more NFTs for other addresses */}
+          {mintStep === 'idle' && bscAddresses.length > 0 && (
             <div className="upgrade-section">
               <p className="upgrade-hint">{t('membership.selectAddressToMint')}</p>
               <div className="mint-address-list">
