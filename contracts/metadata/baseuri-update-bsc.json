@@ -2,8 +2,8 @@
   "network": "bsc",
   "contractAddress": "0x02EA7B4870Aa0553EF357Af6475727f1E01c7b2F",
   "baseURI": "https://arcsign.io/nft/metadata/",
-  "txHash": "0x9435254b0dd912347a066f0be5573c762ae96fd7e0a0e578b6e957d02c865d01",
-  "blockNumber": 80905257,
-  "updatedAt": "2026-02-13T03:24:04.827Z",
+  "txHash": "0x549ee380dbcc9073a4a9373462967584d41cbab814315164304a4598961e77ca",
+  "blockNumber": 80931540,
+  "updatedAt": "2026-02-13T06:41:15.568Z",
   "signer": "0x2e26cbd533ac3e98d3b650c7f89406ebb6f2f634"
 }
