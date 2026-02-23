@@ -32,6 +32,7 @@ module.exports = {
     bsc: {
       url: "https://bsc-dataseed.binance.org/",
       chainId: 56,
+      gasPrice: 3000000000, // 3 gwei — BSC post-Feynman upgrade allows lower gas
       accounts: [],  // ArcSign plugin will provide signers
       arcsign: true, // Enable ArcSign for this network
     }

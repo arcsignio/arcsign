@@ -797,24 +797,25 @@ pub async fn dev_mode_sign(
     Ok(result)
 }
 
-/// Parse hex string (0x...) to decimal string
+/// Parse a numeric string to decimal string.
+/// Supports both "0x..." hex and plain decimal formats.
+/// IMPORTANT: Only treats strings with "0x" prefix as hex.
+/// Without prefix, always parses as decimal (ethers.js BigInt.toString() returns decimal).
 fn parse_hex_to_decimal(hex_str: &str) -> Option<String> {
     if hex_str.is_empty() || hex_str == "0x" || hex_str == "0x0" {
         return Some("0".to_string());
     }
 
-    let hex_str = if hex_str.starts_with("0x") {
-        &hex_str[2..]
-    } else {
-        hex_str
-    };
-
-    // Try parsing as hex
-    if let Ok(value) = u128::from_str_radix(hex_str, 16) {
-        return Some(value.to_string());
+    // Only parse as hex when 0x prefix is explicitly present
+    if hex_str.starts_with("0x") {
+        let hex_digits = &hex_str[2..];
+        if let Ok(value) = u128::from_str_radix(hex_digits, 16) {
+            return Some(value.to_string());
+        }
+        return None;
     }
 
-    // If not hex, try parsing as decimal
+    // No 0x prefix — parse as decimal
     if hex_str.chars().all(|c| c.is_ascii_digit()) {
         return Some(hex_str.to_string());
     }
@@ -822,24 +823,22 @@ fn parse_hex_to_decimal(hex_str: &str) -> Option<String> {
     None
 }
 
-/// Parse hex string to u64
+/// Parse a numeric string to u64.
+/// Supports both "0x..." hex and plain decimal formats.
+/// IMPORTANT: Only treats strings with "0x" prefix as hex.
+/// Without prefix, always parses as decimal (ethers.js BigInt.toString() returns decimal).
 fn parse_hex_to_u64(hex_str: &str) -> Option<u64> {
     if hex_str.is_empty() || hex_str == "0x" || hex_str == "0x0" {
         return Some(0);
     }
 
-    let hex_str = if hex_str.starts_with("0x") {
-        &hex_str[2..]
-    } else {
-        hex_str
-    };
-
-    // Try parsing as hex
-    if let Ok(value) = u64::from_str_radix(hex_str, 16) {
-        return Some(value);
+    // Only parse as hex when 0x prefix is explicitly present
+    if hex_str.starts_with("0x") {
+        let hex_digits = &hex_str[2..];
+        return u64::from_str_radix(hex_digits, 16).ok();
     }
 
-    // If not hex, try parsing as decimal
+    // No 0x prefix — parse as decimal
     hex_str.parse::<u64>().ok()
 }
 

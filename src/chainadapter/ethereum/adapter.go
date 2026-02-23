@@ -249,11 +249,11 @@ func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.Transacti
 		fmt.Fprintf(os.Stderr, "[ETH Build] Gas estimated: %d\n", gasLimit)
 	}
 
-	// Add 50% buffer to gas estimate for safety (contract calls can vary significantly)
-	// This is especially important for NFT mints which may have variable storage costs
+	// Add 20% buffer to gas estimate for safety
+	// Standard industry practice; unused gas is refunded
 	originalGasLimit := gasLimit
-	gasLimit = gasLimit * 150 / 100
-	fmt.Fprintf(os.Stderr, "[ETH Build] Gas with 50%% buffer: %d (original: %d)\n", gasLimit, originalGasLimit)
+	gasLimit = gasLimit * 120 / 100
+	fmt.Fprintf(os.Stderr, "[ETH Build] Gas with 20%% buffer: %d (original: %d)\n", gasLimit, originalGasLimit)
 
 	// Ensure minimum gas limit for contract calls
 	if len(data) > 0 && gasLimit < 150000 {
@@ -301,8 +301,8 @@ func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.Transacti
 		adjustedGasPrice := new(big.Int).Mul(gasPrice, big.NewInt(multiplier))
 		adjustedGasPrice.Div(adjustedGasPrice, big.NewInt(100))
 
-		// BSC minimum gas price is 1 Gwei
-		minGasPrice := big.NewInt(1e9)
+		// BSC minimum gas price: 0.05 Gwei (post-Feynman upgrade allows much lower gas)
+		minGasPrice := big.NewInt(50000000) // 0.05 Gwei
 		if adjustedGasPrice.Cmp(minGasPrice) < 0 {
 			adjustedGasPrice = minGasPrice
 		}
@@ -319,16 +319,28 @@ func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.Transacti
 
 		baseFee, err := e.rpcHelper.GetBaseFee(ctx)
 		if err != nil {
-			// Fallback to default base fee
-			baseFee = big.NewInt(30e9) // 30 Gwei
-			fmt.Fprintf(os.Stderr, "[ETH Build] Using fallback baseFee: %s\n", baseFee.String())
+			// Fallback base fee depends on chain type:
+			// - L2 chains: 0.1 Gwei (L2 fees are orders of magnitude lower)
+			// - L1 chains: 30 Gwei
+			if isL2Chain {
+				baseFee = big.NewInt(1e8) // 0.1 Gwei for L2
+			} else {
+				baseFee = big.NewInt(30e9) // 30 Gwei for L1
+			}
+			fmt.Fprintf(os.Stderr, "[ETH Build] Using fallback baseFee: %s (L2=%v)\n", baseFee.String(), isL2Chain)
 		}
 
 		priorityFee, err := e.rpcHelper.GetFeeHistory(ctx, 10)
 		if err != nil {
-			// Fallback to default priority fee
-			priorityFee = big.NewInt(2e9) // 2 Gwei
-			fmt.Fprintf(os.Stderr, "[ETH Build] Using fallback priorityFee: %s\n", priorityFee.String())
+			// Fallback priority fee depends on chain type:
+			// - L2 chains: 0.001 Gwei
+			// - L1 chains: 2 Gwei
+			if isL2Chain {
+				priorityFee = big.NewInt(1e6) // 0.001 Gwei for L2
+			} else {
+				priorityFee = big.NewInt(2e9) // 2 Gwei for L1
+			}
+			fmt.Fprintf(os.Stderr, "[ETH Build] Using fallback priorityFee: %s (L2=%v)\n", priorityFee.String(), isL2Chain)
 		}
 
 		// Minimum priority fee depends on chain type:

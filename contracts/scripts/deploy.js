@@ -18,10 +18,25 @@ async function main() {
   console.log("  USDT Address:", usdtAddress);
   console.log("  Treasury Address:", treasuryAddress);
 
+  // Use explicit gasPrice to force legacy tx (avoid EIP-1559 inflated maxFeePerGas)
+  const networkGasPrice = (await hre.ethers.provider.getFeeData()).gasPrice;
+  const gasPrice = BigInt(hre.network.config.gasPrice || networkGasPrice || 3000000000);
+  console.log("\nUsing gasPrice:", hre.ethers.formatUnits(gasPrice, "gwei"), "gwei");
+
   // Deploy ArcSignPro
   console.log("\nDeploying ArcSignPro...");
   const ArcSignPro = await hre.ethers.getContractFactory("ArcSignPro");
-  const arcSignPro = await ArcSignPro.deploy(usdtAddress, treasuryAddress);
+
+  // Estimate deployment cost
+  const deployTx = await ArcSignPro.getDeployTransaction(usdtAddress, treasuryAddress);
+  const estimatedGas = await hre.ethers.provider.estimateGas({ ...deployTx, from: deployer.address });
+  const estimatedCost = estimatedGas * gasPrice;
+  console.log("Estimated gas:", estimatedGas.toString());
+  console.log("Estimated cost:", hre.ethers.formatEther(estimatedCost), "BNB");
+
+  const arcSignPro = await ArcSignPro.deploy(usdtAddress, treasuryAddress, {
+    gasPrice,
+  });
 
   await arcSignPro.waitForDeployment();
 
@@ -31,6 +46,13 @@ async function main() {
   // Wait for a few block confirmations
   console.log("\nWaiting for block confirmations...");
   await arcSignPro.deploymentTransaction().wait(5);
+
+  // Set base URI immediately to avoid empty metadata on platform indexers
+  const baseURI = process.env.BASE_URI || "https://arcsign.io/nft/metadata/";
+  console.log("\nSetting base URI:", baseURI);
+  const setUriTx = await arcSignPro.setBaseURI(baseURI, { gasPrice });
+  await setUriTx.wait(2);
+  console.log("Base URI set successfully!");
 
   // Verify contract on BSCScan
   console.log("\nVerifying contract on BSCScan...");
@@ -69,6 +91,7 @@ async function main() {
     contractAddress,
     usdtAddress,
     treasuryAddress,
+    baseURI,
     deployedAt: new Date().toISOString(),
     deployer: deployer.address
   };

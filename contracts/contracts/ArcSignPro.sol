@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/interfaces/IERC4906.sol";
 
 /**
  * @title ArcSignPro
@@ -23,7 +24,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * Chain: BNB Chain (BSC)
  * USDT Address: 0x55d398326f99059fF775485246999027B3197955
  */
-contract ArcSignPro is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
+contract ArcSignPro is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard, IERC4906 {
     using SafeERC20 for IERC20;
 
     // ============ Constants ============
@@ -277,6 +278,11 @@ contract ArcSignPro is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
     function setBaseURI(string calldata baseURI) external onlyOwner {
         _baseTokenURI = baseURI;
         emit BaseURIUpdated(baseURI);
+
+        // EIP-4906: notify platforms to re-fetch metadata for all tokens
+        if (_nextTokenId > 1) {
+            emit BatchMetadataUpdate(1, _nextTokenId - 1);
+        }
     }
 
     /**
@@ -343,10 +349,11 @@ contract ArcSignPro is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721, ERC721Enumerable)
+        override(ERC721, ERC721Enumerable, IERC165)
         returns (bool)
     {
-        return super.supportsInterface(interfaceId);
+        // EIP-4906: 0x49064906
+        return interfaceId == bytes4(0x49064906) || super.supportsInterface(interfaceId);
     }
 
     // ============ Receive BNB ============
