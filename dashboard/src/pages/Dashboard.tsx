@@ -36,9 +36,10 @@ import type { Wallet } from "@/types/wallet";
 
 type View = "list" | "create" | "import" | "addresses" | "settings" | "api-settings" | "membership" | "detail" | "developer";
 
-// ArcSign Pro NFT contract address on BSC Mainnet
-const NFT_CONTRACT = '0x02EA7B4870Aa0553EF357Af6475727f1E01c7b2F';
-const CHAIN_ID = 'bnb';
+import { ACTIVE_NETWORK } from '@/constants/contracts';
+
+const NFT_CONTRACT = ACTIVE_NETWORK.nftContract;
+const CHAIN_ID = ACTIVE_NETWORK.chainName;
 
 export function Dashboard() {
   const { t } = useTranslation();

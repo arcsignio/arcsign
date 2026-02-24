@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/yourusername/arcsign/internal/constants"
 	"golang.org/x/crypto/hkdf"
 )
 
@@ -366,12 +367,8 @@ func loadWalletsFromFilesystem(usbPath string) []WalletMetadata {
 
 // calculateLockedWallets determines which wallets should be locked based on the wallet limit.
 // Wallets are sorted by creation time (oldest first), and wallets beyond the limit are locked.
-// Formula: walletLimit = 1 + (nftCount * 3)
-// - Free (0 NFT): 1 wallet
-// - Pro (1 NFT): 4 wallets
-// - Pro (n NFTs): 1 + (n * 3) wallets
 func calculateLockedWallets(wallets []WalletMetadata, nftCount int) []string {
-	walletLimit := 1 + (nftCount * 3)
+	walletLimit := constants.WalletLimit(nftCount)
 	walletCount := len(wallets)
 
 	fmt.Printf("[calculateLockedWallets] nftCount=%d, walletLimit=%d, walletCount=%d\n",

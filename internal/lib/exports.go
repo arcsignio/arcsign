@@ -39,6 +39,7 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/yourusername/arcsign/internal/app"
+	"github.com/yourusername/arcsign/internal/constants"
 	"github.com/yourusername/arcsign/internal/provider"
 	"github.com/yourusername/arcsign/internal/rpc"
 	"github.com/yourusername/arcsign/internal/security"
@@ -4270,12 +4271,8 @@ func GetDeviceMembershipStatusWithToken(params *C.char) *C.char {
 	}
 
 	// Calculate wallet limit based on memberships
-	// Formula: 1 + (nft_count * 3)
-	// - Free (0 NFT): 1 wallet
-	// - Pro (1 NFT): 4 wallets
-	// - Pro (n NFTs): 1 + (n * 3) wallets
 	nftCount := len(session.Memberships)
-	walletLimit := 1 + (nftCount * 3)
+	walletLimit := constants.WalletLimit(nftCount)
 	canCreateWallet := walletCount < walletLimit
 
 	// Get locked wallet IDs from session (calculated at login)

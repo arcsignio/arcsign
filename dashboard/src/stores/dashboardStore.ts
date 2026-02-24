@@ -10,6 +10,7 @@ import type { Wallet } from '@/types/wallet';
 import type { Address, AddressFilter } from '@/types/address';
 import { Category } from '@/types/address';
 import type { TokenInfo } from '@/services/tauri-api';
+import { WALLET_LIMIT_FREE } from '@/constants/contracts';
 
 /**
  * Membership status for Pro tier verification
@@ -127,7 +128,7 @@ const initialMembership: MembershipState = {
   nftCount: 0,
   boundNftCount: 0,
   daysRemaining: 0,
-  walletLimit: 1, // Free tier default: 1 + (0 * 3) = 1
+  walletLimit: WALLET_LIMIT_FREE, // Free tier default
   addressNftCounts: [],
   lockedWalletIds: [],
   bindingRequired: true, // Binding is required for Pro status

@@ -37,27 +37,19 @@ interface BscAddress {
   hasPassphrase?: boolean;
 }
 
-// Contract addresses - same as mint-page config
-const IS_TESTNET = false; // Production: Use BSC mainnet
-const TESTNET_CONTRACT = '0x401b0D7D9Ae46fDF75d92d8F218b1F15Dd2DFEc1';
-const TESTNET_USDT = '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd';
-const MAINNET_CONTRACT = '0x02EA7B4870Aa0553EF357Af6475727f1E01c7b2F';
-const MAINNET_USDT = '0x55d398326f99059fF775485246999027B3197955';
-const CONTRACT_ADDRESS = IS_TESTNET ? TESTNET_CONTRACT : MAINNET_CONTRACT;
-const USDT_ADDRESS = IS_TESTNET ? TESTNET_USDT : MAINNET_USDT;
-const BLOCK_EXPLORER_URL = IS_TESTNET ? 'https://testnet.bscscan.com' : 'https://bscscan.com';
-const CHAIN_ID = IS_TESTNET ? 'bnb-testnet' : 'bnb';
-// Membership price in USDT (18 decimals)
-// Testnet: 5 USDT = '5000000000000000000' (for testing with limited testnet USDT)
-// Mainnet: 30 USDT = '30000000000000000000'
-const MEMBERSHIP_PRICE = IS_TESTNET ? '5000000000000000000' : '30000000000000000000';
+// Contract addresses & business constants (single source of truth)
+import {
+  ACTIVE_NETWORK,
+  MEMBERSHIP_PRICE,
+  APPROVE_SELECTOR,
+  MINT_SELECTOR,
+  BIND_DEVICE_SELECTOR,
+} from '@/constants/contracts';
 
-// ERC-20 approve function selector
-const APPROVE_SELECTOR = '0x095ea7b3';
-// NFT mint function selector
-const MINT_SELECTOR = '0x1249c58b';
-// NFT bindDevice function selector: bindDevice(uint256 tokenId, bytes32 deviceHash)
-const BIND_DEVICE_SELECTOR = '0x2754da0a'; // keccak256("bindDevice(uint256,bytes32)")[:4]
+const CONTRACT_ADDRESS = ACTIVE_NETWORK.nftContract;
+const USDT_ADDRESS = ACTIVE_NETWORK.usdt;
+const BLOCK_EXPLORER_URL = ACTIVE_NETWORK.explorer;
+const CHAIN_ID = ACTIVE_NETWORK.chainName;
 
 type MintStep = 'idle' | 'approve' | 'approving' | 'waiting_confirmation' | 'mint' | 'minting' | 'success' | 'error';
 type BindStep = 'idle' | 'binding' | 'success' | 'error';

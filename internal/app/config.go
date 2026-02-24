@@ -21,6 +21,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/yourusername/arcsign/internal/constants"
 )
 
 // AppConfig represents the top-level application configuration
@@ -287,12 +289,8 @@ func (c *AppConfig) CountValidMemberships() int {
 }
 
 // GetWalletLimit returns the maximum number of wallets allowed
-// Formula: 1 + (nftCount * 3)
-// - Free (0 NFT): 1 wallet
-// - Pro (1 NFT): 4 wallets
-// - Pro (n NFTs): 1 + (n * 3) wallets
 func (c *AppConfig) GetWalletLimit() int {
-	return 1 + (c.CountValidMemberships() * 3)
+	return constants.WalletLimit(c.CountValidMemberships())
 }
 
 // CanCreateWallet checks if a new wallet can be created

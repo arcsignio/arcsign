@@ -6,8 +6,10 @@
 // Fee collection address on BSC (update with actual treasury address)
 export const FEE_TREASURY_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-// BSC USDT contract address
-export const BSC_USDT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
+import { CONTRACTS } from './contracts';
+
+// BSC USDT contract address (from single source of truth)
+export const BSC_USDT_ADDRESS = CONTRACTS.mainnet.usdt;
 
 // Fee amount: 0.1 USDT (18 decimals)
 export const SWAP_FEE_AMOUNT = '100000000000000000'; // 0.1 * 10^18

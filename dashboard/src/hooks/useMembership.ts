@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
+import { WALLET_LIMIT_FREE } from "@/constants/contracts";
 
 /**
  * Membership status from the backend
@@ -96,8 +97,8 @@ export function useCanCreateWallet(
         setCanCreate(result);
       } catch (err) {
         console.error("Failed to check wallet creation permission:", err);
-        // Default to tier-based logic: 1 free + 3 per NFT
-        setCanCreate(isPro ? true : currentWalletCount < 1);
+        // Default to tier-based logic
+        setCanCreate(isPro ? true : currentWalletCount < WALLET_LIMIT_FREE);
       } finally {
         setIsChecking(false);
       }

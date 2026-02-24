@@ -21,7 +21,17 @@ const BSC_RPC_URL: &str = BSC_MAINNET_RPC_URL;
 
 /// ArcSign Pro NFT contract address on BSC Mainnet
 /// Deployed: 2026-01-06 (Price: 30 USDT)
+/// CANONICAL SOURCE: dashboard/src/constants/contracts.ts
 const ARCSIGN_PRO_CONTRACT: &str = "0x02EA7B4870Aa0553EF357Af6475727f1E01c7b2F";
+
+/// Wallet limit constants (keep in sync with constants/contracts.ts and internal/constants/business.go)
+const WALLET_LIMIT_FREE: u64 = 1;
+const WALLET_LIMIT_PER_NFT: u64 = 3;
+
+/// Calculate wallet limit: WALLET_LIMIT_FREE + (nft_count * WALLET_LIMIT_PER_NFT)
+fn calc_wallet_limit(nft_count: u64) -> u64 {
+    WALLET_LIMIT_FREE + (nft_count * WALLET_LIMIT_PER_NFT)
+}
 
 /// Membership status response
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -331,12 +341,7 @@ pub async fn check_membership(
 
     tracing::info!("Membership check complete: is_pro={}, nft_count={}", is_pro, nft_count);
 
-    // Calculate wallet limit based on NFT count
-    // Formula: 1 + (nft_count * 3)
-    // - Free (0 NFT): 1 wallet
-    // - Pro (1 NFT): 4 wallets
-    // - Pro (n NFTs): 1 + (n * 3) wallets
-    let wallet_limit = 1 + (nft_count * 3);
+    let wallet_limit = calc_wallet_limit(nft_count);
 
     Ok(MembershipStatus {
         is_pro,
@@ -662,24 +667,16 @@ pub fn get_membership_tier(is_pro: bool) -> String {
 }
 
 /// Check if wallet creation is allowed based on membership
-/// Formula: 1 + (nft_count * 3)
-/// - Free (0 NFT): 1 wallet
-/// - Pro (1 NFT): 4 wallets
-/// - Pro (n NFTs): 1 + (n * 3) wallets
+/// Check if wallet creation is allowed based on membership
 #[tauri::command]
 pub fn can_create_wallet(current_wallet_count: u64, nft_count: u64) -> bool {
-    let limit = 1 + (nft_count * 3);
-    current_wallet_count < limit
+    current_wallet_count < calc_wallet_limit(nft_count)
 }
 
 /// Get wallet limit based on NFT count
-/// Formula: 1 + (nft_count * 3)
-/// - Free (0 NFT): 1 wallet
-/// - Pro (1 NFT): 4 wallets
-/// - Pro (n NFTs): 1 + (n * 3) wallets
 #[tauri::command]
 pub fn get_wallet_limit(nft_count: u64) -> u64 {
-    1 + (nft_count * 3)
+    calc_wallet_limit(nft_count)
 }
 
 // ============================================================================
@@ -697,7 +694,7 @@ pub struct DeviceMembershipStatus {
     pub device_id: String,
     /// keccak256(deviceId) for contract binding
     pub device_id_hash: String,
-    /// Maximum wallets allowed: 1 + (nft_count * 3)
+    /// Maximum wallets allowed (calculated by calc_wallet_limit)
     pub wallet_limit: u64,
     /// Current number of wallets
     pub wallet_count: u64,
