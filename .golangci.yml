@@ -1,0 +1,23 @@
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+issues:
+  exclude-rules:
+    # Tests often ignore errors intentionally
+    - path: _test\.go
+      linters:
+        - errcheck
+    # CGO exports look unused to static analysis
+    - path: internal/lib/exports\.go
+      linters:
+        - unused

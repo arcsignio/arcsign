@@ -1,0 +1,249 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  version-check:
+    name: Version Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify version consistency
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          echo "Tag version: $TAG_VERSION"
+
+          PKG_VERSION=$(node -p "require('./dashboard/package.json').version")
+          TAURI_VERSION=$(node -p "require('./dashboard/src-tauri/tauri.conf.json').package.version")
+          CARGO_VERSION=$(grep '^version' dashboard/src-tauri/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+
+          echo "package.json:    $PKG_VERSION"
+          echo "tauri.conf.json: $TAURI_VERSION"
+          echo "Cargo.toml:      $CARGO_VERSION"
+
+          MISMATCH=0
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::package.json version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
+            MISMATCH=1
+          fi
+          if [ "$TAG_VERSION" != "$TAURI_VERSION" ]; then
+            echo "::error::tauri.conf.json version ($TAURI_VERSION) does not match tag ($TAG_VERSION)"
+            MISMATCH=1
+          fi
+          if [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
+            echo "::error::Cargo.toml version ($CARGO_VERSION) does not match tag ($TAG_VERSION)"
+            MISMATCH=1
+          fi
+
+          if [ "$MISMATCH" -eq 1 ]; then
+            echo ""
+            echo "Fix: run 'node scripts/version.js $TAG_VERSION' to sync versions"
+            exit 1
+          fi
+
+          echo "All versions match: $TAG_VERSION"
+
+  build-go-libs:
+    name: Build Go Libs (${{ matrix.target }})
+    needs: version-check
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux
+            output: libarcsign.so
+          - os: macos-latest
+            target: macos
+            output: libarcsign.dylib
+          - os: windows-latest
+            target: windows
+            output: libarcsign.dll
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      # Linux build
+      - name: Build Linux SO
+        if: matrix.target == 'linux'
+        run: CGO_ENABLED=1 go build -buildmode=c-shared -o libarcsign.so internal/lib/*.go
+
+      # macOS universal binary build
+      - name: Build macOS arm64
+        if: matrix.target == 'macos'
+        run: CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -buildmode=c-shared -o libarcsign_arm64.dylib internal/lib/*.go
+
+      - name: Build macOS amd64
+        if: matrix.target == 'macos'
+        run: CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -buildmode=c-shared -o libarcsign_amd64.dylib internal/lib/*.go
+
+      - name: Create universal binary
+        if: matrix.target == 'macos'
+        run: |
+          lipo -create -output libarcsign.dylib libarcsign_arm64.dylib libarcsign_amd64.dylib
+          install_name_tool -id @rpath/libarcsign.dylib libarcsign.dylib
+          codesign --force --sign - libarcsign.dylib
+          lipo -info libarcsign.dylib
+
+      # Windows build
+      - name: Build Windows DLL
+        if: matrix.target == 'windows'
+        run: go build -buildmode=c-shared -o libarcsign.dll internal/lib/*.go
+        env:
+          CGO_ENABLED: "1"
+
+      - name: Upload Go library
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-lib-${{ matrix.target }}
+          path: ${{ matrix.output }}
+          retention-days: 1
+
+  build-tauri-apps:
+    name: Build App (${{ matrix.target }})
+    needs: build-go-libs
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: macos
+            lib_name: libarcsign.dylib
+            lib_artifact: go-lib-macos
+          - os: ubuntu-22.04
+            target: linux
+            lib_name: libarcsign.so
+            lib_artifact: go-lib-linux
+          - os: windows-latest
+            target: windows
+            lib_name: libarcsign.dll
+            lib_artifact: go-lib-windows
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: dashboard/src-tauri
+
+      # Download Go shared library into Tauri source directory
+      - name: Download Go library
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.lib_artifact }}
+          path: dashboard/src-tauri
+
+      - name: Verify Go library (Unix)
+        if: matrix.target != 'windows'
+        run: ls -la dashboard/src-tauri/${{ matrix.lib_name }}
+
+      - name: Verify Go library (Windows)
+        if: matrix.target == 'windows'
+        run: Get-Item dashboard/src-tauri/${{ matrix.lib_name }}
+
+      # Linux-specific dependencies
+      - name: Install Linux dependencies
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Install dashboard dependencies
+        working-directory: dashboard
+        run: npm ci
+
+      - name: Build with Tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_WALLETCONNECT_PROJECT_ID: ${{ secrets.VITE_WALLETCONNECT_PROJECT_ID }}
+          # macOS signing (optional - builds succeed without these)
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          projectPath: dashboard
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-app-${{ matrix.target }}
+          path: |
+            dashboard/src-tauri/target/release/bundle/**/*.dmg
+            dashboard/src-tauri/target/release/bundle/**/*.msi
+            dashboard/src-tauri/target/release/bundle/**/*.exe
+            dashboard/src-tauri/target/release/bundle/**/*.deb
+            dashboard/src-tauri/target/release/bundle/**/*.AppImage
+          retention-days: 5
+
+  create-release:
+    name: Create Release
+    needs: build-tauri-apps
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: tauri-app-*
+          merge-multiple: false
+
+      - name: List artifacts
+        run: find artifacts -type f | head -50
+
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          find . -type f \( -name "*.dmg" -o -name "*.msi" -o -name "*.exe" -o -name "*.deb" -o -name "*.AppImage" \) -exec sha256sum {} \; | sort > SHA256SUMS
+          echo "=== SHA256SUMS ==="
+          cat SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ArcSign ${{ github.ref_name }}
+          body: |
+            ## ArcSign ${{ github.ref_name }}
+
+            ### Downloads
+
+            | Platform | File |
+            |----------|------|
+            | macOS (ARM64 + Intel) | `*.dmg` |
+            | Windows (x64) | `*.msi` |
+            | Linux (x64) | `*.deb`, `*.AppImage` |
+
+            ### Checksums
+            See `SHA256SUMS` in the release assets.
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.msi
+            artifacts/**/*.exe
+            artifacts/**/*.deb
+            artifacts/**/*.AppImage
+            artifacts/**/SHA256SUMS
+          draft: true
+          prerelease: false

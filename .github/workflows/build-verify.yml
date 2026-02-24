@@ -1,0 +1,156 @@
+name: Build Verify
+
+on:
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: build-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go-lib-linux:
+    name: Go Lib (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Build Linux shared library
+        run: CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -buildmode=c-shared -o libarcsign.so internal/lib/*.go
+
+      - name: Verify build output
+        run: file libarcsign.so
+
+  go-lib-macos:
+    name: Go Lib (macOS Universal)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Build arm64
+        run: CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -buildmode=c-shared -o libarcsign_arm64.dylib internal/lib/*.go
+
+      - name: Build amd64
+        run: CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -buildmode=c-shared -o libarcsign_amd64.dylib internal/lib/*.go
+
+      - name: Create universal binary
+        run: lipo -create -output libarcsign.dylib libarcsign_arm64.dylib libarcsign_amd64.dylib
+
+      - name: Fix install name
+        run: install_name_tool -id @rpath/libarcsign.dylib libarcsign.dylib
+
+      - name: Verify universal binary
+        run: lipo -info libarcsign.dylib
+
+  go-lib-windows:
+    name: Go Lib (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Build Windows DLL
+        run: go build -buildmode=c-shared -o libarcsign.dll internal/lib/*.go
+        env:
+          CGO_ENABLED: "1"
+
+      - name: Verify build output
+        run: if (Test-Path libarcsign.dll) { Write-Host "DLL built successfully"; Get-Item libarcsign.dll } else { exit 1 }
+
+  dashboard-build:
+    name: Dashboard Build
+    runs-on: ubuntu-latest
+    env:
+      VITE_WALLETCONNECT_PROJECT_ID: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: dashboard
+        run: npm ci
+
+      - name: TypeScript check
+        working-directory: dashboard
+        run: npx tsc --noEmit
+
+      - name: Vite build
+        working-directory: dashboard
+        run: npx vite build
+
+  contracts-compile:
+    name: Contracts Compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: contracts/package-lock.json
+
+      - name: Install hardhat-plugin dependencies
+        working-directory: packages/hardhat-plugin
+        run: npm ci
+
+      - name: Install contract dependencies
+        working-directory: contracts
+        run: npm ci
+
+      - name: Compile contracts
+        working-directory: contracts
+        run: npx hardhat compile
+
+  tauri-check:
+    name: Tauri Rust Check
+    runs-on: ubuntu-22.04
+    env:
+      VITE_WALLETCONNECT_PROJECT_ID: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: dashboard/src-tauri
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dashboard dependencies
+        working-directory: dashboard
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: dashboard
+        run: npm run build
+
+      - name: Cargo check
+        working-directory: dashboard/src-tauri
+        run: cargo check
