@@ -96,8 +96,8 @@ export function useCanCreateWallet(
         setCanCreate(result);
       } catch (err) {
         console.error("Failed to check wallet creation permission:", err);
-        // Default to tier-based logic
-        setCanCreate(isPro ? true : currentWalletCount < 3);
+        // Default to tier-based logic: 1 free + 3 per NFT
+        setCanCreate(isPro ? true : currentWalletCount < 1);
       } finally {
         setIsChecking(false);
       }

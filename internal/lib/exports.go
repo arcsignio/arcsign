@@ -3556,7 +3556,7 @@ func GetSwapTokens(params *C.char) *C.char {
 //   "data": {
 //     "deviceId": "uuid-string",
 //     "deviceIdHash": "0x...",  // keccak256(deviceId) for contract binding
-//     "walletLimit": 3,
+//     "walletLimit": 1,
 //     "walletCount": 1,
 //     "canCreateWallet": true,
 //     "memberships": [{

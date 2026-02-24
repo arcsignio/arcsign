@@ -287,11 +287,12 @@ func (c *AppConfig) CountValidMemberships() int {
 }
 
 // GetWalletLimit returns the maximum number of wallets allowed
-// Free: 3 wallets, each valid NFT adds 5 more
+// Formula: 1 + (nftCount * 3)
+// - Free (0 NFT): 1 wallet
+// - Pro (1 NFT): 4 wallets
+// - Pro (n NFTs): 1 + (n * 3) wallets
 func (c *AppConfig) GetWalletLimit() int {
-	const freeLimit = 3
-	const perNftLimit = 5
-	return freeLimit + (c.CountValidMemberships() * perNftLimit)
+	return 1 + (c.CountValidMemberships() * 3)
 }
 
 // CanCreateWallet checks if a new wallet can be created

@@ -697,7 +697,7 @@ pub struct DeviceMembershipStatus {
     pub device_id: String,
     /// keccak256(deviceId) for contract binding
     pub device_id_hash: String,
-    /// Maximum wallets allowed (3 free + 5 per NFT)
+    /// Maximum wallets allowed: 1 + (nft_count * 3)
     pub wallet_limit: u64,
     /// Current number of wallets
     pub wallet_count: u64,
