@@ -3,8 +3,9 @@
  * Feature: Settings menu with sub-options
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getVersion } from '@tauri-apps/api/app';
 
 interface SettingsProps {
   onBack: () => void;
@@ -55,6 +56,11 @@ const DEVELOPER_ITEM: SettingItem = {
 
 export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
   const { t } = useTranslation();
+  const [appVersion, setAppVersion] = useState('...');
+
+  useEffect(() => {
+    getVersion().then(v => setAppVersion(v)).catch(() => setAppVersion('unknown'));
+  }, []);
 
   return (
     <div className="settings-page">
@@ -109,7 +115,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
           <img src="/logo.png" alt="ArcSign" className="about-logo" />
           <div className="about-info">
             <h3 className="about-title">ArcSign</h3>
-            <p className="about-version">v1.1.2</p>
+            <p className="about-version">v{appVersion}</p>
             <p className="about-desc">Secure Multi-Chain HD Wallet</p>
           </div>
           <div className="about-links">

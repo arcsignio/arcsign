@@ -10,7 +10,7 @@ jobs:
     name: Version Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Verify version consistency
         run: |
@@ -65,9 +65,9 @@ jobs:
             output: libarcsign.dll
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version: stable
 
@@ -106,7 +106,7 @@ jobs:
           CC: gcc
 
       - name: Upload Go library
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: go-lib-${{ matrix.target }}
           path: ${{ matrix.output }}
@@ -133,23 +133,23 @@ jobs:
             lib_artifact: go-lib-windows
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "20"
           cache: npm
           cache-dependency-path: dashboard/package-lock.json
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
 
-      - uses: swatinem/rust-cache@v2
+      - uses: swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
         with:
           workspaces: dashboard/src-tauri
 
       # Download Go shared library into Tauri source directory
       - name: Download Go library
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: ${{ matrix.lib_artifact }}
           path: dashboard/src-tauri
@@ -174,30 +174,41 @@ jobs:
         run: npm ci
 
       - name: Build with Tauri
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa # v0.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VITE_WALLETCONNECT_PROJECT_ID: ${{ secrets.VITE_WALLETCONNECT_PROJECT_ID }}
-          # macOS signing — only set these when Apple Developer secrets are configured
-          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          # APPLE_ID: ${{ secrets.APPLE_ID }}
-          # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Tauri updater signing (all platforms)
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          # macOS code signing + notarization (activate once Apple Developer secrets are configured)
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: dashboard
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: tauri-app-${{ matrix.target }}
           path: |
             dashboard/src-tauri/target/release/bundle/**/*.dmg
+            dashboard/src-tauri/target/release/bundle/**/*.app.tar.gz
+            dashboard/src-tauri/target/release/bundle/**/*.app.tar.gz.sig
             dashboard/src-tauri/target/release/bundle/**/*.msi
+            dashboard/src-tauri/target/release/bundle/**/*.msi.zip
+            dashboard/src-tauri/target/release/bundle/**/*.msi.zip.sig
             dashboard/src-tauri/target/release/bundle/**/*.exe
+            dashboard/src-tauri/target/release/bundle/**/*.nsis.zip
+            dashboard/src-tauri/target/release/bundle/**/*.nsis.zip.sig
             dashboard/src-tauri/target/release/bundle/**/*.deb
             dashboard/src-tauri/target/release/bundle/**/*.AppImage
+            dashboard/src-tauri/target/release/bundle/**/*.AppImage.tar.gz
+            dashboard/src-tauri/target/release/bundle/**/*.AppImage.tar.gz.sig
           retention-days: 5
 
   create-release:
@@ -207,10 +218,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: artifacts
           pattern: tauri-app-*
@@ -224,6 +235,8 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p release-assets
 
+          # === Installer artifacts (for direct download) ===
+
           # macOS DMG
           DMG=$(find artifacts -name "*.dmg" | head -1)
           if [ -n "$DMG" ]; then
@@ -231,13 +244,13 @@ jobs:
           fi
 
           # Windows MSI
-          MSI=$(find artifacts -name "*.msi" | head -1)
+          MSI=$(find artifacts -name "*.msi" ! -name "*.msi.zip" | head -1)
           if [ -n "$MSI" ]; then
             cp "$MSI" "release-assets/ArcSign-${VERSION}-Windows-x64.msi"
           fi
 
           # Windows EXE (NSIS installer)
-          EXE=$(find artifacts -name "*.exe" | head -1)
+          EXE=$(find artifacts -name "*-setup.exe" -o -name "*_x64-setup.exe" | head -1)
           if [ -n "$EXE" ]; then
             cp "$EXE" "release-assets/ArcSign-${VERSION}-Windows-x64-Setup.exe"
           fi
@@ -249,9 +262,41 @@ jobs:
           fi
 
           # Linux AppImage
-          APPIMAGE=$(find artifacts -name "*.AppImage" | head -1)
+          APPIMAGE=$(find artifacts -name "*.AppImage" ! -name "*.AppImage.tar.gz" ! -name "*.AppImage.tar.gz.sig" | head -1)
           if [ -n "$APPIMAGE" ]; then
             cp "$APPIMAGE" "release-assets/ArcSign-${VERSION}-Linux-x64.AppImage"
+          fi
+
+          # === Updater artifacts (for OTA auto-update) ===
+
+          # macOS updater bundle (.app.tar.gz + .sig)
+          MAC_TAR=$(find artifacts -name "*.app.tar.gz" ! -name "*.sig" | head -1)
+          MAC_SIG=$(find artifacts -name "*.app.tar.gz.sig" | head -1)
+          if [ -n "$MAC_TAR" ]; then
+            cp "$MAC_TAR" "release-assets/ArcSign.app.tar.gz"
+          fi
+          if [ -n "$MAC_SIG" ]; then
+            cp "$MAC_SIG" "release-assets/ArcSign.app.tar.gz.sig"
+          fi
+
+          # Windows NSIS updater bundle (.nsis.zip + .sig)
+          WIN_NSIS_ZIP=$(find artifacts -name "*.nsis.zip" ! -name "*.sig" | head -1)
+          WIN_NSIS_SIG=$(find artifacts -name "*.nsis.zip.sig" | head -1)
+          if [ -n "$WIN_NSIS_ZIP" ]; then
+            cp "$WIN_NSIS_ZIP" "release-assets/ArcSign-${VERSION}-Windows-x64-Setup.nsis.zip"
+          fi
+          if [ -n "$WIN_NSIS_SIG" ]; then
+            cp "$WIN_NSIS_SIG" "release-assets/ArcSign-${VERSION}-Windows-x64-Setup.nsis.zip.sig"
+          fi
+
+          # Linux updater bundle (.AppImage.tar.gz + .sig)
+          LINUX_TAR=$(find artifacts -name "*.AppImage.tar.gz" ! -name "*.sig" | head -1)
+          LINUX_SIG=$(find artifacts -name "*.AppImage.tar.gz.sig" | head -1)
+          if [ -n "$LINUX_TAR" ]; then
+            cp "$LINUX_TAR" "release-assets/ArcSign-${VERSION}-Linux-x64.AppImage.tar.gz"
+          fi
+          if [ -n "$LINUX_SIG" ]; then
+            cp "$LINUX_SIG" "release-assets/ArcSign-${VERSION}-Linux-x64.AppImage.tar.gz.sig"
           fi
 
           echo "=== Release Assets ==="
@@ -264,8 +309,63 @@ jobs:
           echo "=== SHA256SUMS ==="
           cat SHA256SUMS
 
+      - name: Generate updater manifest (latest.json)
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          REPO="Jason-chen-taiwan/arcSignv2"
+          BASE_URL="https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}"
+          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Read signatures from .sig files (empty string if not found)
+          MAC_SIG=""
+          if [ -f "release-assets/ArcSign.app.tar.gz.sig" ]; then
+            MAC_SIG=$(cat "release-assets/ArcSign.app.tar.gz.sig")
+          fi
+
+          WIN_SIG=""
+          WIN_SIG_FILE=$(find release-assets -name "*.nsis.zip.sig" | head -1)
+          if [ -n "$WIN_SIG_FILE" ]; then
+            WIN_SIG=$(cat "$WIN_SIG_FILE")
+          fi
+
+          LINUX_SIG=""
+          LINUX_SIG_FILE=$(find release-assets -name "*.AppImage.tar.gz.sig" | head -1)
+          if [ -n "$LINUX_SIG_FILE" ]; then
+            LINUX_SIG=$(cat "$LINUX_SIG_FILE")
+          fi
+
+          # Build latest.json — Tauri v1 updater manifest
+          cat > release-assets/latest.json << MANIFEST_EOF
+          {
+            "version": "${VERSION}",
+            "notes": "ArcSign v${VERSION} is available. See release notes at https://github.com/${REPO}/releases/tag/${GITHUB_REF_NAME}",
+            "pub_date": "${DATE}",
+            "platforms": {
+              "darwin-aarch64": {
+                "signature": "${MAC_SIG}",
+                "url": "${BASE_URL}/ArcSign.app.tar.gz"
+              },
+              "darwin-x86_64": {
+                "signature": "${MAC_SIG}",
+                "url": "${BASE_URL}/ArcSign.app.tar.gz"
+              },
+              "linux-x86_64": {
+                "signature": "${LINUX_SIG}",
+                "url": "${BASE_URL}/ArcSign-${VERSION}-Linux-x64.AppImage.tar.gz"
+              },
+              "windows-x86_64": {
+                "signature": "${WIN_SIG}",
+                "url": "${BASE_URL}/ArcSign-${VERSION}-Windows-x64-Setup.nsis.zip"
+              }
+            }
+          }
+          MANIFEST_EOF
+
+          echo "=== latest.json ==="
+          cat release-assets/latest.json
+
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           tag_name: ${{ github.ref_name }}
           name: ArcSign ${{ github.ref_name }}
@@ -299,11 +399,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: master
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "20"
 

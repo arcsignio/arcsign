@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/yourusername/arcsign/internal/constants"
+	"github.com/yourusername/arcsign/internal/security"
 	"golang.org/x/crypto/hkdf"
 )
 
@@ -46,32 +48,35 @@ const (
 	// Grace period: support previous version for 7 days during rotation
 )
 
-// Server peppers for HKDF key derivation (version-based key rotation)
-// Security: These server-side secrets prevent offline decryption attacks
-// Even if token + EncryptedProviderKey are stolen, attacker cannot decrypt without pepper
-// Production: Load from secure environment variables or key management system (AWS KMS, HashiCorp Vault)
-var serverPeppers = map[int]string{
-	// Version 1: Current pepper (generated 2026-01-12)
-	// ⚠️ CRITICAL: Replace this with a secure random 32+ byte string in production
-	// Generate with: openssl rand -base64 32
-	1: "KzJ8mR9qL3vN5wXpY2tC6fH4bV7sA1dE8nM0gT3xU9yZ4rI6oP5jQ2kW8hB7lF3v",
+// serverPeppers holds process-lifetime pepper values for HKDF key derivation.
+// Security: These server-side secrets prevent offline decryption attacks —
+// even if token + EncryptedProviderKey are stolen, attacker cannot decrypt without pepper.
+//
+// Generated fresh on each app launch using crypto/rand.
+// Since sessions are memory-only (lost on restart), the pepper doesn't need persistence.
+// This means: nothing to configure, nothing to steal from disk or binary, maximum entropy.
+var serverPeppers = map[int]string{}
 
-	// Version 0: Deprecated (for migration period only, will be removed)
-	// Old sessions encrypted with this pepper can still be decrypted
-	// Remove this after all users have re-authenticated (grace period: 7 days)
-	0: "arcsign-v2-session-encryption-pepper-2026-change-in-production",
+func init() {
+	// Generate 32 cryptographically random bytes as the session pepper.
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		panic("arcsign: crypto/rand failed — cannot generate session pepper: " + err.Error())
+	}
+	serverPeppers[CurrentPepperVersion] = base64.StdEncoding.EncodeToString(raw)
+	security.SecureZero(raw)
 }
 
-// getCurrentPepper returns the current version pepper
+// getCurrentPepper returns the current pepper version and value.
 func getCurrentPepper() (int, string) {
 	return CurrentPepperVersion, serverPeppers[CurrentPepperVersion]
 }
 
-// getPepper returns pepper by version (for decryption of old sessions)
+// getPepper returns the pepper for the given version.
 func getPepper(version int) (string, error) {
 	pepper, exists := serverPeppers[version]
 	if !exists {
-		return "", fmt.Errorf("pepper version %d not found (may have been rotated out)", version)
+		return "", fmt.Errorf("pepper version %d not found", version)
 	}
 	return pepper, nil
 }

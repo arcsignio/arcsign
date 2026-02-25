@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -29,11 +30,15 @@ const (
 	// AppConfigFileName is the name of the encrypted config file
 	AppConfigFileName = "app_config.enc"
 
-	// Argon2id parameters (same as wallet encryption for consistency)
-	Argon2Time    = 1
-	Argon2Memory  = 64 * 1024
+	// Argon2id parameters — aligned with mnemonic encryption (crypto/encryption.go)
+	Argon2Time    = 4
+	Argon2Memory  = 256 * 1024 // 256 MiB
 	Argon2Threads = 4
 	Argon2KeyLen  = 32
+
+	// Legacy Argon2 parameters (for migration of old app_config.enc files)
+	legacyArgon2Time   uint32 = 1
+	legacyArgon2Memory uint32 = 64 * 1024
 )
 
 // EncryptedConfig represents the structure of app_config.enc file
@@ -61,6 +66,8 @@ func InitializeAppConfig(password, usbPath string) error {
 }
 
 // LoadAppConfig loads and decrypts app_config.enc
+// Supports transparent migration from legacy Argon2 parameters (Time=1, Memory=64MB)
+// to current parameters (Time=4, Memory=256MB).
 func LoadAppConfig(password, usbPath string) (*AppConfig, error) {
 	configPath := filepath.Join(usbPath, AppConfigFileName)
 
@@ -92,31 +99,50 @@ func LoadAppConfig(password, usbPath string) (*AppConfig, error) {
 		return nil, fmt.Errorf("failed to decode ciphertext: %w", err)
 	}
 
-	// Derive key from password
-	key := argon2.IDKey([]byte(password), salt, Argon2Time, Argon2Memory, Argon2Threads, Argon2KeyLen)
+	// Try current (strong) parameters first
+	config, err := tryDecryptAppConfig(password, salt, nonce, ciphertext, Argon2Time, Argon2Memory)
+	if err == nil {
+		return config, nil
+	}
+
+	// Fallback: try legacy parameters for migration
+	config, legacyErr := tryDecryptAppConfig(password, salt, nonce, ciphertext, legacyArgon2Time, legacyArgon2Memory)
+	if legacyErr != nil {
+		// Neither worked — password is incorrect
+		return nil, fmt.Errorf("failed to decrypt app config (incorrect password?): %w", err)
+	}
+
+	// Migration: re-encrypt with strong parameters
+	fmt.Fprintf(os.Stderr, "[Security] Migrating app_config.enc to stronger Argon2 parameters\n")
+	if saveErr := SaveAppConfig(config, password, usbPath); saveErr != nil {
+		fmt.Fprintf(os.Stderr, "[Security] Warning: failed to re-encrypt with new parameters: %v\n", saveErr)
+	}
+
+	return config, nil
+}
+
+// tryDecryptAppConfig attempts to decrypt with specific Argon2 parameters
+func tryDecryptAppConfig(password string, salt, nonce, ciphertext []byte, argon2Time, argon2Memory uint32) (*AppConfig, error) {
+	key := argon2.IDKey([]byte(password), salt, argon2Time, argon2Memory, Argon2Threads, Argon2KeyLen)
 	defer func() {
-		// Clear key from memory
 		for i := range key {
 			key[i] = 0
 		}
 	}()
 
-	// Decrypt data
 	plaintext, err := decryptAESGCM(key, nonce, ciphertext)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt app config (incorrect password?): %w", err)
+		return nil, err
 	}
 	defer func() {
-		// Clear plaintext from memory
 		for i := range plaintext {
 			plaintext[i] = 0
 		}
 	}()
 
-	// Parse AppConfig
 	config, err := FromJSON(plaintext)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse decrypted config: %w", err)
+		return nil, err
 	}
 
 	return config, nil
@@ -180,8 +206,16 @@ func SaveAppConfig(config *AppConfig, password, usbPath string) error {
 }
 
 // VerifyAppPassword verifies the password by attempting to decrypt app_config.enc
+// Uses constant-time behavior to prevent timing side-channel attacks.
 func VerifyAppPassword(password, usbPath string) error {
+	const minDuration = 200 * time.Millisecond
+	start := time.Now()
 	_, err := LoadAppConfig(password, usbPath)
+	// Ensure constant timing regardless of success/failure
+	elapsed := time.Since(start)
+	if elapsed < minDuration {
+		time.Sleep(minDuration - elapsed)
+	}
 	return err
 }
 

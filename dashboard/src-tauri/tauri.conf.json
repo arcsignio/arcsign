@@ -69,7 +69,7 @@
       "identifier": "com.arcsign.dashboard",
       "longDescription": "Multi-chain HD wallet management application supporting 54+ blockchains",
       "macOS": {
-        "entitlements": null,
+        "entitlements": "Entitlements.plist",
         "exceptionDomain": "",
         "frameworks": [],
         "providerShortName": null,
@@ -83,14 +83,19 @@
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
+        "timestampUrl": "http://timestamp.digicert.com"
       }
     },
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:* wss://relay.walletconnect.com https://relay.walletconnect.com https://rpc.walletconnect.com https://verify.walletconnect.com https://api.github.com https://*.llamarpc.com https://bsc-dataseed.binance.org https://polygon-rpc.com https://*.arbitrum.io https://mainnet.optimism.io https://mainnet.base.org https://api.llama.fi; img-src 'self' data: https://coin-images.coingecko.com https://assets.coingecko.com https://*.lido.fi; font-src 'self' data:"
     },
     "updater": {
-      "active": false
+      "active": true,
+      "endpoints": [
+        "https://github.com/Jason-chen-taiwan/arcSignv2/releases/latest/download/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVDQjRENTZFMzQ3QkVBRkEKUldUNjZuczBidFcwWEplZVdoSlp1MGxvMHhzclBGM3lmZlIrZmFJTDBLKzJ3bVZGNUM4b0ZrdnAK"
     },
     "windows": [
       {
