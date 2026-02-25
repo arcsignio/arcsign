@@ -92,7 +92,7 @@ describe('Wallet Creation Flow - End-to-End Integration', () => {
     expect(true).toBe(true); // Placeholder
   });
 
-  it('should clear mnemonic from state after confirmation', async () {
+  it('should clear mnemonic from state after confirmation', async () => {
     // TODO: Test memory cleanup
     // 1. User confirms mnemonic backup
     // 2. Mnemonic value cleared from React state

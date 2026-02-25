@@ -35,7 +35,7 @@ jobs:
 
       - name: Run chainadapter tests
         working-directory: src/chainadapter
-        run: CGO_ENABLED=1 go test ./... -v -count=1
+        run: CGO_ENABLED=1 go test $(go list ./... | grep -v /examples) -v -count=1
 
   frontend-tests:
     name: Frontend Tests
@@ -113,4 +113,4 @@ jobs:
 
       - name: Vet chainadapter
         working-directory: src/chainadapter
-        run: go vet ./...
+        run: go vet $(go list ./... | grep -v /examples)

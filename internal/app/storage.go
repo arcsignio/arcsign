@@ -124,9 +124,6 @@ func LoadAppConfig(password, usbPath string) (*AppConfig, error) {
 
 // SaveAppConfig encrypts and saves AppConfig to app_config.enc
 func SaveAppConfig(config *AppConfig, password, usbPath string) error {
-	// Update timestamp
-	config.UpdatedAt = config.UpdatedAt // Already set by modification functions
-
 	// Serialize config to JSON
 	plaintext, err := config.ToJSON()
 	if err != nil {
