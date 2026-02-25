@@ -1,8 +1,6 @@
 run:
   timeout: 5m
   modules-download-mode: readonly
-  skip-dirs:
-    - src/chainadapter/examples
 
 linters:
   enable:
@@ -14,6 +12,8 @@ linters:
     - unused
 
 issues:
+  exclude-dirs:
+    - src/chainadapter/examples
   exclude-rules:
     # Tests often ignore errors intentionally
     - path: _test\.go
