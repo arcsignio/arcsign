@@ -74,16 +74,16 @@ jobs:
       # Linux build
       - name: Build Linux SO
         if: matrix.target == 'linux'
-        run: CGO_ENABLED=1 go build -buildmode=c-shared -o libarcsign.so internal/lib/*.go
+        run: CGO_ENABLED=1 go build -buildmode=c-shared -o libarcsign.so ./internal/lib
 
       # macOS universal binary build
       - name: Build macOS arm64
         if: matrix.target == 'macos'
-        run: CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -buildmode=c-shared -o libarcsign_arm64.dylib internal/lib/*.go
+        run: CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -buildmode=c-shared -o libarcsign_arm64.dylib ./internal/lib
 
       - name: Build macOS amd64
         if: matrix.target == 'macos'
-        run: CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -buildmode=c-shared -o libarcsign_amd64.dylib internal/lib/*.go
+        run: CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -buildmode=c-shared -o libarcsign_amd64.dylib ./internal/lib
 
       - name: Create universal binary
         if: matrix.target == 'macos'
@@ -100,7 +100,7 @@ jobs:
 
       - name: Build Windows DLL
         if: matrix.target == 'windows'
-        run: go build -buildmode=c-shared -o libarcsign.dll internal/lib/*.go
+        run: go build -buildmode=c-shared -o libarcsign.dll ./internal/lib
         env:
           CGO_ENABLED: "1"
           CC: gcc

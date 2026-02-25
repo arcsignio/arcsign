@@ -20,7 +20,7 @@ jobs:
           go-version: stable
 
       - name: Build Linux shared library
-        run: CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -buildmode=c-shared -o libarcsign.so internal/lib/*.go
+        run: CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -buildmode=c-shared -o libarcsign.so ./internal/lib
 
       - name: Verify build output
         run: file libarcsign.so
@@ -36,10 +36,10 @@ jobs:
           go-version: stable
 
       - name: Build arm64
-        run: CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -buildmode=c-shared -o libarcsign_arm64.dylib internal/lib/*.go
+        run: CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -buildmode=c-shared -o libarcsign_arm64.dylib ./internal/lib
 
       - name: Build amd64
-        run: CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -buildmode=c-shared -o libarcsign_amd64.dylib internal/lib/*.go
+        run: CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -buildmode=c-shared -o libarcsign_amd64.dylib ./internal/lib
 
       - name: Create universal binary
         run: lipo -create -output libarcsign.dylib libarcsign_arm64.dylib libarcsign_amd64.dylib
@@ -64,7 +64,7 @@ jobs:
         run: echo "C:\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Build Windows DLL
-        run: go build -buildmode=c-shared -o libarcsign.dll internal/lib/*.go
+        run: go build -buildmode=c-shared -o libarcsign.dll ./internal/lib
         env:
           CGO_ENABLED: "1"
           CC: gcc
