@@ -213,10 +213,48 @@ jobs:
       - name: List artifacts
         run: find artifacts -type f | head -50
 
+      - name: Rename artifacts to standard naming
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p release-assets
+
+          # macOS DMG
+          DMG=$(find artifacts -name "*.dmg" | head -1)
+          if [ -n "$DMG" ]; then
+            cp "$DMG" "release-assets/ArcSign-${VERSION}-macOS-ARM64.dmg"
+          fi
+
+          # Windows MSI
+          MSI=$(find artifacts -name "*.msi" | head -1)
+          if [ -n "$MSI" ]; then
+            cp "$MSI" "release-assets/ArcSign-${VERSION}-Windows-x64.msi"
+          fi
+
+          # Windows EXE (NSIS installer)
+          EXE=$(find artifacts -name "*.exe" | head -1)
+          if [ -n "$EXE" ]; then
+            cp "$EXE" "release-assets/ArcSign-${VERSION}-Windows-x64-Setup.exe"
+          fi
+
+          # Linux DEB
+          DEB=$(find artifacts -name "*.deb" | head -1)
+          if [ -n "$DEB" ]; then
+            cp "$DEB" "release-assets/ArcSign-${VERSION}-Linux-x64.deb"
+          fi
+
+          # Linux AppImage
+          APPIMAGE=$(find artifacts -name "*.AppImage" | head -1)
+          if [ -n "$APPIMAGE" ]; then
+            cp "$APPIMAGE" "release-assets/ArcSign-${VERSION}-Linux-x64.AppImage"
+          fi
+
+          echo "=== Release Assets ==="
+          ls -la release-assets/
+
       - name: Generate checksums
         run: |
-          cd artifacts
-          find . -type f \( -name "*.dmg" -o -name "*.msi" -o -name "*.exe" -o -name "*.deb" -o -name "*.AppImage" \) -exec sha256sum {} \; | sort > SHA256SUMS
+          cd release-assets
+          sha256sum ArcSign-* > SHA256SUMS
           echo "=== SHA256SUMS ==="
           cat SHA256SUMS
 
@@ -232,18 +270,49 @@ jobs:
 
             | Platform | File |
             |----------|------|
-            | macOS (ARM64 + Intel) | `*.dmg` |
-            | Windows (x64) | `*.msi` |
-            | Linux (x64) | `*.deb`, `*.AppImage` |
+            | macOS (Apple Silicon) | `ArcSign-*-macOS-ARM64.dmg` |
+            | Windows (x64) | `ArcSign-*-Windows-x64.msi` |
+            | Linux (x64) | `ArcSign-*-Linux-x64.deb`, `.AppImage` |
 
             ### Checksums
             See `SHA256SUMS` in the release assets.
+
+            ### Install (macOS)
+            ```bash
+            bash <(curl -fsSL https://arcsign.io/install.sh)
+            ```
           files: |
-            artifacts/**/*.dmg
-            artifacts/**/*.msi
-            artifacts/**/*.exe
-            artifacts/**/*.deb
-            artifacts/**/*.AppImage
-            artifacts/**/SHA256SUMS
-          draft: true
+            release-assets/*
+          draft: false
           prerelease: false
+
+  deploy-landing-page:
+    name: Update Landing Page
+    needs: create-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Update landing page version
+        run: node scripts/version.js ${{ steps.version.outputs.version }}
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add landing-page/index.html landing-page/install.sh
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "ci: update landing page downloads to v${{ steps.version.outputs.version }} [skip ci]"
+          git push origin master

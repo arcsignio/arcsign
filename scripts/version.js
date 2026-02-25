@@ -56,10 +56,20 @@ const files = [
   {
     path: 'landing-page/index.html',
     update: (content) => {
-      // 更新下載連結中的版本號
+      // 更新 GitHub Release 下載連結中的版本號
       return content.replace(
-        /downloads\/ArcSign-[\d.]+-/g,
-        `downloads/ArcSign-${version}-`
+        /releases\/download\/v[\d.]+\/ArcSign-[\d.]+-/g,
+        `releases/download/v${version}/ArcSign-${version}-`
+      );
+    }
+  },
+  {
+    path: 'landing-page/install.sh',
+    update: (content) => {
+      // 更新 install.sh 頂部的 VERSION 變數
+      return content.replace(
+        /^VERSION="[\d.]+"/m,
+        `VERSION="${version}"`
       );
     }
   }
@@ -95,12 +105,11 @@ if (success) {
   console.log(`✅ Version updated to ${version}`);
   console.log('');
   console.log('Next steps:');
-  console.log(`  1. Rename download files: ArcSign-${version}-macOS-ARM64.dmg`);
-  console.log(`  2. Update landing-page/changelog.html`);
-  console.log(`  3. Update landing-page/downloads/SHA256SUMS`);
-  console.log(`  4. git add . && git commit -m "chore: release v${version}"`);
-  console.log(`  5. git tag -a v${version} -m "Release v${version}"`);
-  console.log(`  6. git push && git push --tags`);
+  console.log(`  1. Update landing-page/changelog.html (if needed)`);
+  console.log(`  2. git add . && git commit -m "chore: release v${version}"`);
+  console.log(`  3. git tag v${version}`);
+  console.log(`  4. git push && git push --tags`);
+  console.log(`  5. CI will auto-build, publish release, and update landing page`);
 } else {
   console.error('❌ Version update failed');
   process.exit(1);
