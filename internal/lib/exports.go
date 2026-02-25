@@ -188,7 +188,7 @@ func debugLog(message string) {
 		return
 	}
 	defer f.Close()
-	f.WriteString(logMessage)
+	_, _ = f.WriteString(logMessage)
 }
 
 // T026: zeroString securely zeros sensitive string data from memory
@@ -1312,7 +1312,7 @@ func SignTransaction(params *C.char) *C.char {
 			fmt.Fprintf(os.Stderr, "[SignTx] Derivation path: %s\n", derivationPath)
 			fmt.Fprintf(os.Stderr, "[SignTx] Expected address (from wallet): %s\n", unsigned.From)
 			fmt.Fprintf(os.Stderr, "[SignTx] Derived address (from privkey): %s\n", derivedAddr.Hex())
-			if strings.ToLower(derivedAddr.Hex()) != strings.ToLower(unsigned.From) {
+			if !strings.EqualFold(derivedAddr.Hex(), unsigned.From) {
 				fmt.Fprintf(os.Stderr, "[SignTx] CRITICAL: Address mismatch! Private key derives to different address.\n")
 				fmt.Fprintf(os.Stderr, "[SignTx] This means the wallet's AddressBook contains wrong address for this derivation path.\n")
 			}

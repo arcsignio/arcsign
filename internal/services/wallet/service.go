@@ -372,7 +372,7 @@ func (s *WalletService) RestoreWallet(walletID string, password string) (string,
 
 	// 7. Update last accessed time
 	wallet.LastAccessedAt = time.Now()
-	s.saveWalletMetadata(wallet)
+	_ = s.saveWalletMetadata(wallet)
 
 	return mnemonic, nil
 }
@@ -392,7 +392,7 @@ func (s *WalletService) logAuditSuccess(walletID string) {
 		Operation: "WALLET_ACCESS",
 		Status:    "SUCCESS",
 	}
-	auditLogger.LogOperation(entry)
+	_ = auditLogger.LogOperation(entry)
 }
 
 // logAuditFailure logs failed wallet access attempt
@@ -411,7 +411,7 @@ func (s *WalletService) logAuditFailure(walletID string, reason string) {
 		Status:        "FAILURE",
 		FailureReason: reason,
 	}
-	auditLogger.LogOperation(entry)
+	_ = auditLogger.LogOperation(entry)
 }
 
 // saveWalletMetadata updates wallet metadata on disk
@@ -562,7 +562,7 @@ func (s *WalletService) DeleteWallet(walletID string, password string) error {
 			Operation: "WALLET_DELETE",
 			Status:    "SUCCESS",
 		}
-		auditLogger.LogOperation(entry)
+		_ = auditLogger.LogOperation(entry)
 	}
 
 	// 5. Delete entire wallet directory

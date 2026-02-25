@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/yourusername/arcsign/internal/models"
 	"github.com/yourusername/arcsign/internal/services/coinregistry"
-	"golang.org/x/crypto/ripemd160"
+	"golang.org/x/crypto/ripemd160" //nolint:staticcheck // RIPEMD-160 required by crypto address derivation
 )
 
 // AddressService handles cryptocurrency address derivation

@@ -5,11 +5,8 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
-	"golang.org/x/crypto/ripemd160"
+	"golang.org/x/crypto/ripemd160" //nolint:staticcheck // RIPEMD-160 required by Cosmos address spec
 )
-
-// Bech32 alphabet
-const bech32Charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
 // T060: deriveCosmosAddressWithPrefix is a generic Cosmos SDK address derivation function
 // that accepts a custom Bech32 prefix. This enables support for all Cosmos IBC chains.

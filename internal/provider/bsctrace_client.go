@@ -351,10 +351,7 @@ func (c *BSCTraceClient) convertToAssetTransfer(t bscTraceTransfer) AssetTransfe
 	// Handle ERC1155 metadata
 	var erc1155Metadata []ERC1155MetadataItem
 	for _, m := range t.ERC1155Metadata {
-		erc1155Metadata = append(erc1155Metadata, ERC1155MetadataItem{
-			TokenID: m.TokenID,
-			Value:   m.Value,
-		})
+		erc1155Metadata = append(erc1155Metadata, ERC1155MetadataItem(m))
 	}
 
 	return AssetTransfer{

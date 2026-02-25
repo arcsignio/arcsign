@@ -237,7 +237,7 @@ func (dsm *DevSessionManager) GetSession(token string) (*DevSession, error) {
 	}
 
 	if time.Now().After(session.ExpiresAt) {
-		dsm.EndSession(token)
+		_ = dsm.EndSession(token)
 		return nil, ErrDevSessionExpired
 	}
 

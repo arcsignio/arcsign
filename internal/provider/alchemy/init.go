@@ -6,7 +6,7 @@ import (
 
 func init() {
 	// Register Alchemy provider with global registry
-	provider.RegisterProvider("alchemy", func(config *provider.ProviderConfig) (provider.BlockchainProvider, error) {
+	_ = provider.RegisterProvider("alchemy", func(config *provider.ProviderConfig) (provider.BlockchainProvider, error) {
 		return NewAlchemyProvider(config)
 	})
 }

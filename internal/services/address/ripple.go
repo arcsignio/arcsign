@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
-	"golang.org/x/crypto/ripemd160"
+	"golang.org/x/crypto/ripemd160" //nolint:staticcheck // RIPEMD-160 required by Ripple address spec
 )
 
 // Ripple base58 alphabet (different from Bitcoin's)

@@ -6,7 +6,7 @@ import "runtime"
 // from remaining in memory. Uses runtime.KeepAlive to prevent compiler
 // optimization from eliminating the zeroing operation.
 func ClearBytes(b []byte) {
-	if b == nil || len(b) == 0 {
+	if len(b) == 0 {
 		return
 	}
 

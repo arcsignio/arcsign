@@ -233,23 +233,8 @@ func (sm *SessionManager) ValidateToken(token string) (*Session, error) {
 // RevokeToken invalidates a session token
 func (sm *SessionManager) RevokeToken(token string) {
 	sm.mu.Lock()
-	if _, exists := sm.sessions[token]; exists {
-		// No sensitive data to clear - session only contains public data
-		delete(sm.sessions, token)
-	}
+	delete(sm.sessions, token)
 	sm.mu.Unlock()
-}
-
-// zeroString securely zeros a string in memory
-func zeroString(s *string) {
-	if s == nil || *s == "" {
-		return
-	}
-	b := []byte(*s)
-	for i := range b {
-		b[i] = 0
-	}
-	*s = ""
 }
 
 // RevokeAllSessions invalidates all sessions for a USB device
