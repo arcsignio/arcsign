@@ -13,7 +13,14 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, RwLock};
-use tokio_tungstenite::{accept_async, tungstenite::Message};
+use tokio_tungstenite::{
+    accept_hdr_async,
+    tungstenite::{
+        handshake::server::{Request, Response, ErrorResponse},
+        http::StatusCode,
+        Message,
+    },
+};
 
 /// WebSocket server port
 const WS_PORT: u16 = 9527;
@@ -202,7 +209,29 @@ async fn handle_connection(
     wallet_queue: Option<LazyWalletQueue>,
     dev_session: Arc<RwLock<Option<DevSession>>>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let ws_stream = accept_async(stream).await?;
+    let ws_stream = accept_hdr_async(stream, |req: &Request, response: Response| {
+        let origin = req
+            .headers()
+            .get("Origin")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+
+        let allowed = origin.is_empty()                          // non-browser clients (e.g. wscat)
+            || origin == "tauri://localhost"                      // Tauri v1 production webview
+            || origin == "https://tauri.localhost"                // Tauri v1 alternative origin
+            || origin.starts_with("http://localhost:");           // Tauri dev mode with Vite
+
+        if allowed {
+            tracing::debug!("WebSocket Origin accepted: {:?}", origin);
+            Ok(response)
+        } else {
+            tracing::warn!("WebSocket Origin rejected: {:?}", origin);
+            let mut err_response = ErrorResponse::new(Some(format!("Forbidden origin: {}", origin)));
+            *err_response.status_mut() = StatusCode::FORBIDDEN;
+            Err(err_response)
+        }
+    })
+    .await?;
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
 
     tracing::info!("WebSocket connection established with {}", peer_addr);

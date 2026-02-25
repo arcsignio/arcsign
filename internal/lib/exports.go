@@ -67,13 +67,8 @@ var devSessionManager *app.DevSessionManager
 func init() {
 	// Disable core dumps to prevent private keys from being written to disk
 	// This is a security best practice for applications handling sensitive data
-	if err := security.DisableCoreDump(); err != nil {
-		// Log but don't fail - this is a best-effort security measure
-		// On some systems (containers, restricted environments), this may fail
-		fmt.Fprintf(os.Stderr, "[Security] Warning: Could not disable core dumps: %v\n", err)
-	} else {
-		fmt.Fprintf(os.Stderr, "[Security] Core dumps disabled for sensitive data protection\n")
-	}
+	// Best-effort: may fail on some systems (containers, restricted environments)
+	_ = security.DisableCoreDump()
 }
 
 // initChainAdapterService initializes the global ChainAdapter service (lazy initialization)
@@ -122,87 +117,81 @@ func initDevSessionManager() *app.DevSessionManager {
 func validateSessionAndGetAppPassword(sessionToken, appPassword, usbPath string) (string, error) {
 	sm := initSessionManager()
 
-	fmt.Fprintf(os.Stderr, "[Go validateSession] sessionToken len=%d, appPassword len=%d, usbPath=%s\n",
-		len(sessionToken), len(appPassword), usbPath)
-	fmt.Fprintf(os.Stderr, "[Go validateSession] sessionManager has %d active sessions\n", sm.GetActiveSessionCount())
-
 	// Try session token first (preferred)
 	if sessionToken != "" {
-		fmt.Fprintf(os.Stderr, "[Go validateSession] Using sessionToken (first 8 chars): %s...\n", sessionToken[:min(8, len(sessionToken))])
-
 		// Validate token and get session
 		session, err := sm.ValidateToken(sessionToken)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "[Go validateSession] ValidateToken FAILED: %v\n", err)
 			return "", fmt.Errorf("session expired. Please log in again")
 		}
-		fmt.Fprintf(os.Stderr, "[Go validateSession] ValidateToken SUCCESS, session.UsbPath=%s\n", session.UsbPath)
 
 		// Verify USB path matches session
 		if session.UsbPath != usbPath {
-			fmt.Fprintf(os.Stderr, "[Go validateSession] USB path MISMATCH: session=%s, input=%s\n", session.UsbPath, usbPath)
 			return "", fmt.Errorf("USB path mismatch with session")
 		}
 
-		// ✅ NEW: Get provider key from encrypted session storage
-		// The key is decrypted using the session token itself
-		fmt.Fprintf(os.Stderr, "[Go validateSession] Calling GetProviderKey...\n")
-		fmt.Fprintf(os.Stderr, "[Go validateSession] Session has EncryptedProviderKey len=%d, PepperVersion=%d\n",
-			len(session.EncryptedProviderKey), session.PepperVersion)
-
+		// Get provider key from encrypted session storage
 		providerKey, err := sm.GetProviderKey(sessionToken)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "[Go validateSession] GetProviderKey FAILED: %v\n", err)
 			// Fallback to appPassword if decryption fails (for sessions created before this update)
 			if appPassword != "" {
-				fmt.Fprintf(os.Stderr, "[Go validateSession] Falling back to appPassword\n")
 				return appPassword, nil
 			}
-			return "", fmt.Errorf("failed to get provider key from session: %w", err)
+			return "", fmt.Errorf("failed to get provider key from session")
 		}
-		fmt.Fprintf(os.Stderr, "[Go validateSession] GetProviderKey SUCCESS, providerKey len=%d\n", len(providerKey))
 
 		return providerKey, nil
 	} else if appPassword != "" {
 		// Fallback to legacy appPassword for backward compatibility
-		fmt.Fprintf(os.Stderr, "[Go validateSession] Using legacy appPassword (len=%d)\n", len(appPassword))
 		return appPassword, nil
 	} else {
-		fmt.Fprintf(os.Stderr, "[Go validateSession] No sessionToken and no appPassword provided\n")
 		return "", fmt.Errorf("authentication required: provide sessionToken or appPassword")
 	}
 }
 
-// debugLog writes debug messages to /Volumes/arcsign/logs/go_debug.log
-func debugLog(message string) {
-	logFile := "/Volumes/arcsign/logs/go_debug.log"
-	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
-	logMessage := fmt.Sprintf("[%s] %s\n", timestamp, message)
-
-	// Output to stderr so it appears in terminal
-	fmt.Fprintf(os.Stderr, "[Go Debug] %s\n", message)
-
-	// Also write to file
-	f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	_, _ = f.WriteString(logMessage)
-}
+// debugLog is a no-op in production. Debug logging to disk/stderr is disabled
+// to prevent sensitive data leakage (API keys, paths, session details).
+func debugLog(_ string) {}
 
 // T026: zeroString securely zeros sensitive string data from memory
-// This prevents sensitive data (passwords, mnemonics) from lingering in memory
+// This prevents sensitive data (passwords, mnemonics) from lingering in memory.
+// Uses unsafe.StringData (Go 1.20+) to access the actual backing array
+// instead of []byte(*s) which creates a COPY and leaves the original intact.
 func zeroString(s *string) {
 	if s == nil || *s == "" {
 		return
 	}
-	// Convert to byte slice and zero each byte
-	b := []byte(*s)
-	for i := range b {
-		b[i] = 0
-	}
+	b := unsafe.Slice(unsafe.StringData(*s), len(*s))
+	security.SecureZero(b)
 	*s = ""
+}
+
+// ValidateUSBPath validates that a USB path is safe and within allowed mount points.
+// This prevents path traversal attacks at the FFI boundary.
+// Internal Go code (e.g., tests using t.TempDir()) is NOT validated here.
+func ValidateUSBPath(usbPath string) error {
+	if usbPath == "" {
+		return fmt.Errorf("usbPath is required")
+	}
+	if !filepath.IsAbs(usbPath) {
+		return fmt.Errorf("usbPath must be an absolute path")
+	}
+	cleanPath := filepath.Clean(usbPath)
+	if strings.Contains(cleanPath, "..") {
+		return fmt.Errorf("invalid path")
+	}
+	// Windows drive letter (D:\, E:\, etc.)
+	if len(cleanPath) >= 3 && cleanPath[1] == ':' &&
+		(cleanPath[2] == '/' || cleanPath[2] == '\\') {
+		return nil
+	}
+	// Unix USB mount points
+	for _, prefix := range []string{"/Volumes/", "/media/", "/mnt/", "/run/media/"} {
+		if strings.HasPrefix(cleanPath, prefix) {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid storage path")
 }
 
 // getRPCEndpoint returns the appropriate RPC endpoint for a chain.
@@ -309,7 +298,7 @@ func CreateWallet(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -326,7 +315,14 @@ func CreateWallet(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -358,7 +354,7 @@ func CreateWallet(params *C.char) *C.char {
 
 	if err != nil {
 		code := MapWalletError(err)
-		response := NewErrorResponse(code, err.Error())
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -380,6 +376,7 @@ func CreateWallet(params *C.char) *C.char {
 
 	response := NewSuccessResponse(data)
 	jsonBytes, _ := json.Marshal(response)
+	defer security.SecureZero(jsonBytes) // Zero mnemonic from serialized JSON
 	return C.CString(string(jsonBytes))
 }
 
@@ -399,7 +396,7 @@ func ImportWallet(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			// Note: In panic, we can't reliably return - this is best effort
@@ -417,7 +414,14 @@ func ImportWallet(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -427,6 +431,7 @@ func ImportWallet(params *C.char) *C.char {
 
 	// T026: Ensure sensitive data is zeroed before function returns
 	defer func() {
+		zeroString(&paramsJSON) // Zero raw JSON containing mnemonic
 		zeroString(&input.Mnemonic)
 		zeroString(&input.Password)
 		zeroString(&input.Passphrase)
@@ -448,7 +453,7 @@ func ImportWallet(params *C.char) *C.char {
 
 	if err != nil {
 		code := MapWalletError(err)
-		response := NewErrorResponse(code, err.Error())
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -485,7 +490,7 @@ func UnlockWallet(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -500,7 +505,14 @@ func UnlockWallet(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -517,7 +529,7 @@ func UnlockWallet(params *C.char) *C.char {
 	mnemonic, err := svc.RestoreWallet(input.WalletID, input.Password)
 	if err != nil {
 		code := MapWalletError(err)
-		response := NewErrorResponse(code, err.Error())
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -529,7 +541,7 @@ func UnlockWallet(params *C.char) *C.char {
 	walletObj, err := svc.LoadWallet(input.WalletID)
 	if err != nil {
 		code := MapWalletError(err)
-		response := NewErrorResponse(code, err.Error())
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -562,7 +574,7 @@ func GenerateAddresses(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -577,7 +589,14 @@ func GenerateAddresses(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -589,7 +608,7 @@ func GenerateAddresses(params *C.char) *C.char {
 	walletObj, err := svc.LoadWallet(input.WalletID)
 	if err != nil {
 		code := MapWalletError(err)
-		response := NewErrorResponse(code, err.Error())
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -665,7 +684,14 @@ func ExportWallet(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -710,7 +736,14 @@ func RenameWallet(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -751,7 +784,7 @@ func DeleteWallet(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -766,7 +799,14 @@ func DeleteWallet(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -794,7 +834,7 @@ func DeleteWallet(params *C.char) *C.char {
 	err := svc.DeleteWallet(input.WalletID, input.Password)
 	if err != nil {
 		code := MapWalletError(err)
-		response := NewErrorResponse(code, err.Error())
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -839,7 +879,14 @@ func ListWallets(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -851,7 +898,7 @@ func ListWallets(params *C.char) *C.char {
 	walletObjs, err := svc.ListWallets()
 	if err != nil {
 		code := MapWalletError(err)
-		response := NewErrorResponse(code, err.Error())
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -943,7 +990,7 @@ func BuildTransaction(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -966,7 +1013,14 @@ func BuildTransaction(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -977,7 +1031,7 @@ func BuildTransaction(params *C.char) *C.char {
 	// Step 0: Validate session token and get appPassword
 	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -990,6 +1044,7 @@ func BuildTransaction(params *C.char) *C.char {
 		configPath := input.USBPath + "/provider_config.enc"
 		store, err := provider.NewProviderConfigStore(configPath, appPassword)
 		if err == nil {
+			defer store.Close()
 			// Try to get provider - first try "global", then chain-specific
 			var config *provider.ProviderConfig
 			config, err = store.GetBestProvider("global")
@@ -1000,7 +1055,6 @@ func BuildTransaction(params *C.char) *C.char {
 			if err == nil && config != nil && config.APIKey != "" {
 				// Build Alchemy RPC URL based on chain
 				rpcEndpoint = buildAlchemyRPCEndpoint(input.ChainID, config.APIKey)
-				fmt.Fprintf(os.Stderr, "[Go BuildTransaction] Using RPC endpoint: %s\n", rpcEndpoint)
 			}
 		}
 	}
@@ -1011,7 +1065,7 @@ func BuildTransaction(params *C.char) *C.char {
 	// Parse amount string to *big.Int
 	amount, err := chainadapterService.ParseAmount(input.Amount)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid amount: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1050,7 +1104,7 @@ func BuildTransaction(params *C.char) *C.char {
 	ctx := context.Background()
 	unsigned, err := svc.BuildTransaction(ctx, input.ChainID, req, rpcEndpoint)
 	if err != nil {
-		response := NewErrorResponse(ErrTransactionBuildFailed, fmt.Sprintf("Failed to build transaction: %v", err))
+		response := NewErrorResponse(ErrTransactionBuildFailed, GetUserFriendlyMessage(ErrTransactionBuildFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1114,7 +1168,7 @@ func SignTransaction(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -1134,7 +1188,14 @@ func SignTransaction(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1149,7 +1210,7 @@ func SignTransaction(params *C.char) *C.char {
 	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
 	if err != nil && input.SessionToken != "" {
 		// Only fail if sessionToken was explicitly provided but is invalid
-		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1174,7 +1235,7 @@ func SignTransaction(params *C.char) *C.char {
 	mnemonic, err := walletSvc.RestoreWallet(input.WalletID, input.Password)
 	if err != nil {
 		code := MapWalletError(err)
-		response := NewErrorResponse(code, fmt.Sprintf("Failed to decrypt wallet: %v", err))
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1184,7 +1245,7 @@ func SignTransaction(params *C.char) *C.char {
 	walletObj, err := walletSvc.LoadWallet(input.WalletID)
 	if err != nil {
 		code := MapWalletError(err)
-		response := NewErrorResponse(code, fmt.Sprintf("Failed to load wallet: %v", err))
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1257,7 +1318,7 @@ func SignTransaction(params *C.char) *C.char {
 	}
 
 	if !found {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Address %s not found in wallet AddressBook", unsigned.From))
+		response := NewErrorResponse(ErrInvalidInput, "Address not found in wallet")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1269,7 +1330,7 @@ func SignTransaction(params *C.char) *C.char {
 	// Mnemonic → Seed (use provided passphrase, empty string if not used)
 	seed, err := bip39Svc.MnemonicToSeed(mnemonic, input.Passphrase)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to derive seed: %v", err))
+		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1277,7 +1338,7 @@ func SignTransaction(params *C.char) *C.char {
 	// Seed → Master Key
 	masterKey, err := hdkeySvc.NewMasterKey(seed)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to create master key: %v", err))
+		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1285,7 +1346,7 @@ func SignTransaction(params *C.char) *C.char {
 	// Master Key → Child Key (using derivation path)
 	childKey, err := hdkeySvc.DerivePath(masterKey, derivationPath)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to derive key at path %s: %v", derivationPath, err))
+		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1294,7 +1355,7 @@ func SignTransaction(params *C.char) *C.char {
 	// SECURITY: Use SecureAlloc to try mlock the memory
 	privateKeyBytes, err := hdkeySvc.GetPrivateKey(childKey)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to extract private key: %v", err))
+		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1309,12 +1370,11 @@ func SignTransaction(params *C.char) *C.char {
 		ethPrivKey, ethErr := ethcrypto.ToECDSA(privateKeyBytes)
 		if ethErr == nil {
 			derivedAddr := ethcrypto.PubkeyToAddress(ethPrivKey.PublicKey)
-			fmt.Fprintf(os.Stderr, "[SignTx] Derivation path: %s\n", derivationPath)
-			fmt.Fprintf(os.Stderr, "[SignTx] Expected address (from wallet): %s\n", unsigned.From)
-			fmt.Fprintf(os.Stderr, "[SignTx] Derived address (from privkey): %s\n", derivedAddr.Hex())
 			if !strings.EqualFold(derivedAddr.Hex(), unsigned.From) {
-				fmt.Fprintf(os.Stderr, "[SignTx] CRITICAL: Address mismatch! Private key derives to different address.\n")
-				fmt.Fprintf(os.Stderr, "[SignTx] This means the wallet's AddressBook contains wrong address for this derivation path.\n")
+				// Address mismatch - return error instead of logging sensitive data
+				response := NewErrorResponse(ErrEncryptionError, "Key derivation address mismatch")
+				jsonBytes, _ := json.Marshal(response)
+				return C.CString(string(jsonBytes))
 			}
 		}
 	}
@@ -1327,7 +1387,7 @@ func SignTransaction(params *C.char) *C.char {
 	if err != nil {
 		// If signer creation fails, manually zero the key
 		security.SecureZero(privateKeyBytes)
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to create secure signer: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1340,7 +1400,7 @@ func SignTransaction(params *C.char) *C.char {
 	ctx := context.Background()
 	signed, err := chainAdapterSvc.SignTransaction(ctx, input.ChainID, &unsigned, secureSigner, "")
 	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, fmt.Sprintf("Failed to sign transaction: %v", err))
+		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1393,7 +1453,7 @@ func BroadcastTransaction(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -1411,7 +1471,14 @@ func BroadcastTransaction(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1419,7 +1486,7 @@ func BroadcastTransaction(params *C.char) *C.char {
 	// Validate session token and get appPassword
 	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1431,6 +1498,7 @@ func BroadcastTransaction(params *C.char) *C.char {
 		configPath := input.USBPath + "/provider_config.enc"
 		store, err := provider.NewProviderConfigStore(configPath, appPassword)
 		if err == nil {
+			defer store.Close()
 			var config *provider.ProviderConfig
 			config, err = store.GetBestProvider("global")
 			if err != nil {
@@ -1438,12 +1506,6 @@ func BroadcastTransaction(params *C.char) *C.char {
 			}
 			if err == nil && config != nil && config.APIKey != "" {
 				rpcEndpoint = buildAlchemyRPCEndpoint(input.ChainID, config.APIKey)
-				// Safe string truncation for logging
-				logEndpoint := rpcEndpoint
-				if len(logEndpoint) > 50 {
-					logEndpoint = logEndpoint[:50] + "..."
-				}
-				fmt.Fprintf(os.Stderr, "[Go BroadcastTx] Built RPC endpoint for chain %s: %s\n", input.ChainID, logEndpoint)
 			}
 		}
 	}
@@ -1454,14 +1516,14 @@ func BroadcastTransaction(params *C.char) *C.char {
 	// Reconstruct SignedTransaction from map
 	signedBytes, err := json.Marshal(input.SignedTx)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid signed transaction: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
 	var signed chainadapter.SignedTransaction
 	if err := json.Unmarshal(signedBytes, &signed); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to parse signed transaction: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1488,7 +1550,7 @@ func BroadcastTransaction(params *C.char) *C.char {
 	ctx := context.Background()
 	receipt, err := svc.BroadcastTransaction(ctx, input.ChainID, &signed, rpcEndpoint)
 	if err != nil {
-		response := NewErrorResponse(ErrTransactionBroadcastFailed, fmt.Sprintf("Failed to broadcast transaction: %v", err))
+		response := NewErrorResponse(ErrTransactionBroadcastFailed, GetUserFriendlyMessage(ErrTransactionBroadcastFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1538,7 +1600,7 @@ func QueryTransactionStatus(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -1556,7 +1618,14 @@ func QueryTransactionStatus(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1567,7 +1636,7 @@ func QueryTransactionStatus(params *C.char) *C.char {
 	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
 	if err != nil && input.SessionToken != "" {
 		// Only fail if sessionToken was explicitly provided but is invalid
-		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1579,6 +1648,7 @@ func QueryTransactionStatus(params *C.char) *C.char {
 		configPath := input.USBPath + "/provider_config.enc"
 		store, err := provider.NewProviderConfigStore(configPath, appPassword)
 		if err == nil {
+			defer store.Close()
 			var config *provider.ProviderConfig
 			config, err = store.GetBestProvider("global")
 			if err != nil {
@@ -1597,7 +1667,7 @@ func QueryTransactionStatus(params *C.char) *C.char {
 	ctx := context.Background()
 	status, err := svc.QueryTransactionStatus(ctx, input.ChainID, input.TxHash, rpcConfig)
 	if err != nil {
-		response := NewErrorResponse(ErrTransactionQueryFailed, fmt.Sprintf("Failed to query transaction status: %v", err))
+		response := NewErrorResponse(ErrTransactionQueryFailed, GetUserFriendlyMessage(ErrTransactionQueryFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1667,7 +1737,7 @@ func SetProviderConfig(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -1689,7 +1759,14 @@ func SetProviderConfig(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1701,7 +1778,7 @@ func SetProviderConfig(params *C.char) *C.char {
 	// Validate session and get provider key
 	providerKey, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1709,17 +1786,14 @@ func SetProviderConfig(params *C.char) *C.char {
 
 	// Create provider config store
 	configPath := filepath.Join(input.USBPath, "provider_config.enc")
-	debugLog(fmt.Sprintf("[DEBUG] SetProviderConfig: configPath = %s", configPath))
-	debugLog(fmt.Sprintf("[DEBUG] SetProviderConfig: providerKey length = %d", len(providerKey)))
 
 	store, err := provider.NewProviderConfigStore(configPath, providerKey)
 	if err != nil {
-		debugLog(fmt.Sprintf("[DEBUG] SetProviderConfig: Failed to create store: %v", err))
-		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
-	debugLog("[DEBUG] SetProviderConfig: Store created successfully")
+	defer store.Close()
 
 	// Create provider configuration
 	config := &provider.ProviderConfig{
@@ -1734,14 +1808,14 @@ func SetProviderConfig(params *C.char) *C.char {
 
 	// Validate API key format
 	if err := provider.ValidateAPIKey(config); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid API key: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, "Invalid API key format")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
 	// Save configuration
 	if err := store.Set(config); err != nil {
-		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to save provider config: %v", err))
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1784,22 +1858,19 @@ func SetProviderConfig(params *C.char) *C.char {
 //   }
 // }
 func GetProviderConfig(params *C.char) *C.char {
-	fmt.Fprintf(os.Stderr, "[Go] GetProviderConfig called\n")
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
-		fmt.Fprintf(os.Stderr, "[Go] GetProviderConfig took %v\n", elapsed)
+		_ = elapsed
 	}()
 
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "[Go] PANIC in GetProviderConfig: %v\n", r)
 			debug.PrintStack()
 		}
 	}()
 
 	paramsJSON := C.GoString(params)
-	fmt.Fprintf(os.Stderr, "[Go] GetProviderConfig params: %s\n", paramsJSON)
 	var input struct {
 		ChainID      string `json:"chainId"`
 		ProviderType string `json:"providerType"` // Optional
@@ -1809,13 +1880,17 @@ func GetProviderConfig(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		fmt.Fprintf(os.Stderr, "[Go] GetProviderConfig JSON parse error: %v\n", err)
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
-	fmt.Fprintf(os.Stderr, "[Go] GetProviderConfig: chainId=%s, providerType=%s\n", input.ChainID, input.ProviderType)
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
 
 	// Zero sensitive data after function returns
 	defer zeroString(&input.AppPassword)
@@ -1823,7 +1898,7 @@ func GetProviderConfig(params *C.char) *C.char {
 	// Validate session and get provider key
 	providerKey, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1831,13 +1906,13 @@ func GetProviderConfig(params *C.char) *C.char {
 
 	// Create provider config store
 	configPath := input.USBPath + "/provider_config.enc"
-	fmt.Fprintf(os.Stderr, "[Go] GetProviderConfig: configPath=%s\n", configPath)
 	store, err := provider.NewProviderConfigStore(configPath, providerKey)
 	if err != nil {
-		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
+	defer store.Close()
 
 	var config *provider.ProviderConfig
 	if input.ProviderType != "" {
@@ -1849,7 +1924,7 @@ func GetProviderConfig(params *C.char) *C.char {
 	}
 
 	if err != nil {
-		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Provider config not found: %v", err))
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1897,22 +1972,19 @@ func GetProviderConfig(params *C.char) *C.char {
 //   }
 // }
 func ListProviderConfigs(params *C.char) *C.char {
-	fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs called\n")
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
-		fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs took %v\n", elapsed)
+		_ = elapsed
 	}()
 
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "[Go] PANIC in ListProviderConfigs: %v\n", r)
 			debug.PrintStack()
 		}
 	}()
 
 	paramsJSON := C.GoString(params)
-	fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs params: %s\n", paramsJSON)
 	var input struct {
 		ChainID      string `json:"chainId"` // Optional
 		USBPath      string `json:"usbPath"`
@@ -1921,13 +1993,17 @@ func ListProviderConfigs(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs JSON parse error: %v\n", err)
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
-	fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs: chainId=%s\n", input.ChainID)
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
 
 	// Zero sensitive data after function returns
 	defer zeroString(&input.AppPassword)
@@ -1935,7 +2011,7 @@ func ListProviderConfigs(params *C.char) *C.char {
 	// Validate session and get provider key
 	providerKey, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -1943,20 +2019,20 @@ func ListProviderConfigs(params *C.char) *C.char {
 
 	// Create provider config store
 	configPath := input.USBPath + "/provider_config.enc"
-	fmt.Fprintf(os.Stderr, "[Go] ListProviderConfigs: configPath=%s\n", configPath)
 	store, err := provider.NewProviderConfigStore(configPath, providerKey)
 	if err != nil {
-		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
+	defer store.Close()
 
 	var configs []*provider.ProviderConfig
 	if input.ChainID != "" {
 		// Get all providers for specific chain
 		configs, err = store.GetAllForChain(input.ChainID)
 		if err != nil {
-			response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to list providers: %v", err))
+			response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 			jsonBytes, _ := json.Marshal(response)
 			return C.CString(string(jsonBytes))
 		}
@@ -2012,22 +2088,19 @@ func ListProviderConfigs(params *C.char) *C.char {
 //   }
 // }
 func DeleteProviderConfig(params *C.char) *C.char {
-	fmt.Fprintf(os.Stderr, "[Go] DeleteProviderConfig called\n")
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
-		fmt.Fprintf(os.Stderr, "[Go] DeleteProviderConfig took %v\n", elapsed)
+		_ = elapsed
 	}()
 
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "[Go] PANIC in DeleteProviderConfig: %v\n", r)
 			debug.PrintStack()
 		}
 	}()
 
 	paramsJSON := C.GoString(params)
-	fmt.Fprintf(os.Stderr, "[Go] DeleteProviderConfig params: %s\n", paramsJSON)
 	var input struct {
 		ChainID      string `json:"chainId"`
 		ProviderType string `json:"providerType"`
@@ -2037,13 +2110,17 @@ func DeleteProviderConfig(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		fmt.Fprintf(os.Stderr, "[Go] DeleteProviderConfig JSON parse error: %v\n", err)
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
-	fmt.Fprintf(os.Stderr, "[Go] DeleteProviderConfig: chainId=%s, providerType=%s\n", input.ChainID, input.ProviderType)
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
 
 	// Zero sensitive data after function returns
 	defer zeroString(&input.AppPassword)
@@ -2051,7 +2128,7 @@ func DeleteProviderConfig(params *C.char) *C.char {
 	// Validate session and get provider key
 	providerKey, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2059,17 +2136,17 @@ func DeleteProviderConfig(params *C.char) *C.char {
 
 	// Create provider config store
 	configPath := input.USBPath + "/provider_config.enc"
-	fmt.Fprintf(os.Stderr, "[Go] DeleteProviderConfig: configPath=%s\n", configPath)
 	store, err := provider.NewProviderConfigStore(configPath, providerKey)
 	if err != nil {
-		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to open config store: %v", err))
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
+	defer store.Close()
 
 	// Delete configuration
 	if err := store.Delete(input.ChainID, input.ProviderType); err != nil {
-		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to delete provider config: %v", err))
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2120,7 +2197,7 @@ func EstimateFee(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -2138,7 +2215,7 @@ func EstimateFee(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2149,7 +2226,7 @@ func EstimateFee(params *C.char) *C.char {
 	// Parse amount string to *big.Int
 	amount, err := chainadapterService.ParseAmount(input.Amount)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid amount: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2166,7 +2243,7 @@ func EstimateFee(params *C.char) *C.char {
 	ctx := context.Background()
 	estimate, err := svc.EstimateFee(ctx, input.ChainID, req, input.RPCConfig)
 	if err != nil {
-		response := NewErrorResponse(ErrFeeEstimationFailed, fmt.Sprintf("Failed to estimate fee: %v", err))
+		response := NewErrorResponse(ErrFeeEstimationFailed, GetUserFriendlyMessage(ErrFeeEstimationFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2202,32 +2279,33 @@ func EstimateFee(params *C.char) *C.char {
 //   }
 // }
 func IsFirstTimeSetup(params *C.char) *C.char {
-	fmt.Fprintf(os.Stderr, "[Go] IsFirstTimeSetup called\n")
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
-		fmt.Fprintf(os.Stderr, "[Go] IsFirstTimeSetup took %v\n", elapsed)
+		_ = elapsed
 	}()
 
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "[Go] PANIC in IsFirstTimeSetup: %v\n", r)
 			debug.PrintStack()
-			// We can't return a value from here without named returns.
-			// Just log it for now.
 		}
 	}()
 
 	paramsJSON := C.GoString(params)
-	fmt.Fprintf(os.Stderr, "[Go] IsFirstTimeSetup params: %s\n", paramsJSON)
 
 	var input struct {
 		USBPath string `json:"usbPath"`
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		fmt.Fprintf(os.Stderr, "[Go] JSON Unmarshal error: %v\n", err)
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2235,7 +2313,6 @@ func IsFirstTimeSetup(params *C.char) *C.char {
 	// Check if app_config.enc exists
 	exists := app.AppConfigExists(input.USBPath)
 	isFirstTime := !exists
-	fmt.Fprintf(os.Stderr, "[Go] AppConfigExists(%s) = %v, isFirstTime = %v\n", input.USBPath, exists, isFirstTime)
 
 	data := map[string]interface{}{
 		"isFirstTime": isFirstTime,
@@ -2243,7 +2320,6 @@ func IsFirstTimeSetup(params *C.char) *C.char {
 
 	response := NewSuccessResponse(data)
 	jsonBytes, _ := json.Marshal(response)
-	fmt.Fprintf(os.Stderr, "[Go] IsFirstTimeSetup response: %s\n", string(jsonBytes))
 	return C.CString(string(jsonBytes))
 }
 
@@ -2272,7 +2348,7 @@ func InitializeApp(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -2286,7 +2362,14 @@ func InitializeApp(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2296,7 +2379,7 @@ func InitializeApp(params *C.char) *C.char {
 
 	// Initialize app config
 	if err := app.InitializeAppConfig(input.Password, input.USBPath); err != nil {
-		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to initialize app: %v", err))
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2340,7 +2423,7 @@ func UnlockApp(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -2354,7 +2437,14 @@ func UnlockApp(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2365,7 +2455,7 @@ func UnlockApp(params *C.char) *C.char {
 	// Load app config
 	config, err := app.LoadAppConfig(input.Password, input.USBPath)
 	if err != nil {
-		response := NewErrorResponse(ErrWalletNotFound, fmt.Sprintf("Failed to unlock app (incorrect password?): %v", err))
+		response := NewErrorResponse(ErrInvalidPassword, GetUserFriendlyMessage(ErrInvalidPassword))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2405,7 +2495,7 @@ func GetTokenBalances(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -2415,7 +2505,14 @@ func GetTokenBalances(params *C.char) *C.char {
 	paramsJSON := C.GoString(params)
 	var input provider.GetTokenBalancesInput
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2428,7 +2525,7 @@ func GetTokenBalances(params *C.char) *C.char {
 	// This is a low-risk operation, so we use session token instead of appPassword
 	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2443,19 +2540,18 @@ func GetTokenBalances(params *C.char) *C.char {
 
 	providerStore, err := provider.NewProviderConfigStore(providerConfigPath, appPassword)
 	if err != nil {
-		debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Failed to initialize provider store: %v", err))
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to initialize provider store: %v", err))
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
-	debugLog("[DEBUG] GetTokenBalances: Provider store initialized successfully")
+	defer providerStore.Close()
 
 	// Try to get Alchemy provider for global chainId (set by ProviderSettings UI)
 	debugLog("[DEBUG] GetTokenBalances: Attempting to get provider with chainId='global', providerType='alchemy'")
 	providerConfig, err := providerStore.Get("global", "alchemy")
 	if err != nil {
 		debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Error getting provider: %v", err))
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to get Alchemy provider: %v", err))
+		response := NewErrorResponse(ErrStorageError, "Provider configuration not found")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2500,7 +2596,7 @@ func GetTokenBalances(params *C.char) *C.char {
 	walletObj, err := walletService.LoadWallet(input.WalletID)
 	if err != nil {
 		code := MapWalletError(err)
-		response := NewErrorResponse(code, err.Error())
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2570,7 +2666,7 @@ func GetTokenBalances(params *C.char) *C.char {
 	alchemyClient := provider.NewAlchemyClient(alchemyAPIKey)
 	alchemyResponse, err := alchemyClient.GetTokenBalancesByAddress(alchemyAddresses)
 	if err != nil {
-		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Alchemy API error: %v", err))
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2622,7 +2718,7 @@ func GetAssetTransfers(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -2641,7 +2737,14 @@ func GetAssetTransfers(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2664,7 +2767,7 @@ func GetAssetTransfers(params *C.char) *C.char {
 	// Get app password from session token or use direct password (deprecated)
 	appPassword, authErr := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
 	if authErr != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Authentication failed: %v", authErr))
+		response := NewErrorResponse(ErrInvalidPassword, GetUserFriendlyMessage(ErrInvalidPassword))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2674,10 +2777,11 @@ func GetAssetTransfers(params *C.char) *C.char {
 	providerConfigPath := filepath.Join(input.USBPath, "provider_config.enc")
 	providerStore, err := provider.NewProviderConfigStore(providerConfigPath, appPassword)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to initialize provider store: %v", err))
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
+	defer providerStore.Close()
 
 	providerConfig, err := providerStore.Get("global", "alchemy")
 	if err != nil || providerConfig == nil || providerConfig.APIKey == "" {
@@ -2732,7 +2836,7 @@ func GetAssetTransfers(params *C.char) *C.char {
 		transfers, pageKey, err = bscTraceClient.GetAssetTransfersBSC(input.Address, maxCount, input.PageKey)
 		if err != nil {
 			fmt.Printf("BSCTrace API error: %v\n", err)
-			response := NewErrorResponse(ErrStorageError, fmt.Sprintf("BSCTrace API error: %v", err))
+			response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 			jsonBytes, _ := json.Marshal(response)
 			return C.CString(string(jsonBytes))
 		}
@@ -2744,7 +2848,7 @@ func GetAssetTransfers(params *C.char) *C.char {
 		transfers, pageKey, err = alchemyClient.GetAssetTransfers(input.Address, input.Network, maxCount, input.PageKey)
 		if err != nil {
 			fmt.Printf("Alchemy API error: %v\n", err)
-			response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Alchemy API error: %v", err))
+			response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 			jsonBytes, _ := json.Marshal(response)
 			return C.CString(string(jsonBytes))
 		}
@@ -2755,7 +2859,7 @@ func GetAssetTransfers(params *C.char) *C.char {
 		transfers, pageKey, err = alchemyClient.GetAssetTransfers(input.Address, input.Network, maxCount, input.PageKey)
 		if err != nil {
 			fmt.Printf("Alchemy API error (fallback): %v\n", err)
-			response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Alchemy API error: %v", err))
+			response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 			jsonBytes, _ := json.Marshal(response)
 			return C.CString(string(jsonBytes))
 		}
@@ -2809,7 +2913,7 @@ func ValidatePassphrase(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -2825,7 +2929,14 @@ func ValidatePassphrase(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2839,7 +2950,7 @@ func ValidatePassphrase(params *C.char) *C.char {
 	mnemonic, err := walletSvc.RestoreWallet(input.WalletID, input.Password)
 	if err != nil {
 		code := MapWalletError(err)
-		response := NewErrorResponse(code, fmt.Sprintf("Failed to decrypt wallet: %v", err))
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2849,7 +2960,7 @@ func ValidatePassphrase(params *C.char) *C.char {
 	walletObj, err := walletSvc.LoadWallet(input.WalletID)
 	if err != nil {
 		code := MapWalletError(err)
-		response := NewErrorResponse(code, fmt.Sprintf("Failed to load wallet: %v", err))
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2886,7 +2997,7 @@ func ValidatePassphrase(params *C.char) *C.char {
 	// Mnemonic → Seed (using provided passphrase)
 	seed, err := bip39Svc.MnemonicToSeed(mnemonic, input.Passphrase)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to derive seed: %v", err))
+		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2894,7 +3005,7 @@ func ValidatePassphrase(params *C.char) *C.char {
 	// Seed → Master Key
 	masterKey, err := hdkeySvc.NewMasterKey(seed)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to create master key: %v", err))
+		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2902,7 +3013,7 @@ func ValidatePassphrase(params *C.char) *C.char {
 	// Master Key → Child Key (using ETH derivation path)
 	childKey, err := hdkeySvc.DerivePath(masterKey, ethDerivationPath)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to derive key at path %s: %v", ethDerivationPath, err))
+		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2910,7 +3021,7 @@ func ValidatePassphrase(params *C.char) *C.char {
 	// Child Key → Private Key (raw bytes)
 	privateKeyBytes, err := hdkeySvc.GetPrivateKey(childKey)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to extract private key: %v", err))
+		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -2926,7 +3037,7 @@ func ValidatePassphrase(params *C.char) *C.char {
 
 	ethPrivKey, err := ethcrypto.HexToECDSA(privateKeyHex)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to parse private key: %v", err))
+		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3030,7 +3141,7 @@ func GetSwapQuote(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -3051,7 +3162,14 @@ func GetSwapQuote(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3098,7 +3216,7 @@ func GetSwapQuote(params *C.char) *C.char {
 	})
 
 	if err != nil {
-		response := NewErrorResponse(ErrSwapQuoteFailed, fmt.Sprintf("Failed to get swap quote: %v", err))
+		response := NewErrorResponse(ErrSwapQuoteFailed, GetUserFriendlyMessage(ErrSwapQuoteFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3139,7 +3257,7 @@ func BuildSwapTransaction(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -3160,7 +3278,14 @@ func BuildSwapTransaction(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3207,7 +3332,7 @@ func BuildSwapTransaction(params *C.char) *C.char {
 	})
 
 	if err != nil {
-		response := NewErrorResponse(ErrSwapBuildFailed, fmt.Sprintf("Failed to build swap transaction: %v", err))
+		response := NewErrorResponse(ErrSwapBuildFailed, GetUserFriendlyMessage(ErrSwapBuildFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3249,7 +3374,7 @@ func GetSwapApproval(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -3267,7 +3392,14 @@ func GetSwapApproval(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3291,7 +3423,7 @@ func GetSwapApproval(params *C.char) *C.char {
 	if input.Amount != "" && input.Amount != "0" {
 		amount = new(big.Int)
 		if _, ok := amount.SetString(input.Amount, 10); !ok {
-			response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid amount: %s", input.Amount))
+			response := NewErrorResponse(ErrInvalidInput, "Invalid amount")
 			jsonBytes, _ := json.Marshal(response)
 			return C.CString(string(jsonBytes))
 		}
@@ -3311,7 +3443,7 @@ func GetSwapApproval(params *C.char) *C.char {
 	spenderHex := strings.TrimPrefix(input.SpenderAddress, "0x")
 	spenderBytes, err := hexToBytes(spenderHex)
 	if err != nil || len(spenderBytes) != 20 {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid spender address: %s", input.SpenderAddress))
+		response := NewErrorResponse(ErrInvalidInput, "Invalid spender address")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3394,7 +3526,7 @@ func CheckSwapAllowance(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -3411,7 +3543,14 @@ func CheckSwapAllowance(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3426,7 +3565,7 @@ func CheckSwapAllowance(params *C.char) *C.char {
 
 	allowance, err := aggregator.CheckAllowance(ctx, "", chainIDToInt(input.ChainID), input.TokenAddress, input.WalletAddress)
 	if err != nil {
-		response := NewErrorResponse(ErrSwapAllowanceFailed, fmt.Sprintf("Failed to check allowance: %v", err))
+		response := NewErrorResponse(ErrSwapAllowanceFailed, GetUserFriendlyMessage(ErrSwapAllowanceFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3492,7 +3631,7 @@ func GetSwapTokens(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -3508,7 +3647,14 @@ func GetSwapTokens(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3524,7 +3670,7 @@ func GetSwapTokens(params *C.char) *C.char {
 
 	tokens, err := aggregator.GetTokens(ctx, swap.Provider(input.Provider), chainIDToInt(input.ChainID))
 	if err != nil {
-		response := NewErrorResponse(ErrSwapQuoteFailed, fmt.Sprintf("Failed to get swap tokens: %v", err))
+		response := NewErrorResponse(ErrSwapQuoteFailed, GetUserFriendlyMessage(ErrSwapQuoteFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3579,7 +3725,7 @@ func GetMembershipStatus(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -3592,7 +3738,14 @@ func GetMembershipStatus(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3602,7 +3755,7 @@ func GetMembershipStatus(params *C.char) *C.char {
 	// Load app config (password, usbPath)
 	appConfig, err := app.LoadAppConfig(input.AppPassword, input.USBPath)
 	if err != nil {
-		response := NewErrorResponse(ErrAppConfigLoad, fmt.Sprintf("Failed to load app config: %v", err))
+		response := NewErrorResponse(ErrAppConfigLoad, GetUserFriendlyMessage(ErrAppConfigLoad))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3610,14 +3763,14 @@ func GetMembershipStatus(params *C.char) *C.char {
 	// Ensure device identity exists (generates UUID if needed)
 	deviceId, err := appConfig.EnsureIdentity()
 	if err != nil {
-		response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Failed to ensure identity: %v", err))
+		response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
 	// Save if identity was newly created (config, password, usbPath)
 	if err := app.SaveAppConfig(appConfig, input.AppPassword, input.USBPath); err != nil {
-		response := NewErrorResponse(ErrAppConfigSave, fmt.Sprintf("Failed to save app config: %v", err))
+		response := NewErrorResponse(ErrAppConfigSave, GetUserFriendlyMessage(ErrAppConfigSave))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3697,7 +3850,7 @@ func AddMembershipBinding(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -3715,7 +3868,14 @@ func AddMembershipBinding(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3732,7 +3892,7 @@ func AddMembershipBinding(params *C.char) *C.char {
 	// Load app config (password, usbPath)
 	appConfig, err := app.LoadAppConfig(input.AppPassword, input.USBPath)
 	if err != nil {
-		response := NewErrorResponse(ErrAppConfigLoad, fmt.Sprintf("Failed to load app config: %v", err))
+		response := NewErrorResponse(ErrAppConfigLoad, GetUserFriendlyMessage(ErrAppConfigLoad))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3749,14 +3909,14 @@ func AddMembershipBinding(params *C.char) *C.char {
 	}
 
 	if err := appConfig.AddMembership(binding); err != nil {
-		response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Failed to add membership: %v", err))
+		response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
 	// Save updated config (config, password, usbPath)
 	if err := app.SaveAppConfig(appConfig, input.AppPassword, input.USBPath); err != nil {
-		response := NewErrorResponse(ErrAppConfigSave, fmt.Sprintf("Failed to save app config: %v", err))
+		response := NewErrorResponse(ErrAppConfigSave, GetUserFriendlyMessage(ErrAppConfigSave))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3795,7 +3955,7 @@ func RemoveMembershipBinding(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -3810,7 +3970,14 @@ func RemoveMembershipBinding(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3820,7 +3987,7 @@ func RemoveMembershipBinding(params *C.char) *C.char {
 	// Load app config (password, usbPath)
 	appConfig, err := app.LoadAppConfig(input.AppPassword, input.USBPath)
 	if err != nil {
-		response := NewErrorResponse(ErrAppConfigLoad, fmt.Sprintf("Failed to load app config: %v", err))
+		response := NewErrorResponse(ErrAppConfigLoad, GetUserFriendlyMessage(ErrAppConfigLoad))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3830,7 +3997,7 @@ func RemoveMembershipBinding(params *C.char) *C.char {
 
 	// Save updated config (config, password, usbPath)
 	if err := app.SaveAppConfig(appConfig, input.AppPassword, input.USBPath); err != nil {
-		response := NewErrorResponse(ErrAppConfigSave, fmt.Sprintf("Failed to save app config: %v", err))
+		response := NewErrorResponse(ErrAppConfigSave, GetUserFriendlyMessage(ErrAppConfigSave))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3875,7 +4042,7 @@ func SyncMembershipBindingWithToken(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -3891,7 +4058,7 @@ func SyncMembershipBindingWithToken(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3912,7 +4079,7 @@ func SyncMembershipBindingWithToken(params *C.char) *C.char {
 	sm := initSessionManager()
 	session, err := sm.ValidateToken(input.Token)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidPassword, fmt.Sprintf("Invalid session token: %v", err))
+		response := NewErrorResponse(ErrInvalidPassword, GetUserFriendlyMessage(ErrInvalidPassword))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3920,7 +4087,7 @@ func SyncMembershipBindingWithToken(params *C.char) *C.char {
 	// Get decrypted password from session
 	appPassword, err := sm.GetProviderKey(input.Token)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidPassword, fmt.Sprintf("Failed to get session key: %v", err))
+		response := NewErrorResponse(ErrInvalidPassword, GetUserFriendlyMessage(ErrInvalidPassword))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3929,7 +4096,7 @@ func SyncMembershipBindingWithToken(params *C.char) *C.char {
 	// Load app config using decrypted password
 	appConfig, err := app.LoadAppConfig(appPassword, session.UsbPath)
 	if err != nil {
-		response := NewErrorResponse(ErrAppConfigLoad, fmt.Sprintf("Failed to load app config: %v", err))
+		response := NewErrorResponse(ErrAppConfigLoad, GetUserFriendlyMessage(ErrAppConfigLoad))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3946,14 +4113,14 @@ func SyncMembershipBindingWithToken(params *C.char) *C.char {
 	}
 
 	if err := appConfig.AddMembership(binding); err != nil {
-		response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Failed to add membership: %v", err))
+		response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
 	// Save updated config
 	if err := app.SaveAppConfig(appConfig, appPassword, session.UsbPath); err != nil {
-		response := NewErrorResponse(ErrAppConfigSave, fmt.Sprintf("Failed to save app config: %v", err))
+		response := NewErrorResponse(ErrAppConfigSave, GetUserFriendlyMessage(ErrAppConfigSave))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -3989,7 +4156,7 @@ func RemoveMembershipBindingWithToken(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -4003,7 +4170,7 @@ func RemoveMembershipBindingWithToken(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4024,7 +4191,7 @@ func RemoveMembershipBindingWithToken(params *C.char) *C.char {
 	sm := initSessionManager()
 	session, err := sm.ValidateToken(input.Token)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidPassword, fmt.Sprintf("Invalid session token: %v", err))
+		response := NewErrorResponse(ErrInvalidPassword, GetUserFriendlyMessage(ErrInvalidPassword))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4032,7 +4199,7 @@ func RemoveMembershipBindingWithToken(params *C.char) *C.char {
 	// Get decrypted password from session
 	appPassword, err := sm.GetProviderKey(input.Token)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidPassword, fmt.Sprintf("Failed to get session key: %v", err))
+		response := NewErrorResponse(ErrInvalidPassword, GetUserFriendlyMessage(ErrInvalidPassword))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4041,7 +4208,7 @@ func RemoveMembershipBindingWithToken(params *C.char) *C.char {
 	// Load app config using decrypted password
 	appConfig, err := app.LoadAppConfig(appPassword, session.UsbPath)
 	if err != nil {
-		response := NewErrorResponse(ErrAppConfigLoad, fmt.Sprintf("Failed to load app config: %v", err))
+		response := NewErrorResponse(ErrAppConfigLoad, GetUserFriendlyMessage(ErrAppConfigLoad))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4051,7 +4218,7 @@ func RemoveMembershipBindingWithToken(params *C.char) *C.char {
 
 	// Save updated config
 	if err := app.SaveAppConfig(appConfig, appPassword, session.UsbPath); err != nil {
-		response := NewErrorResponse(ErrAppConfigSave, fmt.Sprintf("Failed to save app config: %v", err))
+		response := NewErrorResponse(ErrAppConfigSave, GetUserFriendlyMessage(ErrAppConfigSave))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4078,7 +4245,7 @@ func CreateSessionToken(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -4091,7 +4258,14 @@ func CreateSessionToken(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4104,7 +4278,7 @@ func CreateSessionToken(params *C.char) *C.char {
 	// Create session token
 	session, err := sm.CreateSession(input.USBPath, input.AppPassword)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Authentication failed: %v", err))
+		response := NewErrorResponse(ErrInvalidPassword, GetUserFriendlyMessage(ErrInvalidPassword))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4125,7 +4299,7 @@ func ValidateSessionToken(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -4137,7 +4311,7 @@ func ValidateSessionToken(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4148,7 +4322,7 @@ func ValidateSessionToken(params *C.char) *C.char {
 	// Validate token
 	session, err := sm.ValidateToken(input.Token)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid token: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4169,7 +4343,7 @@ func RevokeSessionToken(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -4181,7 +4355,7 @@ func RevokeSessionToken(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4206,7 +4380,7 @@ func GetDeviceMembershipStatusWithToken(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -4218,7 +4392,7 @@ func GetDeviceMembershipStatusWithToken(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4229,7 +4403,7 @@ func GetDeviceMembershipStatusWithToken(params *C.char) *C.char {
 	// Validate token and get session
 	session, err := sm.ValidateToken(input.Token)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid token: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4301,7 +4475,7 @@ func CreateWalletSessionToken(params *C.char) *C.char {
 	// Panic recovery
 	defer func() {
 		if r := recover(); r != nil {
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -4315,7 +4489,14 @@ func CreateWalletSessionToken(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4326,7 +4507,7 @@ func CreateWalletSessionToken(params *C.char) *C.char {
 	// Create wallet session (validates password)
 	session, err := wsm.CreateWalletSession(input.WalletID, input.Password, input.USBPath)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to create wallet session: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4349,7 +4530,7 @@ func ValidateWalletSessionToken(params *C.char) *C.char {
 	// Panic recovery
 	defer func() {
 		if r := recover(); r != nil {
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -4361,7 +4542,7 @@ func ValidateWalletSessionToken(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4372,7 +4553,7 @@ func ValidateWalletSessionToken(params *C.char) *C.char {
 	// Validate token
 	session, err := wsm.ValidateWalletToken(input.Token)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid wallet token: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4395,7 +4576,7 @@ func RevokeWalletSessionToken(params *C.char) *C.char {
 	// Panic recovery
 	defer func() {
 		if r := recover(); r != nil {
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			_ = C.CString(string(jsonBytes))
 		}
@@ -4407,7 +4588,7 @@ func RevokeWalletSessionToken(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4461,7 +4642,7 @@ func SignMessage(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -4479,7 +4660,14 @@ func SignMessage(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4493,7 +4681,7 @@ func SignMessage(params *C.char) *C.char {
 	mnemonic, err := walletSvc.RestoreWallet(input.WalletID, input.Password)
 	if err != nil {
 		code := MapWalletError(err)
-		response := NewErrorResponse(code, fmt.Sprintf("Failed to decrypt wallet: %v", err))
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4503,7 +4691,7 @@ func SignMessage(params *C.char) *C.char {
 	walletObj, err := walletSvc.LoadWallet(input.WalletID)
 	if err != nil {
 		code := MapWalletError(err)
-		response := NewErrorResponse(code, fmt.Sprintf("Failed to load wallet: %v", err))
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4526,7 +4714,7 @@ func SignMessage(params *C.char) *C.char {
 	}
 
 	if !found {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Address not found in wallet: %s", input.Address))
+		response := NewErrorResponse(ErrInvalidInput, "Address not found in wallet")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4538,7 +4726,7 @@ func SignMessage(params *C.char) *C.char {
 	// Mnemonic → Seed
 	seed, err := bip39Svc.MnemonicToSeed(mnemonic, input.Passphrase)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to derive seed: %v", err))
+		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4546,7 +4734,7 @@ func SignMessage(params *C.char) *C.char {
 	// Seed → Master Key
 	masterKey, err := hdkeySvc.NewMasterKey(seed)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to create master key: %v", err))
+		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4554,7 +4742,7 @@ func SignMessage(params *C.char) *C.char {
 	// Master Key → Child Key (using derivation path)
 	childKey, err := hdkeySvc.DerivePath(masterKey, derivationPath)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to derive key at path %s: %v", derivationPath, err))
+		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4562,7 +4750,7 @@ func SignMessage(params *C.char) *C.char {
 	// Child Key → Private Key (raw bytes)
 	privateKeyBytes, err := hdkeySvc.GetPrivateKey(childKey)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to extract private key: %v", err))
+		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4571,7 +4759,7 @@ func SignMessage(params *C.char) *C.char {
 	// Convert to ECDSA private key
 	privateKey, err := ethcrypto.ToECDSA(privateKeyBytes)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to convert private key: %v", err))
+		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4583,7 +4771,7 @@ func SignMessage(params *C.char) *C.char {
 		hexStr := strings.TrimPrefix(strings.TrimPrefix(input.Message, "0x"), "0X")
 		messageBytes, err = hexToBytes(hexStr)
 		if err != nil {
-			response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid hex message: %v", err))
+			response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 			jsonBytes, _ := json.Marshal(response)
 			return C.CString(string(jsonBytes))
 		}
@@ -4601,7 +4789,7 @@ func SignMessage(params *C.char) *C.char {
 	// Step 7: Sign the hash
 	signature, err := ethcrypto.Sign(messageHash.Bytes(), privateKey)
 	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, fmt.Sprintf("Failed to sign message: %v", err))
+		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4662,17 +4850,25 @@ func SignTypedData(params *C.char) *C.char {
 
 	paramsStr := C.GoString(params)
 	if err := json.Unmarshal([]byte(paramsStr), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON input: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
 	defer zeroString(&input.Password)
 	defer zeroString(&input.Passphrase)
 
 	// Parse typed data
 	var typedData apitypes.TypedData
 	if err := json.Unmarshal([]byte(input.TypedData), &typedData); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid typed data JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4681,7 +4877,7 @@ func SignTypedData(params *C.char) *C.char {
 	walletSvc := wallet.NewWalletService(input.USBPath)
 	mnemonic, err := walletSvc.RestoreWallet(input.WalletID, input.Password)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, fmt.Sprintf("Failed to decrypt wallet: %v", err))
+		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4690,7 +4886,7 @@ func SignTypedData(params *C.char) *C.char {
 	// Step 2: Load wallet metadata to find derivation path
 	walletObj, err := walletSvc.LoadWallet(input.WalletID)
 	if err != nil {
-		response := NewErrorResponse(ErrStorageError, fmt.Sprintf("Failed to load wallet: %v", err))
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4704,7 +4900,7 @@ func SignTypedData(params *C.char) *C.char {
 		}
 	}
 	if derivationPath == "" {
-		response := NewErrorResponse(ErrTransactionSignFailed, fmt.Sprintf("Address not found in wallet: %s", input.Address))
+		response := NewErrorResponse(ErrTransactionSignFailed, "Address not found in wallet")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4715,7 +4911,7 @@ func SignTypedData(params *C.char) *C.char {
 
 	seed, err := bip39Svc.MnemonicToSeed(mnemonic, input.Passphrase)
 	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, fmt.Sprintf("Failed to derive seed: %v", err))
+		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4723,21 +4919,21 @@ func SignTypedData(params *C.char) *C.char {
 
 	masterKey, err := hdkeySvc.NewMasterKey(seed)
 	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, fmt.Sprintf("Failed to create master key: %v", err))
+		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
 	childKey, err := hdkeySvc.DerivePath(masterKey, derivationPath)
 	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, fmt.Sprintf("Failed to derive key: %v", err))
+		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
 	privateKeyBytes, err := hdkeySvc.GetPrivateKey(childKey)
 	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, fmt.Sprintf("Failed to get private key: %v", err))
+		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4745,7 +4941,7 @@ func SignTypedData(params *C.char) *C.char {
 
 	privateKey, err := ethcrypto.ToECDSA(privateKeyBytes)
 	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, fmt.Sprintf("Invalid private key: %v", err))
+		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4753,7 +4949,7 @@ func SignTypedData(params *C.char) *C.char {
 	// Step 5: Sign EIP-712 typed data using go-ethereum's signer
 	signature, err := signTypedDataV4(privateKey, typedData)
 	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, fmt.Sprintf("EIP-712 signing failed: %v", err))
+		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4830,7 +5026,7 @@ func CreateDevSession(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -4848,7 +5044,14 @@ func CreateDevSession(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4868,7 +5071,7 @@ func CreateDevSession(params *C.char) *C.char {
 		TrustedNetworks: input.TrustedNetworks,
 	})
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to create session: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4919,7 +5122,7 @@ func DevSessionSign(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -4942,7 +5145,7 @@ func DevSessionSign(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4954,7 +5157,7 @@ func DevSessionSign(params *C.char) *C.char {
 		var err error
 		data, err = hex.DecodeString(dataStr)
 		if err != nil {
-			response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid data hex: %v", err))
+			response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 			jsonBytes, _ := json.Marshal(response)
 			return C.CString(string(jsonBytes))
 		}
@@ -5032,7 +5235,7 @@ func DevSessionSign(params *C.char) *C.char {
 		input.Nonce,
 	)
 	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, fmt.Sprintf("Signing failed: %v", err))
+		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -5074,7 +5277,7 @@ func DevSessionSign(params *C.char) *C.char {
 func GetDevSession(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -5087,7 +5290,7 @@ func GetDevSession(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -5126,7 +5329,7 @@ func GetDevSession(params *C.char) *C.char {
 func EndDevSession(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
-			response := NewErrorResponse(ErrLibraryPanic, fmt.Sprintf("Library panic: %v", r))
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
 			ptr := C.CString(string(jsonBytes))
 			_ = ptr
@@ -5139,7 +5342,7 @@ func EndDevSession(params *C.char) *C.char {
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Invalid JSON: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -5147,7 +5350,7 @@ func EndDevSession(params *C.char) *C.char {
 	dsm := initDevSessionManager()
 	err := dsm.EndSession(input.SessionToken)
 	if err != nil {
-		response := NewErrorResponse(ErrInvalidInput, fmt.Sprintf("Failed to end session: %v", err))
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use crate::ffi::queue::LazyWalletQueue;
+use crate::SessionTokenState;
 
 /// Input for creating a session token
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,6 +77,7 @@ pub struct RevokeTokenResponse {
 pub async fn create_session(
     input: CreateSessionInput,
     queue: State<'_, LazyWalletQueue>,
+    session_state: State<'_, SessionTokenState>,
 ) -> Result<SessionTokenResponse, String> {
     let params = serde_json::json!({
         "usbPath": input.usb_path,
@@ -89,6 +91,11 @@ pub async fn create_session(
 
     let response: SessionTokenResponse = serde_json::from_value(result)
         .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    // Store token in Rust state as backup (accessible by WebSocket handler)
+    if let Ok(mut guard) = session_state.0.lock() {
+        *guard = Some(response.token.clone());
+    }
 
     Ok(response)
 }
@@ -139,6 +146,7 @@ pub async fn validate_session(
 pub async fn revoke_session(
     input: RevokeTokenInput,
     queue: State<'_, LazyWalletQueue>,
+    session_state: State<'_, SessionTokenState>,
 ) -> Result<RevokeTokenResponse, String> {
     let params = serde_json::json!({
         "token": input.token,
@@ -151,6 +159,11 @@ pub async fn revoke_session(
 
     let response: RevokeTokenResponse = serde_json::from_value(result)
         .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    // Clear token from Rust state on revoke
+    if let Ok(mut guard) = session_state.0.lock() {
+        *guard = None;
+    }
 
     Ok(response)
 }

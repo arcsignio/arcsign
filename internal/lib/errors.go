@@ -123,6 +123,34 @@ func GetUserFriendlyMessage(code ErrorCode) string {
 		return "Encryption operation failed. Your data is secure, but the operation could not complete."
 	case ErrLibraryPanic:
 		return "An unexpected error occurred. Please restart the application."
+	case ErrTransactionBuildFailed:
+		return "Failed to build transaction. Please check your inputs and try again."
+	case ErrTransactionSignFailed:
+		return "Failed to sign transaction. Please try again."
+	case ErrTransactionBroadcastFailed:
+		return "Failed to broadcast transaction. Please check your network connection."
+	case ErrTransactionQueryFailed:
+		return "Failed to query transaction status. Please try again later."
+	case ErrFeeEstimationFailed:
+		return "Failed to estimate network fee. Please try again."
+	case ErrSwapQuoteFailed:
+		return "Failed to get swap quote. Please try again."
+	case ErrSwapBuildFailed:
+		return "Failed to build swap transaction. Please try again."
+	case ErrSwapApprovalFailed:
+		return "Failed to get token approval. Please try again."
+	case ErrSwapAllowanceFailed:
+		return "Failed to check token allowance. Please try again."
+	case ErrChainNotSupported:
+		return "This blockchain is not supported for this operation."
+	case ErrAppConfigLoad:
+		return "Failed to load application configuration. Please ensure your USB drive is connected."
+	case ErrAppConfigSave:
+		return "Failed to save application configuration. Please ensure your USB drive is connected."
+	case ErrMembershipInvalid:
+		return "Membership validation failed. Please check your membership status."
+	case ErrMembershipNotFound:
+		return "Membership binding not found."
 	default:
 		return "An error occurred. Please try again."
 	}
@@ -236,9 +264,6 @@ func MapWalletErrorWithContext(err error) (ErrorCode, map[string]interface{}) {
 	case ErrEncryptionError:
 		context["hint"] = "Your wallet data is still secure"
 	}
-
-	// Always include the original error message in context
-	context["originalError"] = errMsg
 
 	return code, context
 }

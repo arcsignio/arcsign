@@ -174,6 +174,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
    * Clear session state (logout without revoking token)
    */
   clearSession: () => {
+    // Best-effort overwrite: fill token memory with null bytes before clearing
+    const { token } = get();
+    if (token) {
+      set({ token: '\x00'.repeat(token.length) });
+    }
     set({
       token: null,
       expiresAt: null,

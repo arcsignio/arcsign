@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+	"unsafe"
 
+	"github.com/yourusername/arcsign/internal/security"
 	"github.com/yourusername/arcsign/internal/services/crypto"
 )
 
@@ -78,6 +80,18 @@ func NewProviderConfigStore(configPath, password string) (*ProviderConfigStore, 
 	}
 
 	return store, nil
+}
+
+// Close securely zeros the password from memory when the store is no longer needed.
+// Callers should defer store.Close() after creating the store.
+func (s *ProviderConfigStore) Close() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if s.password != "" {
+		b := unsafe.Slice(unsafe.StringData(s.password), len(s.password))
+		security.SecureZero(b)
+		s.password = ""
+	}
 }
 
 // Set adds or updates a provider configuration
@@ -219,45 +233,29 @@ func (s *ProviderConfigStore) ListChains() []string {
 
 // Load reads and decrypts the provider configuration file
 func (s *ProviderConfigStore) Load() error {
-	fmt.Fprintf(os.Stderr, "[Go Provider] Load() called for path: %s\n", s.configPath)
-	fmt.Fprintf(os.Stderr, "[Go Provider] Password length: %d\n", len(s.password))
-	
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	// Read encrypted file
 	encryptedData, err := os.ReadFile(s.configPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[Go Provider] Failed to read file: %v\n", err)
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "[Go Provider] Read encrypted data, length: %d bytes\n", len(encryptedData))
 
 	// Decrypt using AES-256-GCM (same as wallet encryption)
 	decryptedData, err := crypto.Decrypt(encryptedData, s.password)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[Go Provider] Decryption FAILED: %v\n", err)
-		fmt.Fprintf(os.Stderr, "[Go Provider] Password used for decryption: '%s'\n", s.password)
 		return fmt.Errorf("failed to decrypt provider config: %w", err)
 	}
-	fmt.Fprintf(os.Stderr, "[Go Provider] Decryption SUCCESS, decrypted data length: %d bytes\n", len(decryptedData))
-	previewLen := 200
-	if len(decryptedData) < previewLen {
-		previewLen = len(decryptedData)
-	}
-	fmt.Fprintf(os.Stderr, "[Go Provider] Decrypted JSON preview (first %d chars): %s\n", previewLen, string(decryptedData[:previewLen]))
 
 	// Parse JSON
 	var configFile ProviderConfigFile
 	if err := json.Unmarshal(decryptedData, &configFile); err != nil {
-		fmt.Fprintf(os.Stderr, "[Go Provider] JSON parse FAILED: %v\n", err)
 		return fmt.Errorf("failed to parse provider config: %w", err)
 	}
-	fmt.Fprintf(os.Stderr, "[Go Provider] JSON parse SUCCESS, version: %s\n", configFile.Version)
 
 	// Validate version
 	if configFile.Version != "1.0" {
-		fmt.Fprintf(os.Stderr, "[Go Provider] Unsupported version: %s\n", configFile.Version)
 		return fmt.Errorf("unsupported config version: %s", configFile.Version)
 	}
 
@@ -272,9 +270,6 @@ func (s *ProviderConfigStore) Load() error {
 
 // save encrypts and writes the provider configuration file (caller must hold lock)
 func (s *ProviderConfigStore) save() error {
-	fmt.Fprintf(os.Stderr, "[Go Provider] save() called for path: %s\n", s.configPath)
-	fmt.Fprintf(os.Stderr, "[Go Provider] Password length: %d\n", len(s.password))
-	
 	// Create config file structure
 	configFile := ProviderConfigFile{
 		Version:   "1.0",
@@ -285,46 +280,31 @@ func (s *ProviderConfigStore) save() error {
 	// Marshal to JSON
 	jsonData, err := json.MarshalIndent(configFile, "", "  ")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[Go Provider] JSON marshal FAILED: %v\n", err)
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
-	fmt.Fprintf(os.Stderr, "[Go Provider] JSON marshal SUCCESS, data length: %d bytes\n", len(jsonData))
-	previewLen := 200
-	if len(jsonData) < previewLen {
-		previewLen = len(jsonData)
-	}
-	fmt.Fprintf(os.Stderr, "[Go Provider] JSON preview (first %d chars): %s\n", previewLen, string(jsonData[:previewLen]))
 
 	// Encrypt using AES-256-GCM
 	encryptedData, err := crypto.Encrypt(jsonData, s.password)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[Go Provider] Encryption FAILED: %v\n", err)
-		fmt.Fprintf(os.Stderr, "[Go Provider] Password used for encryption: '%s'\n", s.password)
 		return fmt.Errorf("failed to encrypt provider config: %w", err)
 	}
-	fmt.Fprintf(os.Stderr, "[Go Provider] Encryption SUCCESS, encrypted data length: %d bytes\n", len(encryptedData))
 
 	// Ensure directory exists
 	dir := filepath.Dir(s.configPath)
 	if err := os.MkdirAll(dir, 0700); err != nil {
-		fmt.Fprintf(os.Stderr, "[Go Provider] Failed to create directory: %v\n", err)
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
 	// Write to file atomically (write to temp, then rename)
 	tempPath := s.configPath + ".tmp"
 	if err := os.WriteFile(tempPath, encryptedData, 0600); err != nil {
-		fmt.Fprintf(os.Stderr, "[Go Provider] Failed to write temp file: %v\n", err)
 		return fmt.Errorf("failed to write temp config: %w", err)
 	}
-	fmt.Fprintf(os.Stderr, "[Go Provider] Wrote temp file: %s\n", tempPath)
 
 	if err := os.Rename(tempPath, s.configPath); err != nil {
 		os.Remove(tempPath) // Clean up temp file
-		fmt.Fprintf(os.Stderr, "[Go Provider] Failed to rename file: %v\n", err)
 		return fmt.Errorf("failed to rename config file: %w", err)
 	}
-	fmt.Fprintf(os.Stderr, "[Go Provider] File saved successfully: %s\n", s.configPath)
 
 	return nil
 }

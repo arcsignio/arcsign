@@ -36,10 +36,10 @@
         "scope": [
           "$RESOURCE/**",
           "$APP/**",
-          "$HOME/**",
           "/Volumes/**",
           "/media/**",
-          "/mnt/**"
+          "/mnt/**",
+          "/run/media/**"
         ]
       },
       "path": {

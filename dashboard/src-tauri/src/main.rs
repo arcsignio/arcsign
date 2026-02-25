@@ -56,6 +56,11 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant; // T045: Startup time logging
 use ffi::{WalletLibrary, LazyWalletQueue};  // T017: Import FFI types (use LazyWalletQueue)
 use tauri::Manager;  // For app.manage() in setup hook
+
+/// Rust-side session token backup. Token is stored here in addition to JS Zustand state
+/// so that WebSocket handlers can access it without depending on the frontend.
+/// Security: Mutex-protected, cleared on revoke/logout.
+pub struct SessionTokenState(pub Mutex<Option<String>>);
 use websocket::WebSocketServer;  // WebSocket server for external connections
 use tokio::sync::mpsc;
 
@@ -186,6 +191,7 @@ fn main() {
 
     tauri::Builder::default()
         .manage(AddressCache(Mutex::new(HashMap::new())))
+        .manage(SessionTokenState(Mutex::new(None)))
         .setup(move |app| {
             // T018: Initialize LazyWalletQueue (defers actual initialization until first use)
             // T042: Symbol caching is already implemented in WalletLibrary::load()
