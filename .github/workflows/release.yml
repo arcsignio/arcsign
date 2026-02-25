@@ -51,6 +51,7 @@ jobs:
     name: Build Go Libs (${{ matrix.target }})
     needs: version-check
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -93,11 +94,16 @@ jobs:
           lipo -info libarcsign.dylib
 
       # Windows build
+      - name: Setup MinGW
+        if: matrix.target == 'windows'
+        run: echo "C:\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
       - name: Build Windows DLL
         if: matrix.target == 'windows'
         run: go build -buildmode=c-shared -o libarcsign.dll internal/lib/*.go
         env:
           CGO_ENABLED: "1"
+          CC: gcc
 
       - name: Upload Go library
         uses: actions/upload-artifact@v4
