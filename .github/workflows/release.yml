@@ -178,13 +178,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VITE_WALLETCONNECT_PROJECT_ID: ${{ secrets.VITE_WALLETCONNECT_PROJECT_ID }}
-          # macOS signing (optional - builds succeed without these)
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # macOS signing — only set these when Apple Developer secrets are configured
+          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: dashboard
 
