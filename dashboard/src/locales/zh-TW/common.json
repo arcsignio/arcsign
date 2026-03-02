@@ -1018,5 +1018,31 @@
     "readyBody": "您已準備好建立第一個錢包，開始安全地管理您的數位資產。",
     "createFirstWallet": "建立第一個錢包",
     "revisitHint": "您可以隨時在設定中重新查看此導引。"
+  },
+  "update": {
+    "checkForUpdates": "檢查更新",
+    "checking": "正在檢查更新...",
+    "upToDate": "已是最新版本！",
+    "upToDateDesc": "ArcSign v{{version}} 已是最新版本。",
+    "available": "有可用的更新",
+    "newVersion": "ArcSign 有新版本可用。",
+    "currentVersion": "目前版本",
+    "latestVersion": "最新版本",
+    "releaseDate": "發布日期",
+    "releaseNotes": "更新內容",
+    "updateNow": "立即更新",
+    "remindLater": "稍後提醒",
+    "skipVersion": "跳過此版本",
+    "downloading": "正在下載更新...",
+    "downloadingDesc": "請稍候，正在下載更新檔案。",
+    "installing": "正在安裝更新...",
+    "installingDesc": "請勿關閉應用程式。",
+    "installed": "更新已安裝！",
+    "installedDesc": "ArcSign 已更新至 v{{version}}。重新啟動以套用變更。",
+    "restartNow": "立即重新啟動",
+    "error": "更新失敗",
+    "errorDesc": "更新過程中發生錯誤，請重試。",
+    "retry": "重試",
+    "close": "關閉"
   }
 }

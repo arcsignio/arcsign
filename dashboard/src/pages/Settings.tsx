@@ -10,6 +10,7 @@ import { getVersion } from '@tauri-apps/api/app';
 interface SettingsProps {
   onBack: () => void;
   onNavigate: (view: string) => void;
+  onCheckUpdate?: () => Promise<void>;
 }
 
 interface SettingItem {
@@ -64,13 +65,24 @@ const DEVELOPER_ITEM: SettingItem = {
   icon: <IconWrench />,
 };
 
-export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
+export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckUpdate }) => {
   const { t } = useTranslation();
   const [appVersion, setAppVersion] = useState('...');
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
   useEffect(() => {
     getVersion().then(v => setAppVersion(v)).catch(() => setAppVersion('unknown'));
   }, []);
+
+  const handleCheckUpdate = async () => {
+    if (!onCheckUpdate || isCheckingUpdate) return;
+    setIsCheckingUpdate(true);
+    try {
+      await onCheckUpdate();
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  };
 
   return (
     <div className="settings-page">
@@ -133,6 +145,25 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
             <span className="about-separator">·</span>
             <a href="https://x.com/ArcSignWallet" target="_blank" rel="noopener noreferrer" className="about-link">@ArcSignWallet</a>
           </div>
+          {onCheckUpdate && (
+            <button
+              className="check-update-button"
+              onClick={handleCheckUpdate}
+              disabled={isCheckingUpdate}
+            >
+              {isCheckingUpdate ? (
+                <>
+                  <svg className="check-update-spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
+                  {t('update.checking')}
+                </>
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0115.35-6.35L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 01-15.35 6.35L3 16"/></svg>
+                  {t('update.checkForUpdates')}
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -356,6 +387,41 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate }) => {
         .about-separator {
           color: #d1d5db;
           font-size: 12px;
+        }
+
+        .check-update-button {
+          margin-top: 12px;
+          padding: 8px 20px;
+          background: transparent;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          color: #0d9488;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .check-update-button:hover {
+          border-color: #2dd4bf;
+          background: rgba(45, 212, 191, 0.05);
+        }
+
+        .check-update-button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .check-update-spinner {
+          animation: check-update-spin 1s linear infinite;
+        }
+
+        @keyframes check-update-spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>

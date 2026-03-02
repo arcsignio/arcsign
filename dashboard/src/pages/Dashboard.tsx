@@ -42,7 +42,7 @@ import { ACTIVE_NETWORK } from '@/constants/contracts';
 const NFT_CONTRACT = ACTIVE_NETWORK.nftContract;
 const CHAIN_ID = ACTIVE_NETWORK.chainName;
 
-export function Dashboard() {
+export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<void> }) {
   const { t } = useTranslation();
   const [currentView, setCurrentView] = useState<View>("list");
   const [isLoadingWallets, setIsLoadingWallets] = useState(false);
@@ -678,6 +678,7 @@ export function Dashboard() {
         <Settings
           onBack={handleBackToList}
           onNavigate={handleSettingsNavigate}
+          onCheckUpdate={onCheckUpdate}
         />
       </div>
     );

@@ -16,7 +16,9 @@ import { SignRequestDialog } from '@/components/WalletConnect/SignRequestDialog'
 import { SignatureToastContainer } from '@/components/WalletConnect/SignatureToast';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { OnboardingFlow } from '@/components/Onboarding';
+import { UpdateDialog } from '@/components/UpdateDialog';
 import { useShouldShowOnboarding, useOnboardingStore } from '@/stores/onboardingStore';
+import { useUpdateChecker } from '@/hooks/useUpdateChecker';
 import tauriApi, { type AppError, type AppConfig } from '@/services/tauri-api';
 
 function AppContent() {
@@ -130,6 +132,9 @@ function AppContent() {
     useOnboardingStore.getState().completeOnboarding();
   }, []);
 
+  // OTA Update checker - active after unlock
+  const updateChecker = useUpdateChecker({ enabled: isUnlocked });
+
   // Loading USB detection
   if (loadingUsb) {
     return (
@@ -230,7 +235,16 @@ function AppContent() {
   // Show dashboard after authentication
   return (
     <div className="app">
-      <Dashboard />
+      <Dashboard onCheckUpdate={updateChecker.checkForUpdates} />
+
+      {/* OTA Update Dialog */}
+      <UpdateDialog
+        state={updateChecker.state}
+        onInstall={updateChecker.startInstall}
+        onDismiss={updateChecker.dismissUpdate}
+        onSkipVersion={updateChecker.skipVersion}
+        onRetry={updateChecker.checkForUpdates}
+      />
 
       {/* WalletConnect Modals */}
       <PairingModal

@@ -1018,5 +1018,31 @@
     "readyBody": "You're ready to create your first wallet and start managing your digital assets securely.",
     "createFirstWallet": "Create Your First Wallet",
     "revisitHint": "You can revisit this guide anytime from Settings."
+  },
+  "update": {
+    "checkForUpdates": "Check for Updates",
+    "checking": "Checking for updates...",
+    "upToDate": "You're up to date!",
+    "upToDateDesc": "ArcSign v{{version}} is the latest version.",
+    "available": "Update Available",
+    "newVersion": "A new version of ArcSign is available.",
+    "currentVersion": "Current version",
+    "latestVersion": "Latest version",
+    "releaseDate": "Release date",
+    "releaseNotes": "What's new",
+    "updateNow": "Update Now",
+    "remindLater": "Remind Later",
+    "skipVersion": "Skip this version",
+    "downloading": "Downloading update...",
+    "downloadingDesc": "Please wait while the update is being downloaded.",
+    "installing": "Installing update...",
+    "installingDesc": "Please don't close the application.",
+    "installed": "Update Installed!",
+    "installedDesc": "ArcSign has been updated to v{{version}}. Restart to apply changes.",
+    "restartNow": "Restart Now",
+    "error": "Update Failed",
+    "errorDesc": "An error occurred while updating. Please try again.",
+    "retry": "Retry",
+    "close": "Close"
   }
 }
