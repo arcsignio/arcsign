@@ -11,9 +11,7 @@ import (
 type KeyType string
 
 const (
-	KeyTypeSecp256k1 KeyType = "secp256k1" // Used by Bitcoin, Ethereum, most chains
-	KeyTypeEd25519   KeyType = "ed25519"   // Used by Tezos, Stellar, Solana
-	KeyTypeSr25519   KeyType = "sr25519"   // Used by Polkadot, Kusama (Substrate chains)
+	KeyTypeSecp256k1 KeyType = "secp256k1" // Used by Bitcoin, Ethereum, and all supported chains
 )
 
 // CoinMetadata represents metadata for a cryptocurrency coin type
@@ -55,8 +53,6 @@ func (c *CoinMetadata) Validate() error {
 		models.ChainCategoryUTXO,
 		models.ChainCategoryEVMMainnet,
 		models.ChainCategoryLayer2,
-		models.ChainCategoryCosmos,
-		models.ChainCategorySubstrate,
 		models.ChainCategoryCustom,
 	}
 	categoryValid := false

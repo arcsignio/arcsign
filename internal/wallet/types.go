@@ -14,9 +14,7 @@ const (
 	CategoryBaseChains     AddressCategory = "base"
 	CategoryLayer2         AddressCategory = "layer2"
 	CategoryRegional       AddressCategory = "regional"
-	CategoryCosmos         AddressCategory = "cosmos"
 	CategoryAlternativeEVM AddressCategory = "alt_evm"
-	CategorySpecialized    AddressCategory = "specialized"
 )
 
 // Address represents a derived cryptocurrency address with BIP44 metadata
@@ -81,28 +79,39 @@ type ChainMetadata struct {
 }
 
 // SupportedChains returns the list of supported blockchains for address generation
-// Currently supported: BTC, ETH, BNB, MATIC, ARB, OP, BASE (full transaction support)
-// Next phase: SOL, TRX, AVAX, ZKS, STRK, LINEA (coming soon)
+// Supported: BTC + 21 EVM chains (all EVM chains use coinType 60)
 func SupportedChains() []ChainMetadata {
 	return []ChainMetadata{
-		// Currently Supported - Full transaction support
+		// Bitcoin
 		{Symbol: "BTC", Name: "Bitcoin", CoinType: 0, Category: CategoryBaseChains, MarketRank: 1},
+
+		// EVM Mainnet
 		{Symbol: "ETH", Name: "Ethereum", CoinType: 60, Category: CategoryBaseChains, MarketRank: 2},
-		{Symbol: "BNB", Name: "BNB Chain", CoinType: 714, Category: CategoryBaseChains, MarketRank: 3},
-		{Symbol: "MATIC", Name: "Polygon", CoinType: 966, Category: CategoryBaseChains, MarketRank: 4},
+		{Symbol: "BNB", Name: "BNB Chain", CoinType: 60, Category: CategoryBaseChains, MarketRank: 3},
+		{Symbol: "MATIC", Name: "Polygon", CoinType: 60, Category: CategoryBaseChains, MarketRank: 4},
+		{Symbol: "AVAX", Name: "Avalanche", CoinType: 60, Category: CategoryBaseChains, MarketRank: 5},
+		{Symbol: "ETC", Name: "Ethereum Classic", CoinType: 60, Category: CategoryBaseChains, MarketRank: 6},
+		{Symbol: "VET", Name: "VeChain", CoinType: 60, Category: CategoryBaseChains, MarketRank: 7},
 
-		// Currently Supported - Layer 2 (EVM compatible)
-		{Symbol: "ARB", Name: "Arbitrum", CoinType: 9001, Category: CategoryLayer2, MarketRank: 5},
-		{Symbol: "OP", Name: "Optimism", CoinType: 614, Category: CategoryLayer2, MarketRank: 6},
-		{Symbol: "BASE", Name: "Base", CoinType: 8453, Category: CategoryLayer2, MarketRank: 7},
+		// Layer 2
+		{Symbol: "ARB", Name: "Arbitrum", CoinType: 60, Category: CategoryLayer2, MarketRank: 8},
+		{Symbol: "OP", Name: "Optimism", CoinType: 60, Category: CategoryLayer2, MarketRank: 9},
+		{Symbol: "BASE", Name: "Base", CoinType: 60, Category: CategoryLayer2, MarketRank: 10},
+		{Symbol: "ZKS", Name: "zkSync", CoinType: 60, Category: CategoryLayer2, MarketRank: 11},
+		{Symbol: "LINEA", Name: "Linea", CoinType: 60, Category: CategoryLayer2, MarketRank: 12},
 
-		// Next Phase - Coming Soon (address generation enabled)
-		{Symbol: "SOL", Name: "Solana", CoinType: 501, Category: CategoryBaseChains, MarketRank: 8},
-		{Symbol: "TRX", Name: "Tron", CoinType: 195, Category: CategoryBaseChains, MarketRank: 9},
-		{Symbol: "AVAX", Name: "Avalanche", CoinType: 9000, Category: CategoryBaseChains, MarketRank: 10},
-		{Symbol: "ZKS", Name: "zkSync", CoinType: 324, Category: CategoryLayer2, MarketRank: 11},
-		{Symbol: "STRK", Name: "Starknet", CoinType: 9004, Category: CategoryLayer2, MarketRank: 12},
-		{Symbol: "LINEA", Name: "Linea", CoinType: 59144, Category: CategoryLayer2, MarketRank: 13},
+		// Regional EVM
+		{Symbol: "KLAY", Name: "Klaytn", CoinType: 60, Category: CategoryRegional, MarketRank: 13},
+		{Symbol: "CRO", Name: "Cronos", CoinType: 60, Category: CategoryRegional, MarketRank: 14},
+		{Symbol: "HT", Name: "HECO", CoinType: 60, Category: CategoryRegional, MarketRank: 15},
+
+		// Alt EVM
+		{Symbol: "FTM", Name: "Fantom", CoinType: 60, Category: CategoryAlternativeEVM, MarketRank: 16},
+		{Symbol: "CELO", Name: "Celo", CoinType: 60, Category: CategoryAlternativeEVM, MarketRank: 17},
+		{Symbol: "GLMR", Name: "Moonbeam", CoinType: 60, Category: CategoryAlternativeEVM, MarketRank: 18},
+		{Symbol: "METIS", Name: "Metis", CoinType: 60, Category: CategoryAlternativeEVM, MarketRank: 19},
+		{Symbol: "GNO", Name: "Gnosis", CoinType: 60, Category: CategoryAlternativeEVM, MarketRank: 20},
+		{Symbol: "WAN", Name: "Wanchain", CoinType: 60, Category: CategoryAlternativeEVM, MarketRank: 21},
 	}
 }
 

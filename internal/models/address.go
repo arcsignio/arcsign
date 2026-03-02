@@ -9,12 +9,10 @@ import (
 type ChainCategory string
 
 const (
-	ChainCategoryUTXO        ChainCategory = "UTXO"         // Bitcoin-style UTXO chains
-	ChainCategoryEVMMainnet  ChainCategory = "EVM_Mainnet"  // Ethereum mainnet
-	ChainCategoryLayer2      ChainCategory = "Layer2"       // Ethereum Layer 2 networks
-	ChainCategoryCosmos      ChainCategory = "Cosmos_SDK"   // Cosmos SDK chains
-	ChainCategorySubstrate   ChainCategory = "Substrate"    // Polkadot/Kusama substrate chains
-	ChainCategoryCustom      ChainCategory = "Custom"       // Other specialized chains
+	ChainCategoryUTXO       ChainCategory = "UTXO"        // Bitcoin
+	ChainCategoryEVMMainnet ChainCategory = "EVM_Mainnet" // Ethereum and EVM-compatible chains
+	ChainCategoryLayer2     ChainCategory = "Layer2"      // Ethereum Layer 2 networks
+	ChainCategoryCustom     ChainCategory = "Custom"      // Other chains (regional EVM, etc.)
 )
 
 // Address represents a derived cryptocurrency address from a BIP44 path

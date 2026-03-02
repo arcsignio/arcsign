@@ -224,53 +224,6 @@ func (s *AddressService) deriveAddressByFormatter(key *hdkeychain.ExtendedKey, f
 		return s.DeriveBitcoinAddress(key)
 	case "ethereum":
 		return s.DeriveEthereumAddress(key)
-	case "litecoin":
-		return s.DeriveLitecoinAddress(key)
-	case "dogecoin":
-		return s.DeriveDogecoinAddress(key)
-	case "dash":
-		return s.DeriveDashAddress(key)
-	case "bitcoincash":
-		return s.DeriveBitcoinCashAddress(key)
-	case "zcash":
-		return s.DeriveZcashAddress(key)
-	case "ripple":
-		return s.DeriveRippleAddress(key)
-	case "stellar":
-		return s.DeriveStellarAddress(key)
-	case "tron":
-		return s.DeriveTronAddress(key)
-	case "solana":
-		return s.DeriveSolanaAddress(key)
-	case "cosmos":
-		return s.DeriveCosmosAddress(key)
-	case "starknet":
-		return s.DeriveStarknetAddress(key)
-	case "harmony":
-		// T049: Harmony uses Ethereum derivation + Bech32 encoding
-		ecdsaPrivKey, err := key.ECPrivKey()
-		if err != nil {
-			return "", fmt.Errorf("failed to get ECDSA private key for Harmony: %w", err)
-		}
-		return s.DeriveHarmonyAddress(ecdsaPrivKey.ToECDSA())
-	// T069: Cosmos ecosystem chains (User Story 3)
-	case "osmosis":
-		return s.DeriveOsmosisAddress(key)
-	case "juno":
-		return s.DeriveJunoAddress(key)
-	case "evmos":
-		return s.DeriveEvmosAddress(key)
-	case "secret":
-		return s.DeriveSecretAddress(key)
-	// T090, T095, T101, T108: Specialized chains (User Story 5 - complete)
-	case "kusama":
-		return s.DeriveKusamaAddress(key)
-	case "icon":
-		return s.DeriveIconAddress(key)
-	case "tezos":
-		return s.DeriveTezosAddress(key)
-	case "zilliqa":
-		return s.DeriveZilliqaAddress(key)
 	default:
 		return "", fmt.Errorf("unsupported formatter: %s", formatterID)
 	}

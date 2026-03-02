@@ -16,7 +16,7 @@ import (
 
 // GenerateAddressesFile generates addresses for all supported blockchains
 // and writes them to addresses.json on the specified USB path.
-// Currently generates 13 addresses (7 supported + 6 next phase chains).
+// Currently generates 22 addresses (1 BTC + 21 EVM chains).
 //
 // Parameters:
 //   - usbPath: Root path to USB device (e.g., "/Volumes/NO NAME")
@@ -55,7 +55,6 @@ func GenerateAddressesFile(usbPath, walletID, mnemonic, passphrase string) (stri
 	for _, chain := range chains {
 		// Derive key at BIP44 path for this chain
 		derivationPath := FormatDerivationPath(chain.CoinType, 0, 0, 0)
-		fmt.Printf("[Wallet Debug] Deriving %s address at path: %s\n", chain.Symbol, derivationPath)
 		
 		derivedKey, err := hdkeyService.DerivePath(masterKey, derivationPath)
 		if err != nil {
@@ -68,19 +67,9 @@ func GenerateAddressesFile(usbPath, walletID, mnemonic, passphrase string) (stri
 		case 0: // Bitcoin
 			addressString, err = addressService.DeriveBitcoinAddress(derivedKey)
 		case 60: // Ethereum and EVM-compatible chains
-			fmt.Printf("[Wallet Debug] Generating Ethereum address for %s (coinType=%d)\n", chain.Symbol, chain.CoinType)
 			addressString, err = addressService.DeriveEthereumAddress(derivedKey)
-			if err == nil {
-				fmt.Printf("[Wallet Debug] Generated %s address: %s\n", chain.Symbol, addressString)
-			}
-		case 2: // Litecoin
-			addressString, err = addressService.DeriveLitecoinAddress(derivedKey)
-		case 3: // Dogecoin
-			addressString, err = addressService.DeriveDogecoinAddress(derivedKey)
 		default:
-			// For now, use Ethereum formatter as fallback for EVM-compatible chains
-			// In production, we'll need specific formatters for Cosmos, Substrate, etc.
-			addressString, err = addressService.DeriveEthereumAddress(derivedKey)
+			return "", fmt.Errorf("unsupported coin type: %d for chain %s", chain.CoinType, chain.Symbol)
 		}
 
 		if err != nil {

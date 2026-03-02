@@ -20,8 +20,9 @@ func TestNewRegistry_CoinCount(t *testing.T) {
 
 	// We have a specific set of registered coins (see registry.go)
 	// Count should be stable for snapshot testing
-	if len(coins) < 30 {
-		t.Errorf("expected at least 30 coins, got %d", len(coins))
+	// 22 coins: 1 BTC + 21 EVM chains
+	if len(coins) != 22 {
+		t.Errorf("expected 22 coins, got %d", len(coins))
 	}
 }
 
@@ -72,7 +73,7 @@ func TestGetCoinBySymbol_CaseInsensitive(t *testing.T) {
 		{"Btc", "BTC"},
 		{"BTC", "BTC"},
 		{"eth", "ETH"},
-		{"sol", "SOL"},
+		{"bnb", "BNB"},
 	}
 
 	for _, tt := range tests {
@@ -284,7 +285,7 @@ func TestCoinMetadata_Validate_NegativeRank(t *testing.T) {
 
 func TestLayer2Chains_Category(t *testing.T) {
 	r := NewRegistry()
-	layer2Symbols := []string{"ARB", "OP", "BASE", "ZKS", "LINEA", "STRK"}
+	layer2Symbols := []string{"ARB", "OP", "BASE", "ZKS", "LINEA"}
 
 	for _, sym := range layer2Symbols {
 		coin, err := r.GetCoinBySymbol(sym)
