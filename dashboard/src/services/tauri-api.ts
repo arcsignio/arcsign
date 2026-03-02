@@ -787,7 +787,7 @@ export async function validatePassphrase(
 }
 
 // ============================================================================
-// Swap Types (DEX Aggregator - 1inch)
+// Swap Types (DEX Aggregator - OpenOcean / KyberSwap)
 // ============================================================================
 
 export interface SwapTokenInfo {
@@ -812,7 +812,7 @@ export interface GetSwapQuoteParams {
 }
 
 export interface SwapQuoteResponse {
-  dex: string; // "1inch"
+  dex: string; // "OpenOcean" | "KyberSwap"
   fromToken: SwapTokenInfo;
   toToken: SwapTokenInfo;
   fromAmount: string; // Input amount (wei)
@@ -844,7 +844,7 @@ export interface BuildSwapTransactionParams {
 
 export interface SwapTxData {
   from: string;
-  to: string; // 1inch router contract
+  to: string; // DEX router contract
   data: string; // Encoded swap call
   value: string; // ETH value (for native token swaps)
   gas: number; // Gas limit

@@ -44,6 +44,7 @@ type RouteSummary struct {
 	TokenIn      string `json:"tokenIn"`
 	TokenOut     string `json:"tokenOut"`
 	AmountIn     string `json:"amountIn"`
+	AmountInUsd  string `json:"amountInUsd"`
 	AmountOut    string `json:"amountOut"`
 	AmountOutUsd string `json:"amountOutUsd"`
 	Gas          string `json:"gas"`

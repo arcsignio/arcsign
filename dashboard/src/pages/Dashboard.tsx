@@ -30,6 +30,7 @@ import { MembershipBadge } from "@/components/MembershipBadge";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useTranslation } from "react-i18next";
 import type { Address } from "@/types/address";
 import type { Wallet } from "@/types/wallet";
@@ -665,6 +666,8 @@ export function Dashboard() {
       setCurrentView("membership");
     } else if (view === "developer") {
       setCurrentView("developer");
+    } else if (view === "onboarding") {
+      useOnboardingStore.getState().triggerOnboarding();
     }
   };
 

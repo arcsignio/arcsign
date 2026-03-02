@@ -214,11 +214,21 @@ func (c *Client) BuildSwapQuote(ctx context.Context, chainID int, fromToken, toT
 	// Check if approval is needed (for non-native tokens)
 	needsApproval := fromToken != NativeTokenAddress
 
-	// Calculate price impact based on USD values if available
-	// Price impact = (expected output - actual output) / expected output * 100
-	// Since KyberSwap doesn't return price impact directly, we estimate it as "N/A"
-	// A more accurate calculation would require oracle prices
+	// Calculate price impact from USD values returned by KyberSwap API
+	// Price impact = (amountOutUsd - amountInUsd) / amountInUsd * 100
+	// Negative means user receives less value (typical for swaps)
 	priceImpact := "N/A"
+	if summary.AmountInUsd != "" && summary.AmountOutUsd != "" {
+		inUsd, _, errIn := big.ParseFloat(summary.AmountInUsd, 10, 64, big.ToNearestEven)
+		outUsd, _, errOut := big.ParseFloat(summary.AmountOutUsd, 10, 64, big.ToNearestEven)
+		if errIn == nil && errOut == nil && inUsd.Sign() > 0 {
+			diff := new(big.Float).Sub(outUsd, inUsd)
+			impact := new(big.Float).Quo(diff, inUsd)
+			impact.Mul(impact, big.NewFloat(100))
+			impactF, _ := impact.Float64()
+			priceImpact = fmt.Sprintf("%.2f", impactF)
+		}
+	}
 
 	return &SwapQuote{
 		Dex: "KyberSwap",

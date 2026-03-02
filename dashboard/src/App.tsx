@@ -5,7 +5,7 @@
  * Updated: 2026-01-14 - WalletConnect v2 integration
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Dashboard } from '@/pages/Dashboard';
 import { AppUnlock } from '@/components/AppUnlock';
 import { AppPasswordProvider, useAppPassword } from '@/contexts/AppPasswordContext';
@@ -15,11 +15,14 @@ import { SessionApprovalDialog } from '@/components/WalletConnect/SessionApprova
 import { SignRequestDialog } from '@/components/WalletConnect/SignRequestDialog';
 import { SignatureToastContainer } from '@/components/WalletConnect/SignatureToast';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { OnboardingFlow } from '@/components/Onboarding';
+import { useShouldShowOnboarding, useOnboardingStore } from '@/stores/onboardingStore';
 import tauriApi, { type AppError, type AppConfig } from '@/services/tauri-api';
 
 function AppContent() {
   const { isUnlocked, unlock, getSessionToken } = useAppPassword();
   const walletConnect = useWalletConnect();
+  const shouldShowOnboarding = useShouldShowOnboarding();
   const [usbPath, setUsbPath] = useState<string | null>(null);
   const [loadingUsb, setLoadingUsb] = useState(true);
   const [usbError, setUsbError] = useState<string | null>(null);
@@ -122,6 +125,11 @@ function AppContent() {
     await walletConnect.approveSession();
   };
 
+  // Handle onboarding completion
+  const handleOnboardingComplete = useCallback(() => {
+    useOnboardingStore.getState().completeOnboarding();
+  }, []);
+
   // Loading USB detection
   if (loadingUsb) {
     return (
@@ -212,6 +220,11 @@ function AppContent() {
   // Show authentication gate if not unlocked
   if (!isUnlocked) {
     return <AppUnlock usbPath={usbPath} onUnlockSuccess={handleUnlockSuccess} />;
+  }
+
+  // Show onboarding for first-time users or when triggered from Settings
+  if (shouldShowOnboarding) {
+    return <OnboardingFlow onComplete={handleOnboardingComplete} usbPath={usbPath} />;
   }
 
   // Show dashboard after authentication

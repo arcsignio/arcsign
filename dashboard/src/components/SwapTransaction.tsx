@@ -1,12 +1,12 @@
 /**
  * SwapTransaction Component
- * Feature: Token Swap via 1inch DEX Aggregator
+ * Feature: Token Swap via DEX Aggregators (OpenOcean / KyberSwap)
  *
  * Complete swap flow:
  * 1. User selects source token (from balance)
  * 2. User selects destination token
  * 3. User enters amount to swap
- * 4. Get quote from 1inch (show exchange rate, price impact, etc.)
+ * 4. Get quote from DEX aggregator (show exchange rate, price impact, etc.)
  * 5. If needed, approve token spending
  * 6. User confirms and enters wallet password
  * 7. Sign and broadcast swap transaction
@@ -241,7 +241,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
   const [swapTx, setSwapTx] = useState<BuildSwapTransactionResponse | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
 
-  // 1inch Token List state
+  // DEX Token List state
   const [tokenCache, setTokenCache] = useState<TokenCache>({});
   const [loadingTokens, setLoadingTokens] = useState(false);
   const [tokenSearchQuery, setTokenSearchQuery] = useState("");
