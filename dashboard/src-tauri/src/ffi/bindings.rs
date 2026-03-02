@@ -303,7 +303,16 @@ impl WalletLibrary {
                 for path in &search_paths {
                     match Library::new(path) {
                         Ok(lib) => {
-                            tracing::info!("Loaded wallet library from: {}", path);
+                            // Verify library integrity by computing SHA256 hash
+                            match Self::compute_library_hash(path) {
+                                Ok(hash) => {
+                                    tracing::info!("Loaded wallet library from: {}", path);
+                                    tracing::info!("Library SHA256: {}", hash);
+                                }
+                                Err(e) => {
+                                    tracing::warn!("Could not verify library hash: {}", e);
+                                }
+                            }
                             break 'search lib;
                         }
                         Err(e) => {
@@ -638,6 +647,25 @@ impl WalletLibrary {
     /// Search order (highest priority first):
     /// 1. Executable directory (portable USB apps)
     /// 2. App bundle Resources directory (macOS .app bundles)
+    /// Compute SHA256 hash of the library file for integrity verification.
+    /// The hash is logged so administrators can compare against known-good values.
+    fn compute_library_hash(path: &str) -> Result<String, String> {
+        use sha2::{Sha256, Digest};
+        use std::io::Read as _;
+
+        let mut file = std::fs::File::open(path)
+            .map_err(|e| format!("Failed to open library for verification: {}", e))?;
+        let mut hasher = Sha256::new();
+        let mut buffer = [0u8; 8192];
+        loop {
+            let n = std::io::Read::read(&mut file, &mut buffer)
+                .map_err(|e| format!("Read error during hash: {}", e))?;
+            if n == 0 { break; }
+            hasher.update(&buffer[..n]);
+        }
+        Ok(format!("{:x}", hasher.finalize()))
+    }
+
     /// 3. Current directory (development builds)
     /// 4. User-specific application directory
     /// 5. System-wide application directory

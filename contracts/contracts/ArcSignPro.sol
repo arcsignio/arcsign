@@ -202,7 +202,7 @@ contract ArcSignPro is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard, IERC4
      * @dev Can only be called by token owner
      * @dev Each token can only be bound once per ownership (transfer clears binding)
      */
-    function bindDevice(uint256 tokenId, bytes32 deviceHash) external {
+    function bindDevice(uint256 tokenId, bytes32 deviceHash) external nonReentrant {
         require(ownerOf(tokenId) == msg.sender, "Not owner");
         require(deviceBindings[tokenId] == bytes32(0), "Already bound");
         require(deviceHash != bytes32(0), "Invalid device hash");
@@ -293,6 +293,7 @@ contract ArcSignPro is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard, IERC4
      */
     function withdraw(address token, address to, uint256 amount) external onlyOwner {
         require(to != address(0), "Invalid recipient");
+        require(amount > 0, "Amount must be greater than zero");
 
         if (token == address(0)) {
             // Withdraw BNB

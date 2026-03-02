@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/yourusername/arcsign/internal/security"
 )
 
 // HDKeyService handles BIP32 hierarchical deterministic key derivation
@@ -125,8 +127,20 @@ func (s *HDKeyService) GetExtendedPublicKey(key *hdkeychain.ExtendedKey) (string
 	return pubKey.String(), nil
 }
 
-// GetExtendedPrivateKey returns the extended private key (xprv) as a string
-// WARNING: xprv contains private keys and must be handled securely
+// Deprecated: GetExtendedPrivateKey returns xprv as an immutable Go string
+// that cannot be securely zeroed from memory. Use GetExtendedPrivateKeyBytes instead.
 func (s *HDKeyService) GetExtendedPrivateKey(key *hdkeychain.ExtendedKey) (string, error) {
 	return key.String(), nil
+}
+
+// GetExtendedPrivateKeyBytes returns the extended private key (xprv) as []byte.
+// Unlike GetExtendedPrivateKey, the returned slice CAN be securely zeroed.
+// Caller MUST call security.SecureZero(result) when done with the key material.
+func (s *HDKeyService) GetExtendedPrivateKeyBytes(key *hdkeychain.ExtendedKey) ([]byte, error) {
+	xprvStr := key.String()
+	result := []byte(xprvStr)
+	// Zero the intermediate string's backing memory
+	b := unsafe.Slice(unsafe.StringData(xprvStr), len(xprvStr))
+	security.SecureZero(b)
+	return result, nil
 }

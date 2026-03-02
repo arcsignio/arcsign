@@ -49,6 +49,9 @@ winapi = { version = "0.3", features = ["fileapi", "winbase"] }
 # This feature is used for production builds or when `devPath` points to the filesystem
 # DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
+# Developer mode: enables dev session commands for testnet auto-signing
+# MUST NOT be included in production builds
+dev-mode = []
 
 [profile.release]
 panic = "abort"

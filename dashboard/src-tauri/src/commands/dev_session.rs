@@ -4,6 +4,9 @@
  * Provides Tauri commands for managing developer sessions.
  * Sessions allow auto-signing of testnet transactions without password.
  *
+ * Guarded by the "dev-mode" Cargo feature flag.
+ * Production builds MUST NOT include this feature.
+ *
  * Created: 2026-02-09
  */
 

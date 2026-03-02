@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 
+	"github.com/btcsuite/btcd/btcutil/bech32"
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"golang.org/x/crypto/ripemd160" //nolint:staticcheck // RIPEMD-160 required by Cosmos address spec
 )
@@ -37,9 +38,14 @@ func (s *AddressService) deriveCosmosAddressWithPrefix(key *hdkeychain.ExtendedK
 	hash160 := ripemd.Sum(nil)
 
 	// Step 3: Bech32 encode with custom prefix
-	// Simplified Bech32-like encoding (hex-based)
-	// TODO: Replace with proper Bech32 encoding for production use
-	address := fmt.Sprintf("%s1%x", prefix, hash160)
+	converted, err := bech32.ConvertBits(hash160, 8, 5, true)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert bits for Bech32: %w", err)
+	}
+	address, err := bech32.Encode(prefix, converted)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode Bech32 address: %w", err)
+	}
 
 	return address, nil
 }

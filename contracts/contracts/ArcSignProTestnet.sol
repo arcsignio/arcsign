@@ -209,6 +209,7 @@ contract ArcSignProTestnet is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard
      */
     function withdraw(address to, uint256 amount) external onlyOwner {
         require(to != address(0), "Invalid recipient");
+        require(amount > 0, "Amount must be greater than zero");
 
         (bool success, ) = to.call{value: amount}("");
         require(success, "BNB transfer failed");

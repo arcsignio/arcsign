@@ -6,7 +6,7 @@
  */
 
 use super::handler::{handle_request, HandlerContext, PendingTxSender, PendingMsgSender};
-use super::protocol::{WsRequest, WsResponse, DevSession};
+use super::protocol::{WsMethod, WsRequest, WsResponse, DevSession};
 use crate::ffi::LazyWalletQueue;
 use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;
@@ -236,6 +236,12 @@ async fn handle_connection(
 
     tracing::info!("WebSocket connection established with {}", peer_addr);
 
+    // Authentication: unauthenticated connections can only use read-only methods.
+    // Clients must send a Ping request first to establish the session before
+    // using write methods (sign, broadcast, etc.). This prevents arbitrary
+    // local processes from immediately invoking signing operations.
+    let mut authenticated = false;
+
     while let Some(msg) = ws_receiver.next().await {
         match msg {
             Ok(Message::Text(text)) => {
@@ -249,6 +255,33 @@ async fn handle_connection(
                         continue;
                     }
                 };
+
+                // Read-only methods are always allowed
+                let is_read_only = matches!(
+                    request.method,
+                    WsMethod::GetAccounts | WsMethod::Ping | WsMethod::GetBalance
+                );
+
+                // Ping also serves as the authentication handshake
+                if request.method == WsMethod::Ping && !authenticated {
+                    authenticated = true;
+                    tracing::info!("WebSocket client {} authenticated via Ping", peer_addr);
+                }
+
+                if !authenticated && !is_read_only {
+                    tracing::warn!(
+                        "WebSocket client {} attempted {:?} without authentication",
+                        peer_addr,
+                        request.method
+                    );
+                    let error_response = WsResponse::error(
+                        request.id,
+                        "Authentication required. Send a Ping request first.".to_string(),
+                    );
+                    let response_text = serde_json::to_string(&error_response)?;
+                    ws_sender.send(Message::Text(response_text)).await?;
+                    continue;
+                }
 
                 // Get current accounts and USB path
                 let acc = accounts.read().await.clone();

@@ -114,7 +114,7 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
   const addNotification = useCallback((notification: Omit<SignatureNotification, 'id' | 'timestamp'>) => {
     const newNotification: SignatureNotification = {
       ...notification,
-      id: `sig-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      id: `sig-${Date.now()}-${crypto.getRandomValues(new Uint8Array(4)).reduce<string>((s, b) => s + b.toString(16).padStart(2, '0'), '')}`,
       timestamp: Date.now(),
     };
     setSignatureNotifications(prev => [...prev, newNotification]);

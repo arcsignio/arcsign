@@ -353,6 +353,9 @@ fn main() {
             commands::dev_settings::load_dev_settings,
             commands::dev_settings::save_dev_settings,
             // Developer mode session commands
+            // Guarded by dev-mode feature flag in Go library build tags.
+            // Rust side always registers them but Go FFI functions only exist
+            // when library is built with -tags dev.
             commands::dev_session::create_dev_session,
             commands::dev_session::get_dev_session,
             commands::dev_session::dev_session_sign,

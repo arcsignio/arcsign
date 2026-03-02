@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"crypto/tls"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -43,6 +44,11 @@ func NewHTTPRPCClient(endpoints []string, timeout time.Duration, healthTracker R
 		healthTracker: healthTracker,
 		httpClient: &http.Client{
 			Timeout: timeout,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					MinVersion: tls.VersionTLS12,
+				},
+			},
 		},
 	}, nil
 }
