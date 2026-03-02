@@ -286,33 +286,21 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
         }
 
         .developer-item {
-          background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-          border-color: #475569;
-        }
-
-        .developer-item .setting-title {
-          color: #fff;
-        }
-
-        .developer-item .setting-description {
-          color: #94a3b8;
-        }
-
-        .developer-item .setting-arrow {
-          color: #64748b;
+          background: white;
+          border-color: #e5e7eb;
         }
 
         .developer-item:hover {
           border-color: #2dd4bf;
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+          box-shadow: 0 2px 12px rgba(45, 212, 191, 0.1);
         }
 
         .developer-item:hover .setting-arrow {
-          color: #60a5fa;
+          color: #0d9488;
         }
 
         .developer-icon {
-          background: rgba(59, 130, 246, 0.2);
+          background: #f3f4f6;
         }
 
         /* About Section */
