@@ -217,11 +217,13 @@ func (c *Client) BuildSwapQuote(ctx context.Context, chainID int, fromToken, toT
 	// Calculate price impact from USD values returned by KyberSwap API
 	// Price impact = (amountOutUsd - amountInUsd) / amountInUsd * 100
 	// Negative means user receives less value (typical for swaps)
+	// Note: KyberSwap often returns "0" for amountOutUsd when it can't determine
+	// the USD price, so we must check both values are positive.
 	priceImpact := "N/A"
 	if summary.AmountInUsd != "" && summary.AmountOutUsd != "" {
 		inUsd, _, errIn := big.ParseFloat(summary.AmountInUsd, 10, 64, big.ToNearestEven)
 		outUsd, _, errOut := big.ParseFloat(summary.AmountOutUsd, 10, 64, big.ToNearestEven)
-		if errIn == nil && errOut == nil && inUsd.Sign() > 0 {
+		if errIn == nil && errOut == nil && inUsd.Sign() > 0 && outUsd.Sign() > 0 {
 			diff := new(big.Float).Sub(outUsd, inUsd)
 			impact := new(big.Float).Quo(diff, inUsd)
 			impact.Mul(impact, big.NewFloat(100))
