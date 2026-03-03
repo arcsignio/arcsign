@@ -55,12 +55,13 @@ OUTPUT_LIB := $(LIB_DIR)/$(LIB_NAME).$(LIB_EXT)
 GO := go
 CGO_ENABLED := 1
 BUILD_MODE := c-shared
+BUILD_TAGS := -tags dev
 SOURCE := internal/lib/*.go
 
 # Build for current platform
 build-lib:
 	@echo "Building shared library for $(PLATFORM)..."
-	CGO_ENABLED=$(CGO_ENABLED) $(GO) build -buildmode=$(BUILD_MODE) -o $(OUTPUT_LIB) $(SOURCE)
+	CGO_ENABLED=$(CGO_ENABLED) $(GO) build $(BUILD_TAGS) -buildmode=$(BUILD_MODE) -o $(OUTPUT_LIB) $(SOURCE)
 	@echo "✓ Built: $(OUTPUT_LIB)"
 
 # T063: Build Windows DLL with validation
@@ -69,7 +70,7 @@ build-lib-windows: check-cgo
 	@echo "Platform: Windows (amd64)"
 	@echo "CGO_ENABLED: $(CGO_ENABLED)"
 	@echo ""
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=windows GOARCH=amd64 $(GO) build -buildmode=$(BUILD_MODE) -o $(LIB_DIR)/$(LIB_NAME).dll $(SOURCE)
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=windows GOARCH=amd64 $(GO) build $(BUILD_TAGS) -buildmode=$(BUILD_MODE) -o $(LIB_DIR)/$(LIB_NAME).dll $(SOURCE)
 	@echo ""
 	@echo "✓ Built: $(LIB_DIR)/$(LIB_NAME).dll"
 	@if [ -f "$(LIB_DIR)/$(LIB_NAME).dll" ]; then \
@@ -87,11 +88,11 @@ build-lib-macos: check-cgo
 	@echo "CGO_ENABLED: $(CGO_ENABLED)"
 	@echo ""
 	@echo "Building arm64 architecture..."
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=darwin GOARCH=arm64 $(GO) build -buildmode=$(BUILD_MODE) -o $(LIB_DIR)/$(LIB_NAME)_arm64.dylib $(SOURCE)
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=darwin GOARCH=arm64 $(GO) build $(BUILD_TAGS) -buildmode=$(BUILD_MODE) -o $(LIB_DIR)/$(LIB_NAME)_arm64.dylib $(SOURCE)
 	@echo "✓ Built arm64 binary"
 	@echo ""
 	@echo "Building x86_64 architecture..."
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=darwin GOARCH=amd64 $(GO) build -buildmode=$(BUILD_MODE) -o $(LIB_DIR)/$(LIB_NAME)_amd64.dylib $(SOURCE)
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=darwin GOARCH=amd64 $(GO) build $(BUILD_TAGS) -buildmode=$(BUILD_MODE) -o $(LIB_DIR)/$(LIB_NAME)_amd64.dylib $(SOURCE)
 	@echo "✓ Built x86_64 binary"
 	@echo ""
 	@echo "Creating universal binary with lipo..."
@@ -131,7 +132,7 @@ build-lib-linux: check-cgo
 	@echo "Platform: Linux (amd64)"
 	@echo "CGO_ENABLED: $(CGO_ENABLED)"
 	@echo ""
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=linux GOARCH=amd64 $(GO) build -buildmode=$(BUILD_MODE) -o $(LIB_DIR)/$(LIB_NAME).so $(SOURCE)
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=linux GOARCH=amd64 $(GO) build $(BUILD_TAGS) -buildmode=$(BUILD_MODE) -o $(LIB_DIR)/$(LIB_NAME).so $(SOURCE)
 	@echo ""
 	@echo "✓ Built: $(LIB_DIR)/$(LIB_NAME).so"
 	@if [ -f "$(LIB_DIR)/$(LIB_NAME).so" ]; then \
