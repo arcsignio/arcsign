@@ -56,10 +56,10 @@ const files = [
   {
     path: 'landing-page/index.html',
     update: (content) => {
-      // 更新 GitHub Release 下載連結中的版本號
+      // 更新 Cloudflare R2 下載連結中的版本號
       return content.replace(
-        /releases\/download\/v[\d.]+\/ArcSign-[\d.]+-/g,
-        `releases/download/v${version}/ArcSign-${version}-`
+        /dl\.arcsign\.io\/v[\d.]+\/ArcSign-[\d.]+-/g,
+        `dl.arcsign.io/v${version}/ArcSign-${version}-`
       );
     }
   },

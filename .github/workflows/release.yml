@@ -307,7 +307,7 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           REPO="Jason-chen-taiwan/arcSignv2"
-          BASE_URL="https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}"
+          BASE_URL="https://dl.arcsign.io/${GITHUB_REF_NAME}"
           DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
           # Read signatures from .sig files (empty string if not found)
@@ -385,6 +385,20 @@ jobs:
             release-assets/*
           draft: false
           prerelease: false
+
+      - name: Upload to Cloudflare R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npm install -g wrangler
+          VERSION="${GITHUB_REF_NAME#v}"
+          cd release-assets
+          for file in ArcSign-* SHA256SUMS latest.json; do
+            [ -f "$file" ] && wrangler r2 object put \
+              "arcsign-releases/${GITHUB_REF_NAME}/$file" --file "$file" --remote
+          done
+          echo "✅ Uploaded to R2: https://dl.arcsign.io/${GITHUB_REF_NAME}/"
 
   deploy-landing-page:
     name: Update Landing Page

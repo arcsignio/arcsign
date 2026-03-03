@@ -35,11 +35,11 @@
 
 | 平台 | 格式 | 下載連結 |
 |------|------|---------|
-| macOS (Apple Silicon) | `.dmg` | [ArcSign-1.2.0-macOS-ARM64.dmg](https://github.com/Jason-chen-taiwan/arcSignv2/releases/download/v1.2.0/ArcSign-1.2.0-macOS-ARM64.dmg) |
-| Windows (x64) | `.msi` | [ArcSign-1.2.0-Windows-x64.msi](https://github.com/Jason-chen-taiwan/arcSignv2/releases/download/v1.2.0/ArcSign-1.2.0-Windows-x64.msi) |
-| Windows (x64) | `.exe` | [ArcSign-1.2.0-Windows-x64-Setup.exe](https://github.com/Jason-chen-taiwan/arcSignv2/releases/download/v1.2.0/ArcSign-1.2.0-Windows-x64-Setup.exe) |
-| Linux (x64) | `.deb` | [ArcSign-1.2.0-Linux-x64.deb](https://github.com/Jason-chen-taiwan/arcSignv2/releases/download/v1.2.0/ArcSign-1.2.0-Linux-x64.deb) |
-| Linux (x64) | `.AppImage` | [ArcSign-1.2.0-Linux-x64.AppImage](https://github.com/Jason-chen-taiwan/arcSignv2/releases/download/v1.2.0/ArcSign-1.2.0-Linux-x64.AppImage) |
+| macOS (Apple Silicon) | `.dmg` | [ArcSign-1.2.0-macOS-ARM64.dmg](https://dl.arcsign.io/v1.2.0/ArcSign-1.2.0-macOS-ARM64.dmg) |
+| Windows (x64) | `.msi` | [ArcSign-1.2.0-Windows-x64.msi](https://dl.arcsign.io/v1.2.0/ArcSign-1.2.0-Windows-x64.msi) |
+| Windows (x64) | `.exe` | [ArcSign-1.2.0-Windows-x64-Setup.exe](https://dl.arcsign.io/v1.2.0/ArcSign-1.2.0-Windows-x64-Setup.exe) |
+| Linux (x64) | `.deb` | [ArcSign-1.2.0-Linux-x64.deb](https://dl.arcsign.io/v1.2.0/ArcSign-1.2.0-Linux-x64.deb) |
+| Linux (x64) | `.AppImage` | [ArcSign-1.2.0-Linux-x64.AppImage](https://dl.arcsign.io/v1.2.0/ArcSign-1.2.0-Linux-x64.AppImage) |
 
 ### 一鍵安裝到 USB
 
