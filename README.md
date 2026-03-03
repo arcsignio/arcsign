@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Jason-chen-taiwan/arcSignv2/actions/workflows/ci.yml/badge.svg)](https://github.com/Jason-chen-taiwan/arcSignv2/actions/workflows/ci.yml)
 [![Release](https://github.com/Jason-chen-taiwan/arcSignv2/actions/workflows/release.yml/badge.svg)](https://github.com/Jason-chen-taiwan/arcSignv2/actions/workflows/release.yml)
-[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/Jason-chen-taiwan/arcSignv2/releases/tag/v1.2.0)
+[![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)](https://github.com/Jason-chen-taiwan/arcSignv2/releases/tag/v1.2.1)
 [![Go Version](https://img.shields.io/badge/Go-1.25+-blue.svg)](https://golang.org/dl/)
 [![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)]()
 
@@ -35,11 +35,11 @@
 
 | 平台 | 格式 | 下載連結 |
 |------|------|---------|
-| macOS (Apple Silicon) | `.dmg` | [ArcSign-1.2.0-macOS-ARM64.dmg](https://dl.arcsign.io/v1.2.0/ArcSign-1.2.0-macOS-ARM64.dmg) |
-| Windows (x64) | `.msi` | [ArcSign-1.2.0-Windows-x64.msi](https://dl.arcsign.io/v1.2.0/ArcSign-1.2.0-Windows-x64.msi) |
-| Windows (x64) | `.exe` | [ArcSign-1.2.0-Windows-x64-Setup.exe](https://dl.arcsign.io/v1.2.0/ArcSign-1.2.0-Windows-x64-Setup.exe) |
-| Linux (x64) | `.deb` | [ArcSign-1.2.0-Linux-x64.deb](https://dl.arcsign.io/v1.2.0/ArcSign-1.2.0-Linux-x64.deb) |
-| Linux (x64) | `.AppImage` | [ArcSign-1.2.0-Linux-x64.AppImage](https://dl.arcsign.io/v1.2.0/ArcSign-1.2.0-Linux-x64.AppImage) |
+| macOS (Apple Silicon) | `.dmg` | [ArcSign-1.2.0-macOS-ARM64.dmg](https://dl.arcsign.io/v1.2.1/ArcSign-1.2.1-macOS-ARM64.dmg) |
+| Windows (x64) | `.msi` | [ArcSign-1.2.0-Windows-x64.msi](https://dl.arcsign.io/v1.2.1/ArcSign-1.2.1-Windows-x64.msi) |
+| Windows (x64) | `.exe` | [ArcSign-1.2.0-Windows-x64-Setup.exe](https://dl.arcsign.io/v1.2.1/ArcSign-1.2.1-Windows-x64-Setup.exe) |
+| Linux (x64) | `.deb` | [ArcSign-1.2.0-Linux-x64.deb](https://dl.arcsign.io/v1.2.1/ArcSign-1.2.1-Linux-x64.deb) |
+| Linux (x64) | `.AppImage` | [ArcSign-1.2.0-Linux-x64.AppImage](https://dl.arcsign.io/v1.2.1/ArcSign-1.2.1-Linux-x64.AppImage) |
 
 ### 一鍵安裝到 USB
 
@@ -67,7 +67,7 @@ ArcSign 是一個安全的加密貨幣錢包系統，實現了 BIP39/BIP44 標�
 
 ### 版本狀態
 
-**當前版本**: v1.2.0
+**當前版本**: v1.2.1
 **狀態**: ✅ 生產就緒 | 三平台 CI/CD 自動建置
 **測試覆蓋率**: 85/85 tests passing
 - Bitcoin: 31/31 單元測試
