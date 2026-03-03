@@ -41,10 +41,18 @@
 | Linux (x64) | `.deb` | [ArcSign-1.2.0-Linux-x64.deb](https://github.com/Jason-chen-taiwan/arcSignv2/releases/download/v1.2.0/ArcSign-1.2.0-Linux-x64.deb) |
 | Linux (x64) | `.AppImage` | [ArcSign-1.2.0-Linux-x64.AppImage](https://github.com/Jason-chen-taiwan/arcSignv2/releases/download/v1.2.0/ArcSign-1.2.0-Linux-x64.AppImage) |
 
-### macOS 一鍵安裝（安裝到 USB）
+### 一鍵安裝到 USB
+
+**macOS / Linux:**
 
 ```bash
 bash <(curl -fsSL https://arcsign.io/install.sh)
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://arcsign.io/install.ps1 | iex
 ```
 
 ### 官方網站

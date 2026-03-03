@@ -72,6 +72,16 @@ const files = [
         `VERSION="${version}"`
       );
     }
+  },
+  {
+    path: 'landing-page/install.ps1',
+    update: (content) => {
+      // 更新 install.ps1 頂部的 $VERSION 變數
+      return content.replace(
+        /^\$VERSION = "[\d.]+"/m,
+        `$VERSION = "${version}"`
+      );
+    }
   }
 ];
 
