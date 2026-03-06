@@ -130,3 +130,6 @@ contracts/cache/
 contracts/artifacts/build-info/
 
 # Keep contract ABIs (artifacts/contracts/) - these are tracked
+
+# Wrangler local cache
+.wrangler/
