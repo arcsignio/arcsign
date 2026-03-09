@@ -133,3 +133,6 @@ contracts/artifacts/build-info/
 
 # Wrangler local cache
 .wrangler/
+
+# Python bytecode
+*.pyc
