@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import type { Address } from '@/types/address';
 import { getChainIconUrl, getChainFallbackIcon } from '@/utils/chainIcons';
 
@@ -82,17 +83,8 @@ export const ReceiveAddressModal: React.FC<ReceiveAddressModalProps> = ({
   onCopy,
 }) => {
   const [copied, setCopied] = useState(false);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-
   // Check if this is an EVM-compatible chain
   const isEVMChain = EVM_CHAINS.has(address.symbol.toUpperCase());
-
-  // Generate QR code using a simple API
-  useEffect(() => {
-    // Using QRServer API for QR code generation (no external dependencies)
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(address.address)}&format=svg`;
-    setQrDataUrl(qrUrl);
-  }, [address.address]);
 
   const handleCopy = () => {
     onCopy(address.address, address.symbol);
@@ -152,17 +144,13 @@ export const ReceiveAddressModal: React.FC<ReceiveAddressModalProps> = ({
         {/* QR Code */}
         <div className="px-6 py-8 flex flex-col items-center">
           <div className="bg-white p-4 rounded-xl border-2 border-gray-100 shadow-inner">
-            {qrDataUrl ? (
-              <img
-                src={qrDataUrl}
-                alt={`QR code for ${address.symbol} address`}
-                className="w-48 h-48"
-              />
-            ) : (
-              <div className="w-48 h-48 flex items-center justify-center bg-gray-100 rounded">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-              </div>
-            )}
+            <QRCodeSVG
+              value={address.address}
+              size={192}
+              level="M"
+              bgColor="#ffffff"
+              fgColor="#000000"
+            />
           </div>
 
           {/* Address Display */}
