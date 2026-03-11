@@ -886,10 +886,16 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
                       >
                         <div className="token-icon">
                           {token.tokenLogo ? (
-                            <img src={token.tokenLogo} alt={token.tokenSymbol} />
-                          ) : (
-                            <span className="token-icon-fallback">{token.tokenSymbol.slice(0, 2)}</span>
-                          )}
+                            <img
+                              src={token.tokenLogo}
+                              alt={token.tokenSymbol}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                (e.currentTarget.nextElementSibling as HTMLElement)?.style.setProperty('display', 'flex');
+                              }}
+                            />
+                          ) : null}
+                          <span className="token-icon-fallback" style={token.tokenLogo ? { display: 'none' } : undefined}>{token.tokenSymbol.slice(0, 2)}</span>
                         </div>
                         <div className="token-info">
                           <span className="token-symbol">{token.tokenSymbol}</span>
@@ -968,10 +974,16 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
                 >
                   <div className="token-icon">
                     {token.logoURI ? (
-                      <img src={token.logoURI} alt={token.symbol} />
-                    ) : (
-                      <span className="token-icon-fallback">{token.symbol.slice(0, 2)}</span>
-                    )}
+                      <img
+                        src={token.logoURI}
+                        alt={token.symbol}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          (e.currentTarget.nextElementSibling as HTMLElement)?.style.setProperty('display', 'flex');
+                        }}
+                      />
+                    ) : null}
+                    <span className="token-icon-fallback" style={token.logoURI ? { display: 'none' } : undefined}>{token.symbol.slice(0, 2)}</span>
                   </div>
                   <div className="token-info">
                     <span className="token-symbol">{token.symbol}</span>
