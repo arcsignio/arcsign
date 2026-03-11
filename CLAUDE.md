@@ -73,6 +73,21 @@ go test -run TestSpecificName ./...       # Run single test
 - **Desktop**: Tauri v1 (Rust)
 - **Testing**: Vitest (frontend), Go testing (backend), Hardhat (contracts)
 
+## Release Process
+
+When bumping the version number, update all 3 files:
+- `dashboard/package.json`
+- `dashboard/src-tauri/tauri.conf.json`
+- `dashboard/src-tauri/Cargo.toml`
+
+After committing the version bump, **always create and push the git tag** to trigger the Release workflow:
+```bash
+git tag v<VERSION>
+git push origin v<VERSION>
+```
+
+The Release workflow (GitHub Actions) builds all 3 platforms (macOS, Windows, Linux) and uploads artifacts to R2 for download. Landing page download links are auto-updated.
+
 ## Development Guidelines
 
 - Break complex work into 3-5 stages, document in `IMPLEMENTATION_PLAN.md`
