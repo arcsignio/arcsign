@@ -25,7 +25,8 @@ cd dashboard
 npm install             # Install dependencies
 npm run dev             # Start Vite dev server
 npm run tauri:dev       # Run Tauri development mode
-npm run tauri:build     # Build production app
+npm run tauri:build     # Build production app (.app only)
+npx tauri build --bundles app  # Skip DMG (DMG bundler has known bug)
 npm test                # Run Vitest tests
 npm run test:coverage   # Run tests with coverage
 ```
@@ -59,6 +60,8 @@ go test -run TestSpecificName ./...       # Run single test
 - `dashboard/` - Tauri + React + TypeScript desktop app
 - `dashboard/src/` - React components, hooks, stores (Zustand)
 - `contracts/` - Hardhat smart contracts (NFT membership on BSC)
+- `landing-page/` - Static site (arcsign.io), includes blog (zh-TW + en)
+- `marketing/` - SEO articles, strategy docs, social media content, dashboard
 
 ### Data Flow
 
@@ -76,17 +79,19 @@ go test -run TestSpecificName ./...       # Run single test
 ## Release Process
 
 When bumping the version number, update all 3 files:
+
 - `dashboard/package.json`
 - `dashboard/src-tauri/tauri.conf.json`
 - `dashboard/src-tauri/Cargo.toml`
 
 After committing the version bump, **always create and push the git tag** to trigger the Release workflow:
+
 ```bash
 git tag v<VERSION>
 git push origin v<VERSION>
 ```
 
-The Release workflow (GitHub Actions) builds all 3 platforms (macOS, Windows, Linux) and uploads artifacts to R2 for download. Landing page download links are auto-updated.
+The Release workflow (GitHub Actions) builds all 3 platforms (macOS, Windows, Linux) and uploads artifacts to R2 for download. Landing page download links are auto-updated by the workflow.
 
 ## Development Guidelines
 
@@ -95,3 +100,4 @@ The Release workflow (GitHub Actions) builds all 3 platforms (macOS, Windows, Li
 - Maximum 3 attempts per issue, then stop and reassess
 - Every commit must compile and pass all existing tests
 - Never use `--no-verify` to bypass commit hooks
+- Use Traditional Chinese (zh-TW) for user-facing content and commit messages
