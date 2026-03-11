@@ -91,7 +91,11 @@ git tag v<VERSION>
 git push origin v<VERSION>
 ```
 
-The Release workflow (GitHub Actions) builds all 3 platforms (macOS, Windows, Linux) and uploads artifacts to R2 for download. Landing page download links are auto-updated by the workflow.
+The Release workflow (GitHub Actions) builds all 3 platforms (macOS, Windows, Linux) and uploads artifacts to **Cloudflare R2** (`dl.arcsign.io`). GitHub repo is **private** — all public downloads and OTA updates go through R2, not GitHub Releases.
+
+- Download URLs: `https://dl.arcsign.io/v<VERSION>/<file>`
+- Tauri updater endpoint: `https://dl.arcsign.io/latest.json` (auto-uploaded by workflow)
+- Landing page download links are auto-updated by the workflow.
 
 ## Development Guidelines
 

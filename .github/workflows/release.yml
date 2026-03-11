@@ -400,7 +400,10 @@ jobs:
             [ -f "$file" ] && wrangler r2 object put \
               "arcsign-releases/${GITHUB_REF_NAME}/$file" --file "$file" --remote
           done
+          # Upload latest.json to root path for Tauri updater (fixed URL)
+          wrangler r2 object put "arcsign-releases/latest.json" --file latest.json --remote
           echo "✅ Uploaded to R2: https://dl.arcsign.io/${GITHUB_REF_NAME}/"
+          echo "✅ Updater manifest: https://dl.arcsign.io/latest.json"
 
   deploy-landing-page:
     name: Update Landing Page
