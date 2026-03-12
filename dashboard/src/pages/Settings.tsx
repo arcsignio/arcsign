@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getVersion } from '@tauri-apps/api/app';
+import { useDashboardStore } from '@/stores/dashboardStore';
 
 interface SettingsProps {
   onBack: () => void;
@@ -73,6 +74,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
   const { t } = useTranslation();
   const [appVersion, setAppVersion] = useState('...');
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const isPro = useDashboardStore((s) => s.membership.isPro);
 
   useEffect(() => {
     getVersion().then(v => setAppVersion(v)).catch(() => setAppVersion('unknown'));
@@ -130,6 +132,23 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
           <div className="setting-content">
             <h3 className="setting-title">{t('backup.exportSettingsTitle')}</h3>
             <p className="setting-description">{t('backup.exportSettingsDescription')}</p>
+          </div>
+          <span className="setting-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </button>
+        <button
+          className={`setting-item ${!isPro ? 'setting-item-disabled' : ''}`}
+          onClick={() => isPro && onNavigate('export-all-backups')}
+          disabled={!isPro}
+        >
+          <span className="setting-icon backup-icon"><IconDownload /></span>
+          <div className="setting-content">
+            <h3 className="setting-title">
+              {t('backup.exportAllTitle')}
+              <span className="pro-badge">PRO</span>
+            </h3>
+            <p className="setting-description">
+              {isPro ? t('backup.exportAllDescription') : t('backup.exportAllProOnly')}
+            </p>
           </div>
           <span className="setting-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
         </button>
@@ -308,6 +327,29 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
         .backup-icon {
           background: #e0f2f1;
           color: #0d9488;
+        }
+
+        .setting-item-disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .setting-item-disabled:hover {
+          border-color: #e5e7eb;
+          box-shadow: none;
+        }
+
+        .pro-badge {
+          display: inline-block;
+          margin-left: 8px;
+          padding: 2px 6px;
+          background: linear-gradient(135deg, #f59e0b, #d97706);
+          color: white;
+          font-size: 10px;
+          font-weight: 700;
+          border-radius: 4px;
+          vertical-align: middle;
+          letter-spacing: 0.05em;
         }
 
         /* Developer Section */

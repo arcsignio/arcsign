@@ -1087,6 +1087,124 @@ pub async fn import_backup(
     })
 }
 
+/// Export all wallets as encrypted .arcsign-bundle file (Pro feature)
+/// Password required to encrypt the outer layer (Argon2id + AES-256-GCM)
+#[tauri::command]
+pub async fn export_all_backups(
+    queue: State<'_, LazyWalletQueue>,
+    mut password: String,
+    usb_path: String,
+) -> Result<serde_json::Value, String> {
+    let start = Instant::now();
+
+    validate_password(&password).map_err(String::from)?;
+
+    let params = json!({
+        "password": password,
+        "usbPath": usb_path,
+    });
+
+    // Zeroize password immediately after building params
+    password.zeroize();
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    let result = queue
+        .export_all_wallets(params_json)
+        .await
+        .map_err(|e| {
+            if e.contains("wrong password") || e.contains("INVALID_PASSWORD") {
+                AppError::new(
+                    ErrorCode::InvalidPassword,
+                    "Incorrect password",
+                )
+            } else if e.contains("no wallets") {
+                AppError::new(
+                    ErrorCode::InvalidInput,
+                    "No wallets to export",
+                )
+            } else {
+                AppError::with_details(
+                    ErrorCode::CliExecutionFailed,
+                    "Failed to export all backups",
+                    e,
+                )
+            }
+        })?;
+
+    let elapsed = start.elapsed();
+    tracing::info!("All backups exported successfully (took {:?})", elapsed);
+
+    Ok(result)
+}
+
+/// Import all wallets from encrypted .arcsign-bundle file (Pro feature)
+/// Password required to decrypt the outer layer
+#[tauri::command]
+pub async fn import_all_backups(
+    queue: State<'_, LazyWalletQueue>,
+    bundle_data: String,
+    mut password: String,
+    usb_path: String,
+) -> Result<serde_json::Value, String> {
+    let start = Instant::now();
+
+    validate_password(&password).map_err(String::from)?;
+
+    if bundle_data.trim().is_empty() {
+        return Err(AppError::new(
+            ErrorCode::InvalidInput,
+            "Bundle data cannot be empty",
+        ).into());
+    }
+
+    let params = json!({
+        "bundleData": bundle_data,
+        "password": password,
+        "usbPath": usb_path,
+    });
+
+    // Zeroize password immediately after building params
+    password.zeroize();
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    let result = queue
+        .import_all_wallets(params_json)
+        .await
+        .map_err(|e| {
+            if e.contains("wrong password") || e.contains("INVALID_PASSWORD") {
+                AppError::new(
+                    ErrorCode::InvalidPassword,
+                    "Incorrect password",
+                )
+            } else if e.contains("BUNDLE_INVALID") || e.contains("invalid bundle") {
+                AppError::new(
+                    ErrorCode::InvalidInput,
+                    "Invalid .arcsign-bundle file",
+                )
+            } else if e.contains("BUNDLE_CORRUPTED") || e.contains("corrupted bundle") {
+                AppError::new(
+                    ErrorCode::InvalidInput,
+                    "Bundle file is corrupted",
+                )
+            } else {
+                AppError::with_details(
+                    ErrorCode::CliExecutionFailed,
+                    "Failed to import bundle",
+                    e,
+                )
+            }
+        })?;
+
+    let elapsed = start.elapsed();
+    tracing::info!("All backups imported successfully (took {:?})", elapsed);
+
+    Ok(result)
+}
+
 /// Parse category string to Category enum
 fn parse_category(s: &str) -> Category {
     match s {

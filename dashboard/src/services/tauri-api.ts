@@ -233,6 +233,61 @@ export async function importBackup(params: {
 }
 
 /**
+ * Bundle (batch) export/import — Pro feature
+ */
+
+export interface ExportAllBackupsResponse {
+  success: boolean;
+  data: {
+    bundleData: string; // base64 encoded encrypted bundle
+    walletCount: number;
+    exportedAt: string;
+  };
+}
+
+export interface ImportAllBackupsResponse {
+  success: boolean;
+  data: {
+    wallets: Array<{
+      walletId: string;
+      walletName: string;
+    }>;
+    importedCount: number;
+    importedAt: string;
+  };
+}
+
+export async function exportAllBackups(params: {
+  password: string;
+  usb_path: string;
+}): Promise<ExportAllBackupsResponse> {
+  try {
+    return await invoke<ExportAllBackupsResponse>("export_all_backups", {
+      password: params.password,
+      usbPath: params.usb_path,
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+export async function importAllBackups(params: {
+  bundle_data: string; // base64 encoded
+  password: string;
+  usb_path: string;
+}): Promise<ImportAllBackupsResponse> {
+  try {
+    return await invoke<ImportAllBackupsResponse>("import_all_backups", {
+      bundleData: params.bundle_data,
+      password: params.password,
+      usbPath: params.usb_path,
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+/**
  * Address Management
  */
 
@@ -1411,6 +1466,8 @@ export const tauriApi = {
   deleteWallet,
   exportBackup,
   importBackup,
+  exportAllBackups,
+  importAllBackups,
   updateWebsocketAccounts,
   updateWebsocketUsbPath,
 

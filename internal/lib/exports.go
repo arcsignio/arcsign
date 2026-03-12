@@ -841,6 +841,168 @@ func ImportBackupWallet(params *C.char) *C.char {
 	return C.CString(string(jsonBytes))
 }
 
+//export ExportAllWallets
+// ExportAllWallets packages all wallets into an encrypted .arcsign-bundle file.
+// Password is used as the outer encryption key (Argon2id + AES-256-GCM).
+//
+// Input JSON: {"password": "...", "usbPath": "..."}
+// Output JSON: {"success": true, "data": {"bundleData": "<base64>", "walletCount": N, "exportedAt": "..."}}
+func ExportAllWallets(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		Password string `json:"password"`
+		USBPath  string `json:"usbPath"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&input.Password)
+
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if input.Password == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Password is required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	svc := backup.NewBackupService(input.USBPath)
+	encryptedBundle, walletCount, err := svc.ExportAllBackups(input.Password)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	data := map[string]interface{}{
+		"bundleData":  base64.StdEncoding.EncodeToString(encryptedBundle),
+		"walletCount": walletCount,
+		"exportedAt":  time.Now().Format(time.RFC3339),
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export ImportAllWallets
+// ImportAllWallets restores all wallets from an encrypted .arcsign-bundle file.
+// Password decrypts the outer layer; individual wallet passwords are not needed.
+//
+// Input JSON: {"bundleData": "<base64>", "password": "...", "usbPath": "..."}
+// Output JSON: {"success": true, "data": {"wallets": [...], "importedCount": N, "importedAt": "..."}}
+func ImportAllWallets(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		BundleData string `json:"bundleData"` // base64 encoded encrypted bundle
+		Password   string `json:"password"`
+		USBPath    string `json:"usbPath"`
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&input.Password)
+
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if input.BundleData == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Bundle data is required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if input.Password == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Password is required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	bundleBytes, err := base64.StdEncoding.DecodeString(input.BundleData)
+	if err != nil {
+		response := NewErrorResponse(ErrBundleCorrupted, "Invalid bundle data encoding")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	svc := backup.NewBackupService(input.USBPath)
+	wallets, err := svc.ImportAllBackups(bundleBytes, input.Password)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	walletList := make([]map[string]string, len(wallets))
+	for i, w := range wallets {
+		walletList[i] = map[string]string{
+			"walletId":   w.ID,
+			"walletName": w.Name,
+		}
+	}
+
+	data := map[string]interface{}{
+		"wallets":       walletList,
+		"importedCount": len(wallets),
+		"importedAt":    time.Now().Format(time.RFC3339),
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
 //export RenameWallet
 // RenameWallet changes wallet display name.
 // T024.2: Implement RenameWallet export function

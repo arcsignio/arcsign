@@ -1063,6 +1063,21 @@
     "backupSectionTitle": "備份與還原",
     "exportSettingsTitle": "匯出錢包備份",
     "exportSettingsDescription": "將錢包匯出為加密的 .arcsign 檔案",
-    "selectWalletToExport": "選擇要匯出的錢包"
+    "selectWalletToExport": "選擇要匯出的錢包",
+    "exportAllTitle": "匯出所有錢包",
+    "exportAllDescription": "將所有錢包匯出為單一加密 .arcsign-bundle 檔案",
+    "exportAllConfirm": "匯出全部",
+    "exportAllSuccess": "所有錢包匯出成功，請妥善保存。",
+    "exportAllProOnly": "Pro 會員可一鍵匯出所有錢包",
+    "exportingAll": "正在匯出所有錢包...",
+    "importAllTitle": "從 Bundle 匯入",
+    "importAllDescription": "從 .arcsign-bundle 檔案還原所有錢包",
+    "importAllSuccess": "成功匯入 {{count}} 個錢包。",
+    "importAllProOnly": "Pro 會員可一鍵匯入錢包 Bundle",
+    "enterBundlePassword": "輸入匯出此 Bundle 時使用的密碼",
+    "selectBundleFile": "選擇 .arcsign-bundle 檔案",
+    "invalidBundle": "無效的 .arcsign-bundle 檔案。",
+    "bundleCorrupted": "Bundle 檔案已損毀。",
+    "importingAll": "正在匯入所有錢包..."
   }
 }

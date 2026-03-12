@@ -1063,6 +1063,21 @@
     "backupSectionTitle": "Backup & Restore",
     "exportSettingsTitle": "Export Wallet Backup",
     "exportSettingsDescription": "Export a wallet as an encrypted .arcsign file",
-    "selectWalletToExport": "Select a wallet to export"
+    "selectWalletToExport": "Select a wallet to export",
+    "exportAllTitle": "Export All Wallets",
+    "exportAllDescription": "Export all wallets as a single encrypted .arcsign-bundle file",
+    "exportAllConfirm": "Export All",
+    "exportAllSuccess": "All wallets exported successfully. Store the bundle safely.",
+    "exportAllProOnly": "Pro members can export all wallets at once",
+    "exportingAll": "Exporting all wallets...",
+    "importAllTitle": "Import from Bundle",
+    "importAllDescription": "Restore all wallets from an .arcsign-bundle file",
+    "importAllSuccess": "Successfully imported {{count}} wallets.",
+    "importAllProOnly": "Pro members can import wallet bundles",
+    "enterBundlePassword": "Enter the password used when this bundle was exported",
+    "selectBundleFile": "Select .arcsign-bundle File",
+    "invalidBundle": "Invalid .arcsign-bundle file.",
+    "bundleCorrupted": "Bundle file is corrupted.",
+    "importingAll": "Importing all wallets..."
   }
 }

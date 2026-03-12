@@ -45,6 +45,12 @@ type ExportWalletFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for ImportBackupWallet: char* ImportBackupWallet(char* params)
 type ImportBackupWalletFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+/// Function signature for ExportAllWallets: char* ExportAllWallets(char* params)
+type ExportAllWalletsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for ImportAllWallets: char* ImportAllWallets(char* params)
+type ImportAllWalletsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 /// Function signature for RenameWallet: char* RenameWallet(char* params)
 type RenameWalletFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
@@ -214,6 +220,9 @@ pub struct WalletLibrary {
     generate_addresses: Symbol<'static, GenerateAddressesFn>,
     export_wallet: Symbol<'static, ExportWalletFn>,
     import_backup_wallet: Symbol<'static, ImportBackupWalletFn>,
+    // Bundle (batch) export/import function symbols
+    export_all_wallets: Symbol<'static, ExportAllWalletsFn>,
+    import_all_wallets: Symbol<'static, ImportAllWalletsFn>,
     rename_wallet: Symbol<'static, RenameWalletFn>,
     delete_wallet: Symbol<'static, DeleteWalletFn>,
     list_wallets: Symbol<'static, ListWalletsFn>,
@@ -366,6 +375,14 @@ impl WalletLibrary {
             let import_backup_wallet: Symbol<ImportBackupWalletFn> = lib
                 .get(b"ImportBackupWallet")
                 .map_err(|e| format!("ImportBackupWallet symbol not found: {}", e))?;
+
+            let export_all_wallets: Symbol<ExportAllWalletsFn> = lib
+                .get(b"ExportAllWallets")
+                .map_err(|e| format!("ExportAllWallets symbol not found: {}", e))?;
+
+            let import_all_wallets: Symbol<ImportAllWalletsFn> = lib
+                .get(b"ImportAllWallets")
+                .map_err(|e| format!("ImportAllWallets symbol not found: {}", e))?;
 
             let rename_wallet: Symbol<RenameWalletFn> = lib
                 .get(b"RenameWallet")
@@ -553,6 +570,8 @@ impl WalletLibrary {
             let generate_addresses: Symbol<'static, GenerateAddressesFn> = std::mem::transmute(generate_addresses);
             let export_wallet: Symbol<'static, ExportWalletFn> = std::mem::transmute(export_wallet);
             let import_backup_wallet: Symbol<'static, ImportBackupWalletFn> = std::mem::transmute(import_backup_wallet);
+            let export_all_wallets: Symbol<'static, ExportAllWalletsFn> = std::mem::transmute(export_all_wallets);
+            let import_all_wallets: Symbol<'static, ImportAllWalletsFn> = std::mem::transmute(import_all_wallets);
             let rename_wallet: Symbol<'static, RenameWalletFn> = std::mem::transmute(rename_wallet);
             let delete_wallet: Symbol<'static, DeleteWalletFn> = std::mem::transmute(delete_wallet);
             let list_wallets: Symbol<'static, ListWalletsFn> = std::mem::transmute(list_wallets);
@@ -606,6 +625,8 @@ impl WalletLibrary {
                 generate_addresses,
                 export_wallet,
                 import_backup_wallet,
+                export_all_wallets,
+                import_all_wallets,
                 rename_wallet,
                 delete_wallet,
                 list_wallets,
@@ -954,6 +975,16 @@ impl WalletLibrary {
     /// Import wallet from encrypted .arcsign backup file.
     pub fn import_backup_wallet(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.import_backup_wallet, params_json)
+    }
+
+    /// Export all wallets as encrypted .arcsign-bundle file.
+    pub fn export_all_wallets(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.export_all_wallets, params_json)
+    }
+
+    /// Import all wallets from encrypted .arcsign-bundle file.
+    pub fn import_all_wallets(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.import_all_wallets, params_json)
     }
 
     /// Change wallet display name.

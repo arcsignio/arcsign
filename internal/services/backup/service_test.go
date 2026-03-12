@@ -306,6 +306,135 @@ func TestImportBackup_CustomName(t *testing.T) {
 	}
 }
 
+// ============================================================================
+// Bundle (batch) export/import tests
+// ============================================================================
+
+func TestExportAllBackups_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	password := "BundlePass123!"
+
+	// Create 3 wallets with different passwords
+	createTestWallet(t, tmpDir, "wallet-a", "Wallet A", "PassA123!", false)
+	createTestWallet(t, tmpDir, "wallet-b", "Wallet B", "PassB123!", false)
+	createTestWallet(t, tmpDir, "wallet-c", "Wallet C", "PassC123!", true)
+
+	svc := NewBackupService(tmpDir)
+	bundleData, _, err := svc.ExportAllBackups(password)
+	if err != nil {
+		t.Fatalf("ExportAllBackups failed: %v", err)
+	}
+
+	if len(bundleData) == 0 {
+		t.Fatal("bundle data should not be empty")
+	}
+
+	// Verify it can be decrypted
+	decrypted, err := crypto.Decrypt(bundleData, password)
+	if err != nil {
+		t.Fatalf("failed to decrypt bundle: %v", err)
+	}
+
+	var bundle BundlePayload
+	if err := json.Unmarshal(decrypted, &bundle); err != nil {
+		t.Fatalf("failed to parse bundle: %v", err)
+	}
+
+	if bundle.Format != BundleFormat {
+		t.Errorf("expected format %q, got %q", BundleFormat, bundle.Format)
+	}
+	if bundle.WalletCount != 3 {
+		t.Errorf("expected 3 wallets, got %d", bundle.WalletCount)
+	}
+	if len(bundle.Wallets) != 3 {
+		t.Errorf("expected 3 wallet payloads, got %d", len(bundle.Wallets))
+	}
+}
+
+func TestExportAllBackups_EmptyStorage(t *testing.T) {
+	tmpDir := t.TempDir()
+	svc := NewBackupService(tmpDir)
+
+	_, _, err := svc.ExportAllBackups("password123")
+	if err == nil {
+		t.Fatal("expected error for empty storage, got nil")
+	}
+}
+
+func TestImportAllBackups_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	bundlePassword := "BundlePass123!"
+
+	createTestWallet(t, tmpDir, "wallet-a", "Wallet A", "PassA123!", false)
+	createTestWallet(t, tmpDir, "wallet-b", "Wallet B", "PassB123!", true)
+
+	svc := NewBackupService(tmpDir)
+	bundleData, _, err := svc.ExportAllBackups(bundlePassword)
+	if err != nil {
+		t.Fatalf("ExportAllBackups failed: %v", err)
+	}
+
+	// Import into a clean directory
+	importDir := t.TempDir()
+	importSvc := NewBackupService(importDir)
+
+	wallets, err := importSvc.ImportAllBackups(bundleData, bundlePassword)
+	if err != nil {
+		t.Fatalf("ImportAllBackups failed: %v", err)
+	}
+
+	if len(wallets) != 2 {
+		t.Fatalf("expected 2 wallets, got %d", len(wallets))
+	}
+
+	// Verify wallet names
+	names := map[string]bool{}
+	for _, w := range wallets {
+		names[w.Name] = true
+		// Verify files exist
+		if _, err := os.Stat(filepath.Join(importDir, w.ID, "wallet.json")); err != nil {
+			t.Errorf("wallet.json not found for %s: %v", w.Name, err)
+		}
+		if _, err := os.Stat(filepath.Join(importDir, w.ID, "mnemonic.enc")); err != nil {
+			t.Errorf("mnemonic.enc not found for %s: %v", w.Name, err)
+		}
+	}
+	if !names["Wallet A"] || !names["Wallet B"] {
+		t.Errorf("expected wallet names [Wallet A, Wallet B], got %v", names)
+	}
+}
+
+func TestImportAllBackups_WrongPassword(t *testing.T) {
+	tmpDir := t.TempDir()
+	bundlePassword := "BundlePass123!"
+
+	createTestWallet(t, tmpDir, "wallet-a", "Wallet A", "PassA!", false)
+
+	svc := NewBackupService(tmpDir)
+	bundleData, _, err := svc.ExportAllBackups(bundlePassword)
+	if err != nil {
+		t.Fatalf("ExportAllBackups failed: %v", err)
+	}
+
+	importDir := t.TempDir()
+	importSvc := NewBackupService(importDir)
+
+	_, err = importSvc.ImportAllBackups(bundleData, "WrongPassword!")
+	if err == nil {
+		t.Fatal("expected error for wrong password, got nil")
+	}
+}
+
+func TestImportAllBackups_InvalidData(t *testing.T) {
+	importDir := t.TempDir()
+	importSvc := NewBackupService(importDir)
+
+	_, err := importSvc.ImportAllBackups([]byte("garbage data"), "password")
+	if err == nil {
+		t.Fatal("expected error for invalid data, got nil")
+	}
+}
+
 func TestExportImport_RoundTrip_MnemonicIntegrity(t *testing.T) {
 	tmpDir := t.TempDir()
 	walletID := "test-wallet-007"

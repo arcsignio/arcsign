@@ -156,6 +156,16 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Export all wallets as encrypted .arcsign-bundle file
+    ExportAllWallets {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Import all wallets from encrypted .arcsign-bundle file
+    ImportAllWallets {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
     /// Change wallet display name
     RenameWallet {
         params_json: String,
@@ -472,6 +482,16 @@ impl WalletQueue {
                 }
                 WalletCommand::ImportBackupWallet { params_json, respond_to } => {
                     let result = library.import_backup_wallet(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::ExportAllWallets { params_json, respond_to } => {
+                    let result = library.export_all_wallets(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::ImportAllWallets { params_json, respond_to } => {
+                    let result = library.import_all_wallets(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -823,6 +843,44 @@ impl WalletQueue {
         self.metrics.record_enqueue();
         self.sender
             .send(WalletCommand::ImportBackupWallet {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Export all wallets as encrypted .arcsign-bundle file.
+    pub async fn export_all_wallets(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::ExportAllWallets {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Import all wallets from encrypted .arcsign-bundle file.
+    pub async fn import_all_wallets(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::ImportAllWallets {
                 params_json,
                 respond_to: sender,
             })
@@ -1711,6 +1769,16 @@ impl LazyWalletQueue {
     /// Import wallet from encrypted .arcsign backup file
     pub async fn import_backup_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().import_backup_wallet(params_json).await
+    }
+
+    /// Export all wallets as encrypted .arcsign-bundle file
+    pub async fn export_all_wallets(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().export_all_wallets(params_json).await
+    }
+
+    /// Import all wallets from encrypted .arcsign-bundle file
+    pub async fn import_all_wallets(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().import_all_wallets(params_json).await
     }
 
     /// Change wallet display name

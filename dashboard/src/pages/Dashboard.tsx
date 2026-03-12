@@ -18,6 +18,8 @@ import { WalletCreate } from "@/components/WalletCreate";
 import { WalletImport } from "@/components/WalletImport";
 import { ImportBackup } from "@/components/ImportBackup";
 import { ExportBackup } from "@/components/ExportBackup";
+import { ExportAllBackups } from "@/components/ExportAllBackups";
+import { ImportAllBackups } from "@/components/ImportAllBackups";
 import { AddressList } from "@/components/AddressList";
 import { ProviderSettings } from "@/components/ProviderSettings";
 import { Settings } from "@/pages/Settings";
@@ -37,7 +39,7 @@ import { useTranslation } from "react-i18next";
 import type { Address } from "@/types/address";
 import type { Wallet } from "@/types/wallet";
 
-type View = "list" | "create" | "import" | "import-backup" | "export-backup-select" | "addresses" | "settings" | "api-settings" | "membership" | "detail" | "developer";
+type View = "list" | "create" | "import" | "import-backup" | "import-all-backups" | "export-backup-select" | "export-all-backups" | "addresses" | "settings" | "api-settings" | "membership" | "detail" | "developer";
 
 import { ACTIVE_NETWORK } from '@/constants/contracts';
 
@@ -133,6 +135,7 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
     setUsbPath,
     selectWallet,
     selectedWalletId,
+    membership,
   } = useDashboardStore();
 
   const selectedWallet = useSelectedWallet();
@@ -713,6 +716,28 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
     );
   }
 
+  // Show import all backups from bundle view (Pro)
+  if (currentView === "import-all-backups") {
+    return (
+      <div className="dashboard">
+        {usbPath ? (
+          <ImportAllBackups
+            usbPath={usbPath}
+            onSuccess={() => {
+              handleReload();
+              handleBackToList();
+            }}
+            onBack={handleBackToList}
+          />
+        ) : (
+          <div className="error-message">
+            {t("dashboard.noUsbDetected")}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // Show export backup wallet selector view
   if (currentView === "export-backup-select") {
     return (
@@ -781,6 +806,8 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
       setCurrentView("developer");
     } else if (view === "export-backup-select") {
       setCurrentView("export-backup-select");
+    } else if (view === "export-all-backups") {
+      setCurrentView("export-all-backups");
     } else if (view === "onboarding") {
       useOnboardingStore.getState().triggerOnboarding();
     }
@@ -795,6 +822,27 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
           onNavigate={handleSettingsNavigate}
           onCheckUpdate={onCheckUpdate}
         />
+      </div>
+    );
+  }
+
+  // Show export all backups dialog (Pro) — renders as overlay on top of settings
+  if (currentView === "export-all-backups") {
+    return (
+      <div className="dashboard">
+        <Settings
+          onBack={handleBackToList}
+          onNavigate={handleSettingsNavigate}
+          onCheckUpdate={onCheckUpdate}
+        />
+        {usbPath && (
+          <ExportAllBackups
+            usbPath={usbPath}
+            walletCount={wallets.length}
+            onSuccess={() => setCurrentView("settings")}
+            onCancel={() => setCurrentView("settings")}
+          />
+        )}
       </div>
     );
   }
@@ -901,6 +949,14 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
           >
             {t('backup.importTitle')}
           </button>
+          {membership.isPro && (
+            <button
+              onClick={() => setCurrentView("import-all-backups")}
+              className="secondary-button"
+            >
+              {t('backup.importAllTitle')}
+            </button>
+          )}
         </div>
       </header>
 

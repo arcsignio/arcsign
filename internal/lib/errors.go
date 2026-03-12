@@ -56,6 +56,10 @@ const (
 	// Backup errors
 	ErrBackupInvalid   ErrorCode = "BACKUP_INVALID"   // .arcsign file format or version error
 	ErrBackupCorrupted ErrorCode = "BACKUP_CORRUPTED" // Decryption succeeded but data is malformed
+
+	// Bundle errors (batch export/import)
+	ErrBundleInvalid   ErrorCode = "BUNDLE_INVALID"   // .arcsign-bundle format or version error
+	ErrBundleCorrupted ErrorCode = "BUNDLE_CORRUPTED" // Outer decryption succeeded but inner data malformed
 )
 
 // FFIError represents a structured error response for FFI functions
@@ -159,6 +163,10 @@ func GetUserFriendlyMessage(code ErrorCode) string {
 		return "Invalid backup file. Please select a valid .arcsign file."
 	case ErrBackupCorrupted:
 		return "The backup file appears to be corrupted."
+	case ErrBundleInvalid:
+		return "Invalid bundle file. Please select a valid .arcsign-bundle file."
+	case ErrBundleCorrupted:
+		return "The bundle file appears to be corrupted."
 	default:
 		return "An error occurred. Please try again."
 	}
@@ -234,6 +242,15 @@ func MapWalletError(err error) ErrorCode {
 
 	case strings.Contains(errMsg, "corrupted backup"):
 		return ErrBackupCorrupted
+
+	// Bundle errors
+	case strings.Contains(errMsg, "invalid bundle"),
+		strings.Contains(errMsg, "unsupported bundle"),
+		strings.Contains(errMsg, "bundle format"):
+		return ErrBundleInvalid
+
+	case strings.Contains(errMsg, "corrupted bundle"):
+		return ErrBundleCorrupted
 
 	// Invalid input (catch-all for validation errors)
 	case strings.Contains(errMsg, "invalid"),
