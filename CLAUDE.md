@@ -97,6 +97,16 @@ The Release workflow (GitHub Actions) builds all 3 platforms (macOS, Windows, Li
 - Tauri updater endpoint: `https://dl.arcsign.io/latest.json` (auto-uploaded by workflow)
 - Landing page download links are auto-updated by the workflow.
 
+## Product Facts (for content creation)
+
+- ArcSign is **free software** — not open-source yet (planned after 10K users)
+- The `.arcsign` backup file is **already encrypted upon export** (AES-256). There is NO separate step to set a password. Export = encrypted file immediately.
+- Provider/Indexer setup requires an Alchemy API Key to read on-chain data (free tier is sufficient)
+- ArcSign is a USB cold wallet — private keys never leave the device
+- ArcSign **supports WalletConnect** — frequent traders can also use ArcSign to sign transactions securely from cold storage
+- A **mobile app** is planned for the future (not yet released)
+- Key differentiator: `.arcsign` encrypted backup replaces paper seed phrases
+
 ## Development Guidelines
 
 - Break complex work into 3-5 stages, document in `IMPLEMENTATION_PLAN.md`

@@ -136,3 +136,4 @@ contracts/artifacts/build-info/
 
 # Python bytecode
 *.pyc
+marketing/.env
