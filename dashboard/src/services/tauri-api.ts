@@ -191,6 +191,48 @@ export async function deleteWallet(params: {
 }
 
 /**
+ * Backup Management
+ */
+
+export interface ExportBackupResponse {
+  walletName: string;
+  backupData: string; // base64 encoded .arcsign file content
+  exportedAt: string;
+}
+
+export async function exportBackup(params: {
+  wallet_id: string;
+  usb_path: string;
+}): Promise<ExportBackupResponse> {
+  try {
+    return await invoke<ExportBackupResponse>("export_backup", {
+      walletId: params.wallet_id,
+      usbPath: params.usb_path,
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+export async function importBackup(params: {
+  backup_data: string; // base64 encoded
+  password: string;
+  usb_path: string;
+  name?: string;
+}): Promise<WalletImportResponse> {
+  try {
+    return await invoke<WalletImportResponse>("import_backup", {
+      backupData: params.backup_data,
+      password: params.password,
+      usbPath: params.usb_path,
+      name: params.name || null,
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+/**
  * Address Management
  */
 
@@ -1367,6 +1409,8 @@ export const tauriApi = {
   listWallets,
   renameWallet,
   deleteWallet,
+  exportBackup,
+  importBackup,
   updateWebsocketAccounts,
   updateWebsocketUsbPath,
 

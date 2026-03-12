@@ -52,6 +52,10 @@ const (
 	// Membership errors
 	ErrMembershipInvalid  ErrorCode = "MEMBERSHIP_INVALID"   // Membership validation failed
 	ErrMembershipNotFound ErrorCode = "MEMBERSHIP_NOT_FOUND" // Membership binding not found
+
+	// Backup errors
+	ErrBackupInvalid   ErrorCode = "BACKUP_INVALID"   // .arcsign file format or version error
+	ErrBackupCorrupted ErrorCode = "BACKUP_CORRUPTED" // Decryption succeeded but data is malformed
 )
 
 // FFIError represents a structured error response for FFI functions
@@ -151,6 +155,10 @@ func GetUserFriendlyMessage(code ErrorCode) string {
 		return "Membership validation failed. Please check your membership status."
 	case ErrMembershipNotFound:
 		return "Membership binding not found."
+	case ErrBackupInvalid:
+		return "Invalid backup file. Please select a valid .arcsign file."
+	case ErrBackupCorrupted:
+		return "The backup file appears to be corrupted."
 	default:
 		return "An error occurred. Please try again."
 	}
@@ -217,6 +225,15 @@ func MapWalletError(err error) ErrorCode {
 		strings.Contains(errMsg, "unsupported chain"),
 		strings.Contains(errMsg, "unknown coin"):
 		return ErrInvalidBlockchain
+
+	// Backup errors
+	case strings.Contains(errMsg, "invalid backup"),
+		strings.Contains(errMsg, "unsupported backup"),
+		strings.Contains(errMsg, "backup format"):
+		return ErrBackupInvalid
+
+	case strings.Contains(errMsg, "corrupted backup"):
+		return ErrBackupCorrupted
 
 	// Invalid input (catch-all for validation errors)
 	case strings.Contains(errMsg, "invalid"),

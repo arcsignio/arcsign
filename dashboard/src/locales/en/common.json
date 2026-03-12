@@ -1044,5 +1044,25 @@
     "errorDesc": "An error occurred while updating. Please try again.",
     "retry": "Retry",
     "close": "Close"
+  },
+  "backup": {
+    "exportTitle": "Export Backup",
+    "exportDescription": "Export an encrypted .arcsign backup file",
+    "importTitle": "Import from Backup",
+    "importDescription": "Restore a wallet from a .arcsign backup file",
+    "selectFile": "Select .arcsign File",
+    "enterPassword": "Enter your wallet password",
+    "exporting": "Exporting...",
+    "importing": "Importing...",
+    "exportSuccess": "Backup exported successfully. Store it safely.",
+    "importSuccess": "Wallet restored from backup.",
+    "wrongPassword": "Incorrect password.",
+    "invalidFile": "Invalid .arcsign file.",
+    "walletName": "Wallet Name (optional)",
+    "walletNamePlaceholder": "Leave empty to use original name",
+    "backupSectionTitle": "Backup & Restore",
+    "exportSettingsTitle": "Export Wallet Backup",
+    "exportSettingsDescription": "Export a wallet as an encrypted .arcsign file",
+    "selectWalletToExport": "Select a wallet to export"
   }
 }

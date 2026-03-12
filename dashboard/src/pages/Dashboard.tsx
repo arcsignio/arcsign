@@ -16,6 +16,8 @@ import {
 import tauriApi, { type AppError, type PendingTransactionInfo } from "@/services/tauri-api";
 import { WalletCreate } from "@/components/WalletCreate";
 import { WalletImport } from "@/components/WalletImport";
+import { ImportBackup } from "@/components/ImportBackup";
+import { ExportBackup } from "@/components/ExportBackup";
 import { AddressList } from "@/components/AddressList";
 import { ProviderSettings } from "@/components/ProviderSettings";
 import { Settings } from "@/pages/Settings";
@@ -35,12 +37,66 @@ import { useTranslation } from "react-i18next";
 import type { Address } from "@/types/address";
 import type { Wallet } from "@/types/wallet";
 
-type View = "list" | "create" | "import" | "addresses" | "settings" | "api-settings" | "membership" | "detail" | "developer";
+type View = "list" | "create" | "import" | "import-backup" | "export-backup-select" | "addresses" | "settings" | "api-settings" | "membership" | "detail" | "developer";
 
 import { ACTIVE_NETWORK } from '@/constants/contracts';
 
 const NFT_CONTRACT = ACTIVE_NETWORK.nftContract;
 const CHAIN_ID = ACTIVE_NETWORK.chainName;
+
+/** Wallet item for export backup selection */
+function ExportWalletItem({ wallet, usbPath }: { wallet: Wallet; usbPath: string }) {
+  const { t } = useTranslation();
+  const [showExport, setShowExport] = useState(false);
+
+  return (
+    <>
+      <button
+        onClick={() => setShowExport(true)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+          padding: 20,
+          background: 'white',
+          border: '1px solid #e5e7eb',
+          borderRadius: 12,
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+          textAlign: 'left',
+          width: '100%',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#2dd4bf'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(45, 212, 191, 0.1)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
+      >
+        <span style={{
+          width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: '#e0f2f1', borderRadius: 12, flexShrink: 0, color: '#0d9488',
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M22 10H18a2 2 0 000 4h4"/></svg>
+        </span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#111827' }}>{wallet.name}</div>
+          <div style={{ fontSize: 13, color: '#9ca3af', marginTop: 2 }}>
+            {wallet.address_count} {t('wallet.addresses', 'addresses')}
+          </div>
+        </div>
+        <span style={{ color: '#9ca3af' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </span>
+      </button>
+      {showExport && (
+        <ExportBackup
+          walletId={wallet.id}
+          walletName={wallet.name}
+          usbPath={usbPath}
+          onSuccess={() => setShowExport(false)}
+          onCancel={() => setShowExport(false)}
+        />
+      )}
+    </>
+  );
+}
 
 export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<void> }) {
   const { t } = useTranslation();
@@ -635,6 +691,63 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
     );
   }
 
+  // Show import from backup view
+  if (currentView === "import-backup") {
+    return (
+      <div className="dashboard">
+        {usbPath ? (
+          <ImportBackup
+            usbPath={usbPath}
+            onSuccess={() => {
+              handleReload();
+              handleBackToList();
+            }}
+            onBack={handleBackToList}
+          />
+        ) : (
+          <div className="error-message">
+            {t("dashboard.noUsbDetected")}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Show export backup wallet selector view
+  if (currentView === "export-backup-select") {
+    return (
+      <div className="dashboard">
+        <div className="export-backup-select-page" style={{ maxWidth: 560, margin: '0 auto', padding: 20 }}>
+          <button onClick={() => setCurrentView("settings")} className="back-button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:'inline',verticalAlign:'middle',marginRight:4}}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            {t('dashboard.backToSettings')}
+          </button>
+          <header style={{ marginBottom: 32 }}>
+            <h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 600, color: '#111827' }}>{t('backup.exportSettingsTitle')}</h1>
+            <p style={{ margin: 0, color: '#6b7280', fontSize: 16 }}>{t('backup.selectWalletToExport')}</p>
+          </header>
+          {!usbPath ? (
+            <div className="error-message">{t("dashboard.noUsbDetected")}</div>
+          ) : wallets.length === 0 ? (
+            <div style={{ textAlign: 'center', color: '#6b7280', padding: 40 }}>
+              {t("dashboard.noWallets")}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {wallets.map((w) => (
+                <ExportWalletItem
+                  key={w.id}
+                  wallet={w}
+                  usbPath={usbPath}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // Show address list view (T061)
   if (currentView === "addresses") {
     const wallet = wallets.find((w) => w.id === walletIdForAddresses);
@@ -666,6 +779,8 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
       setCurrentView("membership");
     } else if (view === "developer") {
       setCurrentView("developer");
+    } else if (view === "export-backup-select") {
+      setCurrentView("export-backup-select");
     } else if (view === "onboarding") {
       useOnboardingStore.getState().triggerOnboarding();
     }
@@ -777,6 +892,14 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
             title={!walletLimitInfo.canCreate ? `${t('wallet.walletLimitReached')} (${walletLimitInfo.current}/${walletLimitInfo.limit})` : undefined}
           >
             {t('wallet.importWallet')}
+          </button>
+          <button
+            onClick={() => setCurrentView("import-backup")}
+            className="secondary-button"
+            disabled={!walletLimitInfo.canCreate}
+            title={!walletLimitInfo.canCreate ? `${t('wallet.walletLimitReached')} (${walletLimitInfo.current}/${walletLimitInfo.limit})` : undefined}
+          >
+            {t('backup.importTitle')}
           </button>
         </div>
       </header>

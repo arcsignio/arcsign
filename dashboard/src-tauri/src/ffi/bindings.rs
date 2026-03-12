@@ -42,6 +42,9 @@ type GenerateAddressesFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for ExportWallet: char* ExportWallet(char* params)
 type ExportWalletFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+/// Function signature for ImportBackupWallet: char* ImportBackupWallet(char* params)
+type ImportBackupWalletFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 /// Function signature for RenameWallet: char* RenameWallet(char* params)
 type RenameWalletFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
@@ -210,6 +213,7 @@ pub struct WalletLibrary {
     unlock_wallet: Symbol<'static, UnlockWalletFn>,
     generate_addresses: Symbol<'static, GenerateAddressesFn>,
     export_wallet: Symbol<'static, ExportWalletFn>,
+    import_backup_wallet: Symbol<'static, ImportBackupWalletFn>,
     rename_wallet: Symbol<'static, RenameWalletFn>,
     delete_wallet: Symbol<'static, DeleteWalletFn>,
     list_wallets: Symbol<'static, ListWalletsFn>,
@@ -358,6 +362,10 @@ impl WalletLibrary {
             let export_wallet: Symbol<ExportWalletFn> = lib
                 .get(b"ExportWallet")
                 .map_err(|e| format!("ExportWallet symbol not found: {}", e))?;
+
+            let import_backup_wallet: Symbol<ImportBackupWalletFn> = lib
+                .get(b"ImportBackupWallet")
+                .map_err(|e| format!("ImportBackupWallet symbol not found: {}", e))?;
 
             let rename_wallet: Symbol<RenameWalletFn> = lib
                 .get(b"RenameWallet")
@@ -544,6 +552,7 @@ impl WalletLibrary {
             let unlock_wallet: Symbol<'static, UnlockWalletFn> = std::mem::transmute(unlock_wallet);
             let generate_addresses: Symbol<'static, GenerateAddressesFn> = std::mem::transmute(generate_addresses);
             let export_wallet: Symbol<'static, ExportWalletFn> = std::mem::transmute(export_wallet);
+            let import_backup_wallet: Symbol<'static, ImportBackupWalletFn> = std::mem::transmute(import_backup_wallet);
             let rename_wallet: Symbol<'static, RenameWalletFn> = std::mem::transmute(rename_wallet);
             let delete_wallet: Symbol<'static, DeleteWalletFn> = std::mem::transmute(delete_wallet);
             let list_wallets: Symbol<'static, ListWalletsFn> = std::mem::transmute(list_wallets);
@@ -596,6 +605,7 @@ impl WalletLibrary {
                 unlock_wallet,
                 generate_addresses,
                 export_wallet,
+                import_backup_wallet,
                 rename_wallet,
                 delete_wallet,
                 list_wallets,
@@ -936,9 +946,14 @@ impl WalletLibrary {
         self.call_ffi_with_params(*self.generate_addresses, params_json)
     }
 
-    /// Export wallet metadata without private keys.
+    /// Export wallet as encrypted .arcsign backup file.
     pub fn export_wallet(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.export_wallet, params_json)
+    }
+
+    /// Import wallet from encrypted .arcsign backup file.
+    pub fn import_backup_wallet(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.import_backup_wallet, params_json)
     }
 
     /// Change wallet display name.

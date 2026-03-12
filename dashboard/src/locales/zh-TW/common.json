@@ -1044,5 +1044,25 @@
     "errorDesc": "更新過程中發生錯誤，請重試。",
     "retry": "重試",
     "close": "關閉"
+  },
+  "backup": {
+    "exportTitle": "匯出備份",
+    "exportDescription": "匯出加密的 .arcsign 備份檔案",
+    "importTitle": "從備份匯入",
+    "importDescription": "從 .arcsign 備份檔案還原錢包",
+    "selectFile": "選擇 .arcsign 檔案",
+    "enterPassword": "輸入錢包密碼",
+    "exporting": "匯出中...",
+    "importing": "匯入中...",
+    "exportSuccess": "備份匯出成功，請妥善保存。",
+    "importSuccess": "已從備份還原錢包。",
+    "wrongPassword": "密碼錯誤。",
+    "invalidFile": "無效的 .arcsign 檔案。",
+    "walletName": "錢包名稱（選填）",
+    "walletNamePlaceholder": "留空則使用原始名稱",
+    "backupSectionTitle": "備份與還原",
+    "exportSettingsTitle": "匯出錢包備份",
+    "exportSettingsDescription": "將錢包匯出為加密的 .arcsign 檔案",
+    "selectWalletToExport": "選擇要匯出的錢包"
   }
 }

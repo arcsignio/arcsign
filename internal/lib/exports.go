@@ -42,6 +42,7 @@ import (
 	"github.com/yourusername/arcsign/internal/provider"
 	"github.com/yourusername/arcsign/internal/rpc"
 	"github.com/yourusername/arcsign/internal/security"
+	"github.com/yourusername/arcsign/internal/services/backup"
 	"github.com/yourusername/arcsign/internal/services/bip39service"
 	chainadapterService "github.com/yourusername/arcsign/internal/services/chainadapter"
 	"github.com/yourusername/arcsign/internal/services/hdkey"
@@ -682,11 +683,12 @@ func GenerateAddresses(params *C.char) *C.char {
 }
 
 //export ExportWallet
-// ExportWallet exports wallet metadata without private keys.
-// T024.1: Implement ExportWallet export function
+// ExportWallet exports a wallet as an encrypted .arcsign backup file.
+// The mnemonic.enc inside is already AES-256-GCM encrypted — no additional encryption needed.
+// No password required for export.
 //
-// Input JSON: {"walletName": "...", "usbPath": "...", "format": "json"}
-// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "exportData": "...", "exportedAt": "..."}}
+// Input JSON: {"walletId": "...", "usbPath": "..."}
+// Output JSON: {"success": true, "data": {"walletName": "...", "backupData": "<base64>", "exportedAt": "..."}}
 func ExportWallet(params *C.char) *C.char {
 	start := time.Now()
 	defer func() {
@@ -707,9 +709,8 @@ func ExportWallet(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 	var input struct {
-		WalletName string `json:"walletName"`
-		USBPath    string `json:"usbPath"`
-		Format     string `json:"format"`
+		WalletID string `json:"walletId"`
+		USBPath  string `json:"usbPath"`
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -725,12 +726,114 @@ func ExportWallet(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// FR-003: Export wallet metadata without private keys
+	if input.WalletID == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Wallet ID is required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Export wallet as .arcsign backup
+	svc := backup.NewBackupService(input.USBPath)
+	backupData, walletName, err := svc.ExportBackup(input.WalletID)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
 	data := map[string]interface{}{
-		"walletId":   "placeholder-export-id",
-		"walletName": input.WalletName,
-		"exportData": "metadata-only-no-private-keys",
+		"walletName": walletName,
+		"backupData": base64.StdEncoding.EncodeToString(backupData),
 		"exportedAt": time.Now().Format(time.RFC3339),
+	}
+
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export ImportBackupWallet
+// ImportBackupWallet restores a wallet from an encrypted .arcsign backup file.
+// Password is required to verify ownership (decrypt mnemonic).
+//
+// Input JSON: {"backupData": "<base64>", "password": "...", "usbPath": "...", "walletName": "..."}
+// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "importedAt": "..."}}
+func ImportBackupWallet(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		BackupData string `json:"backupData"` // base64 encoded .arcsign file content
+		Password   string `json:"password"`
+		USBPath    string `json:"usbPath"`
+		WalletName string `json:"walletName"` // optional override
+	}
+
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&input.Password)
+
+	// Validate USB path
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if input.BackupData == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Backup data is required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if input.Password == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Password is required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Decode base64 backup data
+	backupBytes, err := base64.StdEncoding.DecodeString(input.BackupData)
+	if err != nil {
+		response := NewErrorResponse(ErrBackupCorrupted, "Invalid backup data encoding")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Import backup
+	svc := backup.NewBackupService(input.USBPath)
+	w, err := svc.ImportBackup(backupBytes, input.Password, input.WalletName)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	data := map[string]interface{}{
+		"walletId":   w.ID,
+		"walletName": w.Name,
+		"importedAt": time.Now().Format(time.RFC3339),
 	}
 
 	response := NewSuccessResponse(data)

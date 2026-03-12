@@ -36,6 +36,8 @@
         "scope": [
           "$RESOURCE/**",
           "$APP/**",
+          "$DESKTOP/**",
+          "$DOWNLOAD/**",
           "/Volumes/**",
           "/media/**",
           "/mnt/**",

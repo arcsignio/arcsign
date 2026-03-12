@@ -146,8 +146,13 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
-    /// Export wallet metadata without private keys
+    /// Export wallet as encrypted .arcsign backup file
     ExportWallet {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Import wallet from encrypted .arcsign backup file
+    ImportBackupWallet {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
@@ -462,6 +467,11 @@ impl WalletQueue {
                 }
                 WalletCommand::ExportWallet { params_json, respond_to } => {
                     let result = library.export_wallet(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::ImportBackupWallet { params_json, respond_to } => {
+                    let result = library.import_backup_wallet(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -787,13 +797,32 @@ impl WalletQueue {
         .map_err(|e| format!("Task join error: {}", e))?
     }
 
-    /// Export wallet metadata without private keys.
+    /// Export wallet as encrypted .arcsign backup file.
     pub async fn export_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
         let (sender, receiver) = oneshot();
 
         self.metrics.record_enqueue();
         self.sender
             .send(WalletCommand::ExportWallet {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Import wallet from encrypted .arcsign backup file.
+    pub async fn import_backup_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::ImportBackupWallet {
                 params_json,
                 respond_to: sender,
             })
@@ -1674,9 +1703,14 @@ impl LazyWalletQueue {
         self.get_or_init().generate_addresses(params_json).await
     }
 
-    /// Export wallet metadata without private keys
+    /// Export wallet as encrypted .arcsign backup file
     pub async fn export_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().export_wallet(params_json).await
+    }
+
+    /// Import wallet from encrypted .arcsign backup file
+    pub async fn import_backup_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().import_backup_wallet(params_json).await
     }
 
     /// Change wallet display name

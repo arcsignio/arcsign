@@ -36,6 +36,10 @@ const IconBook = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
 );
 
+const IconDownload = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+);
+
 const SETTING_ITEMS: SettingItem[] = [
   {
     id: 'membership',
@@ -113,6 +117,22 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
             <span className="setting-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
           </button>
         ))}
+      </div>
+
+      {/* Backup & Restore Section */}
+      <div className="backup-section">
+        <h2 className="backup-section-title">{t('backup.backupSectionTitle')}</h2>
+        <button
+          className="setting-item"
+          onClick={() => onNavigate('export-backup-select')}
+        >
+          <span className="setting-icon backup-icon"><IconDownload /></span>
+          <div className="setting-content">
+            <h3 className="setting-title">{t('backup.exportSettingsTitle')}</h3>
+            <p className="setting-description">{t('backup.exportSettingsDescription')}</p>
+          </div>
+          <span className="setting-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </button>
       </div>
 
       {/* Developer Mode - Separate Section */}
@@ -266,6 +286,27 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
         }
 
         .setting-item:hover .setting-arrow {
+          color: #0d9488;
+        }
+
+        /* Backup Section */
+        .backup-section {
+          margin-top: 48px;
+          padding-top: 24px;
+          border-top: 1px solid #e5e7eb;
+        }
+
+        .backup-section-title {
+          margin: 0 0 16px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .backup-icon {
+          background: #e0f2f1;
           color: #0d9488;
         }
 

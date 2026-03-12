@@ -965,6 +965,128 @@ pub async fn delete_wallet(
     Ok(())
 }
 
+/// Export wallet as encrypted .arcsign backup file
+/// No password required — mnemonic.enc inside is already AES-256-GCM encrypted
+#[tauri::command]
+pub async fn export_backup(
+    queue: State<'_, LazyWalletQueue>,
+    wallet_id: String,
+    usb_path: String,
+) -> Result<serde_json::Value, String> {
+    let start = Instant::now();
+
+    if wallet_id.trim().is_empty() {
+        return Err(AppError::new(
+            ErrorCode::InvalidWalletId,
+            "Wallet ID cannot be empty",
+        ).into());
+    }
+
+    let params = json!({
+        "walletId": wallet_id,
+        "usbPath": usb_path,
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    let result = queue
+        .export_wallet(params_json)
+        .await
+        .map_err(|e| {
+            AppError::with_details(
+                ErrorCode::CliExecutionFailed,
+                "Failed to export backup",
+                e,
+            )
+        })?;
+
+    let elapsed = start.elapsed();
+    tracing::info!("Backup exported successfully: {} (took {:?})", wallet_id, elapsed);
+
+    Ok(result)
+}
+
+/// Import wallet from encrypted .arcsign backup file
+/// Password required to verify ownership (decrypt mnemonic)
+#[tauri::command]
+pub async fn import_backup(
+    queue: State<'_, LazyWalletQueue>,
+    backup_data: String,
+    mut password: String,
+    usb_path: String,
+    name: Option<String>,
+) -> Result<WalletImportResponse, String> {
+    let start = Instant::now();
+
+    // Validate password
+    validate_password(&password).map_err(String::from)?;
+
+    if backup_data.trim().is_empty() {
+        return Err(AppError::new(
+            ErrorCode::InvalidInput,
+            "Backup data cannot be empty",
+        ).into());
+    }
+
+    let params = json!({
+        "backupData": backup_data,
+        "password": password,
+        "usbPath": usb_path,
+        "walletName": name.unwrap_or_default(),
+    });
+
+    // Zeroize password immediately after building params
+    password.zeroize();
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    let result = queue
+        .import_backup_wallet(params_json)
+        .await
+        .map_err(|e| {
+            if e.contains("wrong password") || e.contains("INVALID_PASSWORD") {
+                AppError::new(
+                    ErrorCode::InvalidPassword,
+                    "Incorrect password",
+                )
+            } else if e.contains("BACKUP_INVALID") || e.contains("invalid backup") {
+                AppError::new(
+                    ErrorCode::InvalidInput,
+                    "Invalid .arcsign backup file",
+                )
+            } else {
+                AppError::with_details(
+                    ErrorCode::CliExecutionFailed,
+                    "Failed to import backup",
+                    e,
+                )
+            }
+        })?;
+
+    // Parse response into WalletImportResponse
+    let data = result.get("data").ok_or_else(|| "Missing data in response".to_string())?;
+    let wallet_id = data.get("walletId").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let wallet_name = data.get("walletName").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let imported_at = data.get("importedAt").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+    let wallet = Wallet::new(
+        wallet_id.clone(),
+        wallet_name,
+        imported_at,
+        false,
+    );
+
+    let elapsed = start.elapsed();
+    tracing::info!("Backup imported successfully: {} (took {:?})", wallet_id, elapsed);
+
+    Ok(WalletImportResponse {
+        wallet,
+        is_duplicate: false,
+    })
+}
+
 /// Parse category string to Category enum
 fn parse_category(s: &str) -> Category {
     match s {

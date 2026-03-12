@@ -29,6 +29,7 @@ import { getChainIconUrl, getChainFallbackIcon, isChainSupported, isChainEnabled
 import { isWalletLocked } from "@/utils/walletLock";
 import ReceiveAddressModal from "@/components/ReceiveAddressModal";
 import { SessionsManagerModal } from "@/components/WalletConnect/SessionsManagerModal";
+import { ExportBackup } from "@/components/ExportBackup";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
 
@@ -109,6 +110,9 @@ export function WalletDetail({
 
   // More menu dropdown state
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  // Export backup dialog state
+  const [showExportBackup, setShowExportBackup] = useState(false);
 
   // WalletConnect Sessions Manager modal state
   const [showSessionsManager, setShowSessionsManager] = useState(false);
@@ -1781,11 +1785,49 @@ export function WalletDetail({
                 </div>
               </button>
 
-              {/* Close Menu on Outside Click */}
+              {/* Export Backup Option */}
+              <button
+                onClick={() => {
+                  setShowMoreMenu(false);
+                  setShowExportBackup(true);
+                }}
+                style={{
+                  width: "100%",
+                  padding: "0.75rem 1rem",
+                  background: "transparent",
+                  border: "none",
+                  borderTop: "1px solid #e2e8f0",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.75rem",
+                  textAlign: "left",
+                  transition: "background 0.2s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#f1f5f9"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <div>
+                  <div style={{ fontWeight: "500", color: "#1e293b" }}>{t('backup.exportTitle')}</div>
+                  <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{t('backup.exportDescription')}</div>
+                </div>
+              </button>
             </div>
           )}
         </div>
       </div>
+
+      {/* Export Backup Dialog */}
+      {showExportBackup && (
+        <ExportBackup
+          walletId={wallet.id}
+          walletName={wallet.name}
+          usbPath={usbPath}
+          onSuccess={() => setShowExportBackup(false)}
+          onCancel={() => setShowExportBackup(false)}
+        />
+      )}
 
       {/* Click outside to close More menu */}
       {showMoreMenu && (
