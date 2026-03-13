@@ -607,3 +607,407 @@ func parseHexToInt(hex string) int64 {
 	val, _ := strconv.ParseInt(hex, 16, 64)
 	return val
 }
+
+// ================================================================================
+// Token Approval Queries (eth_getLogs + eth_call)
+// ================================================================================
+
+// approvalEventTopic0 is keccak256("Approval(address,address,uint256)")
+const approvalEventTopic0 = "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"
+
+// genericRPCResponse is a JSON-RPC response with a generic result field
+type genericRPCResponse struct {
+	JSONRPC string           `json:"jsonrpc"`
+	ID      int              `json:"id"`
+	Result  json.RawMessage  `json:"result,omitempty"`
+	Error   *alchemyRPCError `json:"error,omitempty"`
+}
+
+// approvalLogEntry represents a single Approval event log from eth_getLogs
+type approvalLogEntry struct {
+	Address     string   `json:"address"`     // Token contract address
+	Topics      []string `json:"topics"`      // [topic0, owner, spender]
+	Data        string   `json:"data"`        // Encoded approval amount
+	BlockNumber string   `json:"blockNumber"` // Hex block number
+}
+
+// approvalKey uniquely identifies an approval by (token, spender)
+type approvalKey struct {
+	Token   string
+	Spender string
+}
+
+// getBlockNumber calls eth_blockNumber to get the latest block number for a chain
+func (c *AlchemyClient) getBlockNumber(rpcURL string) (int64, error) {
+	rpcRequest := alchemyRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "eth_blockNumber",
+		Params:  []interface{}{},
+	}
+
+	jsonData, err := json.Marshal(rpcRequest)
+	if err != nil {
+		return 0, err
+	}
+
+	req, err := http.NewRequest("POST", rpcURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+
+	var rpcResp genericRPCResponse
+	if err := json.Unmarshal(body, &rpcResp); err != nil {
+		return 0, err
+	}
+	if rpcResp.Error != nil {
+		return 0, fmt.Errorf("eth_blockNumber error: %s", rpcResp.Error.Message)
+	}
+
+	var hexResult string
+	if err := json.Unmarshal(rpcResp.Result, &hexResult); err != nil {
+		return 0, err
+	}
+
+	blockNum, err := strconv.ParseInt(strings.TrimPrefix(hexResult, "0x"), 16, 64)
+	if err != nil {
+		return 0, err
+	}
+	return blockNum, nil
+}
+
+// GetApprovalEvents queries all active ERC-20 approvals for an address on a given network.
+// It uses eth_getLogs to find Approval events, then eth_call to verify current allowance.
+func (c *AlchemyClient) GetApprovalEvents(ownerAddress, network string) ([]ApprovalEntry, error) {
+	// Convert Internal Network ID to Alchemy format
+	alchemyNetwork := ToAlchemyNetwork(network)
+
+	// Get RPC endpoint
+	baseURL, ok := networkToRPCEndpoint[alchemyNetwork]
+	if !ok {
+		return nil, fmt.Errorf("unsupported network: %s (alchemy: %s)", network, alchemyNetwork)
+	}
+
+	url := fmt.Sprintf("%s/%s", baseURL, c.apiKey)
+	networkLabel := getNetworkLabel(network)
+
+	// Pad owner address to 32 bytes for topic filter
+	cleanOwner := strings.TrimPrefix(strings.ToLower(ownerAddress), "0x")
+	ownerTopic := "0x000000000000000000000000" + cleanOwner
+
+	// Step 1: Get current block number and calculate lookback range
+	// Querying from block 0 causes "limit exceeded" on most RPC providers
+	fromBlock := "0x0"
+	latestBlock, err := c.getBlockNumber(url)
+	if err == nil && latestBlock > 0 {
+		// Lookback periods per chain (approximate blocks for ~1 year):
+		// ETH: ~2.6M (12s blocks), Polygon: ~15.7M (2s), BSC: ~10.5M (3s),
+		// Arbitrum: ~262M (0.25s L2 blocks), Optimism/Base: ~15.7M (2s)
+		var lookback int64
+		switch alchemyNetwork {
+		case "arb-mainnet":
+			lookback = 260_000_000 // Arbitrum: very fast L2 blocks
+		case "polygon-mainnet", "opt-mainnet", "base-mainnet":
+			lookback = 15_000_000 // ~2s block time chains
+		case "bnb-mainnet":
+			lookback = 10_000_000 // BSC: ~3s blocks
+		default:
+			lookback = 2_500_000 // ETH mainnet: ~12s blocks
+		}
+		start := latestBlock - lookback
+		if start < 0 {
+			start = 0
+		}
+		fromBlock = fmt.Sprintf("0x%x", start)
+	}
+
+	// Step 2: Query Approval event logs
+	logsParams := []interface{}{
+		map[string]interface{}{
+			"fromBlock": fromBlock,
+			"toBlock":   "latest",
+			"topics":    []interface{}{approvalEventTopic0, ownerTopic},
+		},
+	}
+
+	rpcRequest := alchemyRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "eth_getLogs",
+		Params:  logsParams,
+	}
+
+	jsonData, err := json.Marshal(rpcRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal eth_getLogs request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("eth_getLogs request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("eth_getLogs failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var rpcResp genericRPCResponse
+	if err := json.Unmarshal(body, &rpcResp); err != nil {
+		return nil, fmt.Errorf("failed to parse eth_getLogs response: %w", err)
+	}
+	if rpcResp.Error != nil {
+		return nil, fmt.Errorf("eth_getLogs error: %s (code: %d)", rpcResp.Error.Message, rpcResp.Error.Code)
+	}
+
+	var logs []approvalLogEntry
+	if err := json.Unmarshal(rpcResp.Result, &logs); err != nil {
+		return nil, fmt.Errorf("failed to parse logs: %w", err)
+	}
+
+	// Step 3: Deduplicate by (token, spender), keeping latest
+	latestApprovals := make(map[approvalKey]approvalLogEntry)
+	for _, log := range logs {
+		if len(log.Topics) < 3 {
+			continue
+		}
+		// Extract spender from topic[2] (remove padding)
+		spender := "0x" + log.Topics[2][26:]
+		key := approvalKey{
+			Token:   strings.ToLower(log.Address),
+			Spender: strings.ToLower(spender),
+		}
+		// Later logs overwrite earlier ones (logs are returned in ascending order)
+		latestApprovals[key] = log
+	}
+
+	if len(latestApprovals) == 0 {
+		return []ApprovalEntry{}, nil
+	}
+
+	// Step 4: Check current allowance for each (token, spender) pair
+	// allowance(address,address) selector: 0xdd62ed3e
+	var results []ApprovalEntry
+	threshold := new(big.Int).Exp(big.NewInt(2), big.NewInt(128), nil) // 2^128
+
+	for key := range latestApprovals {
+		allowance, err := c.ethCallAllowance(url, key.Token, ownerAddress, key.Spender)
+		if err != nil {
+			continue // skip entries we can't verify
+		}
+
+		// Filter out zero allowances (already revoked)
+		if allowance.Sign() == 0 {
+			continue
+		}
+
+		// Get token metadata
+		tokenName, tokenSymbol := c.getTokenMetadata(url, key.Token)
+
+		entry := ApprovalEntry{
+			TokenAddress: key.Token,
+			TokenName:    tokenName,
+			TokenSymbol:  tokenSymbol,
+			Spender:      key.Spender,
+			Allowance:    allowance.String(),
+			IsUnlimited:  allowance.Cmp(threshold) >= 0,
+			Network:      network,
+			NetworkLabel: networkLabel,
+			OwnerAddress: ownerAddress,
+		}
+		results = append(results, entry)
+	}
+
+	return results, nil
+}
+
+// ethCallAllowance calls allowance(owner, spender) on a token contract
+func (c *AlchemyClient) ethCallAllowance(rpcURL, tokenAddress, owner, spender string) (*big.Int, error) {
+	// allowance(address,address) selector: 0xdd62ed3e
+	cleanOwner := strings.TrimPrefix(strings.ToLower(owner), "0x")
+	cleanSpender := strings.TrimPrefix(strings.ToLower(spender), "0x")
+	data := "0xdd62ed3e" +
+		fmt.Sprintf("%064s", cleanOwner) +
+		fmt.Sprintf("%064s", cleanSpender)
+
+	return c.ethCallUint256(rpcURL, tokenAddress, data)
+}
+
+// getTokenMetadata retrieves name() and symbol() for a token contract
+func (c *AlchemyClient) getTokenMetadata(rpcURL, tokenAddress string) (string, string) {
+	// name() selector: 0x06fdde03
+	nameResult, err := c.ethCallString(rpcURL, tokenAddress, "0x06fdde03")
+	if err != nil {
+		nameResult = ""
+	}
+	// symbol() selector: 0x95d89b41
+	symbolResult, err := c.ethCallString(rpcURL, tokenAddress, "0x95d89b41")
+	if err != nil {
+		symbolResult = ""
+	}
+	return nameResult, symbolResult
+}
+
+// ethCallUint256 makes an eth_call and parses the result as a uint256
+func (c *AlchemyClient) ethCallUint256(rpcURL, to, data string) (*big.Int, error) {
+	rpcRequest := alchemyRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "eth_call",
+		Params: []interface{}{
+			map[string]interface{}{"to": to, "data": data},
+			"latest",
+		},
+	}
+
+	jsonData, err := json.Marshal(rpcRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", rpcURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var rpcResp genericRPCResponse
+	if err := json.Unmarshal(body, &rpcResp); err != nil {
+		return nil, err
+	}
+	if rpcResp.Error != nil {
+		return nil, fmt.Errorf("eth_call error: %s", rpcResp.Error.Message)
+	}
+
+	var hexResult string
+	if err := json.Unmarshal(rpcResp.Result, &hexResult); err != nil {
+		return nil, err
+	}
+
+	// Parse hex to big.Int
+	cleanHex := strings.TrimPrefix(hexResult, "0x")
+	if cleanHex == "" || cleanHex == "0" {
+		return big.NewInt(0), nil
+	}
+	result := new(big.Int)
+	result.SetString(cleanHex, 16)
+	return result, nil
+}
+
+// ethCallString makes an eth_call and parses the ABI-encoded result as a string
+func (c *AlchemyClient) ethCallString(rpcURL, to, data string) (string, error) {
+	rpcRequest := alchemyRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "eth_call",
+		Params: []interface{}{
+			map[string]interface{}{"to": to, "data": data},
+			"latest",
+		},
+	}
+
+	jsonData, err := json.Marshal(rpcRequest)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest("POST", rpcURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var rpcResp genericRPCResponse
+	if err := json.Unmarshal(body, &rpcResp); err != nil {
+		return "", err
+	}
+	if rpcResp.Error != nil {
+		return "", fmt.Errorf("eth_call error: %s", rpcResp.Error.Message)
+	}
+
+	var hexResult string
+	if err := json.Unmarshal(rpcResp.Result, &hexResult); err != nil {
+		return "", err
+	}
+
+	// Decode ABI-encoded string: offset (32 bytes) + length (32 bytes) + data
+	cleanHex := strings.TrimPrefix(hexResult, "0x")
+	if len(cleanHex) < 128 { // Need at least offset + length
+		return "", nil
+	}
+
+	// Read string length at bytes 32-64
+	lengthHex := cleanHex[64:128]
+	length, err := strconv.ParseInt(strings.TrimLeft(lengthHex, "0"), 16, 64)
+	if err != nil || length <= 0 || length > 256 {
+		return "", nil
+	}
+
+	// Read string data starting at byte 64
+	dataStart := 128
+	dataEnd := dataStart + int(length)*2
+	if dataEnd > len(cleanHex) {
+		dataEnd = len(cleanHex)
+	}
+	strData := cleanHex[dataStart:dataEnd]
+
+	// Convert hex to bytes to string
+	var strBytes []byte
+	for i := 0; i < len(strData)-1; i += 2 {
+		b, err := strconv.ParseUint(strData[i:i+2], 16, 8)
+		if err != nil {
+			break
+		}
+		if b == 0 {
+			break
+		}
+		strBytes = append(strBytes, byte(b))
+	}
+
+	return string(strBytes), nil
+}

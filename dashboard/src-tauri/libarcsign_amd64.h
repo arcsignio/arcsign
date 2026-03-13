@@ -506,6 +506,27 @@ extern char* GetTokenBalances(char* params);
 // Returns: {"success": true, "data": {"nfts": [...], "totalCount": 5, ...}}
 extern char* GetNFTs(char* params);
 
+// GetTokenApprovals queries all active ERC-20 token approvals for a wallet's EVM addresses.
+// Uses eth_getLogs (Approval events) + eth_call (allowance) to find active approvals.
+// Feature: Token Approvals Management (v1.3 Dashboard)
+//
+// Input JSON: {
+//   "walletId": "wallet-uuid",
+//   "password": "wallet-password",
+//   "usbPath": "/path/to/usb",
+//   "sessionToken": "session-token",
+//   "appPassword": "app-password"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "approvals": [{ tokenAddress, tokenName, tokenSymbol, spender, allowance, isUnlimited, network, networkLabel, ownerAddress }],
+//     "totalCount": 5
+//   }
+// }
+extern char* GetTokenApprovals(char* params);
+
 // GetAssetTransfers queries transaction history for an address using Alchemy API.
 // Feature: Transaction History - Asset Transfers API Integration
 //

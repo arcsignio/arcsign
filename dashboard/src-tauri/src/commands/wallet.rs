@@ -1432,6 +1432,61 @@ pub async fn get_nfts(
     Ok(ffi_response)
 }
 
+/// Get active ERC-20 token approvals for a wallet's EVM addresses.
+///
+/// Queries Approval events via eth_getLogs and verifies current allowance on-chain.
+/// Returns: { "approvals": [...], "totalCount": N }
+#[tauri::command]
+pub async fn get_token_approvals(
+    queue: State<'_, LazyWalletQueue>,
+    wallet_id: String,
+    mut password: String,
+    usb_path: String,
+    session_token: Option<String>,
+    app_password: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let start = Instant::now();
+    tracing::info!("get_token_approvals called for wallet_id: {}", wallet_id);
+
+    let params = json!({
+        "walletId": wallet_id,
+        "password": password,
+        "usbPath": usb_path,
+        "sessionToken": session_token.unwrap_or_default(),
+        "appPassword": app_password.unwrap_or_default(),
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| {
+            tracing::error!("Failed to serialize params: {}", e);
+            format!("Failed to serialize params: {}", e)
+        })?;
+
+    let ffi_response = queue
+        .get_token_approvals(params_json)
+        .await
+        .map_err(|e| {
+            tracing::error!("FFI get_token_approvals call failed: {}", e);
+            if e.contains("WALLET_NOT_FOUND") {
+                AppError::new(ErrorCode::WalletNotFound, "Wallet not found on USB")
+            } else if e.contains("INVALID_PASSWORD") || e.contains("DECRYPTION_ERROR") {
+                AppError::new(ErrorCode::PasswordTooWeak, "Invalid password")
+            } else {
+                AppError::with_details(ErrorCode::CliExecutionFailed, "Failed to get token approvals", e)
+            }
+        })?;
+
+    password.zeroize();
+
+    tracing::info!(
+        "Retrieved token approvals for wallet {} (took {:?})",
+        wallet_id,
+        start.elapsed()
+    );
+
+    Ok(ffi_response)
+}
+
 /// Validate a BIP39 passphrase by comparing derived address with stored address.
 ///
 /// This is used during wallet unlock to validate the passphrase before allowing

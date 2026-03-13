@@ -105,6 +105,9 @@ type GetTokenBalancesFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for GetNFTs: char* GetNFTs(char* params)
 type GetNFTsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+/// Function signature for GetTokenApprovals: char* GetTokenApprovals(char* params)
+type GetTokenApprovalsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 /// Function signature for GetAssetTransfers: char* GetAssetTransfers(char* params)
 type GetAssetTransfersFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
@@ -248,6 +251,8 @@ pub struct WalletLibrary {
     get_token_balances: Symbol<'static, GetTokenBalancesFn>,
     // NFT query function symbols
     get_nfts: Symbol<'static, GetNFTsFn>,
+    // Token approvals query function symbols
+    get_token_approvals: Symbol<'static, GetTokenApprovalsFn>,
     // Asset transfers query function symbols
     get_asset_transfers: Symbol<'static, GetAssetTransfersFn>,
     // Passphrase validation function symbol
@@ -460,6 +465,10 @@ impl WalletLibrary {
                 .get(b"GetNFTs")
                 .map_err(|e| format!("GetNFTs symbol not found: {}", e))?;
 
+            let get_token_approvals: Symbol<GetTokenApprovalsFn> = lib
+                .get(b"GetTokenApprovals")
+                .map_err(|e| format!("GetTokenApprovals symbol not found: {}", e))?;
+
             let get_asset_transfers: Symbol<GetAssetTransfersFn> = lib
                 .get(b"GetAssetTransfers")
                 .map_err(|e| format!("GetAssetTransfers symbol not found: {}", e))?;
@@ -598,6 +607,7 @@ impl WalletLibrary {
             let unlock_app: Symbol<'static, UnlockAppFn> = std::mem::transmute(unlock_app);
             let get_token_balances: Symbol<'static, GetTokenBalancesFn> = std::mem::transmute(get_token_balances);
             let get_nfts: Symbol<'static, GetNFTsFn> = std::mem::transmute(get_nfts);
+            let get_token_approvals: Symbol<'static, GetTokenApprovalsFn> = std::mem::transmute(get_token_approvals);
             let get_asset_transfers: Symbol<'static, GetAssetTransfersFn> = std::mem::transmute(get_asset_transfers);
             let validate_passphrase: Symbol<'static, ValidatePassphraseFn> = std::mem::transmute(validate_passphrase);
             let get_swap_quote: Symbol<'static, GetSwapQuoteFn> = std::mem::transmute(get_swap_quote);
@@ -654,6 +664,7 @@ impl WalletLibrary {
                 unlock_app,
                 get_token_balances,
                 get_nfts,
+                get_token_approvals,
                 get_asset_transfers,
                 validate_passphrase,
                 get_swap_quote,
@@ -1225,6 +1236,21 @@ impl WalletLibrary {
     /// ```
     pub fn get_nfts(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.get_nfts, params_json)
+    }
+
+    /// Get active ERC-20 token approvals for a wallet's EVM addresses.
+    ///
+    /// # Example Input JSON
+    /// ```json
+    /// {
+    ///   "walletId": "wallet-uuid",
+    ///   "password": "wallet-password",
+    ///   "usbPath": "/path/to/usb",
+    ///   "sessionToken": "session-token"
+    /// }
+    /// ```
+    pub fn get_token_approvals(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.get_token_approvals, params_json)
     }
 
     /// Get asset transfers (transaction history) for an address using Alchemy API.

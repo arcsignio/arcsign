@@ -3249,6 +3249,181 @@ func GetNFTs(params *C.char) *C.char {
 	return C.CString(string(nftJsonBytes))
 }
 
+//export GetTokenApprovals
+// GetTokenApprovals queries all active ERC-20 token approvals for a wallet's EVM addresses.
+// Uses eth_getLogs (Approval events) + eth_call (allowance) to find active approvals.
+// Feature: Token Approvals Management (v1.3 Dashboard)
+//
+// Input JSON: {
+//   "walletId": "wallet-uuid",
+//   "password": "wallet-password",
+//   "usbPath": "/path/to/usb",
+//   "sessionToken": "session-token",
+//   "appPassword": "app-password"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "approvals": [{ tokenAddress, tokenName, tokenSymbol, spender, allowance, isUnlimited, network, networkLabel, ownerAddress }],
+//     "totalCount": 5
+//   }
+// }
+func GetTokenApprovals(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		debugLog(fmt.Sprintf("GetTokenApprovals completed in %v", elapsed))
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	var input provider.GetTokenApprovalsInput
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.Password)
+	defer zeroString(&input.AppPassword)
+
+	// Validate session token
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	// Load Alchemy API key
+	providerConfigPath := filepath.Join(input.USBPath, "provider_config.enc")
+	providerStore, err := provider.NewProviderConfigStore(providerConfigPath, appPassword)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer providerStore.Close()
+
+	providerConfig, err := providerStore.Get("global", "alchemy")
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, "Provider configuration not found")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	if providerConfig == nil || providerConfig.APIKey == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Alchemy provider not configured")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	if !providerConfig.Enabled {
+		response := NewErrorResponse(ErrInvalidInput, "Alchemy provider is disabled")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	alchemyAPIKey := providerConfig.APIKey
+
+	// Verify wallet password
+	walletService := wallet.NewWalletService(input.USBPath)
+	_, err = walletService.RestoreWallet(input.WalletID, input.Password)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, "Invalid password or wallet access denied")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	walletObj, err := walletService.LoadWallet(input.WalletID)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if walletObj.AddressBook == nil || len(walletObj.AddressBook.Addresses) == 0 {
+		emptyOutput := provider.GetTokenApprovalsOutput{
+			Approvals:  []provider.ApprovalEntry{},
+			TotalCount: 0,
+		}
+		response := NewSuccessResponse(emptyOutput)
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Build address-network map (only EVM mainnet addresses)
+	addressNetworkMap := make(map[string][]string)
+	for _, addr := range walletObj.AddressBook.Addresses {
+		network, ok := provider.GetAlchemyNetwork(addr.CoinName)
+		if !ok {
+			continue
+		}
+		addressNetworkMap[addr.Address] = append(addressNetworkMap[addr.Address], network)
+	}
+
+	if len(addressNetworkMap) == 0 {
+		emptyOutput := provider.GetTokenApprovalsOutput{
+			Approvals:  []provider.ApprovalEntry{},
+			TotalCount: 0,
+		}
+		response := NewSuccessResponse(emptyOutput)
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Query approval events for each address on each network
+	alchemyClient := provider.NewAlchemyClient(alchemyAPIKey)
+	var allApprovals []provider.ApprovalEntry
+
+	for address, networks := range addressNetworkMap {
+		for _, network := range networks {
+			approvals, err := alchemyClient.GetApprovalEvents(address, network)
+			if err != nil {
+				debugLog(fmt.Sprintf("GetApprovalEvents error for %s on %s: %v", address, network, err))
+				continue // skip failed queries, don't fail the whole request
+			}
+			allApprovals = append(allApprovals, approvals...)
+		}
+	}
+
+	if allApprovals == nil {
+		allApprovals = []provider.ApprovalEntry{}
+	}
+
+	output := provider.GetTokenApprovalsOutput{
+		Approvals:  allApprovals,
+		TotalCount: len(allApprovals),
+	}
+
+	approvalResponse := NewSuccessResponse(output)
+	approvalJsonBytes, _ := json.Marshal(approvalResponse)
+	return C.CString(string(approvalJsonBytes))
+}
+
 //export GetAssetTransfers
 // GetAssetTransfers queries transaction history for an address using Alchemy API.
 // Feature: Transaction History - Asset Transfers API Integration
@@ -3998,20 +4173,21 @@ func GetSwapApproval(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Parse amount: empty = MaxUint256 (unlimited approval)
+	// Parse amount: empty = MaxUint256 (unlimited approval), "0" = revoke
 	var amount *big.Int
-	if input.Amount != "" && input.Amount != "0" {
+	if input.Amount == "" {
+		// Empty = MaxUint256 (unlimited approval)
+		amount = new(big.Int)
+		amount.Exp(big.NewInt(2), big.NewInt(256), nil)
+		amount.Sub(amount, big.NewInt(1))
+	} else {
+		// Parse literal amount (including "0" for revoke)
 		amount = new(big.Int)
 		if _, ok := amount.SetString(input.Amount, 10); !ok {
 			response := NewErrorResponse(ErrInvalidInput, "Invalid amount")
 			jsonBytes, _ := json.Marshal(response)
 			return C.CString(string(jsonBytes))
 		}
-	} else {
-		// MaxUint256 = 2^256 - 1 (unlimited approval)
-		amount = new(big.Int)
-		amount.Exp(big.NewInt(2), big.NewInt(256), nil)
-		amount.Sub(amount, big.NewInt(1))
 	}
 
 	// Build ERC-20 approve(address spender, uint256 amount) calldata

@@ -32,6 +32,7 @@ import { SessionsManagerModal } from "@/components/WalletConnect/SessionsManager
 import { ExportBackup } from "@/components/ExportBackup";
 import { NFTGallery } from "@/components/NFTGallery";
 import { DefiPositions } from "@/components/DefiPositions";
+import { TokenApprovals } from "@/components/TokenApprovals";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
 
@@ -2117,27 +2118,13 @@ export function WalletDetail({
 
       {/* Approvals Tab */}
       {activeTab === "approvals" && (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "3rem 1.5rem",
-            color: "#64748b",
-          }}
-        >
-          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>✅</div>
-          <p
-            style={{
-              marginBottom: "0.5rem",
-              fontWeight: "600",
-              color: "#1e293b",
-            }}
-          >
-            {t('walletDetail.approvalsComingSoon')}
-          </p>
-          <p style={{ fontSize: "0.875rem" }}>
-            {t('walletDetail.approvalsDescription')}
-          </p>
-        </div>
+        <TokenApprovals
+          walletId={wallet.id}
+          password={passwordRef.current}
+          usbPath={usbPath}
+          sessionToken={getSessionToken() || undefined}
+          bscAddress={bscAddress}
+        />
       )}
 
       {error && (

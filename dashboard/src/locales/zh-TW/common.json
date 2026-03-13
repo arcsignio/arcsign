@@ -1110,5 +1110,27 @@
     "walletQuota": "錢包配額",
     "viewOnExplorer": "在區塊鏈瀏覽器查看",
     "unlimited": "無限制"
+  },
+  "tokenApprovals": {
+    "loading": "掃描代幣授權中...",
+    "loadError": "載入授權失敗",
+    "retry": "重試",
+    "empty": "沒有活躍的授權",
+    "emptyDescription": "您的 ERC-20 代幣授權會顯示在這裡",
+    "activeApprovals": "個活躍授權",
+    "allNetworks": "全部",
+    "refresh": "刷新",
+    "spender": "被授權方",
+    "allowance": "授權額度",
+    "unlimited": "無限制",
+    "revoke": "撤銷",
+    "revokeSuccess": "授權已成功撤銷",
+    "batchRevoke": "批次撤銷",
+    "batchRevokeProOnly": "批次撤銷需要 Pro 會員",
+    "processing": "處理中",
+    "selectAll": "全選",
+    "deselectAll": "取消全選",
+    "success": "成功",
+    "failed": "失敗"
   }
 }

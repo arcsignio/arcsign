@@ -158,6 +158,38 @@ type GetNFTsOutput struct {
 }
 
 // ================================================================================
+// Token Approval Types
+// ================================================================================
+
+// ApprovalEntry represents a single active ERC-20 token approval
+type ApprovalEntry struct {
+	TokenAddress string `json:"tokenAddress"` // ERC-20 token contract address
+	TokenName    string `json:"tokenName"`    // Token name (from name() call)
+	TokenSymbol  string `json:"tokenSymbol"`  // Token symbol (from symbol() call)
+	Spender      string `json:"spender"`      // Approved spender address
+	Allowance    string `json:"allowance"`    // Current allowance amount (decimal string)
+	IsUnlimited  bool   `json:"isUnlimited"`  // True if allowance >= 2^128
+	Network      string `json:"network"`      // Internal Network ID
+	NetworkLabel string `json:"networkLabel"` // Human-readable network name
+	OwnerAddress string `json:"ownerAddress"` // The wallet address that granted approval
+}
+
+// GetTokenApprovalsInput represents the input for GetTokenApprovals FFI function
+type GetTokenApprovalsInput struct {
+	WalletID     string `json:"walletId"`
+	Password     string `json:"password"`
+	USBPath      string `json:"usbPath"`
+	SessionToken string `json:"sessionToken"`
+	AppPassword  string `json:"appPassword"`
+}
+
+// GetTokenApprovalsOutput represents the output for GetTokenApprovals FFI function
+type GetTokenApprovalsOutput struct {
+	Approvals  []ApprovalEntry `json:"approvals"`
+	TotalCount int             `json:"totalCount"`
+}
+
+// ================================================================================
 // FFI Input/Output Types
 // ================================================================================
 

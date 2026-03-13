@@ -1110,5 +1110,27 @@
     "walletQuota": "Wallet Quota",
     "viewOnExplorer": "View on Explorer",
     "unlimited": "Unlimited"
+  },
+  "tokenApprovals": {
+    "loading": "Scanning for token approvals...",
+    "loadError": "Failed to load approvals",
+    "retry": "Retry",
+    "empty": "No Active Approvals",
+    "emptyDescription": "Your ERC-20 token approvals will appear here",
+    "activeApprovals": "Active Approvals",
+    "allNetworks": "All",
+    "refresh": "Refresh",
+    "spender": "Spender",
+    "allowance": "Allowance",
+    "unlimited": "UNLIMITED",
+    "revoke": "Revoke",
+    "revokeSuccess": "Approval revoked successfully",
+    "batchRevoke": "Batch Revoke",
+    "batchRevokeProOnly": "Batch revoke requires Pro membership",
+    "processing": "Processing",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "success": "succeeded",
+    "failed": "failed"
   }
 }

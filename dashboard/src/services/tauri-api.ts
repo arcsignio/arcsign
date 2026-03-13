@@ -24,6 +24,10 @@ import type {
   NFTsResponse,
   GetNFTsParams,
 } from "@/types/nft";
+import type {
+  TokenApprovalsResponse,
+  GetTokenApprovalsParams,
+} from "@/types/approvals";
 
 /**
  * USB Device information
@@ -331,6 +335,22 @@ export async function getNFTs(
 ): Promise<NFTsResponse> {
   try {
     return await invoke<NFTsResponse>("get_nfts", {
+      walletId: params.walletId,
+      password: params.password,
+      usbPath: params.usbPath,
+      sessionToken: params.sessionToken,
+      appPassword: params.appPassword,
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+export async function getTokenApprovals(
+  params: GetTokenApprovalsParams
+): Promise<TokenApprovalsResponse> {
+  try {
+    return await invoke<TokenApprovalsResponse>("get_token_approvals", {
       walletId: params.walletId,
       password: params.password,
       usbPath: params.usbPath,
@@ -1495,6 +1515,7 @@ export const tauriApi = {
   loadAddresses,
   getTokenBalances,
   getNFTs,
+  getTokenApprovals,
   validatePassphrase,
 
   // Transaction History
