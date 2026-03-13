@@ -1079,5 +1079,36 @@
     "invalidBundle": "Invalid .arcsign-bundle file.",
     "bundleCorrupted": "Bundle file is corrupted.",
     "importingAll": "Importing all wallets..."
+  },
+  "defiPositions": {
+    "empty": "No DeFi Positions",
+    "emptyDescription": "Stake your tokens to see DeFi positions here",
+    "totalStaked": "Total Staked Value",
+    "activePositions": "active positions",
+    "balance": "Balance",
+    "value": "Value",
+    "staking": "Staking",
+    "verified": "Verified Protocol"
+  },
+  "nftGallery": {
+    "loading": "Loading NFTs...",
+    "loadError": "Failed to load NFTs",
+    "retry": "Retry",
+    "empty": "No NFTs Found",
+    "emptyDescription": "NFTs you own will appear here",
+    "allNetworks": "All",
+    "backToGallery": "Back to Gallery",
+    "network": "Network",
+    "tokenType": "Type",
+    "tokenId": "Token ID",
+    "contract": "Contract",
+    "balance": "Balance",
+    "description": "Description",
+    "proDescription": "ArcSign Pro Membership NFT — Unlock advanced features and more wallet slots",
+    "daysRemaining": "Days Remaining",
+    "days": "days",
+    "walletQuota": "Wallet Quota",
+    "viewOnExplorer": "View on Explorer",
+    "unlimited": "Unlimited"
   }
 }

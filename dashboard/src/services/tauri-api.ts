@@ -20,6 +20,10 @@ import type {
   TokenBalancesResponse,
   GetTokenBalancesParams,
 } from "@/types/tokens";
+import type {
+  NFTsResponse,
+  GetNFTsParams,
+} from "@/types/nft";
 
 /**
  * USB Device information
@@ -316,6 +320,22 @@ export async function getTokenBalances(
       sessionToken: params.sessionToken, // ✅ Session token (backend will decrypt provider key)
       appPassword: params.appPassword, // Optional: Only for backward compatibility
       includeTestnets: params.includeTestnets,
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+export async function getNFTs(
+  params: GetNFTsParams
+): Promise<NFTsResponse> {
+  try {
+    return await invoke<NFTsResponse>("get_nfts", {
+      walletId: params.walletId,
+      password: params.password,
+      usbPath: params.usbPath,
+      sessionToken: params.sessionToken,
+      appPassword: params.appPassword,
     });
   } catch (error) {
     throw parseError(error);
@@ -1474,6 +1494,7 @@ export const tauriApi = {
   // Address
   loadAddresses,
   getTokenBalances,
+  getNFTs,
   validatePassphrase,
 
   // Transaction History

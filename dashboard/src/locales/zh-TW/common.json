@@ -1079,5 +1079,36 @@
     "invalidBundle": "無效的 .arcsign-bundle 檔案。",
     "bundleCorrupted": "Bundle 檔案已損毀。",
     "importingAll": "正在匯入所有錢包..."
+  },
+  "defiPositions": {
+    "empty": "沒有 DeFi 倉位",
+    "emptyDescription": "質押您的代幣後，DeFi 倉位會顯示在這裡",
+    "totalStaked": "總質押價值",
+    "activePositions": "個活躍倉位",
+    "balance": "餘額",
+    "value": "價值",
+    "staking": "質押",
+    "verified": "已驗證協議"
+  },
+  "nftGallery": {
+    "loading": "載入 NFT 中...",
+    "loadError": "載入 NFT 失敗",
+    "retry": "重試",
+    "empty": "沒有找到 NFT",
+    "emptyDescription": "您擁有的 NFT 會顯示在這裡",
+    "allNetworks": "全部",
+    "backToGallery": "返回畫廊",
+    "network": "網路",
+    "tokenType": "類型",
+    "tokenId": "Token ID",
+    "contract": "合約",
+    "balance": "餘額",
+    "description": "描述",
+    "proDescription": "ArcSign Pro 會員 NFT — 解鎖進階功能與更多錢包配額",
+    "daysRemaining": "剩餘天數",
+    "days": "天",
+    "walletQuota": "錢包配額",
+    "viewOnExplorer": "在區塊鏈瀏覽器查看",
+    "unlimited": "無限制"
   }
 }

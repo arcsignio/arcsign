@@ -30,6 +30,8 @@ import { isWalletLocked } from "@/utils/walletLock";
 import ReceiveAddressModal from "@/components/ReceiveAddressModal";
 import { SessionsManagerModal } from "@/components/WalletConnect/SessionsManagerModal";
 import { ExportBackup } from "@/components/ExportBackup";
+import { NFTGallery } from "@/components/NFTGallery";
+import { DefiPositions } from "@/components/DefiPositions";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
 
@@ -91,6 +93,11 @@ export function WalletDetail({
   const [historyAddress, setHistoryAddress] = useState("");
   // Store wallet addresses from AddressBook (loaded when unlocking wallet)
   const [walletAddresses, setWalletAddresses] = useState<Address[]>([]);
+  // BSC address for membership NFT lookup
+  const bscAddress = useMemo(() =>
+    walletAddresses.find(a => a.symbol === 'BNB' && !a.is_testnet)?.address,
+    [walletAddresses]
+  );
   // Address List modal state (for Copy Address feature)
   const [showAddressList, setShowAddressList] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
@@ -2094,52 +2101,18 @@ export function WalletDetail({
 
       {/* DeFi Tab */}
       {activeTab === "defi" && (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "3rem 1.5rem",
-            color: "#64748b",
-          }}
-        >
-          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🏦</div>
-          <p
-            style={{
-              marginBottom: "0.5rem",
-              fontWeight: "600",
-              color: "#1e293b",
-            }}
-          >
-            {t('walletDetail.defiComingSoon')}
-          </p>
-          <p style={{ fontSize: "0.875rem" }}>
-            {t('walletDetail.defiDescription')}
-          </p>
-        </div>
+        <DefiPositions tokens={tokens} />
       )}
 
       {/* NFT Tab */}
       {activeTab === "nft" && (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "3rem 1.5rem",
-            color: "#64748b",
-          }}
-        >
-          <div style={{ marginBottom: "1rem" }}><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
-          <p
-            style={{
-              marginBottom: "0.5rem",
-              fontWeight: "600",
-              color: "#1e293b",
-            }}
-          >
-            {t('walletDetail.nftComingSoon')}
-          </p>
-          <p style={{ fontSize: "0.875rem" }}>
-            {t('walletDetail.nftDescription')}
-          </p>
-        </div>
+        <NFTGallery
+          walletId={wallet.id}
+          password={passwordRef.current}
+          usbPath={usbPath}
+          sessionToken={getSessionToken() || undefined}
+          bscAddress={bscAddress}
+        />
       )}
 
       {/* Approvals Tab */}

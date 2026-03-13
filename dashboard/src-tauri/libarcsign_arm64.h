@@ -27,6 +27,12 @@ extern const char *_GoStringPtr(_GoString_ s);
 
 #line 1 "cgo-generated-wrapper"
 
+#line 11 "exports_dev.go"
+
+#include <stdlib.h>
+
+#line 1 "cgo-generated-wrapper"
+
 
 /* End of preamble from import "C" comments.  */
 
@@ -134,12 +140,34 @@ extern char* UnlockWallet(char* params);
 // Output JSON: {"success": true, "data": {"addresses": [{"blockchain": "...", "address": "...", "derivationPath": "...", "symbol": "...", "coinType": ...}], "generatedAt": "..."}}
 extern char* GenerateAddresses(char* params);
 
-// ExportWallet exports wallet metadata without private keys.
-// T024.1: Implement ExportWallet export function
+// ExportWallet exports a wallet as an encrypted .arcsign backup file.
+// The mnemonic.enc inside is already AES-256-GCM encrypted — no additional encryption needed.
+// No password required for export.
 //
-// Input JSON: {"walletName": "...", "usbPath": "...", "format": "json"}
-// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "exportData": "...", "exportedAt": "..."}}
+// Input JSON: {"walletId": "...", "usbPath": "..."}
+// Output JSON: {"success": true, "data": {"walletName": "...", "backupData": "<base64>", "exportedAt": "..."}}
 extern char* ExportWallet(char* params);
+
+// ImportBackupWallet restores a wallet from an encrypted .arcsign backup file.
+// Password is required to verify ownership (decrypt mnemonic).
+//
+// Input JSON: {"backupData": "<base64>", "password": "...", "usbPath": "...", "walletName": "..."}
+// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "importedAt": "..."}}
+extern char* ImportBackupWallet(char* params);
+
+// ExportAllWallets packages all wallets into an encrypted .arcsign-bundle file.
+// Password is used as the outer encryption key (Argon2id + AES-256-GCM).
+//
+// Input JSON: {"password": "...", "usbPath": "..."}
+// Output JSON: {"success": true, "data": {"bundleData": "<base64>", "walletCount": N, "exportedAt": "..."}}
+extern char* ExportAllWallets(char* params);
+
+// ImportAllWallets restores all wallets from an encrypted .arcsign-bundle file.
+// Password decrypts the outer layer; individual wallet passwords are not needed.
+//
+// Input JSON: {"bundleData": "<base64>", "password": "...", "usbPath": "..."}
+// Output JSON: {"success": true, "data": {"wallets": [...], "importedCount": N, "importedAt": "..."}}
+extern char* ImportAllWallets(char* params);
 
 // RenameWallet changes wallet display name.
 // T024.2: Implement RenameWallet export function
@@ -464,6 +492,20 @@ extern char* UnlockApp(char* params);
 // Returns: {"success": true, "data": {"tokens": [...], "totalUsd": 5000.50, ...}}
 extern char* GetTokenBalances(char* params);
 
+// GetNFTs queries NFT holdings for a wallet across multiple chains using Alchemy API.
+// Feature: NFT Gallery - Display owned NFTs
+//
+// Input JSON: {
+//   "walletId": "wallet-id",
+//   "password": "wallet-password",
+//   "usbPath": "/path/to/usb",
+//   "sessionToken": "session-token",
+//   "appPassword": "app-level-password"
+// }
+//
+// Returns: {"success": true, "data": {"nfts": [...], "totalCount": 5, ...}}
+extern char* GetNFTs(char* params);
+
 // GetAssetTransfers queries transaction history for an address using Alchemy API.
 // Feature: Transaction History - Asset Transfers API Integration
 //
@@ -650,7 +692,7 @@ extern char* GetSwapTokens(char* params);
 //   "data": {
 //     "deviceId": "uuid-string",
 //     "deviceIdHash": "0x...",  // keccak256(deviceId) for contract binding
-//     "walletLimit": 3,
+//     "walletLimit": 1,
 //     "walletCount": 1,
 //     "canCreateWallet": true,
 //     "memberships": [{

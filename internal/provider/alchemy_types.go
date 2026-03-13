@@ -1,6 +1,7 @@
 /**
- * Alchemy API types for token balance queries
- * API: POST https://api.g.alchemy.com/data/v1/:apiKey/assets/tokens/by-address
+ * Alchemy API types for token balance and NFT queries
+ * Token API: POST https://api.g.alchemy.com/data/v1/:apiKey/assets/tokens/by-address
+ * NFT API:   POST https://api.g.alchemy.com/data/v1/:apiKey/assets/nfts/by-address
  */
 
 package provider
@@ -71,6 +72,94 @@ type SimplifiedTokenBalance struct {
 	PriceUSD      float64 `json:"priceUsd"`    // Current USD price
 	Error         string  `json:"error,omitempty"`
 }
+
+// ================================================================================
+// NFT Types
+// ================================================================================
+
+// AlchemyNFTRequest represents the request to Alchemy's NFT balance API
+type AlchemyNFTRequest struct {
+	Addresses []AlchemyAddressWithNetworks `json:"addresses"`
+}
+
+// AlchemyNFTResponse represents the response from Alchemy's NFT balance API
+type AlchemyNFTResponse struct {
+	Data AlchemyNFTData `json:"data"`
+}
+
+// AlchemyNFTData contains the NFT data
+type AlchemyNFTData struct {
+	NFTs    []AlchemyNFT `json:"nfts"`
+	PageKey string       `json:"pageKey,omitempty"`
+}
+
+// AlchemyNFT represents a single NFT entry from Alchemy
+type AlchemyNFT struct {
+	Address         string           `json:"address"`         // Wallet address
+	Network         string           `json:"network"`         // Network identifier
+	ContractAddress string           `json:"contractAddress"` // NFT contract address
+	TokenID         string           `json:"tokenId"`         // Token ID within collection
+	TokenType       string           `json:"tokenType"`       // "ERC721" or "ERC1155"
+	Name            string           `json:"name"`            // NFT name
+	Description     string           `json:"description"`     // NFT description
+	Image           AlchemyNFTImage  `json:"image"`           // Image URLs
+	Collection      AlchemyNFTCollection `json:"collection"`  // Collection metadata
+	Balance         string           `json:"balance"`         // Balance (usually "1" for ERC721)
+}
+
+// AlchemyNFTImage contains NFT image URLs
+type AlchemyNFTImage struct {
+	CachedURL    string `json:"cachedUrl"`    // Alchemy-cached image URL (preferred)
+	ThumbnailURL string `json:"thumbnailUrl"` // Thumbnail version
+	PNGOriginal  string `json:"pngUrl"`       // PNG version
+	OriginalURL  string `json:"originalUrl"`  // Original image URL
+}
+
+// AlchemyNFTCollection contains NFT collection metadata
+type AlchemyNFTCollection struct {
+	Name          string `json:"name"`
+	Slug          string `json:"slug"`
+	ExternalURL   string `json:"externalUrl"`
+	BannerImageURL string `json:"bannerImageUrl"`
+}
+
+// SimplifiedNFT is our simplified format for frontend
+type SimplifiedNFT struct {
+	Address         string `json:"address"`         // Owner wallet address
+	Network         string `json:"network"`         // Internal Network ID
+	NetworkLabel    string `json:"networkLabel"`     // Human-readable: "Ethereum"
+	ContractAddress string `json:"contractAddress"`  // NFT contract
+	TokenID         string `json:"tokenId"`          // Token ID
+	TokenType       string `json:"tokenType"`        // "ERC721" or "ERC1155"
+	Name            string `json:"name"`             // NFT name
+	Description     string `json:"description"`      // NFT description
+	ImageURL        string `json:"imageUrl"`         // Best available image URL
+	ThumbnailURL    string `json:"thumbnailUrl"`     // Thumbnail URL
+	CollectionName  string `json:"collectionName"`   // Collection name
+	CollectionSlug  string `json:"collectionSlug"`   // Collection slug
+	Balance         string `json:"balance"`          // Balance count
+}
+
+// GetNFTsInput represents the input for GetNFTs FFI function
+type GetNFTsInput struct {
+	WalletID     string `json:"walletId"`
+	Password     string `json:"password"`
+	USBPath      string `json:"usbPath"`
+	SessionToken string `json:"sessionToken"`
+	AppPassword  string `json:"appPassword"`
+}
+
+// GetNFTsOutput represents the output for GetNFTs FFI function
+type GetNFTsOutput struct {
+	NFTs         []SimplifiedNFT `json:"nfts"`
+	TotalCount   int             `json:"totalCount"`
+	AddressCount int             `json:"addressCount"`
+	NetworkCount int             `json:"networkCount"`
+}
+
+// ================================================================================
+// FFI Input/Output Types
+// ================================================================================
 
 // GetTokenBalancesInput represents the input for GetTokenBalances FFI function
 type GetTokenBalancesInput struct {

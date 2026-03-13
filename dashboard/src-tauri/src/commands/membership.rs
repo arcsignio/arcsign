@@ -173,11 +173,24 @@ fn create_balance_of_call(contract: &str, address: &str) -> serde_json::Value {
 /// Create eth_call request for getMemberships(address)
 /// Returns (uint256[] tokenIds, uint256[] expirations, bool[] valid)
 fn create_get_memberships_call(contract: &str, address: &str) -> serde_json::Value {
-    // Function selector for getMemberships(address): calculate keccak256
-    // getMemberships(address) => 0x29a8e2cf (approximation, needs verification)
-    let selector = "29a8e2cf";
+    // Function selector for getMemberships(address): keccak256("getMemberships(address)")[:4]
+    let selector = "20785f9a";
     let encoded_addr = encode_address(address);
     let data = format!("0x{}{}", selector, encoded_addr);
+
+    serde_json::json!({
+        "to": contract,
+        "data": data
+    })
+}
+
+/// Create eth_call request for expiresAt(uint256)
+/// Returns uint256 expiration timestamp
+fn create_expires_at_call(contract: &str, token_id: u64) -> serde_json::Value {
+    // Function selector for expiresAt(uint256): keccak256("expiresAt(uint256)")[:4]
+    let selector = "17c95709";
+    let encoded_token_id = format!("{:064x}", token_id);
+    let data = format!("0x{}{}", selector, encoded_token_id);
 
     serde_json::json!({
         "to": contract,
@@ -335,21 +348,63 @@ pub async fn check_membership(
     // User is Pro if they own at least 1 NFT
     let is_pro = nft_count > 0;
 
-    // For now, we'll use simplified logic
-    // In production, we'd call getMemberships to get full details
-    let days_remaining = if is_pro { 365u64 } else { 0u64 };
+    // Fetch real token IDs and expiration timestamps from contract
+    let mut token_ids = Vec::new();
+    let mut expirations = Vec::new();
+    let mut earliest_expiry: u64 = u64::MAX;
 
-    tracing::info!("Membership check complete: is_pro={}, nft_count={}", is_pro, nft_count);
+    if is_pro {
+        for i in 0..nft_count {
+            // Get token ID at index
+            match get_token_of_owner_by_index(&client, &input.address, i).await {
+                Ok(token_id) => {
+                    token_ids.push(token_id);
+                    // Get expiration for this token
+                    match get_expiration(&client, token_id).await {
+                        Ok(expiry) => {
+                            tracing::info!("Token {} expires at {}", token_id, expiry);
+                            expirations.push(expiry);
+                            if expiry < earliest_expiry {
+                                earliest_expiry = expiry;
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to get expiration for token {}: {}", token_id, e);
+                            expirations.push(0);
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to get token at index {}: {}", i, e);
+                }
+            }
+        }
+    }
+
+    // Calculate real days remaining from earliest expiration
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let days_remaining = if earliest_expiry != u64::MAX && earliest_expiry > now_secs {
+        (earliest_expiry - now_secs) / 86400
+    } else if !is_pro {
+        0u64
+    } else {
+        0u64 // Expired
+    };
+
+    tracing::info!("Membership check complete: is_pro={}, nft_count={}, days_remaining={}", is_pro, nft_count, days_remaining);
 
     let wallet_limit = calc_wallet_limit(nft_count);
 
     Ok(MembershipStatus {
         is_pro,
         nft_count,
-        token_ids: vec![],
-        expirations: vec![],
+        token_ids,
+        expirations,
         days_remaining,
-        wallet_limit: Some(wallet_limit), // Always has a limit now
+        wallet_limit: Some(wallet_limit),
     })
 }
 
@@ -483,6 +538,50 @@ async fn get_device_binding(client: &reqwest::Client, token_id: u64) -> Result<S
         .as_ref()
         .map(|r| parse_bytes32_result(r))
         .unwrap_or_else(|| "0x0000000000000000000000000000000000000000000000000000000000000000".to_string()))
+}
+
+/// Get expiration timestamp for a token ID (internal helper)
+async fn get_expiration(client: &reqwest::Client, token_id: u64) -> Result<u64, Error> {
+    let request = JsonRpcRequest {
+        jsonrpc: "2.0",
+        method: "eth_call",
+        params: vec![
+            create_expires_at_call(ARCSIGN_PRO_CONTRACT, token_id),
+            serde_json::json!("latest"),
+        ],
+        id: 1,
+    };
+
+    let response = client
+        .post(BSC_RPC_URL)
+        .json(&request)
+        .send()
+        .await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::NetworkError,
+            format!("Failed to query BSC: {}", e),
+        ))?;
+
+    let rpc_response: JsonRpcResponse = response
+        .json()
+        .await
+        .map_err(|e| Error::new(
+            crate::error::ErrorCode::SerializationError,
+            format!("Failed to parse RPC response: {}", e),
+        ))?;
+
+    if let Some(error) = rpc_response.error {
+        return Err(Error::new(
+            crate::error::ErrorCode::ContractError,
+            format!("Contract call failed: {}", error.message),
+        ));
+    }
+
+    Ok(rpc_response
+        .result
+        .as_ref()
+        .map(|r| parse_uint256_result(r))
+        .unwrap_or(0))
 }
 
 /// Get tokens with binding info for an address
@@ -636,7 +735,33 @@ pub async fn check_all_memberships(
 
     // Pro status requires bound NFTs when device_hash is provided
     let is_pro = bound_nft_count > 0;
-    let days_remaining = if is_pro { 365u64 } else { 0u64 };
+
+    // Fetch real expiration from contract for bound tokens
+    let mut earliest_expiry: u64 = u64::MAX;
+    if is_pro {
+        for anc in &address_nft_counts {
+            for token_info in &anc.tokens {
+                if token_info.is_bound || !binding_required {
+                    match get_expiration(&client, token_info.token_id).await {
+                        Ok(expiry) if expiry > 0 && expiry < earliest_expiry => {
+                            earliest_expiry = expiry;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let days_remaining = if earliest_expiry != u64::MAX && earliest_expiry > now_secs {
+        (earliest_expiry - now_secs) / 86400
+    } else {
+        0u64
+    };
+
     // Formula: 1 + (bound_nft_count * 3)
     let wallet_limit = 1 + (bound_nft_count * 3);
 

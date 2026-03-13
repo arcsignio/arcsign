@@ -221,6 +221,11 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Get NFTs owned by a wallet
+    GetNFTs {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
     /// Get asset transfers (transaction history) for an address
     GetAssetTransfers {
         params_json: String,
@@ -547,6 +552,11 @@ impl WalletQueue {
                 }
                 WalletCommand::GetTokenBalances { params_json, respond_to } => {
                     let result = library.get_token_balances(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::GetNFTs { params_json, respond_to } => {
+                    let result = library.get_nfts(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -1090,6 +1100,25 @@ impl WalletQueue {
         self.metrics.record_enqueue();
         self.sender
             .send(WalletCommand::GetTokenBalances {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Get NFTs owned by a wallet using Alchemy API.
+    pub async fn get_nfts(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::GetNFTs {
                 params_json,
                 respond_to: sender,
             })
@@ -1834,6 +1863,11 @@ impl LazyWalletQueue {
     /// Get token balances across multiple chains
     pub async fn get_token_balances(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().get_token_balances(params_json).await
+    }
+
+    /// Get NFTs owned by a wallet
+    pub async fn get_nfts(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().get_nfts(params_json).await
     }
 
     /// Get asset transfers (transaction history) for an address

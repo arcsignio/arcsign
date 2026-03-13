@@ -128,6 +128,105 @@ func (c *AlchemyClient) GetTokenBalancesByAddress(addresses []AlchemyAddressWith
 	return &response, nil
 }
 
+// GetNFTsByAddress queries NFT holdings for multiple addresses across networks
+func (c *AlchemyClient) GetNFTsByAddress(addresses []AlchemyAddressWithNetworks) (*AlchemyNFTResponse, error) {
+	// Convert Internal Network IDs to Alchemy format before sending request
+	alchemyAddresses := make([]AlchemyAddressWithNetworks, len(addresses))
+	for i, addr := range addresses {
+		alchemyNetworks := make([]string, len(addr.Networks))
+		for j, network := range addr.Networks {
+			alchemyNetworks[j] = ToAlchemyNetwork(network)
+		}
+		alchemyAddresses[i] = AlchemyAddressWithNetworks{
+			Address:  addr.Address,
+			Networks: alchemyNetworks,
+		}
+	}
+
+	requestBody := AlchemyNFTRequest{
+		Addresses: alchemyAddresses,
+	}
+
+	jsonData, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/%s/assets/nfts/by-address", AlchemyAPIBaseURL, c.apiKey)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var response AlchemyNFTResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// SimplifyNFTs converts Alchemy NFT response to simplified format
+func SimplifyNFTs(alchemyResponse *AlchemyNFTResponse) []SimplifiedNFT {
+	var result []SimplifiedNFT
+
+	for _, nft := range alchemyResponse.Data.NFTs {
+		// Convert Alchemy network ID to Internal format
+		internalNetwork := FromAlchemyNetwork(nft.Network)
+		networkLabel := getNetworkLabel(internalNetwork)
+
+		// Pick best available image URL
+		imageURL := nft.Image.CachedURL
+		if imageURL == "" {
+			imageURL = nft.Image.PNGOriginal
+		}
+		if imageURL == "" {
+			imageURL = nft.Image.OriginalURL
+		}
+
+		thumbnailURL := nft.Image.ThumbnailURL
+		if thumbnailURL == "" {
+			thumbnailURL = imageURL
+		}
+
+		result = append(result, SimplifiedNFT{
+			Address:         nft.Address,
+			Network:         internalNetwork,
+			NetworkLabel:    networkLabel,
+			ContractAddress: nft.ContractAddress,
+			TokenID:         nft.TokenID,
+			TokenType:       nft.TokenType,
+			Name:            nft.Name,
+			Description:     nft.Description,
+			ImageURL:        imageURL,
+			ThumbnailURL:    thumbnailURL,
+			CollectionName:  nft.Collection.Name,
+			CollectionSlug:  nft.Collection.Slug,
+			Balance:         nft.Balance,
+		})
+	}
+
+	return result
+}
+
 // SimplifyTokenBalances converts Alchemy response to simplified format
 func SimplifyTokenBalances(alchemyResponse *AlchemyTokenBalanceResponse) []SimplifiedTokenBalance {
 	var result []SimplifiedTokenBalance

@@ -3068,6 +3068,187 @@ func GetTokenBalances(params *C.char) *C.char {
 	return C.CString(string(jsonBytes))
 }
 
+//export GetNFTs
+// GetNFTs queries NFT holdings for a wallet across multiple chains using Alchemy API.
+// Feature: NFT Gallery - Display owned NFTs
+//
+// Input JSON: {
+//   "walletId": "wallet-id",
+//   "password": "wallet-password",
+//   "usbPath": "/path/to/usb",
+//   "sessionToken": "session-token",
+//   "appPassword": "app-level-password"
+// }
+//
+// Returns: {"success": true, "data": {"nfts": [...], "totalCount": 5, ...}}
+func GetNFTs(params *C.char) *C.char {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		_ = elapsed
+	}()
+
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			ptr := C.CString(string(jsonBytes))
+			_ = ptr
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	var input provider.GetNFTsInput
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Validate USB path to prevent path traversal
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Security: Clear sensitive data after use
+	defer zeroString(&input.Password)
+	defer zeroString(&input.AppPassword)
+
+	// Validate session token (app-level authentication)
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	// Load Alchemy API key from provider registry
+	providerConfigPath := filepath.Join(input.USBPath, "provider_config.enc")
+	providerStore, err := provider.NewProviderConfigStore(providerConfigPath, appPassword)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer providerStore.Close()
+
+	providerConfig, err := providerStore.Get("global", "alchemy")
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, "Provider configuration not found")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	if providerConfig == nil || providerConfig.APIKey == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Alchemy provider not configured")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	if !providerConfig.Enabled {
+		response := NewErrorResponse(ErrInvalidInput, "Alchemy provider is disabled")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	alchemyAPIKey := providerConfig.APIKey
+
+	// Verify wallet password before loading addresses
+	walletService := wallet.NewWalletService(input.USBPath)
+	_, err = walletService.RestoreWallet(input.WalletID, input.Password)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, "Invalid password or wallet access denied")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	walletObj, err := walletService.LoadWallet(input.WalletID)
+	if err != nil {
+		code := MapWalletError(err)
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if walletObj.AddressBook == nil || len(walletObj.AddressBook.Addresses) == 0 {
+		emptyOutput := provider.GetNFTsOutput{
+			NFTs:         []provider.SimplifiedNFT{},
+			TotalCount:   0,
+			AddressCount: 0,
+			NetworkCount: 0,
+		}
+		response := NewSuccessResponse(emptyOutput)
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Build Alchemy API request - only mainnet EVM addresses (NFTs are mainnet-only)
+	addressNetworkMap := make(map[string][]string)
+	for _, addr := range walletObj.AddressBook.Addresses {
+		network, ok := provider.GetAlchemyNetwork(addr.CoinName)
+		if !ok {
+			continue
+		}
+		addressNetworkMap[addr.Address] = append(addressNetworkMap[addr.Address], network)
+	}
+
+	if len(addressNetworkMap) == 0 {
+		emptyOutput := provider.GetNFTsOutput{
+			NFTs:         []provider.SimplifiedNFT{},
+			TotalCount:   0,
+			AddressCount: 0,
+			NetworkCount: 0,
+		}
+		response := NewSuccessResponse(emptyOutput)
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var alchemyAddresses []provider.AlchemyAddressWithNetworks
+	for addr, networks := range addressNetworkMap {
+		alchemyAddresses = append(alchemyAddresses, provider.AlchemyAddressWithNetworks{
+			Address:  addr,
+			Networks: networks,
+		})
+	}
+
+	// Query Alchemy NFT API
+	alchemyClient := provider.NewAlchemyClient(alchemyAPIKey)
+	alchemyResponse, err := alchemyClient.GetNFTsByAddress(alchemyAddresses)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, "Failed to query NFT data")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Simplify and aggregate results
+	nfts := provider.SimplifyNFTs(alchemyResponse)
+
+	networkSet := make(map[string]bool)
+	for _, nft := range nfts {
+		networkSet[nft.Network] = true
+	}
+
+	output := provider.GetNFTsOutput{
+		NFTs:         nfts,
+		TotalCount:   len(nfts),
+		AddressCount: len(addressNetworkMap),
+		NetworkCount: len(networkSet),
+	}
+
+	nftResponse := NewSuccessResponse(output)
+	nftJsonBytes, _ := json.Marshal(nftResponse)
+	return C.CString(string(nftJsonBytes))
+}
+
 //export GetAssetTransfers
 // GetAssetTransfers queries transaction history for an address using Alchemy API.
 // Feature: Transaction History - Asset Transfers API Integration
