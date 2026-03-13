@@ -448,6 +448,74 @@ export async function deleteContact(
 }
 
 /**
+ * Transaction Label Commands
+ */
+
+export async function setTransactionLabel(params: {
+  network: string;
+  txHash: string;
+  name: string;
+  category?: string;
+  notes?: string;
+  usbPath: string;
+  sessionToken?: string;
+  appPassword?: string;
+}): Promise<{ label: { name: string; category: string; notes: string; createdAt: string; updatedAt: string } }> {
+  try {
+    return await invoke("set_transaction_label", {
+      network: params.network,
+      txHash: params.txHash,
+      name: params.name,
+      category: params.category ?? "",
+      notes: params.notes ?? "",
+      usbPath: params.usbPath,
+      sessionToken: params.sessionToken ?? "",
+      appPassword: params.appPassword ?? "",
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+export async function getTransactionLabels(
+  usbPath: string,
+  network?: string,
+  sessionToken?: string,
+  appPassword?: string,
+): Promise<{ labels: Array<{ network: string; txHash: string; label: { name: string; category: string; notes: string; createdAt: string; updatedAt: string } }> }> {
+  try {
+    return await invoke("get_transaction_labels", {
+      usbPath,
+      network: network ?? "",
+      sessionToken: sessionToken ?? "",
+      appPassword: appPassword ?? "",
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+export async function deleteTransactionLabel(
+  network: string,
+  txHash: string,
+  usbPath: string,
+  sessionToken?: string,
+  appPassword?: string,
+): Promise<{ deleted: boolean }> {
+  try {
+    return await invoke("delete_transaction_label", {
+      network,
+      txHash,
+      usbPath,
+      sessionToken: sessionToken ?? "",
+      appPassword: appPassword ?? "",
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+/**
  * Security Commands
  */
 

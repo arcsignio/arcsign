@@ -545,6 +545,31 @@
     "addressPlaceholder": "Enter wallet address",
     "notesPlaceholder": "Add a note about this contact..."
   },
+  "txLabel": {
+    "addLabel": "Add Label",
+    "editLabel": "Edit Label",
+    "deleteLabel": "Delete Label",
+    "name": "Label Name",
+    "namePlaceholder": "e.g. Buy USDC on Uniswap",
+    "nameRequired": "Label name is required",
+    "category": "Category",
+    "notes": "Notes (optional)",
+    "notesPlaceholder": "Optional notes...",
+    "categories": {
+      "swap": "Swap",
+      "transfer": "Transfer",
+      "stake": "Staking",
+      "nft": "NFT",
+      "approval": "Approval",
+      "other": "Other"
+    },
+    "save": "Save",
+    "saved": "Label saved",
+    "deleted": "Label deleted",
+    "saveFailed": "Failed to save label",
+    "deleteFailed": "Failed to delete label",
+    "deleteConfirm": "Remove this label?"
+  },
   "appUnlock": {
     "title": "ArcSign",
     "subtitle": "Secure Cold Wallet Management",

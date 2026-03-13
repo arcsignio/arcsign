@@ -14,6 +14,8 @@ import {
   batchCheckTokens,
   type TokenCheckResult,
 } from "@/utils/tokenWhitelist";
+import { useTransactionLabels } from "@/hooks/useTransactionLabels";
+import { TransactionLabelModal } from "./TransactionLabelModal";
 
 interface TransactionHistoryProps {
   address: string;
@@ -106,6 +108,15 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   const [tokenWarnings, setTokenWarnings] = useState<Map<string, TokenCheckResult>>(new Map());
   const [showUnverifiedTokens, setShowUnverifiedTokens] = useState(false);
   const [unverifiedTokenCount, setUnverifiedTokenCount] = useState(0);
+
+  // Transaction labels
+  const { getLabelForTx, setLabel, deleteLabel, loadLabels } = useTransactionLabels(usbPath, sessionToken);
+  const [editingLabelTx, setEditingLabelTx] = useState<{ network: string; txHash: string } | null>(null);
+
+  // Load labels on mount
+  useEffect(() => {
+    loadLabels();
+  }, [loadLabels]);
 
   // Fetch transfers from all EVM chains
   const fetchAllChainTransfers = useCallback(
@@ -339,6 +350,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
             const warning = tokenWarnings.get(transfer.uniqueId);
             const shouldHighlight = warning?.shouldWarn === true;
 
+            const txLabel = getLabelForTx(transfer.network, transfer.hash);
+
             return (
               <div
                 key={`${transfer.uniqueId}-${index}`}
@@ -369,16 +382,30 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                       >
                         {categoryStyle.label}
                       </span>
+                      {txLabel && (
+                        <span className="tx-label-badge" onClick={() => setEditingLabelTx({ network: transfer.network, txHash: transfer.hash })}>
+                          {txLabel.label.name}
+                        </span>
+                      )}
                       {shouldHighlight && (
                         <span className="warning-badge">
                           {t("transaction.tokenNotVerified")}
                         </span>
                       )}
                     </div>
-                    <span className="transfer-value">
-                      {direction === "in" ? "+" : "-"}
-                      {formatValue(transfer.value)} {transfer.asset}
-                    </span>
+                    <div className="transfer-value-row">
+                      <span className="transfer-value">
+                        {direction === "in" ? "+" : "-"}
+                        {formatValue(transfer.value)} {transfer.asset}
+                      </span>
+                      <button
+                        className="tx-label-edit-btn"
+                        onClick={() => setEditingLabelTx({ network: transfer.network, txHash: transfer.hash })}
+                        title={txLabel ? t("txLabel.editLabel") : t("txLabel.addLabel")}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="transfer-addresses">
@@ -417,6 +444,28 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           <div className="loading-spinner" />
           <p>Loading transaction history...</p>
         </div>
+      )}
+
+      {/* Transaction Label Modal */}
+      {editingLabelTx && (
+        <TransactionLabelModal
+          network={editingLabelTx.network}
+          txHash={editingLabelTx.txHash}
+          existingLabel={getLabelForTx(editingLabelTx.network, editingLabelTx.txHash)}
+          onSave={async (name, category, notes) => {
+            return await setLabel({
+              network: editingLabelTx.network,
+              txHash: editingLabelTx.txHash,
+              name,
+              category,
+              notes,
+            });
+          }}
+          onDelete={async () => {
+            return await deleteLabel(editingLabelTx.network, editingLabelTx.txHash);
+          }}
+          onClose={() => setEditingLabelTx(null)}
+        />
       )}
 
       <style>{`
@@ -726,10 +775,55 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           color: white;
         }
 
+        .transfer-value-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
         .transfer-value {
           font-size: 16px;
           font-weight: 600;
           color: #111827;
+        }
+
+        .tx-label-badge {
+          padding: 3px 8px;
+          background: #f0fdfa;
+          border: 1px solid #99f6e4;
+          border-radius: 4px;
+          font-size: 11px;
+          font-weight: 500;
+          color: #0d9488;
+          cursor: pointer;
+          transition: all 0.2s;
+          max-width: 120px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .tx-label-badge:hover {
+          background: #ccfbf1;
+          border-color: #5eead4;
+        }
+
+        .tx-label-edit-btn {
+          background: none;
+          border: none;
+          color: #9ca3af;
+          cursor: pointer;
+          padding: 2px;
+          display: flex;
+          align-items: center;
+          border-radius: 4px;
+          transition: all 0.2s;
+          flex-shrink: 0;
+        }
+
+        .tx-label-edit-btn:hover {
+          color: #0d9488;
+          background: #f0fdfa;
         }
 
         .transfer-addresses {

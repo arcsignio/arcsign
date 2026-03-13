@@ -43,7 +43,7 @@ use commands::swap::{
     check_swap_allowance, get_native_token_address, get_swap_tokens,
 };
 use commands::usb::detect_usb;
-use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, rename_wallet, delete_wallet, export_backup, import_backup, export_all_backups, import_all_backups, get_token_balances, get_nfts, get_token_approvals, list_contacts, add_contact, update_contact, delete_contact, validate_passphrase, update_websocket_accounts, update_websocket_usb_path, AddressCache};
+use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, rename_wallet, delete_wallet, export_backup, import_backup, export_all_backups, import_all_backups, get_token_balances, get_nfts, get_token_approvals, list_contacts, add_contact, update_contact, delete_contact, set_transaction_label, get_transaction_labels, delete_transaction_label, validate_passphrase, update_websocket_accounts, update_websocket_usb_path, AddressCache};
 use commands::provider::{set_provider_config, get_provider_config, list_provider_configs, delete_provider_config, get_asset_transfers};
 use commands::websocket_commands::{
     get_pending_transaction, respond_to_transaction, cancel_pending_transaction,
@@ -297,6 +297,9 @@ fn main() {
             add_contact,
             update_contact,
             delete_contact,
+            set_transaction_label,
+            get_transaction_labels,
+            delete_transaction_label,
             validate_passphrase,
             update_websocket_accounts,
             update_websocket_usb_path,

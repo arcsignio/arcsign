@@ -1595,6 +1595,85 @@ pub async fn delete_contact(
     queue.delete_contact(params_json).await
 }
 
+#[tauri::command]
+pub async fn set_transaction_label(
+    queue: State<'_, LazyWalletQueue>,
+    network: String,
+    tx_hash: String,
+    name: String,
+    category: Option<String>,
+    notes: Option<String>,
+    usb_path: String,
+    session_token: Option<String>,
+    app_password: Option<String>,
+) -> Result<serde_json::Value, String> {
+    tracing::info!("set_transaction_label called: {}:{}", network, tx_hash);
+
+    let params = json!({
+        "network": network,
+        "txHash": tx_hash,
+        "name": name,
+        "category": category.unwrap_or_default(),
+        "notes": notes.unwrap_or_default(),
+        "usbPath": usb_path,
+        "sessionToken": session_token.unwrap_or_default(),
+        "appPassword": app_password.unwrap_or_default(),
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    queue.set_transaction_label(params_json).await
+}
+
+#[tauri::command]
+pub async fn get_transaction_labels(
+    queue: State<'_, LazyWalletQueue>,
+    usb_path: String,
+    network: Option<String>,
+    session_token: Option<String>,
+    app_password: Option<String>,
+) -> Result<serde_json::Value, String> {
+    tracing::info!("get_transaction_labels called");
+
+    let params = json!({
+        "usbPath": usb_path,
+        "network": network.unwrap_or_default(),
+        "sessionToken": session_token.unwrap_or_default(),
+        "appPassword": app_password.unwrap_or_default(),
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    queue.get_transaction_labels(params_json).await
+}
+
+#[tauri::command]
+pub async fn delete_transaction_label(
+    queue: State<'_, LazyWalletQueue>,
+    network: String,
+    tx_hash: String,
+    usb_path: String,
+    session_token: Option<String>,
+    app_password: Option<String>,
+) -> Result<serde_json::Value, String> {
+    tracing::info!("delete_transaction_label called: {}:{}", network, tx_hash);
+
+    let params = json!({
+        "network": network,
+        "txHash": tx_hash,
+        "usbPath": usb_path,
+        "sessionToken": session_token.unwrap_or_default(),
+        "appPassword": app_password.unwrap_or_default(),
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    queue.delete_transaction_label(params_json).await
+}
+
 /// Validate a BIP39 passphrase by comparing derived address with stored address.
 ///
 /// This is used during wallet unlock to validate the passphrase before allowing

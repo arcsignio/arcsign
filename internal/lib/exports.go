@@ -41,6 +41,7 @@ import (
 	"github.com/yourusername/arcsign/internal/constants"
 	"github.com/yourusername/arcsign/internal/contacts"
 	"github.com/yourusername/arcsign/internal/provider"
+	"github.com/yourusername/arcsign/internal/txlabels"
 	"github.com/yourusername/arcsign/internal/rpc"
 	"github.com/yourusername/arcsign/internal/security"
 	"github.com/yourusername/arcsign/internal/services/backup"
@@ -3797,6 +3798,224 @@ func DeleteContact(params *C.char) *C.char {
 	defer store.Close()
 
 	if err := store.Delete(input.ContactID); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	result := map[string]interface{}{
+		"deleted":   true,
+		"deletedAt": time.Now().Format(time.RFC3339),
+	}
+	response := NewSuccessResponse(result)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+// ========================================================================
+// Transaction Labels Operations
+// ========================================================================
+
+//export SetTransactionLabel
+// SetTransactionLabel adds or updates a transaction label (upsert).
+// Feature: Transaction Labels (v1.3)
+func SetTransactionLabel(params *C.char) *C.char {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		Network      string `json:"network"`
+		TxHash       string `json:"txHash"`
+		Name         string `json:"name"`
+		Category     string `json:"category"`
+		Notes        string `json:"notes"`
+		USBPath      string `json:"usbPath"`
+		SessionToken string `json:"sessionToken"`
+		AppPassword  string `json:"appPassword"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidPassword, "Authentication failed")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	labelsPath := filepath.Join(input.USBPath, "tx_labels.enc")
+	store, err := txlabels.NewTxLabelStore(labelsPath, appPassword)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, "Failed to load transaction labels")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer store.Close()
+
+	label, err := store.Set(input.Network, input.TxHash, input.Name, input.Category, input.Notes)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	result := map[string]interface{}{
+		"label":   label,
+		"network": input.Network,
+		"txHash":  input.TxHash,
+	}
+	response := NewSuccessResponse(result)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export GetTransactionLabels
+// GetTransactionLabels returns transaction labels, optionally filtered by network.
+// Feature: Transaction Labels (v1.3)
+func GetTransactionLabels(params *C.char) *C.char {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		Network      string `json:"network"`
+		USBPath      string `json:"usbPath"`
+		SessionToken string `json:"sessionToken"`
+		AppPassword  string `json:"appPassword"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidPassword, "Authentication failed")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	labelsPath := filepath.Join(input.USBPath, "tx_labels.enc")
+	store, err := txlabels.NewTxLabelStore(labelsPath, appPassword)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, "Failed to load transaction labels")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer store.Close()
+
+	var entries []txlabels.LabelEntry
+	if input.Network != "" {
+		entries = store.ListByNetwork(input.Network)
+	} else {
+		entries = store.ListAll()
+	}
+
+	result := map[string]interface{}{
+		"labels": entries,
+	}
+	response := NewSuccessResponse(result)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export DeleteTransactionLabel
+// DeleteTransactionLabel removes a transaction label.
+// Feature: Transaction Labels (v1.3)
+func DeleteTransactionLabel(params *C.char) *C.char {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		Network      string `json:"network"`
+		TxHash       string `json:"txHash"`
+		USBPath      string `json:"usbPath"`
+		SessionToken string `json:"sessionToken"`
+		AppPassword  string `json:"appPassword"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidPassword, "Authentication failed")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	labelsPath := filepath.Join(input.USBPath, "tx_labels.enc")
+	store, err := txlabels.NewTxLabelStore(labelsPath, appPassword)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, "Failed to load transaction labels")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer store.Close()
+
+	if err := store.Delete(input.Network, input.TxHash); err != nil {
 		response := NewErrorResponse(ErrInvalidInput, err.Error())
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))

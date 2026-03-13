@@ -545,6 +545,31 @@
     "addressPlaceholder": "輸入錢包地址",
     "notesPlaceholder": "新增關於此聯絡人的備註..."
   },
+  "txLabel": {
+    "addLabel": "新增標籤",
+    "editLabel": "編輯標籤",
+    "deleteLabel": "刪除標籤",
+    "name": "標籤名稱",
+    "namePlaceholder": "例如：在 Uniswap 買入 USDC",
+    "nameRequired": "請輸入標籤名稱",
+    "category": "分類",
+    "notes": "備註（選填）",
+    "notesPlaceholder": "選填備註...",
+    "categories": {
+      "swap": "兌換",
+      "transfer": "轉帳",
+      "stake": "質押",
+      "nft": "NFT",
+      "approval": "授權",
+      "other": "其他"
+    },
+    "save": "儲存",
+    "saved": "標籤已儲存",
+    "deleted": "標籤已刪除",
+    "saveFailed": "儲存標籤失敗",
+    "deleteFailed": "刪除標籤失敗",
+    "deleteConfirm": "確定要移除此標籤嗎？"
+  },
   "appUnlock": {
     "title": "ArcSign",
     "subtitle": "安全冷錢包管理",

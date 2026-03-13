@@ -116,6 +116,13 @@ type AddContactFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 type UpdateContactFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 // Function signature for DeleteContact: char* DeleteContact(char* params)
 type DeleteContactFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+// Transaction Label (TxLabel) function types
+// Function signature for SetTransactionLabel: char* SetTransactionLabel(char* params)
+type SetTransactionLabelFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+// Function signature for GetTransactionLabels: char* GetTransactionLabels(char* params)
+type GetTransactionLabelsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+// Function signature for DeleteTransactionLabel: char* DeleteTransactionLabel(char* params)
+type DeleteTransactionLabelFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
 /// Function signature for GetAssetTransfers: char* GetAssetTransfers(char* params)
 type GetAssetTransfersFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
@@ -267,6 +274,10 @@ pub struct WalletLibrary {
     add_contact: Symbol<'static, AddContactFn>,
     update_contact: Symbol<'static, UpdateContactFn>,
     delete_contact: Symbol<'static, DeleteContactFn>,
+    // Transaction Label function symbols
+    set_transaction_label: Symbol<'static, SetTransactionLabelFn>,
+    get_transaction_labels: Symbol<'static, GetTransactionLabelsFn>,
+    delete_transaction_label: Symbol<'static, DeleteTransactionLabelFn>,
     // Asset transfers query function symbols
     get_asset_transfers: Symbol<'static, GetAssetTransfersFn>,
     // Passphrase validation function symbol
@@ -496,6 +507,16 @@ impl WalletLibrary {
                 .get(b"DeleteContact")
                 .map_err(|e| format!("DeleteContact symbol not found: {}", e))?;
 
+            let set_transaction_label: Symbol<SetTransactionLabelFn> = lib
+                .get(b"SetTransactionLabel")
+                .map_err(|e| format!("SetTransactionLabel symbol not found: {}", e))?;
+            let get_transaction_labels: Symbol<GetTransactionLabelsFn> = lib
+                .get(b"GetTransactionLabels")
+                .map_err(|e| format!("GetTransactionLabels symbol not found: {}", e))?;
+            let delete_transaction_label: Symbol<DeleteTransactionLabelFn> = lib
+                .get(b"DeleteTransactionLabel")
+                .map_err(|e| format!("DeleteTransactionLabel symbol not found: {}", e))?;
+
             let get_asset_transfers: Symbol<GetAssetTransfersFn> = lib
                 .get(b"GetAssetTransfers")
                 .map_err(|e| format!("GetAssetTransfers symbol not found: {}", e))?;
@@ -639,6 +660,9 @@ impl WalletLibrary {
             let add_contact: Symbol<'static, AddContactFn> = std::mem::transmute(add_contact);
             let update_contact: Symbol<'static, UpdateContactFn> = std::mem::transmute(update_contact);
             let delete_contact: Symbol<'static, DeleteContactFn> = std::mem::transmute(delete_contact);
+            let set_transaction_label: Symbol<'static, SetTransactionLabelFn> = std::mem::transmute(set_transaction_label);
+            let get_transaction_labels: Symbol<'static, GetTransactionLabelsFn> = std::mem::transmute(get_transaction_labels);
+            let delete_transaction_label: Symbol<'static, DeleteTransactionLabelFn> = std::mem::transmute(delete_transaction_label);
             let get_asset_transfers: Symbol<'static, GetAssetTransfersFn> = std::mem::transmute(get_asset_transfers);
             let validate_passphrase: Symbol<'static, ValidatePassphraseFn> = std::mem::transmute(validate_passphrase);
             let get_swap_quote: Symbol<'static, GetSwapQuoteFn> = std::mem::transmute(get_swap_quote);
@@ -700,6 +724,9 @@ impl WalletLibrary {
                 add_contact,
                 update_contact,
                 delete_contact,
+                set_transaction_label,
+                get_transaction_labels,
+                delete_transaction_label,
                 get_asset_transfers,
                 validate_passphrase,
                 get_swap_quote,
@@ -1306,6 +1333,21 @@ impl WalletLibrary {
     /// Delete a contact from encrypted storage.
     pub fn delete_contact(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.delete_contact, params_json)
+    }
+
+    /// Set (upsert) a transaction label in encrypted storage.
+    pub fn set_transaction_label(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.set_transaction_label, params_json)
+    }
+
+    /// Get transaction labels from encrypted storage.
+    pub fn get_transaction_labels(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.get_transaction_labels, params_json)
+    }
+
+    /// Delete a transaction label from encrypted storage.
+    pub fn delete_transaction_label(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.delete_transaction_label, params_json)
     }
 
     /// Get asset transfers (transaction history) for an address using Alchemy API.

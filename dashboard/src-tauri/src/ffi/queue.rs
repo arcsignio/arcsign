@@ -251,6 +251,21 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Set (upsert) a transaction label
+    SetTransactionLabel {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Get transaction labels
+    GetTransactionLabels {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Delete a transaction label
+    DeleteTransactionLabel {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
     /// Get asset transfers (transaction history) for an address
     GetAssetTransfers {
         params_json: String,
@@ -607,6 +622,21 @@ impl WalletQueue {
                 }
                 WalletCommand::DeleteContact { params_json, respond_to } => {
                     let result = library.delete_contact(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::SetTransactionLabel { params_json, respond_to } => {
+                    let result = library.set_transaction_label(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::GetTransactionLabels { params_json, respond_to } => {
+                    let result = library.get_transaction_labels(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::DeleteTransactionLabel { params_json, respond_to } => {
+                    let result = library.delete_transaction_label(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -1260,6 +1290,63 @@ impl WalletQueue {
         self.metrics.record_enqueue();
         self.sender
             .send(WalletCommand::DeleteContact {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Set (upsert) a transaction label in encrypted storage.
+    pub async fn set_transaction_label(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::SetTransactionLabel {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Get transaction labels from encrypted storage.
+    pub async fn get_transaction_labels(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::GetTransactionLabels {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Delete a transaction label from encrypted storage.
+    pub async fn delete_transaction_label(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::DeleteTransactionLabel {
                 params_json,
                 respond_to: sender,
             })
@@ -2034,6 +2121,21 @@ impl LazyWalletQueue {
     /// Delete a contact
     pub async fn delete_contact(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().delete_contact(params_json).await
+    }
+
+    /// Set (upsert) a transaction label
+    pub async fn set_transaction_label(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().set_transaction_label(params_json).await
+    }
+
+    /// Get transaction labels
+    pub async fn get_transaction_labels(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().get_transaction_labels(params_json).await
+    }
+
+    /// Delete a transaction label
+    pub async fn delete_transaction_label(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().delete_transaction_label(params_json).await
     }
 
     /// Get asset transfers (transaction history) for an address
