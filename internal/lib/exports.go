@@ -2854,6 +2854,20 @@ func UnlockApp(params *C.char) *C.char {
 // }
 //
 // Returns: {"success": true, "data": {"tokens": [...], "totalUsd": 5000.50, ...}}
+
+// loadNodeRealAPIKey attempts to load the NodeReal API key from the provider config store.
+// Returns empty string if not configured.
+func loadNodeRealAPIKey(providerStore *provider.ProviderConfigStore) string {
+	configKeys := provider.GetProviderConfigKeys(provider.ProviderNodeReal)
+	for _, key := range configKeys {
+		config, err := providerStore.Get("global", key)
+		if err == nil && config != nil && config.Enabled && config.APIKey != "" {
+			return config.APIKey
+		}
+	}
+	return ""
+}
+
 func GetTokenBalances(params *C.char) *C.char {
 	start := time.Now()
 	defer func() {
@@ -2987,35 +3001,36 @@ func GetTokenBalances(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Step 3: Build Alchemy API request
-	addressNetworkMap := make(map[string][]string) // address -> networks
+	// Step 3: Separate addresses by provider (Alchemy vs NodeReal)
+	alchemyAddrMap := make(map[string][]string) // address -> networks (for Alchemy)
+	bscAddresses := make(map[string]bool)        // BSC addresses (for NodeReal)
 
 	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: includeTestnets = %v", input.IncludeTestnets))
 
 	for _, addr := range walletObj.AddressBook.Addresses {
-		// Convert chain name to Alchemy network identifier
-		network, ok := provider.GetAlchemyNetwork(addr.CoinName)
+		network, ok := provider.GetInternalNetwork(addr.CoinName)
 		if !ok {
-			// Skip unsupported chains
 			continue
 		}
 
-		// Add network to address
-		addressNetworkMap[addr.Address] = append(addressNetworkMap[addr.Address], network)
-
-		// If includeTestnets is true and this is an Ethereum address, also query Sepolia
-		if input.IncludeTestnets && addr.CoinName == "Ethereum" {
-			debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Adding Sepolia for address %s", addr.Address))
-			addressNetworkMap[addr.Address] = append(addressNetworkMap[addr.Address], provider.NetworkEthSepolia)
+		providerType := provider.GetProviderForNetwork(network)
+		switch providerType {
+		case provider.ProviderAlchemy:
+			alchemyAddrMap[addr.Address] = append(alchemyAddrMap[addr.Address], network)
+			// If includeTestnets is true and this is an Ethereum address, also query Sepolia
+			if input.IncludeTestnets && addr.CoinName == "Ethereum" {
+				debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Adding Sepolia for address %s", addr.Address))
+				alchemyAddrMap[addr.Address] = append(alchemyAddrMap[addr.Address], provider.NetworkEthSepolia)
+			}
+		case provider.ProviderNodeReal:
+			bscAddresses[addr.Address] = true
 		}
 	}
 
-	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Total addresses with networks: %d", len(addressNetworkMap)))
-	for addr, networks := range addressNetworkMap {
-		debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Address %s -> Networks: %v", addr[:10]+"...", networks))
-	}
+	totalAddressCount := len(alchemyAddrMap) + len(bscAddresses)
+	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Alchemy addresses: %d, BSC addresses: %d", len(alchemyAddrMap), len(bscAddresses)))
 
-	if len(addressNetworkMap) == 0 {
+	if totalAddressCount == 0 {
 		emptyOutput := provider.GetTokenBalancesOutput{
 			Tokens:       []provider.SimplifiedTokenBalance{},
 			TotalUSD:     0,
@@ -3027,39 +3042,58 @@ func GetTokenBalances(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Convert map to slice
-	var alchemyAddresses []provider.AlchemyAddressWithNetworks
-	for addr, networks := range addressNetworkMap {
-		alchemyAddresses = append(alchemyAddresses, provider.AlchemyAddressWithNetworks{
-			Address:  addr,
-			Networks: networks,
-		})
+	var allTokens []provider.SimplifiedTokenBalance
+
+	// Step 4a: Query Alchemy for non-BSC chains
+	if len(alchemyAddrMap) > 0 {
+		var alchemyAddresses []provider.AlchemyAddressWithNetworks
+		for addr, networks := range alchemyAddrMap {
+			alchemyAddresses = append(alchemyAddresses, provider.AlchemyAddressWithNetworks{
+				Address:  addr,
+				Networks: networks,
+			})
+		}
+
+		alchemyClient := provider.NewAlchemyClient(alchemyAPIKey)
+		alchemyResponse, err := alchemyClient.GetTokenBalancesByAddress(alchemyAddresses)
+		if err != nil {
+			fmt.Printf("Alchemy GetTokenBalances error: %v\n", err)
+		} else {
+			alchemyTokens := provider.SimplifyTokenBalances(alchemyResponse)
+			allTokens = append(allTokens, alchemyTokens...)
+		}
 	}
 
-	// Step 4: Query Alchemy API
-	alchemyClient := provider.NewAlchemyClient(alchemyAPIKey)
-	alchemyResponse, err := alchemyClient.GetTokenBalancesByAddress(alchemyAddresses)
-	if err != nil {
-		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
+	// Step 4b: Query NodeReal for BSC addresses
+	if len(bscAddresses) > 0 {
+		nodeRealKey := loadNodeRealAPIKey(providerStore)
+		if nodeRealKey != "" {
+			bscClient := provider.NewBSCTraceClient(nodeRealKey)
+			for addr := range bscAddresses {
+				bscTokens, err := bscClient.GetTokenHoldingsBSC(addr)
+				if err != nil {
+					fmt.Printf("NodeReal GetTokenHoldings error for %s: %v\n", addr[:10], err)
+					continue
+				}
+				allTokens = append(allTokens, bscTokens...)
+			}
+		} else {
+			debugLog("[DEBUG] GetTokenBalances: No NodeReal API key configured, skipping BSC")
+		}
 	}
 
-	// Step 5: Simplify and aggregate results
-	tokens := provider.SimplifyTokenBalances(alchemyResponse)
-
-	// Calculate totals
+	// Step 5: Aggregate results
 	var totalUSD float64
 	networkSet := make(map[string]bool)
-	for _, token := range tokens {
+	for _, token := range allTokens {
 		totalUSD += token.USDValue
 		networkSet[token.Network] = true
 	}
 
 	output := provider.GetTokenBalancesOutput{
-		Tokens:       tokens,
+		Tokens:       allTokens,
 		TotalUSD:     totalUSD,
-		AddressCount: len(addressNetworkMap),
+		AddressCount: totalAddressCount,
 		NetworkCount: len(networkSet),
 	}
 
@@ -3190,17 +3224,25 @@ func GetNFTs(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Build Alchemy API request - only mainnet EVM addresses (NFTs are mainnet-only)
-	addressNetworkMap := make(map[string][]string)
+	// Separate addresses by provider (Alchemy vs NodeReal)
+	alchemyAddrMap := make(map[string][]string)
+	bscAddresses := make(map[string]bool)
 	for _, addr := range walletObj.AddressBook.Addresses {
-		network, ok := provider.GetAlchemyNetwork(addr.CoinName)
+		network, ok := provider.GetInternalNetwork(addr.CoinName)
 		if !ok {
 			continue
 		}
-		addressNetworkMap[addr.Address] = append(addressNetworkMap[addr.Address], network)
+		providerType := provider.GetProviderForNetwork(network)
+		switch providerType {
+		case provider.ProviderAlchemy:
+			alchemyAddrMap[addr.Address] = append(alchemyAddrMap[addr.Address], network)
+		case provider.ProviderNodeReal:
+			bscAddresses[addr.Address] = true
+		}
 	}
 
-	if len(addressNetworkMap) == 0 {
+	totalAddressCount := len(alchemyAddrMap) + len(bscAddresses)
+	if totalAddressCount == 0 {
 		emptyOutput := provider.GetNFTsOutput{
 			NFTs:         []provider.SimplifiedNFT{},
 			TotalCount:   0,
@@ -3212,35 +3254,56 @@ func GetNFTs(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	var alchemyAddresses []provider.AlchemyAddressWithNetworks
-	for addr, networks := range addressNetworkMap {
-		alchemyAddresses = append(alchemyAddresses, provider.AlchemyAddressWithNetworks{
-			Address:  addr,
-			Networks: networks,
-		})
+	var allNFTs []provider.SimplifiedNFT
+
+	// Query Alchemy for non-BSC chains
+	if len(alchemyAddrMap) > 0 {
+		var alchemyAddresses []provider.AlchemyAddressWithNetworks
+		for addr, networks := range alchemyAddrMap {
+			alchemyAddresses = append(alchemyAddresses, provider.AlchemyAddressWithNetworks{
+				Address:  addr,
+				Networks: networks,
+			})
+		}
+
+		alchemyClient := provider.NewAlchemyClient(alchemyAPIKey)
+		alchemyResponse, err := alchemyClient.GetNFTsByAddress(alchemyAddresses)
+		if err != nil {
+			fmt.Printf("Alchemy GetNFTs error: %v\n", err)
+		} else {
+			alchemyNFTs := provider.SimplifyNFTs(alchemyResponse)
+			allNFTs = append(allNFTs, alchemyNFTs...)
+		}
 	}
 
-	// Query Alchemy NFT API
-	alchemyClient := provider.NewAlchemyClient(alchemyAPIKey)
-	alchemyResponse, err := alchemyClient.GetNFTsByAddress(alchemyAddresses)
-	if err != nil {
-		response := NewErrorResponse(ErrStorageError, "Failed to query NFT data")
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
+	// Query NodeReal for BSC addresses
+	if len(bscAddresses) > 0 {
+		nodeRealKey := loadNodeRealAPIKey(providerStore)
+		if nodeRealKey != "" {
+			bscClient := provider.NewBSCTraceClient(nodeRealKey)
+			for addr := range bscAddresses {
+				bscNFTs, err := bscClient.GetNFTHoldingsBSC(addr)
+				if err != nil {
+					fmt.Printf("NodeReal GetNFTHoldings error for %s: %v\n", addr[:10], err)
+					continue
+				}
+				allNFTs = append(allNFTs, bscNFTs...)
+			}
+		} else {
+			debugLog("[DEBUG] GetNFTs: No NodeReal API key configured, skipping BSC")
+		}
 	}
 
-	// Simplify and aggregate results
-	nfts := provider.SimplifyNFTs(alchemyResponse)
-
+	// Aggregate results
 	networkSet := make(map[string]bool)
-	for _, nft := range nfts {
+	for _, nft := range allNFTs {
 		networkSet[nft.Network] = true
 	}
 
 	output := provider.GetNFTsOutput{
-		NFTs:         nfts,
-		TotalCount:   len(nfts),
-		AddressCount: len(addressNetworkMap),
+		NFTs:         allNFTs,
+		TotalCount:   len(allNFTs),
+		AddressCount: totalAddressCount,
 		NetworkCount: len(networkSet),
 	}
 

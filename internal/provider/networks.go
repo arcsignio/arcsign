@@ -45,6 +45,7 @@ var ChainToInternalNetwork = map[string]string{
 	"base":         NetworkBaseMainnet,
 	"base-mainnet": NetworkBaseMainnet,
 	// BNB Chain
+	"BNB Chain":           NetworkBnbMainnet,
 	"BNB":                 NetworkBnbMainnet,
 	"bnb":                 NetworkBnbMainnet,
 	"binance":             NetworkBnbMainnet,

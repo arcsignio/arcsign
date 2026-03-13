@@ -106,6 +106,10 @@ The Release workflow (GitHub Actions) builds all 3 platforms (macOS, Windows, Li
 - ArcSign **supports WalletConnect** — frequent traders can also use ArcSign to sign transactions securely from cold storage
 - A **mobile app** is planned for the future (not yet released)
 - Key differentiator: `.arcsign` encrypted backup replaces paper seed phrases
+- **Token Approvals management** — users can view and revoke ERC-20 approvals across 6 EVM chains. Pro users get batch revoke. This is a security feature to prevent forgotten approvals from becoming attack vectors.
+- **BSC full support** — Token balances, NFTs, and Approvals all work on BSC via NodeReal enhanced APIs (`nr_getTokenHoldings`, `nr_getNFTHoldings`). Other chains use Alchemy.
+- **NFT Gallery** — cross-chain NFT display with ERC721/ERC1155 support across 6 chains
+- **DeFi positions** — shows liquid staking positions (stETH, ankrETH, ankrBNB) with real-time APY
 
 ## Development Guidelines
 

@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
@@ -407,4 +408,254 @@ func parseValueToFloat(valueStr, decimalsStr string) float64 {
 	}
 
 	return valueFloat / divisor
+}
+
+// ================================================================================
+// Generic JSON-RPC helper
+// ================================================================================
+
+// callJSONRPC makes a generic JSON-RPC call and returns the raw result
+func (c *BSCTraceClient) callJSONRPC(method string, params []interface{}) (json.RawMessage, error) {
+	rpcReq := jsonRPCRequest{
+		JSONRPC: "2.0",
+		Method:  method,
+		Params:  params,
+		ID:      1,
+	}
+
+	jsonData, err := json.Marshal(rpcReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", c.endpoint, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var rpcResp jsonRPCResponse
+	if err := json.Unmarshal(body, &rpcResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if rpcResp.Error != nil {
+		return nil, fmt.Errorf("NodeReal RPC error (%d): %s", rpcResp.Error.Code, rpcResp.Error.Message)
+	}
+
+	return rpcResp.Result, nil
+}
+
+// ================================================================================
+// nr_getTokenHoldings — BSC Token Balance Query
+// Docs: https://docs.nodereal.io/reference/nr_gettokenholdings
+// ================================================================================
+
+// tokenHoldingsResult is the response from nr_getTokenHoldings
+type tokenHoldingsResult struct {
+	TotalCount string               `json:"totalCount"` // hex
+	Details    []tokenHoldingDetail `json:"details"`
+}
+
+// tokenHoldingDetail is a single BEP-20 token holding
+type tokenHoldingDetail struct {
+	TokenAddress  string `json:"tokenAddress"`
+	TokenName     string `json:"tokenName"`
+	TokenSymbol   string `json:"tokenSymbol"`
+	TokenDecimals string `json:"tokenDecimails"` // NodeReal API has this typo
+	TokenBalance  string `json:"tokenBalance"`   // hex
+}
+
+// GetTokenHoldingsBSC fetches BEP-20 token balances using NodeReal nr_getTokenHoldings.
+// Returns tokens in SimplifiedTokenBalance format for seamless merging with Alchemy results.
+func (c *BSCTraceClient) GetTokenHoldingsBSC(address string) ([]SimplifiedTokenBalance, error) {
+	var allTokens []SimplifiedTokenBalance
+	networkLabel := NetworkLabels[NetworkBnbMainnet]
+
+	maxPages := 5
+	for page := 1; page <= maxPages; page++ {
+		pageHex := fmt.Sprintf("0x%x", page)
+		pageSizeHex := "0x14" // 20 items per page
+
+		result, err := c.callJSONRPC("nr_getTokenHoldings", []interface{}{address, pageHex, pageSizeHex})
+		if err != nil {
+			return nil, fmt.Errorf("nr_getTokenHoldings failed: %w", err)
+		}
+
+		var holdings tokenHoldingsResult
+		if err := json.Unmarshal(result, &holdings); err != nil {
+			return nil, fmt.Errorf("failed to parse token holdings: %w", err)
+		}
+
+		for _, detail := range holdings.Details {
+			// Parse decimals (default 18)
+			decimals := 18
+			if detail.TokenDecimals != "" {
+				if d, err := strconv.Atoi(detail.TokenDecimals); err == nil {
+					decimals = d
+				}
+			}
+
+			balance := formatTokenBalance(detail.TokenBalance, decimals)
+
+			allTokens = append(allTokens, SimplifiedTokenBalance{
+				Address:      address,
+				Network:      NetworkBnbMainnet,
+				NetworkLabel: networkLabel,
+				TokenAddress: detail.TokenAddress,
+				TokenSymbol:  detail.TokenSymbol,
+				TokenName:    detail.TokenName,
+				TokenLogo:    "",
+				Balance:      balance,
+				RawBalance:   detail.TokenBalance,
+				Decimals:     decimals,
+				USDValue:     0, // NodeReal does not provide pricing
+				PriceUSD:     0,
+			})
+		}
+
+		// Check if we have all results
+		totalCount := parseHexToInt(holdings.TotalCount)
+		if int64(page*20) >= totalCount {
+			break
+		}
+	}
+
+	return allTokens, nil
+}
+
+// ================================================================================
+// nr_getNFTHoldings + nr_getNFTInventory — BSC NFT Query
+// Docs: https://docs.nodereal.io/reference/nr_getnftholdings
+// ================================================================================
+
+// nftHoldingsResult is the response from nr_getNFTHoldings
+type nftHoldingsResult struct {
+	TotalCount string             `json:"totalCount"` // hex
+	Details    []nftHoldingDetail `json:"details"`
+}
+
+// nftHoldingDetail is a single NFT collection holding
+type nftHoldingDetail struct {
+	TokenAddress string `json:"tokenAddress"`
+	TokenIdNum   string `json:"tokenIdNum"` // hex: count of token IDs held
+	TokenName    string `json:"tokenName"`
+	TokenSymbol  string `json:"tokenSymbol"`
+}
+
+// nftInventoryResult is the response from nr_getNFTInventory
+type nftInventoryResult struct {
+	Details []nftInventoryDetail `json:"details"`
+}
+
+// nftInventoryDetail is a single NFT token ID entry
+type nftInventoryDetail struct {
+	TokenID string `json:"tokenId"` // hex
+}
+
+// GetNFTHoldingsBSC fetches NFT holdings using NodeReal nr_getNFTHoldings + nr_getNFTInventory.
+// Returns NFTs in SimplifiedNFT format for seamless merging with Alchemy results.
+func (c *BSCTraceClient) GetNFTHoldingsBSC(address string) ([]SimplifiedNFT, error) {
+	var allNFTs []SimplifiedNFT
+	networkLabel := NetworkLabels[NetworkBnbMainnet]
+
+	// Query both ERC721 and ERC1155
+	for _, tokenType := range []string{"erc721", "erc1155"} {
+		nfts, err := c.getNFTsByType(address, tokenType, networkLabel)
+		if err != nil {
+			fmt.Printf("NodeReal: Failed to get %s NFTs for %s: %v\n", tokenType, address[:10], err)
+			continue // Don't fail entirely if one type errors
+		}
+		allNFTs = append(allNFTs, nfts...)
+	}
+
+	return allNFTs, nil
+}
+
+// getNFTsByType queries NFT holdings for a specific token type (erc721 or erc1155)
+func (c *BSCTraceClient) getNFTsByType(address, tokenType, networkLabel string) ([]SimplifiedNFT, error) {
+	var nfts []SimplifiedNFT
+
+	// Step 1: Get collection-level holdings
+	result, err := c.callJSONRPC("nr_getNFTHoldings", []interface{}{address, tokenType, "0x1", "0x14"})
+	if err != nil {
+		return nil, fmt.Errorf("nr_getNFTHoldings failed: %w", err)
+	}
+
+	var holdings nftHoldingsResult
+	if err := json.Unmarshal(result, &holdings); err != nil {
+		return nil, fmt.Errorf("failed to parse NFT holdings: %w", err)
+	}
+
+	// Step 2: For each collection, get individual token IDs
+	// Limit to 10 collections to avoid excessive API calls
+	maxCollections := 10
+	for i, collection := range holdings.Details {
+		if i >= maxCollections {
+			fmt.Printf("NodeReal: Truncated NFT collections for %s at %d\n", address[:10], maxCollections)
+			break
+		}
+
+		inventoryResult, err := c.callJSONRPC("nr_getNFTInventory", []interface{}{address, collection.TokenAddress, "0x1", "0x14"})
+		if err != nil {
+			fmt.Printf("NodeReal: Failed to get inventory for %s: %v\n", collection.TokenAddress[:10], err)
+			continue
+		}
+
+		var inventory nftInventoryResult
+		if err := json.Unmarshal(inventoryResult, &inventory); err != nil {
+			fmt.Printf("NodeReal: Failed to parse inventory for %s: %v\n", collection.TokenAddress[:10], err)
+			continue
+		}
+
+		tokenTypeUpper := strings.ToUpper(tokenType) // "ERC721" or "ERC1155"
+		for _, item := range inventory.Details {
+			tokenID := parseHexToDecimal(item.TokenID)
+
+			nft := SimplifiedNFT{
+				Address:         address,
+				Network:         NetworkBnbMainnet,
+				NetworkLabel:    networkLabel,
+				ContractAddress: collection.TokenAddress,
+				TokenID:         tokenID,
+				TokenType:       tokenTypeUpper,
+				Name:            collection.TokenName,
+				Description:     "",
+				ImageURL:        "",
+				ThumbnailURL:    "",
+				CollectionName:  collection.TokenName,
+				CollectionSlug:  "",
+				Balance:         "1",
+			}
+
+			// ERC1155 may have balance > 1, but NodeReal inventory doesn't provide it
+			nfts = append(nfts, nft)
+		}
+	}
+
+	return nfts, nil
+}
+
+// parseHexToDecimal converts a hex token ID to decimal string
+func parseHexToDecimal(hexStr string) string {
+	clean := strings.TrimPrefix(strings.TrimPrefix(hexStr, "0x"), "0X")
+	if clean == "" {
+		return "0"
+	}
+	val := new(big.Int)
+	if _, ok := val.SetString(clean, 16); !ok {
+		return "0"
+	}
+	return val.String()
 }
