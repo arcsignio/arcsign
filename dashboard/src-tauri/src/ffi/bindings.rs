@@ -108,6 +108,15 @@ type GetNFTsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for GetTokenApprovals: char* GetTokenApprovals(char* params)
 type GetTokenApprovalsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+// Function signature for ListContacts: char* ListContacts(char* params)
+type ListContactsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+// Function signature for AddContact: char* AddContact(char* params)
+type AddContactFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+// Function signature for UpdateContact: char* UpdateContact(char* params)
+type UpdateContactFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+// Function signature for DeleteContact: char* DeleteContact(char* params)
+type DeleteContactFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 /// Function signature for GetAssetTransfers: char* GetAssetTransfers(char* params)
 type GetAssetTransfersFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
@@ -253,6 +262,11 @@ pub struct WalletLibrary {
     get_nfts: Symbol<'static, GetNFTsFn>,
     // Token approvals query function symbols
     get_token_approvals: Symbol<'static, GetTokenApprovalsFn>,
+    // Contact (Address Book) function symbols
+    list_contacts: Symbol<'static, ListContactsFn>,
+    add_contact: Symbol<'static, AddContactFn>,
+    update_contact: Symbol<'static, UpdateContactFn>,
+    delete_contact: Symbol<'static, DeleteContactFn>,
     // Asset transfers query function symbols
     get_asset_transfers: Symbol<'static, GetAssetTransfersFn>,
     // Passphrase validation function symbol
@@ -469,6 +483,19 @@ impl WalletLibrary {
                 .get(b"GetTokenApprovals")
                 .map_err(|e| format!("GetTokenApprovals symbol not found: {}", e))?;
 
+            let list_contacts: Symbol<ListContactsFn> = lib
+                .get(b"ListContacts")
+                .map_err(|e| format!("ListContacts symbol not found: {}", e))?;
+            let add_contact: Symbol<AddContactFn> = lib
+                .get(b"AddContact")
+                .map_err(|e| format!("AddContact symbol not found: {}", e))?;
+            let update_contact: Symbol<UpdateContactFn> = lib
+                .get(b"UpdateContact")
+                .map_err(|e| format!("UpdateContact symbol not found: {}", e))?;
+            let delete_contact: Symbol<DeleteContactFn> = lib
+                .get(b"DeleteContact")
+                .map_err(|e| format!("DeleteContact symbol not found: {}", e))?;
+
             let get_asset_transfers: Symbol<GetAssetTransfersFn> = lib
                 .get(b"GetAssetTransfers")
                 .map_err(|e| format!("GetAssetTransfers symbol not found: {}", e))?;
@@ -608,6 +635,10 @@ impl WalletLibrary {
             let get_token_balances: Symbol<'static, GetTokenBalancesFn> = std::mem::transmute(get_token_balances);
             let get_nfts: Symbol<'static, GetNFTsFn> = std::mem::transmute(get_nfts);
             let get_token_approvals: Symbol<'static, GetTokenApprovalsFn> = std::mem::transmute(get_token_approvals);
+            let list_contacts: Symbol<'static, ListContactsFn> = std::mem::transmute(list_contacts);
+            let add_contact: Symbol<'static, AddContactFn> = std::mem::transmute(add_contact);
+            let update_contact: Symbol<'static, UpdateContactFn> = std::mem::transmute(update_contact);
+            let delete_contact: Symbol<'static, DeleteContactFn> = std::mem::transmute(delete_contact);
             let get_asset_transfers: Symbol<'static, GetAssetTransfersFn> = std::mem::transmute(get_asset_transfers);
             let validate_passphrase: Symbol<'static, ValidatePassphraseFn> = std::mem::transmute(validate_passphrase);
             let get_swap_quote: Symbol<'static, GetSwapQuoteFn> = std::mem::transmute(get_swap_quote);
@@ -665,6 +696,10 @@ impl WalletLibrary {
                 get_token_balances,
                 get_nfts,
                 get_token_approvals,
+                list_contacts,
+                add_contact,
+                update_contact,
+                delete_contact,
                 get_asset_transfers,
                 validate_passphrase,
                 get_swap_quote,
@@ -1251,6 +1286,26 @@ impl WalletLibrary {
     /// ```
     pub fn get_token_approvals(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.get_token_approvals, params_json)
+    }
+
+    /// List all contacts from encrypted storage.
+    pub fn list_contacts(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.list_contacts, params_json)
+    }
+
+    /// Add a new contact to encrypted storage.
+    pub fn add_contact(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.add_contact, params_json)
+    }
+
+    /// Update an existing contact in encrypted storage.
+    pub fn update_contact(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.update_contact, params_json)
+    }
+
+    /// Delete a contact from encrypted storage.
+    pub fn delete_contact(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.delete_contact, params_json)
     }
 
     /// Get asset transfers (transaction history) for an address using Alchemy API.

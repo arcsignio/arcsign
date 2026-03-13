@@ -1487,6 +1487,114 @@ pub async fn get_token_approvals(
     Ok(ffi_response)
 }
 
+#[tauri::command]
+pub async fn list_contacts(
+    queue: State<'_, LazyWalletQueue>,
+    usb_path: String,
+    session_token: Option<String>,
+    app_password: Option<String>,
+) -> Result<serde_json::Value, String> {
+    tracing::info!("list_contacts called");
+
+    let params = json!({
+        "usbPath": usb_path,
+        "sessionToken": session_token.unwrap_or_default(),
+        "appPassword": app_password.unwrap_or_default(),
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    queue.list_contacts(params_json).await
+}
+
+#[tauri::command]
+pub async fn add_contact(
+    queue: State<'_, LazyWalletQueue>,
+    name: String,
+    address: String,
+    symbol: String,
+    coin_name: String,
+    notes: Option<String>,
+    usb_path: String,
+    session_token: Option<String>,
+    app_password: Option<String>,
+) -> Result<serde_json::Value, String> {
+    tracing::info!("add_contact called: name={}", name);
+
+    let params = json!({
+        "name": name,
+        "address": address,
+        "symbol": symbol,
+        "coinName": coin_name,
+        "notes": notes.unwrap_or_default(),
+        "usbPath": usb_path,
+        "sessionToken": session_token.unwrap_or_default(),
+        "appPassword": app_password.unwrap_or_default(),
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    queue.add_contact(params_json).await
+}
+
+#[tauri::command]
+pub async fn update_contact(
+    queue: State<'_, LazyWalletQueue>,
+    contact_id: String,
+    name: String,
+    address: String,
+    symbol: String,
+    coin_name: String,
+    notes: Option<String>,
+    usb_path: String,
+    session_token: Option<String>,
+    app_password: Option<String>,
+) -> Result<serde_json::Value, String> {
+    tracing::info!("update_contact called: id={}", contact_id);
+
+    let params = json!({
+        "contactId": contact_id,
+        "name": name,
+        "address": address,
+        "symbol": symbol,
+        "coinName": coin_name,
+        "notes": notes.unwrap_or_default(),
+        "usbPath": usb_path,
+        "sessionToken": session_token.unwrap_or_default(),
+        "appPassword": app_password.unwrap_or_default(),
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    queue.update_contact(params_json).await
+}
+
+#[tauri::command]
+pub async fn delete_contact(
+    queue: State<'_, LazyWalletQueue>,
+    contact_id: String,
+    usb_path: String,
+    session_token: Option<String>,
+    app_password: Option<String>,
+) -> Result<serde_json::Value, String> {
+    tracing::info!("delete_contact called: id={}", contact_id);
+
+    let params = json!({
+        "contactId": contact_id,
+        "usbPath": usb_path,
+        "sessionToken": session_token.unwrap_or_default(),
+        "appPassword": app_password.unwrap_or_default(),
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    queue.delete_contact(params_json).await
+}
+
 /// Validate a BIP39 passphrase by comparing derived address with stored address.
 ///
 /// This is used during wallet unlock to validate the passphrase before allowing

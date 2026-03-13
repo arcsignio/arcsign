@@ -363,6 +363,91 @@ export async function getTokenApprovals(
 }
 
 /**
+ * Address Book (Contacts)
+ */
+
+export async function listContacts(
+  usbPath: string,
+  sessionToken?: string,
+  appPassword?: string,
+): Promise<{ contacts: Array<import("@/types/contact").Contact> }> {
+  try {
+    return await invoke<{ contacts: Array<import("@/types/contact").Contact> }>("list_contacts", {
+      usbPath,
+      sessionToken: sessionToken ?? "",
+      appPassword: appPassword ?? "",
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+export async function addContact(
+  params: import("@/types/contact").AddContactParams & {
+    usbPath: string;
+    sessionToken?: string;
+    appPassword?: string;
+  },
+): Promise<{ contact: import("@/types/contact").Contact }> {
+  try {
+    return await invoke<{ contact: import("@/types/contact").Contact }>("add_contact", {
+      name: params.name,
+      address: params.address,
+      symbol: params.symbol,
+      coinName: params.coinName,
+      notes: params.notes ?? "",
+      usbPath: params.usbPath,
+      sessionToken: params.sessionToken ?? "",
+      appPassword: params.appPassword ?? "",
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+export async function updateContact(
+  params: import("@/types/contact").UpdateContactParams & {
+    usbPath: string;
+    sessionToken?: string;
+    appPassword?: string;
+  },
+): Promise<{ contact: import("@/types/contact").Contact }> {
+  try {
+    return await invoke<{ contact: import("@/types/contact").Contact }>("update_contact", {
+      contactId: params.contactId,
+      name: params.name,
+      address: params.address,
+      symbol: params.symbol,
+      coinName: params.coinName,
+      notes: params.notes ?? "",
+      usbPath: params.usbPath,
+      sessionToken: params.sessionToken ?? "",
+      appPassword: params.appPassword ?? "",
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+export async function deleteContact(
+  contactId: string,
+  usbPath: string,
+  sessionToken?: string,
+  appPassword?: string,
+): Promise<{ deleted: boolean; deletedAt: string }> {
+  try {
+    return await invoke<{ deleted: boolean; deletedAt: string }>("delete_contact", {
+      contactId,
+      usbPath,
+      sessionToken: sessionToken ?? "",
+      appPassword: appPassword ?? "",
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+/**
  * Security Commands
  */
 

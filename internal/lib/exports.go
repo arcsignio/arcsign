@@ -39,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/yourusername/arcsign/internal/app"
 	"github.com/yourusername/arcsign/internal/constants"
+	"github.com/yourusername/arcsign/internal/contacts"
 	"github.com/yourusername/arcsign/internal/provider"
 	"github.com/yourusername/arcsign/internal/rpc"
 	"github.com/yourusername/arcsign/internal/security"
@@ -3485,6 +3486,329 @@ func GetTokenApprovals(params *C.char) *C.char {
 	approvalResponse := NewSuccessResponse(output)
 	approvalJsonBytes, _ := json.Marshal(approvalResponse)
 	return C.CString(string(approvalJsonBytes))
+}
+
+// ========================================================================
+// Address Book (Contacts) Operations
+// ========================================================================
+
+//export ListContacts
+// ListContacts returns all saved contacts from encrypted storage.
+// Feature: Address Book (v1.3)
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb",
+//   "sessionToken": "session-token",
+//   "appPassword": "app-password"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": { "contacts": [...] }
+// }
+func ListContacts(params *C.char) *C.char {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		USBPath      string `json:"usbPath"`
+		SessionToken string `json:"sessionToken"`
+		AppPassword  string `json:"appPassword"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidPassword, "Authentication failed")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	contactsPath := filepath.Join(input.USBPath, "contacts.enc")
+	store, err := contacts.NewContactStore(contactsPath, appPassword)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, "Failed to load contacts")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer store.Close()
+
+	contactList := store.List()
+	result := map[string]interface{}{
+		"contacts": contactList,
+	}
+	response := NewSuccessResponse(result)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export AddContact
+// AddContact creates a new contact in encrypted storage.
+// Feature: Address Book (v1.3)
+//
+// Input JSON: {
+//   "name": "Alice",
+//   "address": "0x...",
+//   "symbol": "ETH",
+//   "coinName": "Ethereum",
+//   "notes": "optional",
+//   "usbPath": "/path/to/usb",
+//   "sessionToken": "session-token",
+//   "appPassword": "app-password"
+// }
+func AddContact(params *C.char) *C.char {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		Name         string `json:"name"`
+		Address      string `json:"address"`
+		Symbol       string `json:"symbol"`
+		CoinName     string `json:"coinName"`
+		Notes        string `json:"notes"`
+		USBPath      string `json:"usbPath"`
+		SessionToken string `json:"sessionToken"`
+		AppPassword  string `json:"appPassword"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidPassword, "Authentication failed")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	contactsPath := filepath.Join(input.USBPath, "contacts.enc")
+	store, err := contacts.NewContactStore(contactsPath, appPassword)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, "Failed to load contacts")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer store.Close()
+
+	contact, err := store.Add(input.Name, input.Address, input.Symbol, input.CoinName, input.Notes)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	result := map[string]interface{}{
+		"contact": contact,
+	}
+	response := NewSuccessResponse(result)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export UpdateContact
+// UpdateContact modifies an existing contact in encrypted storage.
+// Feature: Address Book (v1.3)
+//
+// Input JSON: {
+//   "contactId": "uuid",
+//   "name": "Alice",
+//   "address": "0x...",
+//   "symbol": "ETH",
+//   "coinName": "Ethereum",
+//   "notes": "optional",
+//   "usbPath": "/path/to/usb",
+//   "sessionToken": "session-token",
+//   "appPassword": "app-password"
+// }
+func UpdateContact(params *C.char) *C.char {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		ContactID    string `json:"contactId"`
+		Name         string `json:"name"`
+		Address      string `json:"address"`
+		Symbol       string `json:"symbol"`
+		CoinName     string `json:"coinName"`
+		Notes        string `json:"notes"`
+		USBPath      string `json:"usbPath"`
+		SessionToken string `json:"sessionToken"`
+		AppPassword  string `json:"appPassword"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidPassword, "Authentication failed")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	contactsPath := filepath.Join(input.USBPath, "contacts.enc")
+	store, err := contacts.NewContactStore(contactsPath, appPassword)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, "Failed to load contacts")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer store.Close()
+
+	contact, err := store.Update(input.ContactID, input.Name, input.Address, input.Symbol, input.CoinName, input.Notes)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	result := map[string]interface{}{
+		"contact": contact,
+	}
+	response := NewSuccessResponse(result)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export DeleteContact
+// DeleteContact removes a contact from encrypted storage.
+// Feature: Address Book (v1.3)
+//
+// Input JSON: {
+//   "contactId": "uuid",
+//   "usbPath": "/path/to/usb",
+//   "sessionToken": "session-token",
+//   "appPassword": "app-password"
+// }
+func DeleteContact(params *C.char) *C.char {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		ContactID    string `json:"contactId"`
+		USBPath      string `json:"usbPath"`
+		SessionToken string `json:"sessionToken"`
+		AppPassword  string `json:"appPassword"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	defer zeroString(&input.AppPassword)
+
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidPassword, "Authentication failed")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	contactsPath := filepath.Join(input.USBPath, "contacts.enc")
+	store, err := contacts.NewContactStore(contactsPath, appPassword)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, "Failed to load contacts")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer store.Close()
+
+	if err := store.Delete(input.ContactID); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, err.Error())
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	result := map[string]interface{}{
+		"deleted":   true,
+		"deletedAt": time.Now().Format(time.RFC3339),
+	}
+	response := NewSuccessResponse(result)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
 }
 
 //export GetAssetTransfers

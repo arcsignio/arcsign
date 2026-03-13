@@ -33,6 +33,7 @@ import { ExportBackup } from "@/components/ExportBackup";
 import { NFTGallery } from "@/components/NFTGallery";
 import { DefiPositions } from "@/components/DefiPositions";
 import { TokenApprovals } from "@/components/TokenApprovals";
+import { AddressBook } from "@/components/AddressBook";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
 
@@ -124,6 +125,9 @@ export function WalletDetail({
 
   // WalletConnect Sessions Manager modal state
   const [showSessionsManager, setShowSessionsManager] = useState(false);
+
+  // Address Book state
+  const [showAddressBook, setShowAddressBook] = useState(false);
 
   // Refresh state
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -1197,6 +1201,17 @@ export function WalletDetail({
     );
   }
 
+  // Show Address Book view
+  if (showAddressBook && sessionToken) {
+    return (
+      <AddressBook
+        usbPath={usbPath}
+        sessionToken={sessionToken}
+        onBack={() => setShowAddressBook(false)}
+      />
+    );
+  }
+
   // Show Send Transaction view
   // ✅ Migrated to session tokens (2026-01-12)
   if (showSendTransaction && sessionToken) {
@@ -1750,6 +1765,35 @@ export function WalletDetail({
                 <div>
                   <div style={{ fontWeight: "500", color: "#1e293b" }}>{t('walletDetail.staking')}</div>
                   <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{t('walletDetail.stakingDesc')}</div>
+                </div>
+              </button>
+
+              {/* Address Book Option */}
+              <button
+                onClick={() => {
+                  setShowMoreMenu(false);
+                  setShowAddressBook(true);
+                }}
+                style={{
+                  width: "100%",
+                  padding: "0.75rem 1rem",
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: "1px solid #e2e8f0",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.75rem",
+                  textAlign: "left",
+                  transition: "background 0.2s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#f1f5f9"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                <div>
+                  <div style={{ fontWeight: "500", color: "#1e293b" }}>{t('walletDetail.addressBook')}</div>
+                  <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Manage saved addresses</div>
                 </div>
               </button>
 
