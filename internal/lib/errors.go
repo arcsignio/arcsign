@@ -60,6 +60,9 @@ const (
 	// Bundle errors (batch export/import)
 	ErrBundleInvalid   ErrorCode = "BUNDLE_INVALID"   // .arcsign-bundle format or version error
 	ErrBundleCorrupted ErrorCode = "BUNDLE_CORRUPTED" // Outer decryption succeeded but inner data malformed
+
+	// Rate limiting errors
+	ErrRateLimitExceeded ErrorCode = "RATE_LIMIT_EXCEEDED" // Too many failed attempts
 )
 
 // FFIError represents a structured error response for FFI functions
@@ -167,6 +170,8 @@ func GetUserFriendlyMessage(code ErrorCode) string {
 		return "Invalid bundle file. Please select a valid .arcsign-bundle file."
 	case ErrBundleCorrupted:
 		return "The bundle file appears to be corrupted."
+	case ErrRateLimitExceeded:
+		return "Too many failed attempts. Please wait a moment before trying again."
 	default:
 		return "An error occurred. Please try again."
 	}
@@ -183,6 +188,10 @@ func MapWalletError(err error) ErrorCode {
 
 	// Priority-ordered pattern matching (most specific first)
 	switch {
+	// Rate limiting errors
+	case strings.Contains(errMsg, "rate limit"):
+		return ErrRateLimitExceeded
+
 	// Mnemonic validation errors
 	case strings.Contains(errMsg, "invalid mnemonic"),
 		strings.Contains(errMsg, "bip39"),

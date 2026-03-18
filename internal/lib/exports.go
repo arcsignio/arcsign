@@ -34,22 +34,23 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/arcsign/chainadapter"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
-	"github.com/yourusername/arcsign/internal/app"
-	"github.com/yourusername/arcsign/internal/constants"
-	"github.com/yourusername/arcsign/internal/contacts"
-	"github.com/yourusername/arcsign/internal/provider"
-	"github.com/yourusername/arcsign/internal/txlabels"
-	"github.com/yourusername/arcsign/internal/rpc"
-	"github.com/yourusername/arcsign/internal/security"
-	"github.com/yourusername/arcsign/internal/services/backup"
-	"github.com/yourusername/arcsign/internal/services/bip39service"
-	chainadapterService "github.com/yourusername/arcsign/internal/services/chainadapter"
-	"github.com/yourusername/arcsign/internal/services/hdkey"
-	"github.com/yourusername/arcsign/internal/services/wallet"
-	"github.com/yourusername/arcsign/src/swap"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/app"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/constants"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/contacts"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/provider"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/txlabels"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/rpc"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/security"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/backup"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/bip39service"
+	chainadapterService "github.com/Jason-chen-taiwan/arcSignv2/internal/services/chainadapter"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/hdkey"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/ratelimit"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/wallet"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/swap"
 )
 
 // Global ChainAdapter service instance (initialized on first use)
@@ -60,6 +61,11 @@ var sessionManager *app.SessionManager
 
 // Global WalletSessionManager instance (initialized on first use)
 var walletSessionManager *app.WalletSessionManager
+
+// Global app-level rate limiter for UnlockApp password attempts
+// 5 attempts per 2 minutes — more generous than wallet-level (3/min)
+// because app unlock is a higher-friction operation
+var appRateLimiter = ratelimit.NewRateLimiter(5, 2*time.Minute)
 
 // init is called automatically when the library is loaded.
 // It sets up security measures to protect sensitive data.
@@ -2823,6 +2829,16 @@ func UnlockApp(params *C.char) *C.char {
 	// Security: Clear password after use
 	defer zeroString(&input.Password)
 
+	// Rate limiting: prevent brute-force on app password
+	// Uses USB path as identifier (one rate limit per device)
+	if !appRateLimiter.AllowAttempt(input.USBPath) {
+		remaining := appRateLimiter.GetRemainingAttempts(input.USBPath)
+		response := NewErrorResponse(ErrRateLimitExceeded,
+			fmt.Sprintf("Too many failed attempts. Please wait before trying again. (%d attempts remaining)", remaining))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
 	// Load app config
 	config, err := app.LoadAppConfig(input.Password, input.USBPath)
 	if err != nil {
@@ -2830,6 +2846,9 @@ func UnlockApp(params *C.char) *C.char {
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
+
+	// Success: reset rate limiter for this device
+	appRateLimiter.ResetWallet(input.USBPath)
 
 	data := map[string]interface{}{
 		"config": config,
