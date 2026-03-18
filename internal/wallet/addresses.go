@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/yourusername/arcsign/internal/services/address"
-	"github.com/yourusername/arcsign/internal/services/bip39service"
-	"github.com/yourusername/arcsign/internal/services/hdkey"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/address"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/bip39service"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/hdkey"
 )
 
 // T022: Generate addresses.json file for supported blockchains

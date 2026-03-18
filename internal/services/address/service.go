@@ -10,8 +10,8 @@ import (
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/yourusername/arcsign/internal/models"
-	"github.com/yourusername/arcsign/internal/services/coinregistry"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/models"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/coinregistry"
 	"golang.org/x/crypto/ripemd160" //nolint:staticcheck // RIPEMD-160 required by crypto address derivation
 )
 

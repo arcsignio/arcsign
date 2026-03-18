@@ -21,13 +21,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/arcsign/chainadapter"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/yourusername/arcsign/internal/security"
-	"github.com/yourusername/arcsign/internal/services/bip39service"
-	chainadapterService "github.com/yourusername/arcsign/internal/services/chainadapter"
-	"github.com/yourusername/arcsign/internal/services/hdkey"
-	"github.com/yourusername/arcsign/internal/services/wallet"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/security"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/bip39service"
+	chainadapterService "github.com/Jason-chen-taiwan/arcSignv2/internal/services/chainadapter"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/hdkey"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/wallet"
 )
 
 var (

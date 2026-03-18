@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/yourusername/arcsign/src/swap/kyberswap"
-	"github.com/yourusername/arcsign/src/swap/openocean"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/swap/kyberswap"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/swap/openocean"
 )
 
 // Provider represents a DEX aggregator provider

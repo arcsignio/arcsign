@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arcsign/chainadapter"
-	"github.com/arcsign/chainadapter/rpc"
-	"github.com/arcsign/chainadapter/storage"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter/rpc"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

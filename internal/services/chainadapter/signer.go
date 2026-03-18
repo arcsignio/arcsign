@@ -4,7 +4,7 @@ package chainadapter
 import (
 	"fmt"
 
-	"github.com/arcsign/chainadapter"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter"
 	"github.com/btcsuite/btcd/btcec"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )

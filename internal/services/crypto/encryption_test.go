@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/yourusername/arcsign/internal/models"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/models"
 )
 
 const testPassword = "TestP@ssw0rd!Secure123"

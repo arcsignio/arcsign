@@ -1,4 +1,4 @@
-module github.com/arcsign/chainadapter
+module github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter
 
 go 1.25.0
 

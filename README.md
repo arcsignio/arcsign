@@ -2089,7 +2089,7 @@ Release workflow 會自動：
 ### 開發設置
 
 ```bash
-git clone https://github.com/yourusername/arcsign.git
+git clone https://github.com/Jason-chen-taiwan/arcSignv2.git
 cd arcsign
 go mod download
 go test ./tests/... -v

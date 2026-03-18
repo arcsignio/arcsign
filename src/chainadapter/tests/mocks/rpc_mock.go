@@ -5,8 +5,8 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/arcsign/chainadapter"
-	"github.com/arcsign/chainadapter/rpc"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter/rpc"
 )
 
 // MockRPCClient implements rpc.RPCClient for testing

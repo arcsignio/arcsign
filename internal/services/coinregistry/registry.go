@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/yourusername/arcsign/internal/models"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/models"
 )
 
 // Registry manages the collection of supported cryptocurrency coins

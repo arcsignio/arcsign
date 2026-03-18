@@ -10,8 +10,8 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/yourusername/arcsign/internal/security"
-	"github.com/yourusername/arcsign/internal/services/crypto"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/security"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/crypto"
 )
 
 // TxLabel represents a user-assigned label for a transaction

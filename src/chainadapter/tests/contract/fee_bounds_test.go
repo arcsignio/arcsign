@@ -7,10 +7,10 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/arcsign/chainadapter"
-	"github.com/arcsign/chainadapter/bitcoin"
-	"github.com/arcsign/chainadapter/ethereum"
-	"github.com/arcsign/chainadapter/rpc"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter/bitcoin"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter/ethereum"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter/rpc"
 )
 
 // MockRPCClient implements rpc.RPCClient for testing

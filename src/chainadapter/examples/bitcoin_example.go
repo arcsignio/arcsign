@@ -8,7 +8,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/arcsign/chainadapter"
+	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter"
 )
 
 // Example 1: 從 BIP44 路徑生成 Bitcoin 地址

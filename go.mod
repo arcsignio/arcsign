@@ -1,4 +1,4 @@
-module github.com/yourusername/arcsign
+module github.com/Jason-chen-taiwan/arcSignv2
 
 go 1.25.0
 
@@ -8,7 +8,7 @@ require (
 )
 
 require (
-	github.com/arcsign/chainadapter v0.0.0-00010101000000-000000000000
+	github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter v0.0.0-00010101000000-000000000000
 	github.com/btcsuite/btcd v0.24.2
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/ethereum/go-ethereum v1.16.5
@@ -38,7 +38,7 @@ require (
 )
 
 // Local module replacement for chainadapter
-replace github.com/arcsign/chainadapter => ./src/chainadapter
+replace github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter => ./src/chainadapter
 
 // Workaround for Zilliqa SDK dependency on old btcec path
 replace github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.3
