@@ -711,6 +711,40 @@ export interface BuildTransactionParams {
   usbPath: string;
   sessionToken?: string;  // ✅ Session token for provider config access (low-risk)
   appPassword?: string;   // DEPRECATED: For backward compatibility
+  isPro?: boolean;        // Pro membership status (enables security checks)
+}
+
+/** Security report from TxGuard (Pro feature) */
+export interface SecurityAssetChange {
+  assetType: string;   // NATIVE, ERC20, ERC721
+  changeType: string;  // TRANSFER, APPROVE
+  from: string;
+  to: string;
+  symbol: string;
+  decimals: number;
+  amount: string;
+  logo: string;
+}
+
+export interface SecurityReport {
+  proRequired: boolean;
+  blacklistMatch?: {
+    value: string;
+    source: string;
+    category: string;
+  };
+  simulation?: {
+    success: boolean;
+    assetChanges: SecurityAssetChange[];
+    gasUsed: string;
+    error?: string;
+  };
+  warnings: Array<{
+    type: string;
+    source: string;
+    message: string;
+  }>;
+  riskLevel: string;  // safe, warning, danger
 }
 
 /**
@@ -727,6 +761,7 @@ export interface BuildTransactionResponse {
   signingPayload: string;  // Base64 encoded payload to sign
   humanReadable: string;   // JSON representation for audit
   buildTimestamp: string;  // ISO timestamp
+  security?: SecurityReport; // Security report (Pro: full, Free: proRequired=true)
 }
 
 export interface SignTransactionParams {
@@ -838,6 +873,7 @@ export async function buildTransaction(
         usbPath: params.usbPath,
         sessionToken: params.sessionToken,  // ✅ Use session token
         appPassword: params.appPassword,    // DEPRECATED: Fallback
+        isPro: params.isPro || false,       // Pro membership for security checks
       },
     });
     console.log("🔧 [tauri-api] buildTransaction response:", result);

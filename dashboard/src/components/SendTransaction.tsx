@@ -15,11 +15,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { AddressBook } from "@/components/AddressBook";
 import { isWalletLocked } from "@/utils/walletLock";
+import { useIsPro } from "@/stores/dashboardStore";
 import tauriApi, {
   type BuildTransactionResponse,
   type SignTransactionResponse,
   type BroadcastTransactionResponse,
   type EstimateFeeResponse,
+  type SecurityReport,
   type AppError,
 } from "@/services/tauri-api";
 
@@ -152,6 +154,123 @@ function shortenAddress(address: string): string {
   return `${address.slice(0, 8)}...${address.slice(-6)}`;
 }
 
+/**
+ * SecurityReportPanel — displays transaction security check results.
+ * Pro users: full security report (blacklist check + simulation preview)
+ * Free users: upgrade prompt with feature preview
+ */
+const SecurityReportPanel: React.FC<{
+  security: SecurityReport;
+  isPro: boolean;
+}> = ({ security, isPro }) => {
+  if (!isPro || security.proRequired) {
+    // Free user: show upgrade prompt
+    return (
+      <div className="security-panel security-panel-free">
+        <div className="security-header">
+          <span className="security-icon">&#x1F6E1;</span>
+          <span className="security-title">Transaction Security</span>
+        </div>
+        <div className="security-free-content">
+          <p className="security-warning-text">This transaction has not been security checked.</p>
+          <div className="security-features">
+            <p className="security-features-title">Pro members get:</p>
+            <ul>
+              <li>Malicious address auto-detection</li>
+              <li>Transaction simulation preview</li>
+              <li>OFAC sanctions list check</li>
+            </ul>
+          </div>
+          <a
+            href="https://arcsign.io/mint"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="security-upgrade-btn"
+          >
+            Upgrade to Pro — 30 USDT/year
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // Pro user: show full security report
+  const isDanger = security.riskLevel === 'danger';
+  const isWarning = security.riskLevel === 'warning';
+
+  return (
+    <div className={`security-panel ${isDanger ? 'security-panel-danger' : isWarning ? 'security-panel-warning' : 'security-panel-safe'}`}>
+      <div className="security-header">
+        <span className="security-icon">&#x1F6E1;</span>
+        <span className="security-title">Security Check</span>
+        <span className={`security-badge ${security.riskLevel}`}>
+          {isDanger ? 'DANGER' : isWarning ? 'WARNING' : 'SAFE'}
+        </span>
+      </div>
+
+      {/* Blacklist warning */}
+      {security.blacklistMatch && (
+        <div className="security-alert security-alert-danger">
+          <strong>Blacklisted Address</strong>
+          <p>Target address is on the {security.blacklistMatch.source} blacklist ({security.blacklistMatch.category}).</p>
+          <p className="security-alert-address">{security.blacklistMatch.value}</p>
+        </div>
+      )}
+
+      {/* Simulation warnings */}
+      {security.warnings?.filter(w => w.type === 'SIMULATION_FAILED').map((w, i) => (
+        <div key={i} className="security-alert security-alert-warning">
+          <strong>Simulation Warning</strong>
+          <p>{w.message}</p>
+        </div>
+      ))}
+
+      {/* Simulation results */}
+      {security.simulation?.success && security.simulation.assetChanges?.length > 0 && (
+        <div className="security-simulation">
+          <p className="security-sim-title">Simulation Preview</p>
+          {security.simulation.assetChanges.map((change, i) => {
+            const isOutgoing = change.from.toLowerCase() !== change.to.toLowerCase() && change.changeType === 'TRANSFER';
+            return (
+              <div key={i} className={`security-sim-row ${isOutgoing ? 'outgoing' : 'incoming'}`}>
+                <span className="sim-direction">{isOutgoing ? '\u25BC' : '\u25B2'}</span>
+                <span className="sim-amount">
+                  {change.amount ? formatSimAmount(change.amount, change.decimals) : '?'} {change.symbol}
+                </span>
+              </div>
+            );
+          })}
+          {security.simulation.gasUsed && (
+            <div className="security-sim-row gas">
+              <span className="sim-direction">&#x26FD;</span>
+              <span className="sim-amount">Gas: {security.simulation.gasUsed}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* No blacklist match = safe */}
+      {!security.blacklistMatch && !isDanger && !isWarning && (
+        <p className="security-safe-text">Address is not on any known blacklist.</p>
+      )}
+    </div>
+  );
+};
+
+/** Format simulation amount from raw units to human-readable */
+function formatSimAmount(rawAmount: string, decimals: number): string {
+  try {
+    const num = parseFloat(rawAmount) / Math.pow(10, decimals || 18);
+    if (num === 0) return '0';
+    if (num < 0.0001) return '<0.0001';
+    if (num < 1) return num.toFixed(4);
+    if (num < 1000) return num.toFixed(2);
+    return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  } catch {
+    return rawAmount;
+  }
+}
+
 export const SendTransaction: React.FC<SendTransactionProps> = ({
   walletId,
   walletHasPassphrase = false,
@@ -162,6 +281,9 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
   onBack,
   onSuccess,
 }) => {
+  // Pro membership status
+  const isPro = useIsPro();
+
   // Token selection state
   const [selectedToken, setSelectedToken] = useState<SendableToken | null>(null);
 
@@ -275,6 +397,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         feeSpeed,
         usbPath,
         sessionToken,  // ✅ Low-risk: building transaction uses session token
+        isPro,         // Pro membership enables security checks
         // For ERC-20 tokens, include token contract address
         tokenAddress: selectedToken.tokenAddress || undefined,
       });
@@ -698,12 +821,21 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
             )}
           </div>
 
+          {/* Security Report Panel (Pro: full report, Free: upgrade prompt) */}
+          {unsignedTx.security && (
+            <SecurityReportPanel security={unsignedTx.security} isPro={isPro} />
+          )}
+
           <div className="review-actions">
             <button className="secondary-button" onClick={() => setStep("input")}>
               Edit
             </button>
-            <button className="primary-button" onClick={() => setStep("password")}>
-              Confirm & Sign
+            <button
+              className="primary-button"
+              onClick={() => setStep("password")}
+              style={unsignedTx.security?.riskLevel === 'danger' ? { background: '#dc2626' } : undefined}
+            >
+              {unsignedTx.security?.riskLevel === 'danger' ? 'I Understand the Risk — Continue' : 'Confirm & Sign'}
             </button>
           </div>
         </div>
@@ -1648,6 +1780,174 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           to {
             transform: rotate(360deg);
           }
+        }
+
+        /* Security Report Panel */
+        .security-panel {
+          margin-top: 16px;
+          padding: 16px;
+          border-radius: 12px;
+          border: 1px solid #334155;
+        }
+        .security-panel-safe {
+          background: rgba(13, 148, 136, 0.08);
+          border-color: rgba(13, 148, 136, 0.3);
+        }
+        .security-panel-warning {
+          background: rgba(245, 158, 11, 0.08);
+          border-color: rgba(245, 158, 11, 0.3);
+        }
+        .security-panel-danger {
+          background: rgba(220, 38, 38, 0.08);
+          border-color: rgba(220, 38, 38, 0.3);
+        }
+        .security-panel-free {
+          background: rgba(100, 116, 139, 0.08);
+          border-color: rgba(100, 116, 139, 0.3);
+        }
+        .security-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+        .security-icon {
+          font-size: 18px;
+        }
+        .security-title {
+          font-weight: 600;
+          color: #e2e8f0;
+          flex: 1;
+        }
+        .security-badge {
+          font-size: 11px;
+          font-weight: 700;
+          padding: 2px 8px;
+          border-radius: 4px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .security-badge.safe {
+          background: rgba(13, 148, 136, 0.2);
+          color: #2dd4bf;
+        }
+        .security-badge.warning {
+          background: rgba(245, 158, 11, 0.2);
+          color: #fbbf24;
+        }
+        .security-badge.danger {
+          background: rgba(220, 38, 38, 0.2);
+          color: #f87171;
+        }
+        .security-alert {
+          padding: 12px;
+          border-radius: 8px;
+          margin-bottom: 8px;
+        }
+        .security-alert-danger {
+          background: rgba(220, 38, 38, 0.12);
+          border: 1px solid rgba(220, 38, 38, 0.3);
+          color: #fca5a5;
+        }
+        .security-alert-warning {
+          background: rgba(245, 158, 11, 0.12);
+          border: 1px solid rgba(245, 158, 11, 0.3);
+          color: #fde68a;
+        }
+        .security-alert strong {
+          display: block;
+          margin-bottom: 4px;
+          color: #f87171;
+        }
+        .security-alert p {
+          font-size: 13px;
+          margin: 2px 0;
+        }
+        .security-alert-address {
+          font-family: monospace;
+          font-size: 12px;
+          opacity: 0.8;
+          word-break: break-all;
+        }
+        .security-simulation {
+          margin-top: 8px;
+        }
+        .security-sim-title {
+          font-size: 13px;
+          font-weight: 600;
+          color: #94a3b8;
+          margin-bottom: 8px;
+        }
+        .security-sim-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 0;
+          font-size: 14px;
+        }
+        .security-sim-row.outgoing {
+          color: #f87171;
+        }
+        .security-sim-row.incoming {
+          color: #2dd4bf;
+        }
+        .security-sim-row.gas {
+          color: #94a3b8;
+          font-size: 12px;
+          border-top: 1px solid #334155;
+          padding-top: 8px;
+          margin-top: 4px;
+        }
+        .sim-direction {
+          width: 16px;
+          text-align: center;
+        }
+        .sim-amount {
+          font-weight: 500;
+        }
+        .security-safe-text {
+          font-size: 13px;
+          color: #2dd4bf;
+        }
+        .security-free-content {
+          text-align: center;
+        }
+        .security-warning-text {
+          color: #fbbf24;
+          font-weight: 500;
+          margin-bottom: 12px;
+        }
+        .security-features {
+          text-align: left;
+          margin-bottom: 16px;
+        }
+        .security-features-title {
+          font-size: 13px;
+          color: #94a3b8;
+          margin-bottom: 6px;
+        }
+        .security-features ul {
+          margin: 0;
+          padding-left: 20px;
+          font-size: 13px;
+          color: #cbd5e1;
+        }
+        .security-features li {
+          margin-bottom: 4px;
+        }
+        .security-upgrade-btn {
+          display: inline-block;
+          background: linear-gradient(135deg, #0d9488, #2dd4bf);
+          color: white;
+          padding: 10px 24px;
+          border-radius: 8px;
+          text-decoration: none;
+          font-weight: 600;
+          font-size: 14px;
+          transition: opacity 0.2s;
+        }
+        .security-upgrade-btn:hover {
+          opacity: 0.9;
         }
       `}</style>
     </div>

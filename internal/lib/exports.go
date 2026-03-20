@@ -50,6 +50,9 @@ import (
 	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/hdkey"
 	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/ratelimit"
 	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/wallet"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/security/blacklist"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/security/simulation"
+	"github.com/Jason-chen-taiwan/arcSignv2/internal/security/txguard"
 	"github.com/Jason-chen-taiwan/arcSignv2/src/swap"
 )
 
@@ -66,6 +69,26 @@ var walletSessionManager *app.WalletSessionManager
 // 5 attempts per 2 minutes — more generous than wallet-level (3/min)
 // because app unlock is a higher-friction operation
 var appRateLimiter = ratelimit.NewRateLimiter(5, 2*time.Minute)
+
+// Global TxGuard for transaction security checks (blacklist + simulation)
+var txGuardInstance *txguard.Guard
+
+// initTxGuard initializes the global TxGuard instance (lazy init).
+func initTxGuard() *txguard.Guard {
+	if txGuardInstance != nil {
+		return txGuardInstance
+	}
+	blMgr := blacklist.NewManager(nil) // uses default HTTP fetcher
+	sim := simulation.NewSimulator()
+	txGuardInstance = txguard.NewGuard(blMgr, sim)
+	// Start background blacklist update (best-effort)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		_ = blMgr.Update(ctx)
+	}()
+	return txGuardInstance
+}
 
 // init is called automatically when the library is loaded.
 // It sets up security measures to protect sensitive data.
@@ -1332,6 +1355,7 @@ func BuildTransaction(params *C.char) *C.char {
 		USBPath      string `json:"usbPath"`      // USB path for provider config
 		SessionToken string `json:"sessionToken"` // PREFERRED: Session token for app auth
 		AppPassword  string `json:"appPassword"`  // DEPRECATED: App password for decryption
+		IsPro        bool   `json:"isPro"`        // Pro membership status (for security features)
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -1361,6 +1385,7 @@ func BuildTransaction(params *C.char) *C.char {
 
 	// Build RPC endpoint from provider configuration
 	rpcEndpoint := ""
+	alchemyAPIKey := "" // Captured for transaction simulation
 	if input.USBPath != "" && appPassword != "" {
 		// Load provider config to get Alchemy API key
 		configPath := input.USBPath + "/provider_config.enc"
@@ -1375,6 +1400,7 @@ func BuildTransaction(params *C.char) *C.char {
 				config, err = store.GetBestProvider("ethereum")
 			}
 			if err == nil && config != nil && config.APIKey != "" {
+				alchemyAPIKey = config.APIKey
 				// Build Alchemy RPC URL based on chain
 				rpcEndpoint = buildAlchemyRPCEndpoint(input.ChainID, config.APIKey)
 			}
@@ -1434,6 +1460,29 @@ func BuildTransaction(params *C.char) *C.char {
 	// Encode signing payload as base64 for JSON transport
 	signingPayloadB64 := base64.StdEncoding.EncodeToString(unsigned.SigningPayload)
 
+	// Perform security check (blacklist + simulation) via TxGuard
+	guard := initTxGuard()
+	txValue := "0x0"
+	txData := ""
+	if unsigned.ChainSpecific != nil {
+		if v, ok := unsigned.ChainSpecific["tx_value"]; ok {
+			if vs, ok := v.(string); ok {
+				txValue = vs
+			}
+		}
+		if d, ok := unsigned.ChainSpecific["data"]; ok {
+			if ds, ok := d.(string); ok {
+				txData = ds
+			}
+		}
+	}
+	securityReport := guard.Check(ctx, input.IsPro, input.To, input.ChainID, alchemyAPIKey, simulation.TxParams{
+		From:  input.From,
+		To:    input.To,
+		Value: txValue,
+		Data:  txData,
+	})
+
 	// Marshal response
 	data := map[string]interface{}{
 		"id":              unsigned.ID,
@@ -1446,6 +1495,7 @@ func BuildTransaction(params *C.char) *C.char {
 		"humanReadable":   unsigned.HumanReadable,
 		"buildTimestamp":  time.Now().Format(time.RFC3339),
 		"chainSpecific":   unsigned.ChainSpecific, // Critical for transaction reconstruction during signing
+		"security":        securityReport,          // Security report (Pro: full check, Free: proRequired=true)
 	}
 
 	response := NewSuccessResponse(data)

@@ -16,6 +16,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { isWalletLocked } from "@/utils/walletLock";
+import { useIsPro } from "@/stores/dashboardStore";
 import tauriApi, {
   type SwapQuoteResponse,
   type BuildSwapTransactionResponse,
@@ -209,6 +210,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 }) => {
   void _walletHasPassphrase; // Reserved for future passphrase validation
   const { t } = useTranslation();
+  const isPro = useIsPro();
   // Token selection state
   const [fromToken, setFromToken] = useState<SendableToken | null>(null);
   const [toToken, setToToken] = useState<{
@@ -702,6 +704,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         feeSpeed: "fast", // Use fast for swap tx to ensure they go through
         usbPath,
         sessionToken,  // ✅ Low-risk: build transaction
+        isPro,         // Pro membership for security checks
       });
 
       console.log("✅ Build result:", buildResult);
