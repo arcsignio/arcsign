@@ -128,3 +128,58 @@ type SwapTransaction struct {
 	ChainID      int          `json:"chainId"`
 	RouteSummary RouteSummary `json:"routeSummary"`
 }
+
+// TokenListAPIResponse from KyberSwap Settings API
+type TokenListAPIResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		Tokens     []TokenListItem `json:"tokens"`
+		Pagination struct {
+			TotalItems int `json:"totalItems"`
+		} `json:"pagination"`
+	} `json:"data"`
+}
+
+// TokenListItem represents a token from KyberSwap Settings API
+type TokenListItem struct {
+	Address  string `json:"address"`
+	Symbol   string `json:"symbol"`
+	Name     string `json:"name"`
+	Decimals int    `json:"decimals"`
+	LogoURI  string `json:"logoURI"`
+	ChainID  int    `json:"chainId"`
+}
+
+// PublicRPCs maps chainID to a public RPC URL for on-chain ERC20 queries
+var PublicRPCs = map[int]string{
+	1:     "https://eth.llamarpc.com",
+	56:    "https://bsc-dataseed.binance.org",
+	137:   "https://polygon-rpc.com",
+	42161: "https://arb1.arbitrum.io/rpc",
+	10:    "https://mainnet.optimism.io",
+	8453:  "https://mainnet.base.org",
+	43114: "https://api.avax.network/ext/bc/C/rpc",
+	250:   "https://rpc.ftm.tools",
+}
+
+// JSONRPCRequest is a minimal JSON-RPC 2.0 request for eth_call
+type JSONRPCRequest struct {
+	JSONRPC string        `json:"jsonrpc"`
+	Method  string        `json:"method"`
+	Params  []interface{} `json:"params"`
+	ID      int           `json:"id"`
+}
+
+// JSONRPCResponse is a minimal JSON-RPC 2.0 response
+type JSONRPCResponse struct {
+	JSONRPC string `json:"jsonrpc"`
+	ID      int    `json:"id"`
+	Result  string `json:"result"`
+}
+
+// EthCallParam for eth_call
+type EthCallParam struct {
+	To   string `json:"to"`
+	Data string `json:"data"`
+}

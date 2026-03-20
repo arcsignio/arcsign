@@ -336,3 +336,109 @@ func GetRouterAddress(chainID int) string {
 	// KyberSwap uses the same router address across chains
 	return "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5"
 }
+
+// GetTokenList fetches available tokens from KyberSwap Settings API
+func (c *Client) GetTokenList(ctx context.Context, chainID int) ([]TokenInfo, error) {
+	if !IsChainSupported(chainID) {
+		return nil, fmt.Errorf("unsupported chain: %d", chainID)
+	}
+
+	// KyberSwap Settings API for token list
+	urlStr := fmt.Sprintf("https://ks-setting.kyberswap.com/api/v1/tokens?page=1&pageSize=100&isWhitelisted=true&chainIds=%d", chainID)
+
+	body, err := c.doRequest(ctx, http.MethodGet, urlStr, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch KyberSwap token list: %w", err)
+	}
+
+	var resp TokenListAPIResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse token list response: %w", err)
+	}
+
+	if resp.Code != 0 {
+		return nil, fmt.Errorf("KyberSwap token list error: %s", resp.Message)
+	}
+
+	// Convert to standard TokenInfo
+	tokens := make([]TokenInfo, len(resp.Data.Tokens))
+	for i, t := range resp.Data.Tokens {
+		tokens[i] = TokenInfo{
+			Symbol:   t.Symbol,
+			Name:     t.Name,
+			Address:  t.Address,
+			Decimals: t.Decimals,
+			LogoURI:  t.LogoURI,
+		}
+	}
+
+	return tokens, nil
+}
+
+// CheckAllowance queries the on-chain ERC20 allowance for the KyberSwap router
+// Uses a public RPC to call the standard ERC20 allowance(owner, spender) function
+func (c *Client) CheckAllowance(ctx context.Context, chainID int, tokenAddress, walletAddress string) (*big.Int, error) {
+	if !IsChainSupported(chainID) {
+		return nil, fmt.Errorf("unsupported chain: %d", chainID)
+	}
+
+	// Native tokens don't need allowance
+	if tokenAddress == NativeTokenAddress {
+		maxUint256 := new(big.Int)
+		maxUint256.SetString("115792089237316195423570985008687907853269984665640564039457584007913129639935", 10)
+		return maxUint256, nil
+	}
+
+	rpcURL, ok := PublicRPCs[chainID]
+	if !ok {
+		return nil, fmt.Errorf("no public RPC available for chain %d", chainID)
+	}
+
+	spender := GetRouterAddress(chainID)
+
+	// Build ERC20 allowance(address owner, address spender) calldata
+	// Function selector: 0xdd62ed3e
+	ownerPadded := fmt.Sprintf("%064s", walletAddress[2:])   // remove 0x, pad to 32 bytes
+	spenderPadded := fmt.Sprintf("%064s", spender[2:])       // remove 0x, pad to 32 bytes
+	calldata := "0xdd62ed3e" + ownerPadded + spenderPadded
+
+	// Build JSON-RPC request
+	rpcReq := JSONRPCRequest{
+		JSONRPC: "2.0",
+		Method:  "eth_call",
+		Params: []interface{}{
+			EthCallParam{To: tokenAddress, Data: calldata},
+			"latest",
+		},
+		ID: 1,
+	}
+
+	reqBody, err := json.Marshal(rpcReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal RPC request: %w", err)
+	}
+
+	respBody, err := c.doRequest(ctx, http.MethodPost, rpcURL, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("eth_call failed: %w", err)
+	}
+
+	var rpcResp JSONRPCResponse
+	if err := json.Unmarshal(respBody, &rpcResp); err != nil {
+		return nil, fmt.Errorf("failed to parse RPC response: %w", err)
+	}
+
+	// Parse hex result to big.Int
+	allowance := new(big.Int)
+	if rpcResp.Result == "" || rpcResp.Result == "0x" {
+		return big.NewInt(0), nil
+	}
+	// Remove 0x prefix
+	hexStr := rpcResp.Result
+	if len(hexStr) > 2 && hexStr[:2] == "0x" {
+		hexStr = hexStr[2:]
+	}
+	allowance.SetString(hexStr, 16)
+
+	return allowance, nil
+}

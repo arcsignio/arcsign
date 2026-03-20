@@ -223,10 +223,10 @@ func (a *Aggregator) CheckAllowance(ctx context.Context, provider Provider, chai
 		return a.openoceanClient.GetAllowance(ctx, chainID, tokenAddress, walletAddress)
 
 	case ProviderKyberSwap:
-		// KyberSwap doesn't have allowance API, return max uint256
-		maxUint256 := new(big.Int)
-		maxUint256.SetString("115792089237316195423570985008687907853269984665640564039457584007913129639935", 10)
-		return maxUint256, nil
+		if !kyberswap.IsChainSupported(chainID) {
+			return nil, fmt.Errorf("chain %d is not supported by KyberSwap", chainID)
+		}
+		return a.kyberswapClient.CheckAllowance(ctx, chainID, tokenAddress, walletAddress)
 
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", p)
@@ -259,13 +259,29 @@ func (a *Aggregator) GetTokens(ctx context.Context, provider Provider, chainID i
 		return result, nil
 
 	case ProviderKyberSwap:
-		// KyberSwap doesn't have token list API, fallback to OpenOcean token list
-		// since tokens are the same across DEXes on the same chain
-		if !openocean.IsChainSupported(chainID) {
-			return nil, fmt.Errorf("chain %d is not supported", chainID)
+		if !kyberswap.IsChainSupported(chainID) {
+			return nil, fmt.Errorf("chain %d is not supported by KyberSwap", chainID)
 		}
-		tokens, err := a.openoceanClient.GetTokenList(ctx, chainID)
+		tokens, err := a.kyberswapClient.GetTokenList(ctx, chainID)
 		if err != nil {
+			// Fallback to OpenOcean token list if KyberSwap Settings API fails
+			if openocean.IsChainSupported(chainID) {
+				ooTokens, ooErr := a.openoceanClient.GetTokenList(ctx, chainID)
+				if ooErr != nil {
+					return nil, fmt.Errorf("KyberSwap token list failed: %w (OpenOcean fallback also failed: %v)", err, ooErr)
+				}
+				result := make([]TokenInfo, len(ooTokens))
+				for i, t := range ooTokens {
+					result[i] = TokenInfo{
+						Symbol:   t.Symbol,
+						Name:     t.Name,
+						Address:  t.Address,
+						Decimals: t.Decimals,
+						LogoURI:  t.LogoURI,
+					}
+				}
+				return result, nil
+			}
 			return nil, err
 		}
 		result := make([]TokenInfo, len(tokens))
