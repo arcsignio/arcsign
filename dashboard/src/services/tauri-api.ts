@@ -1204,6 +1204,7 @@ export interface CheckSwapAllowanceParams {
   chainId: string;
   tokenAddress: string;
   walletAddress: string;
+  provider: string;       // DEX provider: "openocean" | "kyberswap"
   usbPath: string;
   sessionToken?: string;  // ✅ PREFERRED: Session token
   appPassword?: string;   // DEPRECATED: Backward compatibility
@@ -1334,6 +1335,7 @@ export async function checkSwapAllowance(
           chainId: params.chainId,
           tokenAddress: params.tokenAddress,
           walletAddress: params.walletAddress,
+          provider: params.provider,
           usbPath: params.usbPath,
           sessionToken: params.sessionToken,  // ✅ Use session token
           appPassword: params.appPassword,    // DEPRECATED: Fallback

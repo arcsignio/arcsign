@@ -480,6 +480,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
             chainId,
             tokenAddress: fromToken.tokenAddress,
             walletAddress: fromToken.fromAddress,
+            provider: selectedProvider,
             usbPath,
             sessionToken,  // ✅ Low-risk: allowance query
           });

@@ -70,6 +70,14 @@ var walletSessionManager *app.WalletSessionManager
 // because app unlock is a higher-friction operation
 var appRateLimiter = ratelimit.NewRateLimiter(5, 2*time.Minute)
 
+// Wallet-level rate limiter for password/signing operations
+// 3 attempts per 1 minute — strict limit for: UnlockWallet, SignTransaction, SignMessage, SignTypedData
+var walletRateLimiter = ratelimit.NewRateLimiter(3, 1*time.Minute)
+
+// Transaction-level rate limiter for build/broadcast operations
+// 10 attempts per 1 minute — moderate limit to prevent spam
+var txRateLimiter = ratelimit.NewRateLimiter(10, 1*time.Minute)
+
 // Global TxGuard for transaction security checks (blacklist + simulation)
 var txGuardInstance *txguard.Guard
 
@@ -573,6 +581,15 @@ func UnlockWallet(params *C.char) *C.char {
 		zeroString(&input.Password)
 	}()
 
+	// Rate limiting: prevent brute-force on wallet password
+	if !walletRateLimiter.AllowAttempt(input.WalletID) {
+		remaining := walletRateLimiter.GetRemainingAttempts(input.WalletID)
+		response := NewErrorResponse(ErrRateLimitExceeded,
+			fmt.Sprintf("Too many failed attempts. Please wait before trying again. (%d attempts remaining)", remaining))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
 	// Create wallet service and attempt to restore (decrypt) wallet
 	svc := wallet.NewWalletService(input.USBPath)
 
@@ -597,7 +614,9 @@ func UnlockWallet(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Password verified successfully - return wallet info
+	// Password verified successfully - reset rate limiter
+	walletRateLimiter.ResetWallet(input.WalletID)
+
 	data := map[string]interface{}{
 		"walletId":   walletObj.ID,
 		"walletName": walletObj.Name,
@@ -1374,6 +1393,14 @@ func BuildTransaction(params *C.char) *C.char {
 	// Zero sensitive data after function returns
 	defer zeroString(&input.AppPassword)
 
+	// Rate limiting: prevent transaction build spam
+	if !txRateLimiter.AllowAttempt(input.USBPath) {
+		response := NewErrorResponse(ErrRateLimitExceeded,
+			"Too many transaction requests. Please wait before trying again.")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
 	// Step 0: Validate session token and get appPassword
 	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
 	if err != nil {
@@ -1581,6 +1608,15 @@ func SignTransaction(params *C.char) *C.char {
 	defer zeroString(&input.Password)
 	defer zeroString(&input.Passphrase)
 	defer zeroString(&input.AppPassword)
+
+	// Rate limiting: prevent brute-force on wallet signing
+	if !walletRateLimiter.AllowAttempt(input.WalletID) {
+		remaining := walletRateLimiter.GetRemainingAttempts(input.WalletID)
+		response := NewErrorResponse(ErrRateLimitExceeded,
+			fmt.Sprintf("Too many signing attempts. Please wait before trying again. (%d attempts remaining)", remaining))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
 
 	// Step 0a: Validate session token (optional - for provider config access if needed)
 	// SignTransaction mainly uses wallet password, but session validation is useful
@@ -1861,6 +1897,14 @@ func BroadcastTransaction(params *C.char) *C.char {
 	// Validate USB path to prevent path traversal
 	if err := ValidateUSBPath(input.USBPath); err != nil {
 		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Rate limiting: prevent broadcast spam
+	if !txRateLimiter.AllowAttempt(input.USBPath) {
+		response := NewErrorResponse(ErrRateLimitExceeded,
+			"Too many broadcast requests. Please wait before trying again.")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -4973,6 +5017,7 @@ func CheckSwapAllowance(params *C.char) *C.char {
 		ChainID       string `json:"chainId"`
 		TokenAddress  string `json:"tokenAddress"`
 		WalletAddress string `json:"walletAddress"`
+		Provider      string `json:"provider"` // DEX provider: "openocean" | "kyberswap"
 		USBPath       string `json:"usbPath"`
 		SessionToken  string `json:"sessionToken"` // PREFERRED: Session token (optional for read-only API)
 		AppPassword   string `json:"appPassword"`  // DEPRECATED
@@ -4999,7 +5044,7 @@ func CheckSwapAllowance(params *C.char) *C.char {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	allowance, err := aggregator.CheckAllowance(ctx, "", chainIDToInt(input.ChainID), input.TokenAddress, input.WalletAddress)
+	allowance, err := aggregator.CheckAllowance(ctx, swap.Provider(input.Provider), chainIDToInt(input.ChainID), input.TokenAddress, input.WalletAddress)
 	if err != nil {
 		response := NewErrorResponse(ErrSwapAllowanceFailed, GetUserFriendlyMessage(ErrSwapAllowanceFailed))
 		jsonBytes, _ := json.Marshal(response)
@@ -6182,6 +6227,15 @@ func SignMessage(params *C.char) *C.char {
 	defer zeroString(&input.Password)
 	defer zeroString(&input.Passphrase)
 
+	// Rate limiting: prevent brute-force on message signing
+	if !walletRateLimiter.AllowAttempt(input.WalletID) {
+		remaining := walletRateLimiter.GetRemainingAttempts(input.WalletID)
+		response := NewErrorResponse(ErrRateLimitExceeded,
+			fmt.Sprintf("Too many signing attempts. Please wait before trying again. (%d attempts remaining)", remaining))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
 	// Step 1: Decrypt wallet to get mnemonic
 	walletSvc := wallet.NewWalletService(input.USBPath)
 	mnemonic, err := walletSvc.RestoreWallet(input.WalletID, input.Password)
@@ -6375,6 +6429,15 @@ func SignTypedData(params *C.char) *C.char {
 
 	defer zeroString(&input.Password)
 	defer zeroString(&input.Passphrase)
+
+	// Rate limiting: prevent brute-force on typed data signing
+	if !walletRateLimiter.AllowAttempt(input.WalletID) {
+		remaining := walletRateLimiter.GetRemainingAttempts(input.WalletID)
+		response := NewErrorResponse(ErrRateLimitExceeded,
+			fmt.Sprintf("Too many signing attempts. Please wait before trying again. (%d attempts remaining)", remaining))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
 
 	// Parse typed data
 	var typedData apitypes.TypedData

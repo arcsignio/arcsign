@@ -34,6 +34,7 @@ import { NFTGallery } from "@/components/NFTGallery";
 import { DefiPositions } from "@/components/DefiPositions";
 import { TokenApprovals } from "@/components/TokenApprovals";
 import { AddressBook } from "@/components/AddressBook";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
 
@@ -1217,18 +1218,20 @@ export function WalletDetail({
   if (showSendTransaction && sessionToken) {
     console.log("💸 [WalletDetail] Rendering SendTransaction component with", availableTokensForSend.length, "tokens");
     return (
-      <SendTransaction
-        walletId={wallet.id}
-        walletHasPassphrase={wallet.has_passphrase}
-        walletPassphrase={validatedPassphrase || undefined}
-        availableTokens={availableTokensForSend}
-        usbPath={usbPath}
-        sessionToken={sessionToken}  // ✅ Session token for low-risk operations
-        onBack={() => setShowSendTransaction(false)}
-        onSuccess={(txHash) => {
-          console.log("✅ Transaction submitted:", txHash);
-        }}
-      />
+      <ErrorBoundary level="component">
+        <SendTransaction
+          walletId={wallet.id}
+          walletHasPassphrase={wallet.has_passphrase}
+          walletPassphrase={validatedPassphrase || undefined}
+          availableTokens={availableTokensForSend}
+          usbPath={usbPath}
+          sessionToken={sessionToken}  // ✅ Session token for low-risk operations
+          onBack={() => setShowSendTransaction(false)}
+          onSuccess={(txHash) => {
+            console.log("✅ Transaction submitted:", txHash);
+          }}
+        />
+      </ErrorBoundary>
     );
   }
 
@@ -1236,18 +1239,20 @@ export function WalletDetail({
   if (showSwapTransaction && sessionToken) {
     console.log("🔄 [WalletDetail] Rendering SwapTransaction component with", availableTokensForSend.length, "tokens");
     return (
-      <SwapTransaction
-        walletId={wallet.id}
-        walletHasPassphrase={wallet.has_passphrase}
-        walletPassphrase={validatedPassphrase || undefined}
-        availableTokens={availableTokensForSend}
-        usbPath={usbPath}
-        sessionToken={sessionToken}  // ✅ Uses session token
-        onBack={() => setShowSwapTransaction(false)}
-        onSuccess={(txHash) => {
-          console.log("✅ Swap transaction submitted:", txHash);
-        }}
-      />
+      <ErrorBoundary level="component">
+        <SwapTransaction
+          walletId={wallet.id}
+          walletHasPassphrase={wallet.has_passphrase}
+          walletPassphrase={validatedPassphrase || undefined}
+          availableTokens={availableTokensForSend}
+          usbPath={usbPath}
+          sessionToken={sessionToken}  // ✅ Uses session token
+          onBack={() => setShowSwapTransaction(false)}
+          onSuccess={(txHash) => {
+            console.log("✅ Swap transaction submitted:", txHash);
+          }}
+        />
+      </ErrorBoundary>
     );
   }
 
@@ -1255,18 +1260,20 @@ export function WalletDetail({
   if (showStakingTransaction && sessionToken) {
     console.log("📈 [WalletDetail] Rendering StakingTransaction component with", availableTokensForSend.length, "tokens");
     return (
-      <StakingTransaction
-        walletId={wallet.id}
-        walletHasPassphrase={wallet.has_passphrase}
-        walletPassphrase={validatedPassphrase || undefined}
-        availableTokens={availableTokensForSend}
-        usbPath={usbPath}
-        sessionToken={sessionToken}  // ✅ Uses session token
-        onBack={() => setShowStakingTransaction(false)}
-        onSuccess={(txHash) => {
-          console.log("✅ Staking transaction submitted:", txHash);
-        }}
-      />
+      <ErrorBoundary level="component">
+        <StakingTransaction
+          walletId={wallet.id}
+          walletHasPassphrase={wallet.has_passphrase}
+          walletPassphrase={validatedPassphrase || undefined}
+          availableTokens={availableTokensForSend}
+          usbPath={usbPath}
+          sessionToken={sessionToken}  // ✅ Uses session token
+          onBack={() => setShowStakingTransaction(false)}
+          onSuccess={(txHash) => {
+            console.log("✅ Staking transaction submitted:", txHash);
+          }}
+        />
+      </ErrorBoundary>
     );
   }
 
