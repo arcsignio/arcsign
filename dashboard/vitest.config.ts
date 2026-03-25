@@ -19,8 +19,10 @@ export default defineConfig({
 
     // Coverage configuration
     coverage: {
-      provider: 'v8',
+      provider: 'istanbul',
       reporter: ['text', 'json', 'html'],
+      include: ['src/**/*.{ts,tsx}'],
+      all: false,
       exclude: [
         'node_modules/',
         'tests/',
@@ -36,6 +38,7 @@ export default defineConfig({
       branches: 70,
       statements: 70,
     },
+
 
     // Test globals (optional, enables describe/it/expect without imports)
     globals: true,

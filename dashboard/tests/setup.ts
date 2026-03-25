@@ -37,22 +37,58 @@ vi.mock('@tauri-apps/api/window', () => ({
   },
 }));
 
+// Mock @tauri-apps/api/tauri (some components import from here)
+vi.mock('@tauri-apps/api/tauri', () => ({
+  invoke: mockInvoke,
+}));
+
+// Mock @tauri-apps/api/dialog
+vi.mock('@tauri-apps/api/dialog', () => ({
+  save: vi.fn(),
+  open: vi.fn(),
+  ask: vi.fn(),
+  message: vi.fn(),
+  confirm: vi.fn(),
+}));
+
+// Mock @tauri-apps/api/fs
+vi.mock('@tauri-apps/api/fs', () => ({
+  writeBinaryFile: vi.fn(),
+  readBinaryFile: vi.fn(),
+  readTextFile: vi.fn(),
+  writeTextFile: vi.fn(),
+  exists: vi.fn(),
+}));
+
+// Mock @tauri-apps/api/updater
+vi.mock('@tauri-apps/api/updater', () => ({
+  checkUpdate: vi.fn(),
+  installUpdate: vi.fn(),
+  onUpdaterEvent: vi.fn(),
+}));
+
+// Mock @tauri-apps/api/process
+vi.mock('@tauri-apps/api/process', () => ({
+  relaunch: vi.fn(),
+  exit: vi.fn(),
+}));
+
+// Mock react-i18next — always return the key for predictable testing
+// IMPORTANT: t and i18n must be stable references to prevent infinite loops
+// in components that use t in useCallback/useMemo dependencies
+const stableT = (key: string, _defaultOrOptions?: unknown) => key;
+const stableI18n = { language: 'en', changeLanguage: () => Promise.resolve() };
+const stableUseTranslationReturn = { t: stableT, i18n: stableI18n };
+vi.mock('react-i18next', () => ({
+  useTranslation: () => stableUseTranslationReturn,
+  Trans: ({ children }: { children: React.ReactNode }) => children,
+  initReactI18next: { type: '3rdParty', init: () => {} },
+}));
+
 // Global test utilities
 global.mockTauriInvoke = mockInvoke;
 global.mockTauriListen = mockListen;
 global.mockTauriEmit = mockEmit;
 
-// Reset mocks before each test
-beforeEach(() => {
-  vi.clearAllMocks();
-});
-
-// Clean up after each test
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
-// Suppress console errors in tests (optional)
-// Uncomment if you want cleaner test output
-// global.console.error = vi.fn();
-// global.console.warn = vi.fn();
+// Note: vitest.config.ts has mockReset: true which auto-resets mocks before each test
+// vi.clearAllMocks() in beforeEach is NOT needed (would clear call counts we might inspect)
