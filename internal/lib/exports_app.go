@@ -253,23 +253,6 @@ func UnlockApp(params *C.char) *C.char {
 	return C.CString(string(jsonBytes))
 }
 
-//export GetTokenBalances
-// GetTokenBalances queries token balances for all addresses in a wallet across multiple chains
-// using Alchemy API. Returns aggregated token balances with USD values.
-//
-// Security: Uses session token for app-level auth (low-risk operation).
-// Wallet password still required to verify wallet access.
-//
-// Input JSON: {
-//   "walletId": "uuid",
-//   "password": "wallet-password",      // REQUIRED: Must be correct wallet password
-//   "usbPath": "/path/to/usb",
-//   "sessionToken": "session-token",    // REQUIRED: Valid session token
-//   "appPassword": "app-level-password" // DEPRECATED: Use sessionToken instead
-// }
-//
-// Returns: {"success": true, "data": {"tokens": [...], "totalUsd": 5000.50, ...}}
-
 // loadNodeRealAPIKey attempts to load the NodeReal API key from the provider config store.
 // Returns empty string if not configured.
 func loadNodeRealAPIKey(providerStore *provider.ProviderConfigStore) string {
@@ -283,6 +266,7 @@ func loadNodeRealAPIKey(providerStore *provider.ProviderConfigStore) string {
 	return ""
 }
 
+//export GetTokenBalances
 func GetTokenBalances(params *C.char) *C.char {
 	start := time.Now()
 	defer func() {
