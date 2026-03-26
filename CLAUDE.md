@@ -119,3 +119,4 @@ The Release workflow (GitHub Actions) builds all 3 platforms (macOS, Windows, Li
 - Every commit must compile and pass all existing tests
 - Never use `--no-verify` to bypass commit hooks
 - Use Traditional Chinese (zh-TW) for user-facing content and commit messages
+- **完成開發後必須更新路線圖**：每完成一個 Q2/Q3/Q4 工項，立即更新 `CTO_技術發展路線圖_2026.md` 中對應項目的狀態欄（✅ 完成 + commit hash），避免重複開發已完成的功能
