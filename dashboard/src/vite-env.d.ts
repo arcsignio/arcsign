@@ -6,6 +6,7 @@ interface ImportMetaEnv {
   readonly MODE: string;
   readonly BASE_URL: string;
   readonly SSR: boolean;
+  readonly VITE_WALLETCONNECT_PROJECT_ID?: string;
 }
 
 interface ImportMeta {
