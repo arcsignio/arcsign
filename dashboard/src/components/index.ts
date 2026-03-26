@@ -18,3 +18,4 @@ export { ProviderSettings } from './ProviderSettings';
 export { MembershipStatus } from './MembershipStatus';
 export { TransactionSignDialog } from './TransactionSignDialog';
 export { ErrorBoundary, withErrorBoundary } from './ErrorBoundary';
+export { ProUpgradeDialog } from './ProUpgradeDialog';

@@ -22,7 +22,7 @@ async function hmacSign(message: string, secret: string): Promise<string> {
   return btoa(String.fromCharCode(...new Uint8Array(sig)));
 }
 
-export async function sendHeartbeat(version: string): Promise<void> {
+export async function sendHeartbeat(version: string, tier?: 'free' | 'pro'): Promise<void> {
   try {
     const os = navigator.platform.startsWith('Mac')
       ? 'darwin'
@@ -35,7 +35,7 @@ export async function sendHeartbeat(version: string): Promise<void> {
     await fetch(HEARTBEAT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ v: version, os, t, sig }),
+      body: JSON.stringify({ v: version, os, t, sig, ...(tier && { tier }) }),
     });
   } catch {
     // Silent failure — never affects app functionality

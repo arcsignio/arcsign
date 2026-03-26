@@ -1185,5 +1185,26 @@
     "deselectAll": "Deselect All",
     "success": "succeeded",
     "failed": "failed"
+  },
+  "proUpgrade": {
+    "title": "Unlock the full power of ArcSign",
+    "titleMore": "Purchase additional NFTs",
+    "subtitle": "You've reached the Free plan limit. Upgrade to Pro for more wallets and advanced DeFi tools.",
+    "subtitleMore": "Each additional Pro NFT adds 3 more wallet slots.",
+    "needMore": "Need More Wallets?",
+    "wallets": "Wallets",
+    "limitReached": "Limit reached",
+    "feature": {
+      "wallets": "4+ wallets (each NFT +3)",
+      "bestRoute": "Best-route DEX swap auto-comparison",
+      "batchRevoke": "Batch revoke token approvals",
+      "points": "2x points + 3x airdrop weight",
+      "earlyAccess": "Early access to new features",
+      "support": "Priority support"
+    },
+    "year": "year",
+    "upgrade": "Upgrade to Pro",
+    "buyMore": "Purchase NFT",
+    "note": "Pro membership is an on-chain NFT. You own it — transferable and sellable."
   }
 }

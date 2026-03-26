@@ -17,6 +17,7 @@ import tauriApi, { type UsbDevice, type AppError, type DeviceMembershipStatus } 
 import type { WalletCreateResponse } from '@/types/wallet';
 import { MnemonicDisplay } from './MnemonicDisplay';
 import { ConfirmationDialog } from './ConfirmationDialog';
+import { ProUpgradeDialog } from './ProUpgradeDialog';
 import { useSessionStore } from '@/stores/sessionStore';
 
 interface WalletCreateProps {
@@ -413,23 +414,16 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
       />
 
       {/* Upgrade to Pro Prompt Dialog */}
-      <ConfirmationDialog
+      <ProUpgradeDialog
         isOpen={showUpgradePrompt}
-        title={t('wallet.walletLimitReached')}
-        message={t('wallet.upgradePromptMessage', {
-          current: walletLimitInfo.current,
-          limit: walletLimitInfo.limit,
-          suggestion: walletLimitInfo.isPro ? t('wallet.purchaseMoreNfts') : t('wallet.upgradeToPro')
-        })}
-        confirmLabel={t('actions.learnMore')}
-        cancelLabel={t('actions.close')}
-        confirmVariant="primary"
-        onConfirm={() => {
+        currentWallets={walletLimitInfo.current}
+        walletLimit={walletLimitInfo.limit}
+        isPro={walletLimitInfo.isPro}
+        onUpgrade={() => {
           setShowUpgradePrompt(false);
-          // Open mint page in browser
           window.open('https://arcsign.io/mint', '_blank');
         }}
-        onCancel={() => setShowUpgradePrompt(false)}
+        onClose={() => setShowUpgradePrompt(false)}
       />
     </div>
   );

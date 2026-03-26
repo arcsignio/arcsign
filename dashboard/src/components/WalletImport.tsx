@@ -17,6 +17,7 @@ import {
 import tauriApi, { type AppError } from "@/services/tauri-api";
 import { useDashboardStore, useWalletLimitInfo } from "@/stores/dashboardStore";
 import { ConfirmationDialog } from "./ConfirmationDialog";
+import { ProUpgradeDialog } from "./ProUpgradeDialog";
 
 interface WalletImportProps {
   usbPath: string;
@@ -460,22 +461,16 @@ export const WalletImport: React.FC<WalletImportProps> = ({
       />
 
       {/* Upgrade to Pro Prompt Dialog */}
-      <ConfirmationDialog
+      <ProUpgradeDialog
         isOpen={showUpgradePrompt}
-        title={t('wallet.walletLimitReached')}
-        message={t('wallet.upgradePromptMessage', {
-          current: walletLimitInfo.current,
-          limit: walletLimitInfo.limit,
-          suggestion: walletLimitInfo.isPro ? t('wallet.purchaseMoreNfts') : t('wallet.upgradeToPro')
-        })}
-        confirmLabel={t('actions.learnMore')}
-        cancelLabel={t('actions.close')}
-        confirmVariant="primary"
-        onConfirm={() => {
+        currentWallets={walletLimitInfo.current}
+        walletLimit={walletLimitInfo.limit}
+        isPro={walletLimitInfo.isPro}
+        onUpgrade={() => {
           setShowUpgradePrompt(false);
           window.open('https://arcsign.io/mint', '_blank');
         }}
-        onCancel={() => setShowUpgradePrompt(false)}
+        onClose={() => setShowUpgradePrompt(false)}
       />
     </div>
   );

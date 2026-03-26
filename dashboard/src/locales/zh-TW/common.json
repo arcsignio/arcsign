@@ -1185,5 +1185,26 @@
     "deselectAll": "取消全選",
     "success": "成功",
     "failed": "失敗"
+  },
+  "proUpgrade": {
+    "title": "解鎖 ArcSign 完整功能",
+    "titleMore": "購買額外 NFT",
+    "subtitle": "你已達到免費方案上限。升級到 Pro 即可管理更多錢包並使用進階 DeFi 工具。",
+    "subtitleMore": "每個額外的 Pro NFT 可增加 3 個錢包名額。",
+    "needMore": "需要更多錢包？",
+    "wallets": "錢包數量",
+    "limitReached": "已達上限",
+    "feature": {
+      "wallets": "4+ 個錢包（每個 NFT +3）",
+      "bestRoute": "最佳路徑 DEX 換幣自動比價",
+      "batchRevoke": "批次撤銷代幣授權",
+      "points": "2 倍積分 + 3 倍空投權重",
+      "earlyAccess": "搶先體驗新功能",
+      "support": "優先客服支援"
+    },
+    "year": "年",
+    "upgrade": "升級到 Pro",
+    "buyMore": "購買 NFT",
+    "note": "Pro 會員是鏈上 NFT，你擁有完整所有權 — 可轉讓、可出售。"
   }
 }

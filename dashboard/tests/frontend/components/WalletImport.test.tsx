@@ -359,7 +359,7 @@ describe('WalletImport - onSubmit (import flow)', () => {
     await user.click(screen.getByRole('button', { name: 'wallet.importWallet' }));
 
     await waitFor(() => {
-      expect(screen.getByText('wallet.walletLimitReached')).toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 
     // tauriApi.importWallet should NOT have been called

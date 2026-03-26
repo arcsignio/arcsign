@@ -22,6 +22,7 @@ import { useUpdateChecker } from '@/hooks/useUpdateChecker';
 import { getVersion } from '@tauri-apps/api/app';
 import tauriApi, { type AppError, type AppConfig } from '@/services/tauri-api';
 import { sendHeartbeat } from '@/services/analytics';
+import { useDashboardStore } from '@/stores/dashboardStore';
 
 function AppContent() {
   const { isUnlocked, unlock, getSessionToken } = useAppPassword();
@@ -140,7 +141,8 @@ function AppContent() {
   // Anonymous heartbeat — send once per session after unlock
   useEffect(() => {
     if (isUnlocked) {
-      getVersion().then((v) => sendHeartbeat(v)).catch(() => {});
+      const tier = useDashboardStore.getState().membership.isPro ? 'pro' : 'free';
+      getVersion().then((v) => sendHeartbeat(v, tier)).catch(() => {});
     }
   }, [isUnlocked]);
 
