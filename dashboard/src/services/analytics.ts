@@ -6,6 +6,7 @@
  */
 
 const HEARTBEAT_URL = 'https://arcsign.io/api/heartbeat';
+// TODO(Q3): Move HMAC signing to Rust/Tauri backend during v2 migration
 const HMAC_SECRET = 'ARCSIGN_HEARTBEAT_2026';
 
 async function hmacSign(message: string, secret: string): Promise<string> {
