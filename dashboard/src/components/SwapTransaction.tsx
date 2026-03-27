@@ -400,7 +400,8 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         amount: amountWei,
         fromAddress: fromToken.fromAddress,
         slippage,
-        provider: selectedProvider,
+        provider: isPro ? undefined : selectedProvider, // Pro: backend picks best; Free: user-selected
+        isPro,
         usbPath,
         sessionToken,  // ✅ Low-risk: quote query
       });
@@ -414,7 +415,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [fromToken, toToken, amount, chainId, slippage, selectedProvider, usbPath, sessionToken]);
+  }, [fromToken, toToken, amount, chainId, slippage, selectedProvider, isPro, usbPath, sessionToken]);
 
   // Debounced quote fetch
   useEffect(() => {
@@ -465,7 +466,8 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         amount: amountWei,
         fromAddress: fromToken.fromAddress,
         slippage,
-        provider: selectedProvider,
+        provider: isPro ? undefined : selectedProvider, // Pro: backend picks best; Free: user-selected
+        isPro,
         usbPath,
         sessionToken,  // ✅ Low-risk: build swap transaction
       });
@@ -801,45 +803,53 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         </button>
         <h2>{t('swap.title')}</h2>
         <div className="header-badges">
-          {/* DEX Provider Selector */}
-          <div className="provider-selector">
-            <button
-              className="provider-badge"
-              onClick={() => setShowProviderDropdown(!showProviderDropdown)}
-            >
-              <img
-                src={currentProvider.logoUrl}
-                alt={currentProvider.name}
-                className="provider-logo"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
-              <span className="provider-name">{currentProvider.name}</span>
-              <span className="dropdown-arrow">{showProviderDropdown ? '▲' : '▼'}</span>
-            </button>
-            {showProviderDropdown && (
-              <div className="provider-dropdown">
-                {AVAILABLE_PROVIDERS.map(provider => (
-                  <button
-                    key={provider.id}
-                    className={`provider-option ${provider.id === selectedProvider ? 'selected' : ''}`}
-                    onClick={() => handleProviderSelect(provider.id)}
-                  >
-                    <img
-                      src={provider.logoUrl}
-                      alt={provider.name}
-                      className="provider-logo"
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                    />
-                    <div className="provider-info">
-                      <span className="provider-name">{provider.name}</span>
-                      <span className="provider-desc">{provider.description}</span>
-                    </div>
-                    {provider.id === selectedProvider && <span className="check-mark">✓</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {isPro ? (
+            /* Pro: Best Route badge */
+            <div className="best-route-badge">
+              <span className="best-route-icon">⚡</span>
+              <span>{t('swap.bestRoute')}</span>
+            </div>
+          ) : (
+            /* Free: DEX Provider Selector */
+            <div className="provider-selector">
+              <button
+                className="provider-badge"
+                onClick={() => setShowProviderDropdown(!showProviderDropdown)}
+              >
+                <img
+                  src={currentProvider.logoUrl}
+                  alt={currentProvider.name}
+                  className="provider-logo"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+                <span className="provider-name">{currentProvider.name}</span>
+                <span className="dropdown-arrow">{showProviderDropdown ? '▲' : '▼'}</span>
+              </button>
+              {showProviderDropdown && (
+                <div className="provider-dropdown">
+                  {AVAILABLE_PROVIDERS.map(provider => (
+                    <button
+                      key={provider.id}
+                      className={`provider-option ${provider.id === selectedProvider ? 'selected' : ''}`}
+                      onClick={() => handleProviderSelect(provider.id)}
+                    >
+                      <img
+                        src={provider.logoUrl}
+                        alt={provider.name}
+                        className="provider-logo"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                      <div className="provider-info">
+                        <span className="provider-name">{provider.name}</span>
+                        <span className="provider-desc">{provider.description}</span>
+                      </div>
+                      {provider.id === selectedProvider && <span className="check-mark">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {fromToken && (
             <div className="chain-badge">
               <span className="chain-icon">{getNetworkIcon(fromToken.network)}</span>
@@ -1133,8 +1143,19 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
                 <span className="quote-value">{quote.gasCostETH} {getNativeTokenSymbol(fromToken.network)}</span>
               </div>
               <div className="quote-row">
+                <span className="quote-label">{t('swap.swapFee')}</span>
+                <span className={`quote-value ${quote.feeRate === "0" ? "fee-free" : ""}`}>
+                  {quote.feeRate === "0"
+                    ? t('swap.freeSwap')
+                    : `${quote.feeRate}%`}
+                </span>
+              </div>
+              <div className="quote-row">
                 <span className="quote-label">{t('swap.route')}</span>
-                <span className="quote-value route">{quote.protocols.join(" → ")}</span>
+                <span className="quote-value route">
+                  {quote.routeType === "best" && <span className="best-route-tag">⚡ </span>}
+                  {quote.protocols.join(" → ")}
+                </span>
               </div>
             </div>
           )}
@@ -1397,6 +1418,14 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
               <span className="summary-label">{t('swap.estimatedGasFee')}</span>
               <span className="summary-value">
                 ~{swapTx.quote.gasCostETH} {getNativeTokenSymbol(fromToken.network)}
+              </span>
+            </div>
+            <div className="swap-summary-row">
+              <span className="summary-label">{t('swap.swapFee')}</span>
+              <span className={`summary-value ${swapTx.quote.feeRate === "0" ? "fee-free" : ""}`}>
+                {swapTx.quote.feeRate === "0"
+                  ? t('swap.freeSwap')
+                  : `${swapTx.quote.feeRate}%`}
               </span>
             </div>
             <div className="swap-summary-row">
@@ -2113,6 +2142,33 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 .check-mark {
   color: #2dd4bf;
   font-weight: bold;
+}
+
+.best-route-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #0d9488, #2dd4bf);
+  border: none;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+}
+
+.best-route-icon {
+  font-size: 14px;
+}
+
+.best-route-tag {
+  color: #0d9488;
+  font-weight: 600;
+}
+
+.fee-free {
+  color: #0d9488 !important;
+  font-weight: 600;
 }
 
 .back-button {

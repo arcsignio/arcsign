@@ -1132,6 +1132,7 @@ export interface GetSwapQuoteParams {
   fromAddress: string;
   slippage?: number; // Default 0.5 (0.5%)
   provider?: string; // DEX provider: "openocean" | "kyberswap"
+  isPro?: boolean; // Pro user: best route, no fee
   usbPath: string;
   sessionToken?: string;  // ✅ PREFERRED: Session token
   appPassword?: string;   // DEPRECATED: Backward compatibility
@@ -1153,6 +1154,9 @@ export interface SwapQuoteResponse {
   validUntil: number; // Quote expiry timestamp
   needsApproval: boolean; // Whether approve tx is needed
   approvalAddress: string; // Spender address for approval
+  routeType: "best" | "standard"; // Pro = best route, Free = standard
+  feeRate: string; // "0" (Pro) | "0.1" (Free) — percentage
+  feeAmount: string; // Actual fee in input token units
 }
 
 export interface BuildSwapTransactionParams {
@@ -1163,6 +1167,7 @@ export interface BuildSwapTransactionParams {
   fromAddress: string;
   slippage?: number;
   provider?: string; // DEX provider: "openocean" | "kyberswap"
+  isPro?: boolean; // Pro user: best route, no fee
   usbPath: string;
   sessionToken?: string;  // ✅ PREFERRED: Session token
   appPassword?: string;   // DEPRECATED: Backward compatibility
@@ -1239,6 +1244,7 @@ export async function getSwapQuote(
         fromAddress: params.fromAddress,
         slippage: params.slippage ?? 0.5,
         provider: params.provider || "openocean",
+        isPro: params.isPro ?? false,
         usbPath: params.usbPath,
         sessionToken: params.sessionToken,  // ✅ Use session token
         appPassword: params.appPassword,    // DEPRECATED: Fallback
@@ -1274,6 +1280,7 @@ export async function buildSwapTransaction(
           fromAddress: params.fromAddress,
           slippage: params.slippage ?? 0.5,
           provider: params.provider || "openocean",
+          isPro: params.isPro ?? false,
           usbPath: params.usbPath,
           sessionToken: params.sessionToken,  // ✅ Use session token
           appPassword: params.appPassword,    // DEPRECATED: Fallback

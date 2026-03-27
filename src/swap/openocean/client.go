@@ -193,6 +193,12 @@ func (c *Client) GetSwap(ctx context.Context, req *SwapRequest) (*SwapResponse, 
 		params.Set("disableEstimate", "true")
 	}
 
+	// Add referrer fee params for fee collection
+	if req.ReferrerFee > 0 && req.ReferrerAddress != "" {
+		params.Set("referrer", req.ReferrerAddress)
+		params.Set("referrerFee", fmt.Sprintf("%.2f", req.ReferrerFee))
+	}
+
 	urlStr += "?" + params.Encode()
 
 	body, err := c.doRequest(ctx, http.MethodGet, urlStr)

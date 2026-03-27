@@ -762,7 +762,13 @@
     "approvalTimeout": "Approval transaction confirmation timeout. Please check the transaction status manually.",
     "failedToApprove": "Failed to approve token",
     "noTransactionToSign": "No transaction to sign",
-    "failedToExecuteSwap": "Failed to execute swap"
+    "failedToExecuteSwap": "Failed to execute swap",
+    "bestRoute": "Best Route",
+    "standardRoute": "Standard Route",
+    "swapFee": "Swap Fee",
+    "freeSwap": "Free",
+    "bestRouteDesc": "Compares multiple DEXes for the best price",
+    "feeIncluded": "Fee included in swap amount"
   },
   "staking": {
     "selectStakingOption": "Select Staking Option",

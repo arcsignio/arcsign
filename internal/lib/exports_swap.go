@@ -125,6 +125,7 @@ func GetSwapQuote(params *C.char) *C.char {
 		FromAddress      string  `json:"fromAddress"`
 		Slippage         float64 `json:"slippage"`
 		Provider         string  `json:"provider"`     // DEX provider: "openocean" | "kyberswap"
+		IsPro            bool    `json:"isPro"`         // Pro user: best route, no fee
 		USBPath          string  `json:"usbPath"`
 		SessionToken     string  `json:"sessionToken"` // PREFERRED: Session token (optional for read-only API)
 		AppPassword      string  `json:"appPassword"`  // DEPRECATED
@@ -169,12 +170,9 @@ func GetSwapQuote(params *C.char) *C.char {
 	}
 	debugLog(fmt.Sprintf("GetSwapQuote: Using gas price %s wei for chain %s", gasPrice.String(), input.ChainID))
 
-	// Get quote
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	quote, err := aggregator.GetQuote(ctx, &swap.QuoteParams{
-		Provider:         swap.Provider(input.Provider), // Pass provider from frontend
+	// Build quote params with fee config
+	quoteParams := &swap.QuoteParams{
+		Provider:         swap.Provider(input.Provider),
 		ChainID:          chainIDToInt(input.ChainID),
 		FromTokenAddress: input.FromTokenAddress,
 		ToTokenAddress:   input.ToTokenAddress,
@@ -182,7 +180,22 @@ func GetSwapQuote(params *C.char) *C.char {
 		FromAddress:      input.FromAddress,
 		Slippage:         input.Slippage,
 		GasPrice:         gasPrice,
-	})
+		IsPro:            input.IsPro,
+	}
+
+	// Free users: add referrer fee config (0.1% via OpenOcean referrer mechanism)
+	if !input.IsPro {
+		quoteParams.Fee = &swap.FeeConfig{
+			ReferrerAddress: "0x02EA7B4870Aa0553EF357Af6475727f1E01c7b2F", // ArcSignPro NFT contract
+			FeeRate:         0.1,
+		}
+	}
+
+	// Get quote
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	quote, err := aggregator.GetQuote(ctx, quoteParams)
 
 	if err != nil {
 		response := NewErrorResponse(ErrSwapQuoteFailed, GetUserFriendlyMessage(ErrSwapQuoteFailed))
@@ -246,6 +259,7 @@ func BuildSwapTransaction(params *C.char) *C.char {
 		FromAddress      string  `json:"fromAddress"`
 		Slippage         float64 `json:"slippage"`
 		Provider         string  `json:"provider"`     // DEX provider: "openocean" | "kyberswap"
+		IsPro            bool    `json:"isPro"`         // Pro user: best route, no fee
 		USBPath          string  `json:"usbPath"`
 		SessionToken     string  `json:"sessionToken"` // PREFERRED: Session token (optional for read-only API)
 		AppPassword      string  `json:"appPassword"`  // DEPRECATED
@@ -290,12 +304,9 @@ func BuildSwapTransaction(params *C.char) *C.char {
 	}
 	debugLog(fmt.Sprintf("BuildSwapTransaction: Using gas price %s wei for chain %s", gasPrice.String(), input.ChainID))
 
-	// Build swap transaction
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	swapTx, err := aggregator.BuildSwapTransaction(ctx, &swap.QuoteParams{
-		Provider:         swap.Provider(input.Provider), // Pass provider from frontend
+	// Build quote params with fee config
+	quoteParams := &swap.QuoteParams{
+		Provider:         swap.Provider(input.Provider),
 		ChainID:          chainIDToInt(input.ChainID),
 		FromTokenAddress: input.FromTokenAddress,
 		ToTokenAddress:   input.ToTokenAddress,
@@ -303,7 +314,22 @@ func BuildSwapTransaction(params *C.char) *C.char {
 		FromAddress:      input.FromAddress,
 		Slippage:         input.Slippage,
 		GasPrice:         gasPrice,
-	})
+		IsPro:            input.IsPro,
+	}
+
+	// Free users: add referrer fee config (0.1% via OpenOcean referrer mechanism)
+	if !input.IsPro {
+		quoteParams.Fee = &swap.FeeConfig{
+			ReferrerAddress: "0x02EA7B4870Aa0553EF357Af6475727f1E01c7b2F", // ArcSignPro NFT contract
+			FeeRate:         0.1,
+		}
+	}
+
+	// Build swap transaction
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	swapTx, err := aggregator.BuildSwapTransaction(ctx, quoteParams)
 
 	if err != nil {
 		response := NewErrorResponse(ErrSwapBuildFailed, GetUserFriendlyMessage(ErrSwapBuildFailed))

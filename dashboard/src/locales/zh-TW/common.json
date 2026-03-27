@@ -762,7 +762,13 @@
     "approvalTimeout": "授權交易確認逾時。請手動檢查交易狀態。",
     "failedToApprove": "授權代幣失敗",
     "noTransactionToSign": "沒有可簽署的交易",
-    "failedToExecuteSwap": "執行兌換失敗"
+    "failedToExecuteSwap": "執行兌換失敗",
+    "bestRoute": "最佳路徑",
+    "standardRoute": "標準路徑",
+    "swapFee": "手續費",
+    "freeSwap": "免費",
+    "bestRouteDesc": "比較多家 DEX 以取得最佳價格",
+    "feeIncluded": "手續費已包含在兌換金額中"
   },
   "staking": {
     "selectStakingOption": "選擇質押選項",

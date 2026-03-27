@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/Jason-chen-taiwan/arcSignv2/src/swap/kyberswap"
 	"github.com/Jason-chen-taiwan/arcSignv2/src/swap/openocean"
@@ -80,16 +81,24 @@ func NewAggregator(cfg *Config) *Aggregator {
 	}
 }
 
+// FeeConfig for referrer fee collection
+type FeeConfig struct {
+	ReferrerAddress string  // EVM address to receive fees
+	FeeRate         float64 // Fee percentage (0.1 = 0.1%)
+}
+
 // QuoteParams for requesting a swap quote
 type QuoteParams struct {
-	Provider         Provider // Which DEX provider to use (optional, uses default if empty)
-	ChainID          int      // Chain ID
-	FromTokenAddress string   // Source token address
-	ToTokenAddress   string   // Destination token address
-	Amount           *big.Int // Amount in smallest unit
-	FromAddress      string   // User's wallet address
-	Slippage         float64  // Slippage tolerance (e.g., 0.5 for 0.5%)
-	GasPrice         *big.Int // Gas price in wei
+	Provider         Provider   // Which DEX provider to use (optional, uses default if empty)
+	ChainID          int        // Chain ID
+	FromTokenAddress string     // Source token address
+	ToTokenAddress   string     // Destination token address
+	Amount           *big.Int   // Amount in smallest unit
+	FromAddress      string     // User's wallet address
+	Slippage         float64    // Slippage tolerance (e.g., 0.5 for 0.5%)
+	GasPrice         *big.Int   // Gas price in wei
+	IsPro            bool       // Pro user — best route, no fee
+	Fee              *FeeConfig // Non-nil for Free users
 }
 
 // SwapQuote represents a standardized swap quote
@@ -110,6 +119,9 @@ type SwapQuote struct {
 	ValidUntil      int64     `json:"validUntil"`
 	NeedsApproval   bool      `json:"needsApproval"`
 	ApprovalAddress string    `json:"approvalAddress"`
+	RouteType       string    `json:"routeType"` // "best" | "standard"
+	FeeRate         string    `json:"feeRate"`    // "0" | "0.1" (percentage)
+	FeeAmount       string    `json:"feeAmount"`  // Actual fee in input token units
 }
 
 // TokenInfo represents a token with its metadata
@@ -154,31 +166,195 @@ func (a *Aggregator) getProvider(p Provider) Provider {
 }
 
 // GetQuote fetches a swap quote from the specified provider
+// Pro users get best route (parallel query), Free users get OpenOcean with fee
 func (a *Aggregator) GetQuote(ctx context.Context, params *QuoteParams) (*SwapQuote, error) {
-	provider := a.getProvider(params.Provider)
-
-	switch provider {
-	case ProviderOpenOcean:
-		return a.getOpenOceanQuote(ctx, params)
-	case ProviderKyberSwap:
-		return a.getKyberSwapQuote(ctx, params)
-	default:
-		return nil, fmt.Errorf("unsupported provider: %s", provider)
+	if params.IsPro {
+		return a.getBestRouteQuote(ctx, params)
 	}
+
+	// Free user: OpenOcean only, with referrer fee
+	quote, err := a.getOpenOceanQuote(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	quote.RouteType = "standard"
+	if params.Fee != nil {
+		quote.FeeRate = fmt.Sprintf("%.1f", params.Fee.FeeRate)
+		quote.FeeAmount = a.calculateFeeAmount(quote.FromAmount, params.Fee.FeeRate)
+	} else {
+		quote.FeeRate = "0"
+		quote.FeeAmount = "0"
+	}
+	return quote, nil
 }
 
 // BuildSwapTransaction builds a complete swap transaction from the specified provider
+// Pro users get best route (parallel query), Free users get OpenOcean with fee
 func (a *Aggregator) BuildSwapTransaction(ctx context.Context, params *QuoteParams) (*SwapTransaction, error) {
-	provider := a.getProvider(params.Provider)
-
-	switch provider {
-	case ProviderOpenOcean:
-		return a.buildOpenOceanTransaction(ctx, params)
-	case ProviderKyberSwap:
-		return a.buildKyberSwapTransaction(ctx, params)
-	default:
-		return nil, fmt.Errorf("unsupported provider: %s", provider)
+	if params.IsPro {
+		return a.buildBestRouteTransaction(ctx, params)
 	}
+
+	// Free user: OpenOcean only, with referrer fee
+	tx, err := a.buildOpenOceanTransaction(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	tx.Quote.RouteType = "standard"
+	if params.Fee != nil {
+		tx.Quote.FeeRate = fmt.Sprintf("%.1f", params.Fee.FeeRate)
+		tx.Quote.FeeAmount = a.calculateFeeAmount(tx.Quote.FromAmount, params.Fee.FeeRate)
+	} else {
+		tx.Quote.FeeRate = "0"
+		tx.Quote.FeeAmount = "0"
+	}
+	return tx, nil
+}
+
+// getBestRouteQuote queries both providers in parallel and returns the best quote
+func (a *Aggregator) getBestRouteQuote(ctx context.Context, params *QuoteParams) (*SwapQuote, error) {
+	type quoteResult struct {
+		quote *SwapQuote
+		err   error
+	}
+
+	var (
+		ooResult, ksResult quoteResult
+		wg                 sync.WaitGroup
+	)
+
+	// Query OpenOcean
+	if openocean.IsChainSupported(params.ChainID) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			q, err := a.getOpenOceanQuote(ctx, params)
+			ooResult = quoteResult{quote: q, err: err}
+		}()
+	}
+
+	// Query KyberSwap
+	if kyberswap.IsChainSupported(params.ChainID) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			q, err := a.getKyberSwapQuote(ctx, params)
+			ksResult = quoteResult{quote: q, err: err}
+		}()
+	}
+
+	wg.Wait()
+
+	// Pick best quote by toAmount
+	var best *SwapQuote
+	if ooResult.err == nil && ooResult.quote != nil {
+		best = ooResult.quote
+	}
+	if ksResult.err == nil && ksResult.quote != nil {
+		if best == nil {
+			best = ksResult.quote
+		} else {
+			// Compare toAmount — pick the larger one
+			bestAmt := new(big.Int)
+			bestAmt.SetString(best.ToAmount, 10)
+			ksAmt := new(big.Int)
+			ksAmt.SetString(ksResult.quote.ToAmount, 10)
+			if ksAmt.Cmp(bestAmt) > 0 {
+				best = ksResult.quote
+			}
+		}
+	}
+
+	if best == nil {
+		// Both failed — return the first error
+		if ooResult.err != nil {
+			return nil, ooResult.err
+		}
+		return nil, ksResult.err
+	}
+
+	best.RouteType = "best"
+	best.FeeRate = "0"
+	best.FeeAmount = "0"
+	return best, nil
+}
+
+// buildBestRouteTransaction queries both providers, picks the best, and builds tx
+func (a *Aggregator) buildBestRouteTransaction(ctx context.Context, params *QuoteParams) (*SwapTransaction, error) {
+	type txResult struct {
+		tx  *SwapTransaction
+		err error
+	}
+
+	var (
+		ooResult, ksResult txResult
+		wg                 sync.WaitGroup
+	)
+
+	// Build from OpenOcean
+	if openocean.IsChainSupported(params.ChainID) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			t, err := a.buildOpenOceanTransaction(ctx, params)
+			ooResult = txResult{tx: t, err: err}
+		}()
+	}
+
+	// Build from KyberSwap
+	if kyberswap.IsChainSupported(params.ChainID) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			t, err := a.buildKyberSwapTransaction(ctx, params)
+			ksResult = txResult{tx: t, err: err}
+		}()
+	}
+
+	wg.Wait()
+
+	// Pick best by toAmount
+	var best *SwapTransaction
+	if ooResult.err == nil && ooResult.tx != nil {
+		best = ooResult.tx
+	}
+	if ksResult.err == nil && ksResult.tx != nil {
+		if best == nil {
+			best = ksResult.tx
+		} else {
+			bestAmt := new(big.Int)
+			bestAmt.SetString(best.Quote.ToAmount, 10)
+			ksAmt := new(big.Int)
+			ksAmt.SetString(ksResult.tx.Quote.ToAmount, 10)
+			if ksAmt.Cmp(bestAmt) > 0 {
+				best = ksResult.tx
+			}
+		}
+	}
+
+	if best == nil {
+		if ooResult.err != nil {
+			return nil, ooResult.err
+		}
+		return nil, ksResult.err
+	}
+
+	best.Quote.RouteType = "best"
+	best.Quote.FeeRate = "0"
+	best.Quote.FeeAmount = "0"
+	return best, nil
+}
+
+// calculateFeeAmount computes the fee amount from input token amount and fee rate
+func (a *Aggregator) calculateFeeAmount(fromAmount string, feeRate float64) string {
+	amt := new(big.Int)
+	if _, ok := amt.SetString(fromAmount, 10); !ok {
+		return "0"
+	}
+	// feeAmount = fromAmount * feeRate / 100
+	feeNumerator := new(big.Int).Mul(amt, big.NewInt(int64(feeRate*1000)))
+	feeAmount := new(big.Int).Div(feeNumerator, big.NewInt(100000))
+	return feeAmount.String()
 }
 
 // GetApprovalTransaction gets the approval transaction for a token
@@ -386,6 +562,12 @@ func (a *Aggregator) getOpenOceanQuote(ctx context.Context, params *QuoteParams)
 		GasPrice:         params.GasPrice,
 	}
 
+	// Pass referrer fee config for Free users
+	if params.Fee != nil {
+		req.ReferrerAddress = params.Fee.ReferrerAddress
+		req.ReferrerFee = params.Fee.FeeRate
+	}
+
 	quote, err := a.openoceanClient.BuildSwapQuote(ctx, req)
 	if err != nil {
 		return nil, err
@@ -408,6 +590,12 @@ func (a *Aggregator) buildOpenOceanTransaction(ctx context.Context, params *Quot
 		ChainID:          params.ChainID,
 		GasPrice:         params.GasPrice,
 		DisableEstimate:  true,
+	}
+
+	// Pass referrer fee config for Free users
+	if params.Fee != nil {
+		req.ReferrerAddress = params.Fee.ReferrerAddress
+		req.ReferrerFee = params.Fee.FeeRate
 	}
 
 	tx, err := a.openoceanClient.BuildSwapTransaction(ctx, req)

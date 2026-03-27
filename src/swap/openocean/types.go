@@ -102,6 +102,8 @@ type SwapRequest struct {
 	FromAddress      string   // account address
 	ChainID          int      // chain ID
 	DisableEstimate  bool     // disable gas estimation
+	ReferrerAddress  string   // referrer address for fee collection
+	ReferrerFee      float64  // referrer fee percentage (e.g., 0.1 for 0.1%)
 }
 
 // QuoteToken represents a token in the quote response
