@@ -46,7 +46,7 @@ import (
 //     "signedBy": "0x..."  // Address that signed
 //   }
 // }
-func SignMessage(params *C.char) *C.char {
+func SignMessage(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -58,8 +58,7 @@ func SignMessage(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -229,13 +228,13 @@ func SignMessage(params *C.char) *C.char {
 	}
 
 	// Step 8: Return result
-	result := map[string]interface{}{
+	output := map[string]interface{}{
 		"signature":   fmt.Sprintf("0x%x", signature),
 		"messageHash": messageHash.Hex(),
 		"signedBy":    input.Address,
 	}
 
-	response := NewSuccessResponse(result)
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
@@ -265,7 +264,16 @@ func SignMessage(params *C.char) *C.char {
 //	}
 //
 //export SignTypedData
-func SignTypedData(params *C.char) *C.char {
+func SignTypedData(params *C.char) (result *C.char) {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
+		}
+	}()
+
 	// Parse input
 	var input struct {
 		WalletID   string `json:"walletId"`
@@ -397,12 +405,12 @@ func SignTypedData(params *C.char) *C.char {
 	}
 
 	// Step 6: Return result
-	result := map[string]interface{}{
+	output := map[string]interface{}{
 		"signature": fmt.Sprintf("0x%x", signature),
 		"signedBy":  input.Address,
 	}
 
-	response := NewSuccessResponse(result)
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }

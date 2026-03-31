@@ -41,7 +41,7 @@ import (
 //     "configuredAt": "2025-11-27T10:00:00Z"
 //   }
 // }
-func SetProviderConfig(params *C.char) *C.char {
+func SetProviderConfig(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -53,8 +53,7 @@ func SetProviderConfig(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -176,7 +175,7 @@ func SetProviderConfig(params *C.char) *C.char {
 //     "updatedAt": "2025-11-27T10:00:00Z"
 //   }
 // }
-func GetProviderConfig(params *C.char) *C.char {
+func GetProviderConfig(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -186,6 +185,9 @@ func GetProviderConfig(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -295,7 +297,7 @@ func GetProviderConfig(params *C.char) *C.char {
 //     "count": 2
 //   }
 // }
-func ListProviderConfigs(params *C.char) *C.char {
+func ListProviderConfigs(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -305,6 +307,9 @@ func ListProviderConfigs(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -416,7 +421,7 @@ func ListProviderConfigs(params *C.char) *C.char {
 //     "deletedAt": "2025-11-27T10:05:00Z"
 //   }
 // }
-func DeleteProviderConfig(params *C.char) *C.char {
+func DeleteProviderConfig(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -426,6 +431,9 @@ func DeleteProviderConfig(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 

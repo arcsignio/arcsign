@@ -30,7 +30,7 @@ import (
 // Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "mnemonic": "...", "createdAt": "..."}}
 //
 // Caller MUST call GoFree() on the returned pointer.
-func CreateWallet(params *C.char) *C.char {
+func CreateWallet(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -42,8 +42,7 @@ func CreateWallet(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -133,7 +132,7 @@ func CreateWallet(params *C.char) *C.char {
 //
 // Input JSON: {"walletName": "...", "mnemonic": "...", "password": "...", "usbPath": "...", "passphrase": "..."}
 // Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "importedAt": "..."}}
-func ImportWallet(params *C.char) *C.char {
+func ImportWallet(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -145,9 +144,7 @@ func ImportWallet(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			// Note: In panic, we can't reliably return - this is best effort
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -232,7 +229,7 @@ func ImportWallet(params *C.char) *C.char {
 //
 // Input JSON: {"walletId": "...", "password": "...", "usbPath": "..."}
 // Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "unlockedAt": "..."}}
-func UnlockWallet(params *C.char) *C.char {
+func UnlockWallet(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -244,8 +241,7 @@ func UnlockWallet(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -332,7 +328,7 @@ func UnlockWallet(params *C.char) *C.char {
 //
 // Input JSON: {"walletId": "...", "blockchains": []}
 // Output JSON: {"success": true, "data": {"addresses": [{"blockchain": "...", "address": "...", "derivationPath": "...", "symbol": "...", "coinType": ...}], "generatedAt": "..."}}
-func GenerateAddresses(params *C.char) *C.char {
+func GenerateAddresses(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -344,8 +340,7 @@ func GenerateAddresses(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -437,7 +432,7 @@ func GenerateAddresses(params *C.char) *C.char {
 //
 // Input JSON: {"walletId": "...", "usbPath": "..."}
 // Output JSON: {"success": true, "data": {"walletName": "...", "backupData": "<base64>", "exportedAt": "..."}}
-func ExportWallet(params *C.char) *C.char {
+func ExportWallet(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -447,6 +442,9 @@ func ExportWallet(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -507,7 +505,7 @@ func ExportWallet(params *C.char) *C.char {
 //
 // Input JSON: {"backupData": "<base64>", "password": "...", "usbPath": "...", "walletName": "..."}
 // Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "importedAt": "..."}}
-func ImportBackupWallet(params *C.char) *C.char {
+func ImportBackupWallet(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -517,6 +515,9 @@ func ImportBackupWallet(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -595,7 +596,7 @@ func ImportBackupWallet(params *C.char) *C.char {
 //
 // Input JSON: {"password": "...", "usbPath": "..."}
 // Output JSON: {"success": true, "data": {"bundleData": "<base64>", "walletCount": N, "exportedAt": "..."}}
-func ExportAllWallets(params *C.char) *C.char {
+func ExportAllWallets(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -605,6 +606,9 @@ func ExportAllWallets(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -665,7 +669,7 @@ func ExportAllWallets(params *C.char) *C.char {
 //
 // Input JSON: {"bundleData": "<base64>", "password": "...", "usbPath": "..."}
 // Output JSON: {"success": true, "data": {"wallets": [...], "importedCount": N, "importedAt": "..."}}
-func ImportAllWallets(params *C.char) *C.char {
+func ImportAllWallets(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -675,6 +679,9 @@ func ImportAllWallets(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -757,7 +764,7 @@ func ImportAllWallets(params *C.char) *C.char {
 //
 // Input JSON: {"walletName": "...", "newWalletName": "...", "usbPath": "..."}
 // Output JSON: {"success": true, "data": {"walletId": "...", "oldName": "...", "newName": "...", "renamedAt": "..."}}
-func RenameWallet(params *C.char) *C.char {
+func RenameWallet(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -767,6 +774,9 @@ func RenameWallet(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -821,7 +831,7 @@ func RenameWallet(params *C.char) *C.char {
 // }
 //
 // Returns: {"success": true, "data": {"walletId": "...", "deletedAt": "..."}}
-func DeleteWallet(params *C.char) *C.char {
+func DeleteWallet(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -833,8 +843,7 @@ func DeleteWallet(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -912,7 +921,7 @@ func DeleteWallet(params *C.char) *C.char {
 //
 // Input JSON: {"usbPath": "..."}
 // Output JSON: {"success": true, "data": {"wallets": [{"walletId": "...", "walletName": "...", "createdAt": "..."}], "count": 2}}
-func ListWallets(params *C.char) *C.char {
+func ListWallets(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -922,6 +931,9 @@ func ListWallets(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 

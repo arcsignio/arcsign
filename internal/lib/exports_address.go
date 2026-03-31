@@ -44,10 +44,13 @@ import (
 //   "success": true,
 //   "data": { "contacts": [...] }
 // }
-func ListContacts(params *C.char) *C.char {
+func ListContacts(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -95,10 +98,10 @@ func ListContacts(params *C.char) *C.char {
 	defer store.Close()
 
 	contactList := store.List()
-	result := map[string]interface{}{
+	output := map[string]interface{}{
 		"contacts": contactList,
 	}
-	response := NewSuccessResponse(result)
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
@@ -117,10 +120,13 @@ func ListContacts(params *C.char) *C.char {
 //   "sessionToken": "session-token",
 //   "appPassword": "app-password"
 // }
-func AddContact(params *C.char) *C.char {
+func AddContact(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -179,10 +185,10 @@ func AddContact(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	result := map[string]interface{}{
+	output := map[string]interface{}{
 		"contact": contact,
 	}
-	response := NewSuccessResponse(result)
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
@@ -202,10 +208,13 @@ func AddContact(params *C.char) *C.char {
 //   "sessionToken": "session-token",
 //   "appPassword": "app-password"
 // }
-func UpdateContact(params *C.char) *C.char {
+func UpdateContact(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -265,10 +274,10 @@ func UpdateContact(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	result := map[string]interface{}{
+	output := map[string]interface{}{
 		"contact": contact,
 	}
-	response := NewSuccessResponse(result)
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
@@ -283,10 +292,13 @@ func UpdateContact(params *C.char) *C.char {
 //   "sessionToken": "session-token",
 //   "appPassword": "app-password"
 // }
-func DeleteContact(params *C.char) *C.char {
+func DeleteContact(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -340,11 +352,11 @@ func DeleteContact(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	result := map[string]interface{}{
+	output := map[string]interface{}{
 		"deleted":   true,
 		"deletedAt": time.Now().Format(time.RFC3339),
 	}
-	response := NewSuccessResponse(result)
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
@@ -356,10 +368,13 @@ func DeleteContact(params *C.char) *C.char {
 //export SetTransactionLabel
 // SetTransactionLabel adds or updates a transaction label (upsert).
 // Feature: Transaction Labels (v1.3)
-func SetTransactionLabel(params *C.char) *C.char {
+func SetTransactionLabel(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -418,12 +433,12 @@ func SetTransactionLabel(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	result := map[string]interface{}{
+	output := map[string]interface{}{
 		"label":   label,
 		"network": input.Network,
 		"txHash":  input.TxHash,
 	}
-	response := NewSuccessResponse(result)
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
@@ -431,10 +446,13 @@ func SetTransactionLabel(params *C.char) *C.char {
 //export GetTransactionLabels
 // GetTransactionLabels returns transaction labels, optionally filtered by network.
 // Feature: Transaction Labels (v1.3)
-func GetTransactionLabels(params *C.char) *C.char {
+func GetTransactionLabels(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -489,10 +507,10 @@ func GetTransactionLabels(params *C.char) *C.char {
 		entries = store.ListAll()
 	}
 
-	result := map[string]interface{}{
+	output := map[string]interface{}{
 		"labels": entries,
 	}
-	response := NewSuccessResponse(result)
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
@@ -500,10 +518,13 @@ func GetTransactionLabels(params *C.char) *C.char {
 //export DeleteTransactionLabel
 // DeleteTransactionLabel removes a transaction label.
 // Feature: Transaction Labels (v1.3)
-func DeleteTransactionLabel(params *C.char) *C.char {
+func DeleteTransactionLabel(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -558,11 +579,11 @@ func DeleteTransactionLabel(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	result := map[string]interface{}{
+	output := map[string]interface{}{
 		"deleted":   true,
 		"deletedAt": time.Now().Format(time.RFC3339),
 	}
-	response := NewSuccessResponse(result)
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
@@ -581,7 +602,7 @@ func DeleteTransactionLabel(params *C.char) *C.char {
 // }
 //
 // Returns: {"success": true, "data": {"transfers": [...], "pageKey": "..."}}
-func GetAssetTransfers(params *C.char) *C.char {
+func GetAssetTransfers(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -593,8 +614,7 @@ func GetAssetTransfers(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -781,7 +801,7 @@ func GetAssetTransfers(params *C.char) *C.char {
 //     "expectedAddress": "0x..."
 //   }
 // }
-func ValidatePassphrase(params *C.char) *C.char {
+func ValidatePassphrase(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -793,8 +813,7 @@ func ValidatePassphrase(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 

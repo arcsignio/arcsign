@@ -59,14 +59,13 @@ func initDevSessionManager() *app.DevSessionManager {
 //     "addresses": ["0x..."]
 //   }
 // }
-func CreateDevSession(params *C.char) *C.char {
+func CreateDevSession(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -122,14 +121,14 @@ func CreateDevSession(params *C.char) *C.char {
 	info, _ := dsm.GetSessionInfo(session.Token)
 	addresses := info["addresses"]
 
-	result := map[string]interface{}{
+	output := map[string]interface{}{
 		"sessionToken":    session.Token,
 		"expiresAt":       session.ExpiresAt.UnixMilli(),
 		"trustedNetworks": session.TrustedNetworks,
 		"addresses":       addresses,
 	}
 
-	response := NewSuccessResponse(result)
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
@@ -160,14 +159,13 @@ func CreateDevSession(params *C.char) *C.char {
 //     "signedBy": "0x..."
 //   }
 // }
-func DevSessionSign(params *C.char) *C.char {
+func DevSessionSign(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -291,13 +289,13 @@ func DevSessionSign(params *C.char) *C.char {
 	signedTxHex := fmt.Sprintf("0x%x", signed.SerializedTx)
 	txHash := ethcrypto.Keccak256Hash(signed.SerializedTx)
 
-	result := map[string]interface{}{
+	output := map[string]interface{}{
 		"signedTx": signedTxHex,
 		"txHash":   txHash.Hex(),
 		"signedBy": input.From,
 	}
 
-	response := NewSuccessResponse(result)
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
@@ -321,13 +319,13 @@ func DevSessionSign(params *C.char) *C.char {
 //     "addresses": ["0x..."]
 //   }
 // }
-func GetDevSession(params *C.char) *C.char {
+func GetDevSession(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
+			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -350,11 +348,11 @@ func GetDevSession(params *C.char) *C.char {
 	dsm := initDevSessionManager()
 	info, err := dsm.GetSessionInfo(input.SessionToken)
 	if err != nil {
-		result := map[string]interface{}{
+		output := map[string]interface{}{
 			"active":  false,
 			"message": err.Error(),
 		}
-		response := NewSuccessResponse(result)
+		response := NewSuccessResponse(output)
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
@@ -378,13 +376,13 @@ func GetDevSession(params *C.char) *C.char {
 //     "status": "ended"
 //   }
 // }
-func EndDevSession(params *C.char) *C.char {
+func EndDevSession(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
+			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -412,10 +410,10 @@ func EndDevSession(params *C.char) *C.char {
 		return C.CString(string(jsonBytes))
 	}
 
-	result := map[string]interface{}{
+	output := map[string]interface{}{
 		"status": "ended",
 	}
-	response := NewSuccessResponse(result)
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }

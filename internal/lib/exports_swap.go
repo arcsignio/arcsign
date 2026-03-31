@@ -94,7 +94,7 @@ func chainIDToInt(chainID string) int {
 //     "approvalAddress": "0x..."
 //   }
 // }
-func GetSwapQuote(params *C.char) *C.char {
+func GetSwapQuote(params *C.char) (result *C.char) {
 	start := time.Now()
 	var provider string = "openocean" // will be updated from input
 	defer func() {
@@ -107,7 +107,7 @@ func GetSwapQuote(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -228,7 +228,7 @@ func GetSwapQuote(params *C.char) *C.char {
 //     "chainId": 1
 //   }
 // }
-func BuildSwapTransaction(params *C.char) *C.char {
+func BuildSwapTransaction(params *C.char) (result *C.char) {
 	start := time.Now()
 	var provider string = "openocean" // will be updated from input
 	defer func() {
@@ -241,7 +241,7 @@ func BuildSwapTransaction(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -364,7 +364,7 @@ func BuildSwapTransaction(params *C.char) *C.char {
 //     "value": "0"
 //   }
 // }
-func GetSwapApproval(params *C.char) *C.char {
+func GetSwapApproval(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -376,7 +376,7 @@ func GetSwapApproval(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -522,7 +522,7 @@ func bytesToHex(b []byte) string {
 //     "hasAllowance": true
 //   }
 // }
-func CheckSwapAllowance(params *C.char) *C.char {
+func CheckSwapAllowance(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -534,7 +534,7 @@ func CheckSwapAllowance(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -633,7 +633,7 @@ func GetNativeTokenAddress() *C.char {
 //	}
 //
 // }
-func GetSwapTokens(params *C.char) *C.char {
+func GetSwapTokens(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -645,7 +645,7 @@ func GetSwapTokens(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 

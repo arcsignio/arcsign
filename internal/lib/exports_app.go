@@ -34,7 +34,7 @@ import (
 //     "isFirstTime": true  // true if app_config.enc doesn't exist
 //   }
 // }
-func IsFirstTimeSetup(params *C.char) *C.char {
+func IsFirstTimeSetup(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -44,6 +44,9 @@ func IsFirstTimeSetup(params *C.char) *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -99,7 +102,7 @@ func IsFirstTimeSetup(params *C.char) *C.char {
 //     "message": "App initialized successfully"
 //   }
 // }
-func InitializeApp(params *C.char) *C.char {
+func InitializeApp(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -111,8 +114,7 @@ func InitializeApp(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -179,7 +181,7 @@ func InitializeApp(params *C.char) *C.char {
 //     }
 //   }
 // }
-func UnlockApp(params *C.char) *C.char {
+func UnlockApp(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -191,8 +193,7 @@ func UnlockApp(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -267,7 +268,7 @@ func loadNodeRealAPIKey(providerStore *provider.ProviderConfigStore) string {
 }
 
 //export GetTokenBalances
-func GetTokenBalances(params *C.char) *C.char {
+func GetTokenBalances(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -279,8 +280,7 @@ func GetTokenBalances(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -514,7 +514,7 @@ func GetTokenBalances(params *C.char) *C.char {
 // }
 //
 // Returns: {"success": true, "data": {"nfts": [...], "totalCount": 5, ...}}
-func GetNFTs(params *C.char) *C.char {
+func GetNFTs(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -526,8 +526,7 @@ func GetNFTs(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -731,7 +730,7 @@ func GetNFTs(params *C.char) *C.char {
 //     "totalCount": 5
 //   }
 // }
-func GetTokenApprovals(params *C.char) *C.char {
+func GetTokenApprovals(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -743,8 +742,7 @@ func GetTokenApprovals(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 

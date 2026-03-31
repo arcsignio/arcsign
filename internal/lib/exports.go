@@ -282,7 +282,7 @@ func GoFree(ptr *C.char) {
 //
 // Returns: {"success": true, "data": {"version": "0.2.0", "buildTime": "...", "goVersion": "..."}}
 // Caller MUST call GoFree() on the returned pointer.
-func GetVersion() *C.char {
+func GetVersion() (result *C.char) {
 	start := time.Now()
 	defer func() {
 		// FR-014: Log entry/exit with timing only
@@ -294,6 +294,9 @@ func GetVersion() *C.char {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 

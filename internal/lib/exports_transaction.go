@@ -60,7 +60,7 @@ import (
 //     "humanReadable": "JSON representation for audit"
 //   }
 // }
-func BuildTransaction(params *C.char) *C.char {
+func BuildTransaction(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -72,8 +72,7 @@ func BuildTransaction(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -278,7 +277,7 @@ func BuildTransaction(params *C.char) *C.char {
 //     "signedBy": "address"
 //   }
 // }
-func SignTransaction(params *C.char) *C.char {
+func SignTransaction(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -290,8 +289,7 @@ func SignTransaction(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -577,7 +575,7 @@ func SignTransaction(params *C.char) *C.char {
 //     "statusUrl": "https://blockexplorer.com/tx/..."
 //   }
 // }
-func BroadcastTransaction(params *C.char) *C.char {
+func BroadcastTransaction(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -589,8 +587,7 @@ func BroadcastTransaction(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -737,7 +734,7 @@ func BroadcastTransaction(params *C.char) *C.char {
 //     "updatedAt": "2025-11-04T15:35:00Z"
 //   }
 // }
-func QueryTransactionStatus(params *C.char) *C.char {
+func QueryTransactionStatus(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -749,8 +746,7 @@ func QueryTransactionStatus(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -879,7 +875,7 @@ func QueryTransactionStatus(params *C.char) *C.char {
 //     "timestamp": "2025-11-04T15:40:00Z"
 //   }
 // }
-func EstimateFee(params *C.char) *C.char {
+func EstimateFee(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -891,8 +887,7 @@ func EstimateFee(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			ptr := C.CString(string(jsonBytes))
-			_ = ptr
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 

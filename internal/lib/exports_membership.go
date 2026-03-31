@@ -55,7 +55,7 @@ import (
 //     }]
 //   }
 // }
-func GetMembershipStatus(params *C.char) *C.char {
+func GetMembershipStatus(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -67,7 +67,7 @@ func GetMembershipStatus(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -185,7 +185,7 @@ func GetMembershipStatus(params *C.char) *C.char {
 //   "boundAddress": "0x...",
 //   "signature": "0x..."
 // }
-func AddMembershipBinding(params *C.char) *C.char {
+func AddMembershipBinding(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -197,7 +197,7 @@ func AddMembershipBinding(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -295,7 +295,7 @@ func AddMembershipBinding(params *C.char) *C.char {
 //   "nftTokenId": "1",
 //   "nftContract": "0x..."
 // }
-func RemoveMembershipBinding(params *C.char) *C.char {
+func RemoveMembershipBinding(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -307,7 +307,7 @@ func RemoveMembershipBinding(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -387,7 +387,7 @@ func RemoveMembershipBinding(params *C.char) *C.char {
 //   "chainId": "bnb",
 //   "boundAddress": "0x..."
 // }
-func SyncMembershipBindingWithToken(params *C.char) *C.char {
+func SyncMembershipBindingWithToken(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -399,7 +399,7 @@ func SyncMembershipBindingWithToken(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -506,7 +506,7 @@ func SyncMembershipBindingWithToken(params *C.char) *C.char {
 //   "nftTokenId": "1",
 //   "nftContract": "0x..."
 // }
-func RemoveMembershipBindingWithToken(params *C.char) *C.char {
+func RemoveMembershipBindingWithToken(params *C.char) (result *C.char) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -518,7 +518,7 @@ func RemoveMembershipBindingWithToken(params *C.char) *C.char {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -606,13 +606,13 @@ func RemoveMembershipBindingWithToken(params *C.char) *C.char {
 // ============================================================
 
 //export CreateSessionToken
-func CreateSessionToken(params *C.char) *C.char {
+func CreateSessionToken(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -665,13 +665,13 @@ func CreateSessionToken(params *C.char) *C.char {
 }
 
 //export ValidateSessionToken
-func ValidateSessionToken(params *C.char) *C.char {
+func ValidateSessionToken(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -714,13 +714,13 @@ func ValidateSessionToken(params *C.char) *C.char {
 }
 
 //export RevokeSessionToken
-func RevokeSessionToken(params *C.char) *C.char {
+func RevokeSessionToken(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -756,13 +756,13 @@ func RevokeSessionToken(params *C.char) *C.char {
 }
 
 //export GetDeviceMembershipStatusWithToken
-func GetDeviceMembershipStatusWithToken(params *C.char) *C.char {
+func GetDeviceMembershipStatusWithToken(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -856,13 +856,14 @@ func GetDeviceMembershipStatusWithToken(params *C.char) *C.char {
 }
 
 //export CreateWalletSessionToken
-func CreateWalletSessionToken(params *C.char) *C.char {
+func CreateWalletSessionToken(params *C.char) (result *C.char) {
 	// Panic recovery
 	defer func() {
 		if r := recover(); r != nil {
+			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -903,26 +904,27 @@ func CreateWalletSessionToken(params *C.char) *C.char {
 	}
 
 	// Return session info
-	result := map[string]interface{}{
+	output := map[string]interface{}{
 		"token":     session.Token,
 		"walletId":  session.WalletID,
 		"expiresAt": session.ExpiresAt.Unix(),
 		"usbPath":   session.UsbPath,
 	}
 
-	response := NewSuccessResponse(result)
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
 
 //export ValidateWalletSessionToken
-func ValidateWalletSessionToken(params *C.char) *C.char {
+func ValidateWalletSessionToken(params *C.char) (result *C.char) {
 	// Panic recovery
 	defer func() {
 		if r := recover(); r != nil {
+			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -954,26 +956,27 @@ func ValidateWalletSessionToken(params *C.char) *C.char {
 	}
 
 	// Return session info
-	result := map[string]interface{}{
+	output := map[string]interface{}{
 		"valid":     true,
 		"walletId":  session.WalletID,
 		"expiresAt": session.ExpiresAt.Unix(),
 		"usbPath":   session.UsbPath,
 	}
 
-	response := NewSuccessResponse(result)
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
 
 //export RevokeWalletSessionToken
-func RevokeWalletSessionToken(params *C.char) *C.char {
+func RevokeWalletSessionToken(params *C.char) (result *C.char) {
 	// Panic recovery
 	defer func() {
 		if r := recover(); r != nil {
+			debug.PrintStack()
 			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
 			jsonBytes, _ := json.Marshal(response)
-			_ = C.CString(string(jsonBytes))
+			result = C.CString(string(jsonBytes))
 		}
 	}()
 
@@ -1000,11 +1003,11 @@ func RevokeWalletSessionToken(params *C.char) *C.char {
 	wsm.RevokeWalletToken(input.Token)
 
 	// Return success
-	result := map[string]interface{}{
+	output := map[string]interface{}{
 		"revoked": true,
 	}
 
-	response := NewSuccessResponse(result)
+	response := NewSuccessResponse(output)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
