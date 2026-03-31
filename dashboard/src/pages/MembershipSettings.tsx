@@ -45,8 +45,16 @@ import {
   MINT_SELECTOR,
   BIND_DEVICE_SELECTOR,
 } from '@/constants/contracts';
+import {
+  getReferralInfo,
+  resolveReferralCode,
+  buildRegisterCodeCalldata,
+  buildSetReferrerCalldata,
+  type ReferralInfo,
+} from '@/services/referral';
 
 const CONTRACT_ADDRESS = ACTIVE_NETWORK.nftContract;
+const REFERRAL_CONTRACT = ACTIVE_NETWORK.referralContract;
 const USDT_ADDRESS = ACTIVE_NETWORK.usdt;
 const BLOCK_EXPLORER_URL = ACTIVE_NETWORK.explorer;
 const CHAIN_ID = ACTIVE_NETWORK.chainName;
@@ -142,6 +150,16 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   const [bindTxHash, setBindTxHash] = useState<string | null>(null);
   const [showBindPasswordDialog, setShowBindPasswordDialog] = useState(false);
   const [bindWalletPassword, setBindWalletPassword] = useState('');
+
+  // Referral state
+  const [referralInfo, setReferralInfo] = useState<ReferralInfo | null>(null);
+  const [isLoadingReferral, setIsLoadingReferral] = useState(false);
+  const [referralError, setReferralError] = useState<string | null>(null);
+  const [referrerCodeInput, setReferrerCodeInput] = useState('');
+  const [isRegisteringCode, setIsRegisteringCode] = useState(false);
+  const [isSettingReferrer, setIsSettingReferrer] = useState(false);
+  const [showReferrerConfirm, setShowReferrerConfirm] = useState(false);
+  const [copiedReferralCode, setCopiedReferralCode] = useState(false);
 
   const membership = useMembershipStatus();
   const { wallets, setMembership } = useDashboardStore();
@@ -599,6 +617,116 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       // Convert technical error messages to user-friendly messages
       errorMessage = formatUserFriendlyError(errorMessage);
       return { success: false, error: errorMessage };
+    }
+  };
+
+  // ============ Referral Functions ============
+
+  // Fetch referral info when a BSC address is available
+  const fetchReferralInfo = useCallback(async () => {
+    if (!selectedMintAddress && bscAddresses.length === 0) return;
+    const address = selectedMintAddress || bscAddresses[0]?.address;
+    if (!address) return;
+
+    setIsLoadingReferral(true);
+    setReferralError(null);
+    try {
+      const info = await getReferralInfo(address);
+      setReferralInfo(info);
+    } catch (err) {
+      console.error('[referral] Failed to fetch info:', err);
+      setReferralError(t('membership.referralLoadError', 'Failed to load referral info'));
+    } finally {
+      setIsLoadingReferral(false);
+    }
+  }, [selectedMintAddress, bscAddresses, t]);
+
+  // Load referral info when address changes
+  useEffect(() => {
+    fetchReferralInfo();
+  }, [fetchReferralInfo]);
+
+  const handleRegisterCode = async () => {
+    if (REFERRAL_CONTRACT === '0x' + '0'.repeat(40)) {
+      setReferralError(t('membership.referralNotDeployed', 'Referral contract not yet deployed'));
+      return;
+    }
+    setIsRegisteringCode(true);
+    setReferralError(null);
+    try {
+      const data = buildRegisterCodeCalldata();
+      const result = await executeTransaction(REFERRAL_CONTRACT, data, 'Register Referral Code');
+      if (result.success) {
+        // Refresh referral info after registration
+        await fetchReferralInfo();
+      } else {
+        setReferralError(result.error || t('membership.referralRegisterError', 'Failed to register code'));
+      }
+    } catch (err) {
+      setReferralError(String(err));
+    } finally {
+      setIsRegisteringCode(false);
+    }
+  };
+
+  const handleSetReferrer = async () => {
+    const code = parseInt(referrerCodeInput, 10);
+    if (isNaN(code) || code <= 0) {
+      setReferralError(t('membership.invalidCode'));
+      return;
+    }
+
+    // Check if code exists
+    try {
+      const resolvedAddress = await resolveReferralCode(code);
+      if (resolvedAddress === '0x' + '0'.repeat(40)) {
+        setReferralError(t('membership.invalidCode'));
+        return;
+      }
+      // Check self-referral
+      const currentAddress = selectedMintAddress || bscAddresses[0]?.address;
+      if (currentAddress && resolvedAddress.toLowerCase() === currentAddress.toLowerCase()) {
+        setReferralError(t('membership.selfReferral'));
+        return;
+      }
+    } catch {
+      setReferralError(t('membership.invalidCode'));
+      return;
+    }
+
+    setShowReferrerConfirm(true);
+  };
+
+  const confirmSetReferrer = async () => {
+    if (REFERRAL_CONTRACT === '0x' + '0'.repeat(40)) {
+      setReferralError(t('membership.referralNotDeployed', 'Referral contract not yet deployed'));
+      return;
+    }
+    setShowReferrerConfirm(false);
+    setIsSettingReferrer(true);
+    setReferralError(null);
+    try {
+      const code = parseInt(referrerCodeInput, 10);
+      const data = buildSetReferrerCalldata(code);
+      const result = await executeTransaction(REFERRAL_CONTRACT, data, 'Set Referrer');
+      if (result.success) {
+        setReferrerCodeInput('');
+        await fetchReferralInfo();
+      } else {
+        setReferralError(result.error || t('membership.referralSetError', 'Failed to set referrer'));
+      }
+    } catch (err) {
+      setReferralError(String(err));
+    } finally {
+      setIsSettingReferrer(false);
+    }
+  };
+
+  const copyReferralCode = () => {
+    if (referralInfo && referralInfo.code > 0) {
+      navigator.clipboard.writeText(String(referralInfo.code).padStart(6, '0'));
+      setCopiedReferralCode(true);
+      setTimeout(() => setCopiedReferralCode(false), 2000);
     }
   };
 
@@ -1325,6 +1453,139 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
           </li>
         </ul>
       </section>
+
+      {/* ============ Referral Program Section ============ */}
+      <section className="referral-section">
+        <h2 className="referral-title">{t('membership.referralProgram')}</h2>
+        <p className="referral-description">{t('membership.referralDescription')}</p>
+
+        {referralError && <div className="referral-error">{referralError}</div>}
+
+        {isLoadingReferral ? (
+          <div className="referral-loading">{t('common.loading', 'Loading...')}</div>
+        ) : (
+          <>
+            {/* Your Referral Code */}
+            <div className="referral-card">
+              <h3>{t('membership.yourReferralCode')}</h3>
+              {referralInfo && referralInfo.code > 0 ? (
+                <div className="referral-code-display">
+                  <span className="referral-code-value">
+                    {String(referralInfo.code).padStart(6, '0')}
+                  </span>
+                  <button
+                    className="referral-copy-btn"
+                    onClick={copyReferralCode}
+                  >
+                    {copiedReferralCode ? t('membership.codeCopied') : t('membership.copyCode')}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="referral-action-btn"
+                  onClick={handleRegisterCode}
+                  disabled={isRegisteringCode || !selectedMintAddress}
+                >
+                  {isRegisteringCode ? t('common.processing', 'Processing...') : t('membership.createCode')}
+                </button>
+              )}
+            </div>
+
+            {/* Set Your Referrer */}
+            <div className="referral-card">
+              <h3>{t('membership.setYourReferrer')}</h3>
+              {referralInfo?.hasReferrer ? (
+                <div className="referral-referrer-info">
+                  <span className="referral-label">{t('membership.yourReferrer')}:</span>
+                  <span className="referral-referrer-code">
+                    {String(referralInfo.referrerCode).padStart(6, '0')}
+                  </span>
+                  <span className="referral-referrer-addr">
+                    ({referralInfo.referrerAddress.slice(0, 8)}...{referralInfo.referrerAddress.slice(-6)})
+                  </span>
+                </div>
+              ) : (
+                <div className="referral-set-form">
+                  <div className="referral-warning">{t('membership.referrerWarning')}</div>
+                  <div className="referral-input-row">
+                    <input
+                      type="text"
+                      className="referral-input"
+                      placeholder={t('membership.referrerCodePlaceholder')}
+                      value={referrerCodeInput}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        setReferrerCodeInput(val);
+                        setReferralError(null);
+                      }}
+                      maxLength={6}
+                    />
+                    <button
+                      className="referral-action-btn"
+                      onClick={handleSetReferrer}
+                      disabled={isSettingReferrer || referrerCodeInput.length === 0 || !selectedMintAddress}
+                    >
+                      {isSettingReferrer ? t('common.processing', 'Processing...') : t('membership.setReferrer')}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Referral Stats */}
+            <div className="referral-card">
+              <h3>{t('membership.referralStats')}</h3>
+              <div className="referral-stats-grid">
+                <div className="referral-stat">
+                  <span className="referral-stat-value">{referralInfo?.referralCount ?? 0}</span>
+                  <span className="referral-stat-label">{t('membership.totalReferrals')}</span>
+                </div>
+                <div className="referral-stat">
+                  <span className="referral-stat-value">
+                    {membership?.isPro ? '20%' : '10%'}
+                  </span>
+                  <span className="referral-stat-label">{t('membership.commissionRate')}</span>
+                </div>
+              </div>
+              <div className="referral-rate-info">
+                <span>{t('membership.freeRate')}</span>
+                <span className="referral-rate-separator">|</span>
+                <span>{t('membership.proRate')}</span>
+              </div>
+              {!membership?.isPro && (
+                <div className="referral-upgrade-hint">{t('membership.upgradeForMore')}</div>
+              )}
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Referrer Confirmation Dialog */}
+      {showReferrerConfirm && (
+        <div className="dialog-overlay" onClick={() => setShowReferrerConfirm(false)}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
+            <h3>{t('membership.confirmSetReferrer')}</h3>
+            <p>{t('membership.confirmSetReferrerMsg')}</p>
+            <p className="referral-confirm-code">
+              {t('membership.referrerCodePlaceholder')}: <strong>{referrerCodeInput.padStart(6, '0')}</strong>
+            </p>
+            <div className="dialog-buttons">
+              <button
+                className="dialog-cancel"
+                onClick={() => setShowReferrerConfirm(false)}
+              >
+                {t('common.cancel', 'Cancel')}
+              </button>
+              <button
+                className="dialog-confirm"
+                onClick={confirmSetReferrer}
+              >
+                {t('membership.setReferrer')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         .membership-settings {
@@ -2342,6 +2603,221 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
 
         .binding-hint strong {
           color: #78350f;
+        }
+
+        /* ============ Referral Section ============ */
+        .referral-section {
+          margin-top: 32px;
+          padding: 24px;
+          background: linear-gradient(135deg, #f0fdfa 0%, #f0f9ff 100%);
+          border: 1px solid #99f6e4;
+          border-radius: 12px;
+        }
+
+        .referral-title {
+          font-size: 20px;
+          font-weight: 700;
+          color: #0d9488;
+          margin: 0 0 4px 0;
+        }
+
+        .referral-description {
+          color: #6b7280;
+          font-size: 14px;
+          margin: 0 0 20px 0;
+        }
+
+        .referral-error {
+          background: #fef2f2;
+          border: 1px solid #fca5a5;
+          color: #dc2626;
+          padding: 10px 14px;
+          border-radius: 8px;
+          font-size: 13px;
+          margin-bottom: 16px;
+        }
+
+        .referral-loading {
+          color: #6b7280;
+          font-size: 14px;
+          padding: 20px 0;
+          text-align: center;
+        }
+
+        .referral-card {
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+          padding: 16px 20px;
+          margin-bottom: 12px;
+        }
+
+        .referral-card h3 {
+          font-size: 14px;
+          font-weight: 600;
+          color: #374151;
+          margin: 0 0 12px 0;
+        }
+
+        .referral-code-display {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .referral-code-value {
+          font-family: monospace;
+          font-size: 28px;
+          font-weight: 700;
+          color: #0d9488;
+          letter-spacing: 4px;
+        }
+
+        .referral-copy-btn {
+          padding: 6px 14px;
+          background: #0d9488;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          font-size: 13px;
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+
+        .referral-copy-btn:hover {
+          background: #0f766e;
+        }
+
+        .referral-action-btn {
+          padding: 8px 20px;
+          background: linear-gradient(135deg, #0d9488, #2dd4bf);
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: opacity 0.15s;
+        }
+
+        .referral-action-btn:hover:not(:disabled) {
+          opacity: 0.9;
+        }
+
+        .referral-action-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .referral-referrer-info {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .referral-label {
+          color: #6b7280;
+          font-size: 13px;
+        }
+
+        .referral-referrer-code {
+          font-family: monospace;
+          font-size: 16px;
+          font-weight: 700;
+          color: #0d9488;
+          letter-spacing: 2px;
+        }
+
+        .referral-referrer-addr {
+          font-family: monospace;
+          font-size: 12px;
+          color: #9ca3af;
+        }
+
+        .referral-warning {
+          color: #dc2626;
+          font-size: 12px;
+          font-weight: 500;
+          margin-bottom: 10px;
+          padding: 6px 10px;
+          background: #fef2f2;
+          border-radius: 6px;
+        }
+
+        .referral-input-row {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+        }
+
+        .referral-input {
+          flex: 1;
+          max-width: 160px;
+          padding: 8px 12px;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          font-family: monospace;
+          font-size: 16px;
+          letter-spacing: 2px;
+          text-align: center;
+          outline: none;
+          transition: border-color 0.15s;
+        }
+
+        .referral-input:focus {
+          border-color: #2dd4bf;
+          box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.1);
+        }
+
+        .referral-stats-grid {
+          display: flex;
+          gap: 24px;
+          margin-bottom: 12px;
+        }
+
+        .referral-stat {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .referral-stat-value {
+          font-size: 24px;
+          font-weight: 700;
+          color: #0d9488;
+        }
+
+        .referral-stat-label {
+          font-size: 12px;
+          color: #6b7280;
+          margin-top: 2px;
+        }
+
+        .referral-rate-info {
+          display: flex;
+          gap: 8px;
+          font-size: 13px;
+          color: #6b7280;
+          justify-content: center;
+        }
+
+        .referral-rate-separator {
+          color: #d1d5db;
+        }
+
+        .referral-upgrade-hint {
+          margin-top: 10px;
+          text-align: center;
+          font-size: 12px;
+          color: #0d9488;
+          font-weight: 500;
+        }
+
+        .referral-confirm-code {
+          font-size: 14px;
+          color: #374151;
+          margin: 12px 0;
         }
       `}</style>
     </div>

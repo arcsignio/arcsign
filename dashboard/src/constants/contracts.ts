@@ -15,6 +15,7 @@ export const IS_TESTNET = false; // Production: BSC Mainnet
 export const CONTRACTS = {
   mainnet: {
     nftContract: '0x02EA7B4870Aa0553EF357Af6475727f1E01c7b2F',
+    referralContract: '0x0000000000000000000000000000000000000000', // TODO: deploy 後填入
     usdt: '0x55d398326f99059fF775485246999027B3197955',
     chainId: 56,
     chainName: 'bnb',
@@ -22,6 +23,7 @@ export const CONTRACTS = {
   },
   testnet: {
     nftContract: '0x6CB59d29BE5b618eeca9Bc5374648477256f109A',
+    referralContract: '0x0000000000000000000000000000000000000000', // TODO: deploy 後填入
     usdt: '0x7ef95a0fee0dd31b22626fa2e10ee6a223f8a684',
     chainId: 97,
     chainName: 'bnb-testnet',
@@ -54,3 +56,11 @@ export function walletLimit(nftCount: number): number {
 export const APPROVE_SELECTOR = '0x095ea7b3';
 export const MINT_SELECTOR = '0x1249c58b';
 export const BIND_DEVICE_SELECTOR = '0x2754da0a';
+
+// ArcSignReferral function selectors
+export const REGISTER_CODE_SELECTOR = '0x5992491f';   // registerCode()
+export const SET_REFERRER_SELECTOR = '0xee1be6a0';     // setReferrer(uint32)
+export const GET_CODE_SELECTOR = '0x7e105ce2';         // getCode(address)
+export const GET_REFERRER_SELECTOR = '0x4a9fefc7';     // getReferrer(address)
+export const GET_REFERRAL_COUNT_SELECTOR = '0x24acbd69'; // getReferralCount(address)
+export const RESOLVE_CODE_SELECTOR = '0x97bc184d';     // resolveCode(uint32)

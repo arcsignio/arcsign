@@ -120,3 +120,110 @@ The Release workflow (GitHub Actions) builds all 3 platforms (macOS, Windows, Li
 - Never use `--no-verify` to bypass commit hooks
 - Use Traditional Chinese (zh-TW) for user-facing content and commit messages
 - **完成開發後必須更新路線圖**：每完成一個 Q2/Q3/Q4 工項，立即更新 `CTO_技術發展路線圖_2026.md` 中對應項目的狀態欄（✅ 完成 + commit hash），避免重複開發已完成的功能
+
+## gstack Skills（工程流程）
+
+全域安裝於 `~/.claude/skills/gstack`，提供 29 個工程開發 skills。
+
+### 常用 Skills
+
+**規劃：**
+- `/office-hours` — 產品思維重構，提出關鍵問題
+- `/plan-ceo-review` — CEO 視角審查功能範圍
+- `/plan-eng-review` — 工程架構鎖定、資料流圖、邊界案例
+- `/plan-design-review` — 設計維度 0-10 分評分
+
+**開發與審查：**
+- `/review` — Staff Engineer 等級程式碼審查
+- `/investigate` — 系統性 root cause 分析
+- `/cso` — OWASP Top 10 + STRIDE 安全審計
+
+**測試：**
+- `/qa` — 真實瀏覽器自動測試（需 Bun）
+- `/browse` — headless Chromium，用於 web 測試和 dogfooding
+- `/benchmark` — Core Web Vitals 效能基準
+
+**發布：**
+- `/ship` — 跑測試、推 branch、開 PR
+- `/land-and-deploy` — 合併 PR、等 CI、驗證 production
+- `/document-release` — 自動更新文件
+
+**安全護欄：**
+- `/careful` — 危險指令警告（rm -rf、force-push 等）
+- `/freeze` — 限制編輯範圍到指定目錄
+
+### 注意事項
+- `/browse` 和 `/qa` 需要 Bun v1.0+（已安裝）
+- `/qa` 只能測 web（Vite dev server / landing-page），無法測 Tauri app
+- ArcSign 用 `master` branch，`/ship` 開 PR 時需確認目標 branch
+
+## 行銷 Skills
+
+### AI Marketing Suite（`/market`）
+
+全方位行銷工具，15 個 skills + 5 個平行 subagents。
+
+- `/market audit <url>` — 完整行銷審計（5 個平行 agents）
+- `/market copy <url>` — 文案分析與生成
+- `/market seo <url>` — SEO 內容審計
+- `/market social <topic>` — 社群媒體內容日曆
+- `/market competitors <url>` — 競爭情報分析
+- `/market landing <url>` — Landing page CRO
+- `/market launch <product>` — 產品上市 playbook
+- `/market emails <topic>` — Email 序列生成
+- `/market ads <url>` — 廣告創意與文案
+- `/market brand <url>` — 品牌語調分析
+- `/market report <url>` — 行銷報告（Markdown）
+- `/market report-pdf <url>` — 行銷報告（PDF）
+
+### Claude SEO（`/seo`）
+
+13 個 SEO sub-skills，搭配已連接的 Ahrefs MCP。
+
+- `/seo audit <url>` — 完整 SEO 審計
+- `/seo technical <url>` — 技術 SEO（crawlability、Core Web Vitals）
+- `/seo content <url>` — 內容品質與 E-E-A-T 分析
+- `/seo schema <url>` — Schema markup 偵測與生成
+- `/seo geo` — AI 搜尋引擎優化（GEO/AEO）
+- `/seo local` — 本地 SEO 分析
+- `/seo plan` — SEO 策略規劃
+
+### Marketing Skills（CRO + 文案 + 成長）
+
+34 個專項 skills，涵蓋：
+- `/copywriting` `/copy-editing` — 文案撰寫與編輯
+- `/page-cro` `/form-cro` `/signup-flow-cro` — 轉換率優化
+- `/content-strategy` — 內容策略規劃
+- `/social-content` — 社群內容創作
+- `/pricing-strategy` — 定價策略
+- `/referral-program` — 推薦計畫設計
+- `/launch-strategy` — 產品上市策略
+- `/cold-email` — B2B 冷郵件撰寫
+- `/programmatic-seo` — 程式化 SEO 頁面生成
+- `/schema-markup` — 結構化資料優化
+
+## 行銷 MCP Servers
+
+### Twitter MCP
+設定檔：`.mcp.json`（需填入 Twitter API keys，到 developer.x.com 申請）
+
+### Ahrefs MCP（已連接）
+70+ 個端點：關鍵字研究、競品分析、排名追蹤、反向連結、流量分析
+
+## 開發與行銷工作流
+
+```
+【工程開發】
+  規劃：/office-hours → /plan-eng-review
+  實作：Claude Code 直接寫程式碼
+  審查：/review → /cso
+  測試：/qa（web）
+  發布：/ship → git tag 觸發 CI
+
+【行銷活動】
+  策略：/market audit → /market competitors
+  SEO：Ahrefs MCP 關鍵字研究 → /seo audit → /seo content
+  內容：/content-strategy → /copywriting → 發布到 blog
+  社群：/market social → /social-content → Twitter MCP 發推
+  追蹤：/market report → 每日報告
+```
