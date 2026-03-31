@@ -206,18 +206,83 @@ export class ArcSignSigner extends AbstractSigner {
 
   /**
    * Send a transaction
+   *
+   * ArcSign Dashboard signs AND broadcasts in one step (dev_sign_transaction).
+   * If a tx_hash is returned, we skip re-broadcasting to avoid "already known" errors.
    */
   async sendTransaction(tx: TransactionRequest): Promise<TransactionResponse> {
     if (!this.provider) {
       throw new Error("Provider not set");
     }
 
-    // Sign the transaction
-    const signedTx = await this.signTransaction(tx);
+    // Resolve addresses and estimate gas if needed
+    const resolvedTx = await this.populateTransaction(tx);
 
-    // Broadcast it
+    console.log(`[ArcSign] Signing transaction...`);
+    console.log(`[ArcSign]   From: ${this.formatAddress(this._address)}`);
+    console.log(`[ArcSign]   To: ${resolvedTx.to ? this.formatAddress(resolvedTx.to.toString()) : "(Contract Deploy)"}`);
+    console.log(`[ArcSign]   Value: ${resolvedTx.value || "0"}`);
+    console.log(`[ArcSign] ⏳ Waiting for approval in ArcSign Dashboard...`);
+
+    const network = await this.provider.getNetwork();
+
+    const result = await this.client.devSignTransaction({
+      from: this._address,
+      to: resolvedTx.to?.toString() || "",
+      data: resolvedTx.data?.toString() || "0x",
+      value: resolvedTx.value?.toString(),
+      gas: resolvedTx.gasLimit?.toString(),
+      gasPrice: resolvedTx.gasPrice?.toString(),
+      maxFeePerGas: resolvedTx.maxFeePerGas?.toString(),
+      maxPriorityFeePerGas: resolvedTx.maxPriorityFeePerGas?.toString(),
+      chainId: Number(network.chainId),
+      nonce: resolvedTx.nonce !== undefined ? Number(resolvedTx.nonce) : undefined,
+      context: {
+        ...this.getCurrentScriptContext(),
+        description: resolvedTx.to ? "Contract Call" : "Deploy Contract",
+      },
+    });
+
+    const isAutoSigned = (result as { auto_signed?: boolean }).auto_signed;
+    if (isAutoSigned) {
+      console.log(`[ArcSign] ✓ Transaction auto-signed (session active)`);
+    } else {
+      console.log(`[ArcSign] ✓ Transaction signed (manual approval)`);
+    }
+
+    // ArcSign Dashboard already broadcast the transaction — use tx_hash directly
+    if (result.tx_hash) {
+      console.log(`[ArcSign] ✓ Transaction broadcast by ArcSign: ${result.tx_hash}`);
+
+      // Wait for the transaction to appear on the provider
+      let txResponse: TransactionResponse | null = null;
+      for (let i = 0; i < 30; i++) {
+        txResponse = await this.provider.getTransaction(result.tx_hash);
+        if (txResponse) break;
+        await new Promise(r => setTimeout(r, 1000));
+      }
+
+      if (!txResponse) {
+        throw new Error(`Transaction ${result.tx_hash} not found after broadcasting`);
+      }
+
+      return txResponse;
+    }
+
+    // Fallback: if no tx_hash returned, broadcast the signed_tx ourselves
+    if (!result.signed_tx) {
+      throw new Error("No signed transaction or tx_hash returned");
+    }
+
+    let signedTxHex: string;
+    if (isAutoSigned && result.signed_tx.startsWith("0x")) {
+      signedTxHex = result.signed_tx;
+    } else {
+      signedTxHex = this.base64ToHex(result.signed_tx);
+    }
+
     console.log(`[ArcSign] Broadcasting transaction...`);
-    const response = await this.provider.broadcastTransaction(signedTx);
+    const response = await this.provider.broadcastTransaction(signedTxHex);
     console.log(`[ArcSign] ✓ Transaction submitted: ${response.hash}`);
 
     return response;
