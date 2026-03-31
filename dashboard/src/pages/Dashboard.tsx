@@ -254,6 +254,8 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
         value: pendingTransaction.value,
         data: pendingTransaction.data?.substring(0, 20) + "...",
         chainId,
+        gas: pendingTransaction.gas,
+        nonce: pendingTransaction.nonce,
       });
 
       // ✅ Use session token instead of appPassword (zero password storage)
@@ -262,50 +264,78 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
         throw new Error(t("dashboard.sessionExpired"));
       }
 
-      // Convert hex value to decimal for our API
-      const valueInWei = hexToDecimalWei(pendingTransaction.value);
-      console.log("💰 Value in wei:", valueInWei);
-
-      // For contract calls, we need to use a different approach
-      // The pending transaction already has the encoded data
-      // We need to build a raw transaction with this data
-
-      // Build the transaction using our ChainAdapter
-      // Note: For contract calls, amount is just for native token transfer
-      // The actual call data is in pendingTransaction.data
-      const unsignedTx = await tauriApi.buildTransaction({
-        chainId,
-        from: pendingTransaction.from,
-        to: pendingTransaction.to,
-        amount: valueInWei, // Use converted decimal value
-        data: pendingTransaction.data, // Contract call data (hex-encoded)
-        usbPath,
-        sessionToken, // ✅ Use session token
-      });
-
-      // Sign the transaction
-      const signedTx = await tauriApi.signTransaction({
-        chainId,
-        walletId: wallet.id,
-        password,
-        fromAddress: pendingTransaction.from,
-        unsignedTx,
-        usbPath,
-        sessionToken, // ✅ Use session token
-      });
-
       let txHash: string | undefined;
+      let serializedTx: string | undefined;
 
-      // Broadcast if requested
-      if (pendingTransaction.broadcast) {
-        const broadcastResult = await tauriApi.broadcastTransaction({
-          chainId,
-          signedTx,
+      // Dev mode fast path: Hardhat pre-provides gas + nonce, use devModeSign to bypass
+      // buildTransaction (which fails gas estimation for contract deployment with empty `to`)
+      if (pendingTransaction.gas && pendingTransaction.nonce !== undefined) {
+        console.log("🔧 Using devModeSign (Hardhat-provided gas:", pendingTransaction.gas, "nonce:", pendingTransaction.nonce, ")");
+        const signResult = await tauriApi.devModeSign({
+          walletId: wallet.id,
+          password,
           usbPath,
-          sessionToken, // ✅ Use session token
+          from: pendingTransaction.from,
+          to: pendingTransaction.to || '',
+          data: pendingTransaction.data || '0x',
+          value: pendingTransaction.value || '0x0',
+          gas: pendingTransaction.gas,
+          gasPrice: pendingTransaction.gas_price,
+          maxFeePerGas: pendingTransaction.max_fee_per_gas,
+          maxPriorityFeePerGas: pendingTransaction.max_priority_fee_per_gas,
+          chainId: pendingTransaction.chain_id,
+          nonce: pendingTransaction.nonce,
         });
-        txHash = broadcastResult.txHash;
-        console.log("📡 Transaction broadcasted:", txHash);
+        serializedTx = signResult.serializedTx;
+
+        // Broadcast the signed transaction
+        if (pendingTransaction.broadcast) {
+          const broadcastResult = await tauriApi.broadcastTransaction({
+            chainId,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            signedTx: signResult as any,
+            usbPath,
+            sessionToken,
+          });
+          txHash = broadcastResult.txHash;
+          console.log("📡 Transaction broadcasted:", txHash);
+        }
+      } else {
+        // Standard path: WalletConnect / mint-page (uses buildTransaction for gas estimation)
+        const valueInWei = hexToDecimalWei(pendingTransaction.value);
+        console.log("💰 Value in wei:", valueInWei);
+
+        const unsignedTx = await tauriApi.buildTransaction({
+          chainId,
+          from: pendingTransaction.from,
+          to: pendingTransaction.to,
+          amount: valueInWei,
+          data: pendingTransaction.data,
+          usbPath,
+          sessionToken,
+        });
+
+        const signedTx = await tauriApi.signTransaction({
+          chainId,
+          walletId: wallet.id,
+          password,
+          fromAddress: pendingTransaction.from,
+          unsignedTx,
+          usbPath,
+          sessionToken,
+        });
+        serializedTx = signedTx.serializedTx;
+
+        if (pendingTransaction.broadcast) {
+          const broadcastResult = await tauriApi.broadcastTransaction({
+            chainId,
+            signedTx,
+            usbPath,
+            sessionToken,
+          });
+          txHash = broadcastResult.txHash;
+          console.log("📡 Transaction broadcasted:", txHash);
+        }
       }
 
       // Send success response back to WebSocket
@@ -314,7 +344,7 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
           requestId,
           success: true,
           txHash,
-          signedTx: signedTx.serializedTx,
+          signedTx: serializedTx,
         });
         console.log("✅ Transaction completed successfully");
       } catch (respondErr) {
