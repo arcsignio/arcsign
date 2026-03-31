@@ -15,7 +15,7 @@ export const IS_TESTNET = false; // Production: BSC Mainnet
 export const CONTRACTS = {
   mainnet: {
     nftContract: '0x02EA7B4870Aa0553EF357Af6475727f1E01c7b2F',
-    referralContract: '0x0000000000000000000000000000000000000000', // TODO: deploy 後填入
+    referralContract: '0x69A7aa10e11958e79988553f1722a703F7411457',
     usdt: '0x55d398326f99059fF775485246999027B3197955',
     chainId: 56,
     chainName: 'bnb',

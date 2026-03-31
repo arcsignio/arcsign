@@ -281,15 +281,17 @@ export function DeveloperMode({ onBack, usbPath, hasPendingDev }: DeveloperModeP
         nonce: request.nonce || 0,
       });
 
-      // Respond to the WebSocket with the signed transaction
+      // Respond to the WebSocket with the signed tx (no txHash) so the plugin broadcasts it
+      // The plugin uses its own Hardhat provider (BSC RPC from hardhat.config.js) to broadcast.
+      // This avoids the auth requirement in ArcSign's broadcastTransaction FFI.
       await tauriApi.respondToTransaction({
         requestId: Number(requestId),
         success: true,
         signedTx: signResult.serializedTx,
-        txHash: signResult.txHash,
+        // txHash intentionally omitted — plugin will broadcast and assign the real hash
       });
 
-      // Move to history
+      // Move to history (txHash = keccak256(serializedTx), deterministic and correct)
       const historyEntry = { ...request, status: 'approved' as const, txHash: signResult.txHash, timestamp: Date.now() };
       setPendingRequests(prev => prev.filter(r => r.id !== requestId));
       setSigningHistory(prev => [...prev, historyEntry]);
