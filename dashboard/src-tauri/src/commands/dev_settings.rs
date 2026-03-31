@@ -42,6 +42,8 @@ pub struct ExplorerApiKeys {
 pub struct DevSettings {
     pub version: u32,
     pub explorer_api_keys: ExplorerApiKeys,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_wallet_id: Option<String>,
     pub updated_at: u64,
 }
 
@@ -50,6 +52,7 @@ impl Default for DevSettings {
         Self {
             version: 1,
             explorer_api_keys: ExplorerApiKeys::default(),
+            default_wallet_id: None,
             updated_at: 0,
         }
     }

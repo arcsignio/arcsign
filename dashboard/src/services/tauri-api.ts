@@ -2358,6 +2358,7 @@ export interface ExplorerApiKeys {
 export interface DevSettings {
   version: number;
   explorerApiKeys: ExplorerApiKeys;
+  defaultWalletId?: string;
   updatedAt: number;
 }
 

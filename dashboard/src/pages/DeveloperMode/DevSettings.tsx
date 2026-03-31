@@ -10,9 +10,11 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DevSettings, ExplorerApiKeys } from '@/services/tauri-api';
+import type { Wallet } from '@/types/wallet';
 
 interface DevSettingsProps {
   settings: DevSettings | null;
+  wallets: Wallet[];
   onSave: (settings: DevSettings) => Promise<void>;
 }
 
@@ -68,19 +70,45 @@ const API_KEY_CONFIGS: ApiKeyConfig[] = [
   },
 ];
 
-export function DevSettings({ settings, onSave }: DevSettingsProps) {
+export function DevSettings({ settings, wallets, onSave }: DevSettingsProps) {
   const { t } = useTranslation();
   const [apiKeys, setApiKeys] = useState<ExplorerApiKeys>({});
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [savedKeys, setSavedKeys] = useState<Record<string, boolean>>({});
+  const [defaultWalletId, setDefaultWalletId] = useState<string>('');
+  const [savingWallet, setSavingWallet] = useState(false);
+  const [walletSaved, setWalletSaved] = useState(false);
 
   // Initialize from settings
   useEffect(() => {
     if (settings?.explorerApiKeys) {
       setApiKeys(settings.explorerApiKeys);
     }
+    if (settings?.defaultWalletId) {
+      setDefaultWalletId(settings.defaultWalletId);
+    }
   }, [settings]);
+
+  const handleDefaultWalletChange = async (walletId: string) => {
+    setDefaultWalletId(walletId);
+    setSavingWallet(true);
+    setWalletSaved(false);
+    try {
+      await onSave({
+        version: settings?.version || 1,
+        explorerApiKeys: apiKeys,
+        defaultWalletId: walletId || undefined,
+        updatedAt: Date.now(),
+      });
+      setWalletSaved(true);
+      setTimeout(() => setWalletSaved(false), 2000);
+    } catch (err) {
+      console.error('Failed to save default wallet:', err);
+    } finally {
+      setSavingWallet(false);
+    }
+  };
 
   const handleKeyChange = (key: keyof ExplorerApiKeys, value: string) => {
     setApiKeys(prev => ({ ...prev, [key]: value || undefined }));
@@ -111,6 +139,30 @@ export function DevSettings({ settings, onSave }: DevSettingsProps) {
   return (
     <div className="dev-settings">
       <h2>{t('developer.settings', 'Developer Settings')}</h2>
+
+      <div className="settings-section">
+        <h3>{t('developer.defaultWallet', 'Default Signing Wallet')}</h3>
+        <p className="section-description">
+          {t('developer.defaultWalletDesc', 'Auto-select this wallet when entering Developer Mode. Dev transactions from Hardhat will use this wallet automatically.')}
+        </p>
+        <div className="default-wallet-row">
+          <select
+            value={defaultWalletId}
+            onChange={e => handleDefaultWalletChange(e.target.value)}
+            className="wallet-select"
+            disabled={savingWallet}
+          >
+            <option value="">{t('developer.noDefaultWallet', '— Select each time —')}</option>
+            {wallets.map(w => (
+              <option key={w.id} value={w.id}>
+                👛 {w.name} ({w.id.substring(0, 8)}...)
+              </option>
+            ))}
+          </select>
+          {savingWallet && <span className="save-status">...</span>}
+          {walletSaved && <span className="save-status saved">✓</span>}
+        </div>
+      </div>
 
       <div className="settings-section">
         <h3>{t('developer.explorerApiKeys', 'Block Explorer API Keys')}</h3>
@@ -363,6 +415,43 @@ export function DevSettings({ settings, onSave }: DevSettingsProps) {
           font-size: 12px;
           overflow-x: auto;
           margin: 8px 0;
+        }
+
+        .default-wallet-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .wallet-select {
+          flex: 1;
+          padding: 10px 12px;
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 8px;
+          color: white;
+          font-size: 14px;
+          cursor: pointer;
+          appearance: auto;
+        }
+
+        .wallet-select:focus {
+          outline: none;
+          border-color: #2dd4bf;
+        }
+
+        .wallet-select option {
+          background: #1a1a2e;
+          color: white;
+        }
+
+        .save-status {
+          font-size: 14px;
+          color: rgba(255, 255, 255, 0.5);
+        }
+
+        .save-status.saved {
+          color: #22c55e;
         }
       `}</style>
     </div>

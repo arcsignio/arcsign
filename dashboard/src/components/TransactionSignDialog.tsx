@@ -16,12 +16,14 @@ export type PendingTransaction = PendingTransactionInfo;
 
 interface TransactionSignDialogProps {
   transaction: PendingTransactionInfo | null;
+  walletName?: string;
   onConfirm: (requestId: number, password: string) => Promise<void>;
   onReject: (requestId: number) => Promise<void> | void;
 }
 
 export function TransactionSignDialog({
   transaction,
+  walletName,
   onConfirm,
   onReject,
 }: TransactionSignDialogProps) {
@@ -129,6 +131,14 @@ export function TransactionSignDialog({
               {transaction.description}
             </p>
           </div>
+
+          {/* Wallet */}
+          {walletName && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Wallet</span>
+              <span className="font-medium text-gray-800">{walletName}</span>
+            </div>
+          )}
 
           {/* From */}
           <div className="flex justify-between text-sm">

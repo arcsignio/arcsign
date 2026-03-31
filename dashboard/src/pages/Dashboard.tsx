@@ -127,6 +127,7 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
   const [isSigningTransaction, setIsSigningTransaction] = useState(false);
   const [rejectCooldown, setRejectCooldown] = useState(false); // Prevent immediate re-polling after reject
   const prevViewRef = useRef<View>("list"); // Track previous view for developer mode cleanup
+  const [hasPendingDev, setHasPendingDev] = useState(false); // Dev transaction detected, redirect to Developer Mode
 
   const {
     wallets,
@@ -165,14 +166,13 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
     const prevView = prevViewRef.current;
 
     if (currentView === 'developer') {
-      // Entering developer mode: clear local and backend pending state
+      // Only cancel if Dashboard was actively handling a transaction
+      // Don't cancel if redirecting due to dev transaction (it's still in the queue for DeveloperMode)
       if (pendingTransaction) {
-        console.log("🔧 Entering developer mode, clearing pending transaction from Dashboard");
+        console.log("🔧 Entering developer mode, clearing Dashboard pending transaction");
         setPendingTransaction(null);
+        tauriApi.cancelPendingTransaction().catch(() => {});
       }
-      tauriApi.cancelPendingTransaction().catch(() => {
-        // Ignore errors - transaction might not exist
-      });
     } else if (prevView === 'developer') {
       // Leaving developer mode: clear any pending state that might have accumulated
       console.log("🔧 Leaving developer mode, clearing pending transactions");
@@ -201,8 +201,15 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
       try {
         const tx = await tauriApi.getPendingTransaction();
         if (tx) {
-          console.log("📥 Pending transaction received:", tx);
-          setPendingTransaction(tx);
+          if (tx.script_name) {
+            // Dev transaction (Hardhat deploy/call) → redirect to Developer Mode
+            console.log("🔧 Dev transaction detected, redirecting to Developer Mode");
+            setHasPendingDev(true);
+            setCurrentView("developer");
+          } else {
+            console.log("📥 Pending transaction received:", tx);
+            setPendingTransaction(tx);
+          }
         }
       } catch (err) {
         // Silently ignore polling errors (channel might be disconnected briefly)
@@ -254,8 +261,6 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
         value: pendingTransaction.value,
         data: pendingTransaction.data?.substring(0, 20) + "...",
         chainId,
-        gas: pendingTransaction.gas,
-        nonce: pendingTransaction.nonce,
       });
 
       // ✅ Use session token instead of appPassword (zero password storage)
@@ -264,78 +269,44 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
         throw new Error(t("dashboard.sessionExpired"));
       }
 
+      // Convert hex value to decimal for our API
+      const valueInWei = hexToDecimalWei(pendingTransaction.value);
+      console.log("💰 Value in wei:", valueInWei);
+
+      // Build the transaction using our ChainAdapter
+      const unsignedTx = await tauriApi.buildTransaction({
+        chainId,
+        from: pendingTransaction.from,
+        to: pendingTransaction.to,
+        amount: valueInWei,
+        data: pendingTransaction.data,
+        usbPath,
+        sessionToken,
+      });
+
+      // Sign the transaction
+      const signedTx = await tauriApi.signTransaction({
+        chainId,
+        walletId: wallet.id,
+        password,
+        fromAddress: pendingTransaction.from,
+        unsignedTx,
+        usbPath,
+        sessionToken,
+      });
+
       let txHash: string | undefined;
-      let serializedTx: string | undefined;
 
-      // Dev mode fast path: Hardhat pre-provides gas + nonce, use devModeSign to bypass
-      // buildTransaction (which fails gas estimation for contract deployment with empty `to`)
-      if (pendingTransaction.gas && pendingTransaction.nonce !== undefined) {
-        console.log("🔧 Using devModeSign (Hardhat-provided gas:", pendingTransaction.gas, "nonce:", pendingTransaction.nonce, ")");
-        const signResult = await tauriApi.devModeSign({
-          walletId: wallet.id,
-          password,
-          usbPath,
-          from: pendingTransaction.from,
-          to: pendingTransaction.to || '',
-          data: pendingTransaction.data || '0x',
-          value: pendingTransaction.value || '0x0',
-          gas: pendingTransaction.gas,
-          gasPrice: pendingTransaction.gas_price,
-          maxFeePerGas: pendingTransaction.max_fee_per_gas,
-          maxPriorityFeePerGas: pendingTransaction.max_priority_fee_per_gas,
-          chainId: pendingTransaction.chain_id,
-          nonce: pendingTransaction.nonce,
-        });
-        serializedTx = signResult.serializedTx;
-
-        // Broadcast the signed transaction
-        if (pendingTransaction.broadcast) {
-          const broadcastResult = await tauriApi.broadcastTransaction({
-            chainId,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            signedTx: signResult as any,
-            usbPath,
-            sessionToken,
-          });
-          txHash = broadcastResult.txHash;
-          console.log("📡 Transaction broadcasted:", txHash);
-        }
-      } else {
-        // Standard path: WalletConnect / mint-page (uses buildTransaction for gas estimation)
-        const valueInWei = hexToDecimalWei(pendingTransaction.value);
-        console.log("💰 Value in wei:", valueInWei);
-
-        const unsignedTx = await tauriApi.buildTransaction({
+      // Broadcast if requested
+      if (pendingTransaction.broadcast) {
+        const broadcastResult = await tauriApi.broadcastTransaction({
           chainId,
-          from: pendingTransaction.from,
-          to: pendingTransaction.to,
-          amount: valueInWei,
-          data: pendingTransaction.data,
+          signedTx,
           usbPath,
           sessionToken,
         });
-
-        const signedTx = await tauriApi.signTransaction({
-          chainId,
-          walletId: wallet.id,
-          password,
-          fromAddress: pendingTransaction.from,
-          unsignedTx,
-          usbPath,
-          sessionToken,
-        });
-        serializedTx = signedTx.serializedTx;
-
-        if (pendingTransaction.broadcast) {
-          const broadcastResult = await tauriApi.broadcastTransaction({
-            chainId,
-            signedTx,
-            usbPath,
-            sessionToken,
-          });
-          txHash = broadcastResult.txHash;
-          console.log("📡 Transaction broadcasted:", txHash);
-        }
+        txHash = broadcastResult.txHash;
+        console.log("📡 Transaction broadcasted:", txHash);
       }
 
       // Send success response back to WebSocket
@@ -344,7 +315,7 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
           requestId,
           success: true,
           txHash,
-          signedTx: serializedTx,
+          signedTx: signedTx.serializedTx,
         });
         console.log("✅ Transaction completed successfully");
       } catch (respondErr) {
@@ -917,8 +888,9 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
   if (currentView === "developer") {
     return (
       <DeveloperMode
-        onBack={handleBackToList}
+        onBack={() => { setHasPendingDev(false); handleBackToList(); }}
         usbPath={usbPath || ""}
+        hasPendingDev={hasPendingDev}
       />
     );
   }
@@ -1175,6 +1147,9 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
       {/* Transaction Sign Dialog (for mint-page integration) */}
       <TransactionSignDialog
         transaction={pendingTransaction}
+        walletName={pendingTransaction ? wallets.find(w =>
+          w.addresses?.some(a => a.address.toLowerCase() === pendingTransaction.from.toLowerCase())
+        )?.name : undefined}
         onConfirm={handleTransactionConfirm}
         onReject={handleTransactionReject}
       />

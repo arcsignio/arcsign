@@ -50,9 +50,10 @@ function getNetworkName(chainId: number): string {
 interface DeveloperModeProps {
   onBack: () => void;
   usbPath: string;
+  hasPendingDev?: boolean;
 }
 
-export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
+export function DeveloperMode({ onBack, usbPath, hasPendingDev }: DeveloperModeProps) {
   const { t } = useTranslation();
 
   // View state management
@@ -74,6 +75,13 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
+  // Early load DevSettings (for default wallet auto-select)
+  const [earlyDevSettings, setEarlyDevSettings] = useState<DevSettingsType | null>(null);
+
+  useEffect(() => {
+    tauriApi.loadDevSettings({ usbPath }).then(setEarlyDevSettings).catch(() => {});
+  }, [usbPath]);
+
   // Load wallets on mount
   useEffect(() => {
     const loadWallets = async () => {
@@ -93,6 +101,20 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
 
     loadWallets();
   }, [usbPath]);
+
+  // Auto-select default wallet when available
+  useEffect(() => {
+    if (wallets.length > 0 && !selectedWallet && !isLoading && earlyDevSettings) {
+      const defaultId = earlyDevSettings.defaultWalletId;
+      if (defaultId) {
+        const wallet = wallets.find(w => w.id === defaultId);
+        if (wallet) {
+          console.log("🔧 Auto-selecting default wallet:", wallet.name);
+          handleSelectWallet(wallet);
+        }
+      }
+    }
+  }, [wallets, isLoading, selectedWallet, earlyDevSettings]);
 
   // Poll for pending requests from Hardhat/Foundry scripts (only when in main view)
   useEffect(() => {
@@ -518,6 +540,21 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
               </div>
             )}
 
+            {hasPendingDev && (
+              <div className="dev-pending-banner" style={{
+                padding: '12px 16px',
+                marginBottom: '16px',
+                background: 'rgba(245, 158, 11, 0.2)',
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                borderRadius: '8px',
+                color: '#fbbf24',
+                textAlign: 'left',
+                fontSize: '14px',
+              }}>
+                🔔 {t('developer.pendingDevTx', 'Developer transaction waiting for approval. Please select a wallet to continue.')}
+              </div>
+            )}
+
             {error && (
               <div className="error-banner">
                 ⚠️ {error}
@@ -642,6 +679,7 @@ export function DeveloperMode({ onBack, usbPath }: DeveloperModeProps) {
             <div style={{ marginTop: '32px' }} />
             <DevSettings
               settings={devSettings}
+              wallets={wallets}
               onSave={handleSaveSettings}
             />
           </>
