@@ -138,3 +138,6 @@ contracts/artifacts/build-info/
 *.pyc
 marketing/.env
 .~lock.*
+
+# Tauri v2 auto-generated schema files (build artifact)
+dashboard/src-tauri/gen/
