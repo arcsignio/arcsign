@@ -1,104 +1,15 @@
 {
-  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "ArcSign",
+  "version": "1.2.3",
+  "identifier": "com.arcsign.dashboard",
   "build": {
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",
-    "devPath": "http://localhost:5173",
-    "distDir": "../dist"
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
   },
-  "package": {
-    "productName": "ArcSign",
-    "version": "1.2.3"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "all": false,
-        "open": true
-      },
-      "dialog": {
-        "all": true,
-        "open": true,
-        "save": true
-      },
-      "fs": {
-        "all": true,
-        "readFile": true,
-        "writeFile": true,
-        "readDir": true,
-        "copyFile": true,
-        "createDir": true,
-        "removeDir": true,
-        "removeFile": true,
-        "renameFile": true,
-        "exists": true,
-        "scope": [
-          "$RESOURCE/**",
-          "$APP/**",
-          "$DESKTOP/**",
-          "$DOWNLOAD/**",
-          "/Volumes/**",
-          "/media/**",
-          "/mnt/**",
-          "/run/media/**"
-        ]
-      },
-      "path": {
-        "all": true
-      },
-      "process": {
-        "all": false,
-        "relaunch": true,
-        "exit": true
-      }
-    },
-    "bundle": {
-      "active": true,
-      "category": "Finance",
-      "copyright": "Copyright © 2025 ArcSign",
-      "deb": {
-        "depends": []
-      },
-      "externalBin": [],
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "identifier": "com.arcsign.dashboard",
-      "longDescription": "Multi-chain HD wallet management application supporting 54+ blockchains",
-      "macOS": {
-        "entitlements": "Entitlements.plist",
-        "exceptionDomain": "",
-        "frameworks": [],
-        "providerShortName": null,
-        "signingIdentity": null
-      },
-      "resources": [
-        "libarcsign.*"
-      ],
-      "shortDescription": "ArcSign HD Wallet Dashboard",
-      "targets": "all",
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": "http://timestamp.digicert.com"
-      }
-    },
-    "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:* wss://relay.walletconnect.com https://relay.walletconnect.com https://rpc.walletconnect.com https://verify.walletconnect.com https://api.github.com https://*.llamarpc.com https://bsc-dataseed.binance.org https://polygon-rpc.com https://*.arbitrum.io https://mainnet.optimism.io https://mainnet.base.org https://api.llama.fi https://*.g.alchemy.com https://*.nodereal.io https://arcsign.io; img-src 'self' data: https://*; font-src 'self' data:"
-    },
-    "updater": {
-      "active": true,
-      "endpoints": [
-        "https://dl.arcsign.io/latest.json"
-      ],
-      "dialog": false,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENERkUxNkE4MzRBMEJGREEKUldUYXY2QTBxQmIrelJmelpPMW03N1BIdlh0K3pZak14cXVSb21WK3h2VFdSVEg1Wkc4M3UrNEIK"
-    },
+  "app": {
     "windows": [
       {
         "fullscreen": false,
@@ -109,6 +20,68 @@
         "minWidth": 800,
         "minHeight": 600
       }
-    ]
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:* wss://relay.walletconnect.com https://relay.walletconnect.com https://rpc.walletconnect.com https://verify.walletconnect.com https://api.github.com https://*.llamarpc.com https://bsc-dataseed.binance.org https://polygon-rpc.com https://*.arbitrum.io https://mainnet.optimism.io https://mainnet.base.org https://api.llama.fi https://*.g.alchemy.com https://*.nodereal.io https://arcsign.io; img-src 'self' data: https://*; font-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "category": "Finance",
+    "copyright": "Copyright © 2025 ArcSign",
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    },
+    "externalBin": [],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "longDescription": "Multi-chain HD wallet management application supporting 54+ blockchains",
+    "macOS": {
+      "entitlements": "Entitlements.plist",
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null
+    },
+    "resources": [
+      "libarcsign.*"
+    ],
+    "shortDescription": "ArcSign HD Wallet Dashboard",
+    "targets": "all",
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://dl.arcsign.io/latest.json"
+      ],
+      "dialog": false,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENERkUxNkE4MzRBMEJGREEKUldUYXY2QTBxQmIrelJmelpPMW03N1BIdlh0K3pZak14cXVSb21WK3h2VFdSVEg1Wkc4M3UrNEIK"
+    },
+    "fs": {
+      "scope": {
+        "allow": [
+          "$RESOURCE/**",
+          "$APP/**",
+          "$DESKTOP/**",
+          "$DOWNLOAD/**",
+          "/Volumes/**",
+          "/media/**",
+          "/mnt/**",
+          "/run/media/**"
+        ]
+      }
+    }
   }
 }

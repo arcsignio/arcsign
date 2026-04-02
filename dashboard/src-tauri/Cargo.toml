@@ -10,10 +10,17 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1.5", features = [] }
+tauri-build = { version = "2.5", features = [] }
 
 [dependencies]
-tauri = { version = "1.5", features = [ "updater", "process-relaunch", "process-exit", "shell-open", "dialog-all", "fs-all", "path-all"] }
+tauri = { version = "2.10", features = [] }
+# Tauri v2 plugins (replaces v1 allowlist)
+tauri-plugin-shell = "2.3"
+tauri-plugin-dialog = "2.6"
+tauri-plugin-fs = "2.4"
+tauri-plugin-process = "2.3"
+tauri-plugin-updater = "2.10"
+tauri-plugin-opener = "2.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
@@ -49,6 +56,7 @@ winapi = { version = "0.3", features = ["fileapi", "winbase"] }
 # This feature is used for production builds or when `devPath` points to the filesystem
 # DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
+# Tauri v2: feature flags moved to Cargo.toml features
 # Developer mode: enables dev session commands for testnet auto-signing
 # MUST NOT be included in production builds
 dev-mode = []

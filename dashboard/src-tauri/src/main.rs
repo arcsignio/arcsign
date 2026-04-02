@@ -190,6 +190,13 @@ fn main() {
     let library_for_setup = library.clone();
 
     tauri::Builder::default()
+        // Tauri v2: register plugins (replaces v1 allowlist)
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_opener::init())
         .manage(AddressCache(Mutex::new(HashMap::new())))
         .manage(SessionTokenState(Mutex::new(None)))
         .setup(move |app| {
