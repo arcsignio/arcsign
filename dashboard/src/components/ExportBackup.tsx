@@ -6,8 +6,8 @@
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { save } from '@tauri-apps/api/dialog';
-import { writeBinaryFile } from '@tauri-apps/api/fs';
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeFile } from '@tauri-apps/plugin-fs';
 import tauriApi from '@/services/tauri-api';
 
 interface ExportBackupProps {
@@ -55,7 +55,7 @@ export const ExportBackup: React.FC<ExportBackupProps> = ({
 
       // 3. Decode base64 and write to file
       const binaryData = Uint8Array.from(atob(result.backupData), c => c.charCodeAt(0));
-      await writeBinaryFile(filePath, binaryData);
+      await writeFile(filePath, binaryData);
 
       setSuccess(true);
       onSuccess?.();

@@ -5,7 +5,7 @@
  * Generated: 2025-10-17
  */
 
-import { invoke } from "@tauri-apps/api";
+import { invoke } from "@tauri-apps/api/core";
 import type {
   Wallet,
   WalletCreateResponse,

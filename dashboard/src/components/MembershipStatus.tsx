@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { useDashboardStore, useMembershipStatus } from '@/stores/dashboardStore';
 
 interface MembershipStatusProps {

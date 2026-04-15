@@ -15,7 +15,7 @@
  * - message: Actual data to sign
  */
 
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import {
   type WCRequest,
   type WCResponse,

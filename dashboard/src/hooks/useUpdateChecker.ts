@@ -1,12 +1,12 @@
 /**
  * OTA Update Checker Hook
  * Feature: Custom auto-update UI replacing native Tauri dialog
- * Uses @tauri-apps/api/updater for check/install and @tauri-apps/api/process for relaunch.
+ * Uses @tauri-apps/plugin-updater (v2) for check/install and @tauri-apps/plugin-process for relaunch.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { checkUpdate, installUpdate, onUpdaterEvent } from '@tauri-apps/api/updater';
-import { relaunch } from '@tauri-apps/api/process';
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 
 export type UpdateStatus =
   | 'idle'
@@ -51,54 +51,45 @@ export function useUpdateChecker({ enabled }: { enabled: boolean }): UseUpdateCh
   const [state, setState] = useState<UpdateState>(initialState);
   const isManualCheckRef = useRef(false);
   const autoCheckDoneRef = useRef(false);
-  const unlistenRef = useRef<(() => void) | null>(null);
-
-  // Cleanup updater event listener on unmount
-  useEffect(() => {
-    return () => {
-      if (unlistenRef.current) {
-        unlistenRef.current();
-        unlistenRef.current = null;
-      }
-    };
-  }, []);
+  // Tauri v2: store the Update object returned by check() for use in startInstall
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updateRef = useRef<any>(null);
 
   const checkForUpdates = useCallback(async () => {
-    // Mark as manual check if called directly (not from auto-check)
     isManualCheckRef.current = true;
-
     setState({ status: 'checking', manifest: null, error: null });
 
     try {
-      const { shouldUpdate, manifest } = await checkUpdate();
+      // Tauri v2: check() returns Update | null
+      const update = await check();
 
-      if (shouldUpdate && manifest) {
+      if (update) {
         const updateManifest: UpdateManifest = {
-          version: manifest.version,
-          date: manifest.date,
-          body: manifest.body,
+          version: update.version,
+          date: update.date ?? '',
+          body: update.body ?? '',
         };
 
         // Auto-check respects skipped version; manual check does not
         if (!isManualCheckRef.current) {
           const skippedVersion = localStorage.getItem(SKIPPED_VERSION_KEY);
-          if (skippedVersion === manifest.version) {
+          if (skippedVersion === update.version) {
             setState(initialState);
             return;
           }
         }
 
+        // Store update object for use in startInstall
+        updateRef.current = update;
         setState({ status: 'available', manifest: updateManifest, error: null });
       } else {
         setState({ status: 'up-to-date', manifest: null, error: null });
-        // Auto-dismiss "up to date" after 3 seconds
         setTimeout(() => {
           setState((prev) => (prev.status === 'up-to-date' ? initialState : prev));
         }, 3000);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      // "Could not fetch" = no release published yet → treat as up-to-date
       if (errorMessage.toLowerCase().includes('could not fetch')) {
         setState({ status: 'up-to-date', manifest: null, error: null });
         setTimeout(() => {
@@ -116,34 +107,22 @@ export function useUpdateChecker({ enabled }: { enabled: boolean }): UseUpdateCh
     setState((prev) => ({ ...prev, status: 'downloading' }));
 
     try {
-      // Listen for updater events
-      if (unlistenRef.current) {
-        unlistenRef.current();
-      }
-      unlistenRef.current = await onUpdaterEvent(({ error, status: eventStatus }) => {
-        const s = eventStatus as string;
-        if (s === 'DOWNLOADED') {
+      const update = updateRef.current;
+      if (!update) throw new Error('No update available');
+
+      // Tauri v2: downloadAndInstall() with progress callback
+      await update.downloadAndInstall((event: { event: string }) => {
+        if (event.event === 'Started') {
+          setState((prev) => ({ ...prev, status: 'downloading' }));
+        } else if (event.event === 'Finished') {
           setState((prev) => ({ ...prev, status: 'installing' }));
-        } else if (s === 'UPDATED') {
-          setState((prev) => ({ ...prev, status: 'done' }));
-          // Auto-relaunch after 1.5 seconds
-          setTimeout(() => {
-            relaunch().catch(() => {
-              // If relaunch fails, user can click the button manually
-            });
-          }, 1500);
-        } else if (s === 'ERROR') {
-          setState((prev) => ({
-            ...prev,
-            status: 'error',
-            error: error || 'Unknown error during update',
-          }));
         }
-        // PENDING: keep current status (downloading)
       });
 
-      // Start the actual install (download + install)
-      await installUpdate();
+      setState((prev) => ({ ...prev, status: 'done' }));
+      setTimeout(() => {
+        relaunch().catch(() => {});
+      }, 1500);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setState((prev) => ({ ...prev, status: 'error', error: errorMessage }));
@@ -172,24 +151,23 @@ export function useUpdateChecker({ enabled }: { enabled: boolean }): UseUpdateCh
       // Run the check inline — completely silent (no UI state changes until update found)
       (async () => {
         try {
-          const { shouldUpdate, manifest } = await checkUpdate();
-          if (shouldUpdate && manifest) {
+          const update = await check();
+          if (update) {
             const skippedVersion = localStorage.getItem(SKIPPED_VERSION_KEY);
-            if (skippedVersion === manifest.version) {
+            if (skippedVersion === update.version) {
               setState(initialState);
               return;
             }
+            updateRef.current = update;
             setState({
               status: 'available',
-              manifest: { version: manifest.version, date: manifest.date, body: manifest.body },
+              manifest: { version: update.version, date: update.date ?? '', body: update.body ?? '' },
               error: null,
             });
           } else {
-            // For auto-check, silently go back to idle (don't show "up to date")
             setState(initialState);
           }
         } catch {
-          // For auto-check, silently ignore errors
           setState(initialState);
         }
       })();

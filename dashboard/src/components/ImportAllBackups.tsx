@@ -6,8 +6,8 @@
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { open } from '@tauri-apps/api/dialog';
-import { readBinaryFile } from '@tauri-apps/api/fs';
+import { open } from '@tauri-apps/plugin-dialog';
+import { readFile } from '@tauri-apps/plugin-fs';
 import tauriApi from '@/services/tauri-api';
 
 interface ImportAllBackupsProps {
@@ -41,7 +41,7 @@ export const ImportAllBackups: React.FC<ImportAllBackupsProps> = ({
       setError(null);
 
       // Read file and encode as base64
-      const bytes = await readBinaryFile(filePath);
+      const bytes = await readFile(filePath);
       const binary = Array.from(bytes).map(b => String.fromCharCode(b)).join('');
       setFileData(btoa(binary));
     } catch (err: unknown) {

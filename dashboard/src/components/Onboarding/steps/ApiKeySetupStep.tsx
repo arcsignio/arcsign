@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { open } from '@tauri-apps/api/shell';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { OnboardingStep } from '../OnboardingStep';
 import { setProviderConfig, listProviderConfigs, PROVIDER_TYPES } from '@/api/provider';
 import { useSessionStore } from '@/stores/sessionStore';
@@ -121,7 +121,7 @@ const ProviderCard = ({
         {!isConfigured && (
           <button
             className="api-link-button"
-            onClick={() => open(signupUrl).catch(() => {})}
+            onClick={() => openUrl(signupUrl).catch(() => {})}
             type="button"
           >
             {t('onboarding.apiKeyGetFreeKey')}

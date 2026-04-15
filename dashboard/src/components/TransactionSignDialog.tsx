@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import type { PendingTransactionInfo } from '@/services/tauri-api';
 
 // Re-export for backward compatibility

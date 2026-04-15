@@ -3,7 +3,7 @@
  * Feature: Provider Registry System - API Key Management
  */
 
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 
 export interface ProviderConfig {
   providerType: string;

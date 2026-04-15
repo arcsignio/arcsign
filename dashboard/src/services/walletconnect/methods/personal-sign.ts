@@ -13,7 +13,7 @@
  * - Auto-detect based on format (0x + 40 hex = address)
  */
 
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import {
   type WCRequest,
   type WCResponse,

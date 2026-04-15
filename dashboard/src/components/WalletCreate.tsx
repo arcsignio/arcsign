@@ -10,7 +10,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { invoke } from '@tauri-apps/api';
+import { invoke } from '@tauri-apps/api/core';
 import { createWalletCreateSchema, type WalletCreateFormData } from '@/validation/password';
 import { useDashboardStore, useWalletLimitInfo } from '@/stores/dashboardStore';
 import tauriApi, { type UsbDevice, type AppError, type DeviceMembershipStatus } from '@/services/tauri-api';

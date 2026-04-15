@@ -16,7 +16,7 @@ import type { SessionTypes } from '@walletconnect/types';
 import { getWalletConnectClient, WalletConnectClient } from '@/services/walletconnect/client';
 import { generateNamespaces } from '@/services/walletconnect/session-manager';
 import type { SessionApprovalRequest, WalletConnectConfig } from '@/services/walletconnect/types';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { useAppPassword } from './AppPasswordContext';
 import {
   handleRequest,
