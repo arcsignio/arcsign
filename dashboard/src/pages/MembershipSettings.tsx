@@ -1500,6 +1500,16 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
         <h2 className="referral-title">{t('membership.referralProgram')}</h2>
         <p className="referral-description">{t('membership.referralDescription')}</p>
 
+        {bscAddresses.length > 0 && (
+          <div className="referral-address-badge">
+            <span className="referral-address-label">{t('membership.referralAddress', '推薦地址')}</span>
+            <span className="referral-address-value">
+              {(selectedMintAddress || bscAddresses[0]?.address || '').slice(0, 10)}...
+              {(selectedMintAddress || bscAddresses[0]?.address || '').slice(-8)}
+            </span>
+          </div>
+        )}
+
         {referralError && <div className="referral-error">{referralError}</div>}
 
         {isLoadingReferral ? (
@@ -2659,6 +2669,28 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
           background: linear-gradient(135deg, #f0fdfa 0%, #f0f9ff 100%);
           border: 1px solid #99f6e4;
           border-radius: 12px;
+        }
+
+        .referral-address-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          margin: 8px 0 12px 0;
+          padding: 6px 12px;
+          background: rgba(13, 148, 136, 0.08);
+          border: 1px solid rgba(13, 148, 136, 0.2);
+          border-radius: 20px;
+          font-size: 12px;
+        }
+
+        .referral-address-label {
+          color: #0d9488;
+          font-weight: 600;
+        }
+
+        .referral-address-value {
+          color: #374151;
+          font-family: monospace;
         }
 
         .referral-title {
