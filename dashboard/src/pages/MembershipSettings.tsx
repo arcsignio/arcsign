@@ -135,7 +135,8 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   const [mintError, setMintError] = useState<string | null>(null);
   const [walletPassword, setWalletPassword] = useState('');
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [pendingAction, setPendingAction] = useState<'approve' | 'mint' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'approve' | 'mint' | 'registerReferral' | 'setReferrer' | null>(null);
+  const [pendingReferralOp, setPendingReferralOp] = useState<'register' | 'setReferrer' | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [approveTxHash, setApproveTxHash] = useState<string | null>(null);
   const [confirmationProgress, setConfirmationProgress] = useState<string>('');
@@ -621,6 +622,17 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
     }
   };
 
+  // Trigger referral transaction — select address + start password flow
+  const handleReferralClick = (op: 'register' | 'setReferrer') => {
+    const address = selectedMintAddress || bscAddresses[0]?.address;
+    if (!address) return;
+    setSelectedMintAddress(address);
+    setPendingReferralOp(op);
+    setMintAppPassword('');
+    setShowMintAppPasswordDialog(true);
+    setReferralError(null);
+  };
+
   // ============ Referral Functions ============
 
   // Fetch referral info when a BSC address is available
@@ -755,7 +767,17 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   const proceedWithMint = () => {
     if (!mintAppPassword) return;
     setShowMintAppPasswordDialog(false);
-    setMintStep('approve');
+    if (pendingReferralOp === 'register') {
+      setPendingAction('registerReferral');
+      setWalletPassword('');
+      setShowPasswordDialog(true);
+    } else if (pendingReferralOp === 'setReferrer') {
+      setPendingAction('setReferrer');
+      setWalletPassword('');
+      setShowPasswordDialog(true);
+    } else {
+      setMintStep('approve');
+    }
   };
 
   // Cancel app password dialog for mint
@@ -763,6 +785,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
     setShowMintAppPasswordDialog(false);
     setSelectedMintAddress(null);
     setMintAppPassword('');
+    setPendingReferralOp(null);
   };
 
   // Request wallet password for a specific action
@@ -789,11 +812,16 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       await handleApprove();
     } else if (pendingAction === 'mint') {
       await handleMint();
+    } else if (pendingAction === 'registerReferral') {
+      await handleRegisterCode();
+    } else if (pendingAction === 'setReferrer') {
+      await handleSetReferrer();
     }
 
     // Clear password from memory
     setWalletPassword('');
     setPendingAction(null);
+    setPendingReferralOp(null);
   };
 
   // Execute USDT approve transaction
@@ -1183,6 +1211,8 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
             <p className="password-hint">
               {pendingAction === 'approve'
                 ? t('membership.passwordRequiredApprove')
+                : pendingAction === 'registerReferral' || pendingAction === 'setReferrer'
+                ? t('membership.passwordRequiredReferral', '需要錢包密碼才能簽署推薦合約交易')
                 : t('membership.passwordRequiredMint')
               }
             </p>
@@ -1500,8 +1530,8 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
               ) : (
                 <button
                   className="referral-action-btn"
-                  onClick={handleRegisterCode}
-                  disabled={isRegisteringCode || !selectedMintAddress}
+                  onClick={() => handleReferralClick('register')}
+                  disabled={isRegisteringCode || bscAddresses.length === 0}
                 >
                   {isRegisteringCode ? t('common.processing', 'Processing...') : t('membership.createCode')}
                 </button>
@@ -1539,8 +1569,8 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
                     />
                     <button
                       className="referral-action-btn"
-                      onClick={handleSetReferrer}
-                      disabled={isSettingReferrer || referrerCodeInput.length === 0 || !selectedMintAddress}
+                      onClick={() => handleReferralClick('setReferrer')}
+                      disabled={isSettingReferrer || referrerCodeInput.length === 0 || bscAddresses.length === 0}
                     >
                       {isSettingReferrer ? t('common.processing', 'Processing...') : t('membership.setReferrer')}
                     </button>
