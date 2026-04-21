@@ -276,6 +276,8 @@
     "createCode": "Create Referral Code",
     "copyCode": "Copy Code",
     "codeCopied": "Code copied!",
+    "copyLink": "Copy Referral Link",
+    "linkCopied": "Link copied!",
     "setYourReferrer": "Set Your Referrer",
     "referrerCodePlaceholder": "Enter 6-digit code",
     "setReferrer": "Confirm",
@@ -1237,5 +1239,10 @@
     "upgrade": "Upgrade to Pro",
     "buyMore": "Purchase NFT",
     "note": "Pro membership is an on-chain NFT. You own it — transferable and sellable."
+  },
+  "referralBanner": {
+    "text": "Refer ArcSign to friends — earn 10–20% commission on their swap fees forever.",
+    "cta": "Set up your referral link →",
+    "dismiss": "Dismiss"
   }
 }

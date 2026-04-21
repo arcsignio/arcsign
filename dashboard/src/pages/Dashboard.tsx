@@ -21,6 +21,7 @@ import { ExportBackup } from "@/components/ExportBackup";
 import { ExportAllBackups } from "@/components/ExportAllBackups";
 import { ImportAllBackups } from "@/components/ImportAllBackups";
 import { AddressList } from "@/components/AddressList";
+import { ReferralBanner } from "@/components/ReferralBanner";
 import { ProviderSettings } from "@/components/ProviderSettings";
 import { Settings } from "@/pages/Settings";
 import { MembershipSettings } from "@/pages/MembershipSettings";
@@ -991,6 +992,7 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
         </div>
       ) : (
         <div className="wallet-list">
+          <ReferralBanner onGoToMembership={() => setCurrentView('membership')} />
           <h2>{t("dashboard.yourWallets")}</h2>
           <div className="wallets-grid">
             {wallets.map((wallet) => {

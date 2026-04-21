@@ -276,6 +276,8 @@
     "createCode": "建立推薦碼",
     "copyCode": "複製推薦碼",
     "codeCopied": "已複製！",
+    "copyLink": "複製推薦連結",
+    "linkCopied": "連結已複製！",
     "setYourReferrer": "設定推薦人",
     "referrerCodePlaceholder": "輸入 6 位數推薦碼",
     "setReferrer": "確認設定",
@@ -1237,5 +1239,10 @@
     "upgrade": "升級到 Pro",
     "buyMore": "購買 NFT",
     "note": "Pro 會員是鏈上 NFT，你擁有完整所有權 — 可轉讓、可出售。"
+  },
+  "referralBanner": {
+    "text": "推薦 ArcSign 給朋友，永久賺取他們的 swap 佣金 10-20%",
+    "cta": "前往設定推薦連結 →",
+    "dismiss": "關閉"
   }
 }

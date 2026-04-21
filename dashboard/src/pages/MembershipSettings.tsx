@@ -160,6 +160,7 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
   const [isSettingReferrer, setIsSettingReferrer] = useState(false);
   const [showReferrerConfirm, setShowReferrerConfirm] = useState(false);
   const [copiedReferralCode, setCopiedReferralCode] = useState(false);
+  const [copiedReferralLink, setCopiedReferralLink] = useState(false);
 
   const membership = useMembershipStatus();
   const { wallets, setMembership } = useDashboardStore();
@@ -727,6 +728,16 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
       navigator.clipboard.writeText(String(referralInfo.code).padStart(6, '0'));
       setCopiedReferralCode(true);
       setTimeout(() => setCopiedReferralCode(false), 2000);
+    }
+  };
+
+  const copyReferralLink = () => {
+    if (referralInfo && referralInfo.code > 0) {
+      const code = String(referralInfo.code).padStart(6, '0');
+      const url = `https://arcsign.io/referral.html?ref=${code}&utm_source=arcsign_app&utm_medium=referral&utm_campaign=referral_share`;
+      navigator.clipboard.writeText(url);
+      setCopiedReferralLink(true);
+      setTimeout(() => setCopiedReferralLink(false), 2000);
     }
   };
 
@@ -1478,6 +1489,12 @@ export const MembershipSettings: React.FC<MembershipSettingsProps> = ({ onBack, 
                     onClick={copyReferralCode}
                   >
                     {copiedReferralCode ? t('membership.codeCopied') : t('membership.copyCode')}
+                  </button>
+                  <button
+                    className="referral-copy-btn"
+                    onClick={copyReferralLink}
+                  >
+                    {copiedReferralLink ? t('membership.linkCopied') : t('membership.copyLink')}
                   </button>
                 </div>
               ) : (
