@@ -55,26 +55,41 @@ go test -run TestSpecificName ./...       # Run single test
 ### Key Directories
 
 - `internal/` - Go core logic (wallet, crypto, services, providers)
-- `internal/lib/` - FFI exports for Tauri (exports.go)
+- `internal/lib/` - FFI exports for Tauri; split into 9 domain files (`exports_wallet.go`, `exports_transaction.go`, `exports_swap.go`, `exports_signing.go`, `exports_address.go`, `exports_provider.go`, `exports_membership.go`, `exports_app.go`, `exports_dev.go`) + `exports.go` (helpers only, 346 lines)
 - `src/chainadapter/` - Cross-chain transaction adapters (Bitcoin, Ethereum)
-- `dashboard/` - Tauri + React + TypeScript desktop app
+- `src/swap/` - DEX swap: `aggregator.go` (GetBestRoute parallel query), `kyberswap/`, `oneinch/`
+- `dashboard/` - Tauri v2 + React + TypeScript desktop app
 - `dashboard/src/` - React components, hooks, stores (Zustand)
-- `contracts/` - Hardhat smart contracts (NFT membership on BSC)
-- `landing-page/` - Static site (arcsign.io), includes blog (zh-TW + en)
-- `marketing/` - SEO articles, strategy docs, social media content, dashboard
+- `dashboard/src-tauri/src/commands/` - 15 Rust command files bridging Tauri ↔ FFI
+- `dashboard/src-tauri/src/ffi/bindings.rs` - Rust FFI bindings to Go dylib via libloading
+- `dashboard/src/services/tauri-api.ts` - Frontend Tauri invoke layer (2,500+ lines)
+- `contracts/` - Hardhat smart contracts: `ArcSignPro.sol` (Pro NFT), `ArcSignReferral.sol` (10-20% referral), on BSC
+- `landing-page/` - Static site (arcsign.io), includes blog (zh-TW + en), deployed via Cloudflare Pages
+- `landing-page-astro/` - New Astro-based landing page (in development)
+- `mint-page/` - React app for Pro NFT minting on BSC
+- `marketing/` - SEO articles, strategy docs, social media content
 
 ### Data Flow
 
-1. Dashboard (React) → Tauri FFI bindings → Go shared library
-2. Go library handles: wallet creation, key derivation (BIP39/44), signing
-3. ChainAdapter provides unified interface for multi-chain transactions
+1. Dashboard (React) → `tauri-api.ts` invoke → Rust commands (`src-tauri/src/commands/`) → `ffi/bindings.rs` → Go shared library (`libarcsign.dylib/.dll/.so`)
+2. Go library handles: wallet creation, key derivation (BIP39/44), signing, swap routing, provider queries
+3. `ChainAdapter` provides unified interface for multi-chain transactions (Bitcoin + 6 EVM chains)
+4. Zustand stores (`dashboardStore`, `walletSessionStore`, `sessionStore`) manage UI state; `analytics.ts` sends heartbeats to Cloudflare Worker for tier tracking
+
+### FFI Call Discipline
+
+After any change to Go files under `internal/`, you **must** rebuild the shared library before running Tauri:
+```bash
+make build-lib-macos   # or build-lib / build-lib-linux
+```
+Otherwise Tauri will load a stale dylib and you'll see `symbol not found` errors at runtime.
 
 ### Key Technologies
 
 - **Backend**: Go 1.21+, CGO for shared library builds
 - **Frontend**: React 18, TypeScript, Vite, TailwindCSS, Zustand
-- **Desktop**: Tauri v1 (Rust)
-- **Testing**: Vitest (frontend), Go testing (backend), Hardhat (contracts)
+- **Desktop**: Tauri v2 (Rust) — uses plugin model (`tauri-plugin-dialog`, `tauri-plugin-fs`, `tauri-plugin-shell`)
+- **Testing**: Vitest (frontend, 82%+ coverage, 846 tests), Go testing (backend), Hardhat (contracts)
 
 ## Release Process
 
@@ -120,6 +135,9 @@ The Release workflow (GitHub Actions) builds all 3 platforms (macOS, Windows, Li
 - Never use `--no-verify` to bypass commit hooks
 - Use Traditional Chinese (zh-TW) for user-facing content and commit messages
 - **完成開發後必須更新路線圖**：每完成一個 Q2/Q3/Q4 工項，立即更新 `CTO_技術發展路線圖_2026.md` 中對應項目的狀態欄（✅ 完成 + commit hash），避免重複開發已完成的功能
+- Tauri v2 uses `capabilities` permission model (not `allowlist`). New Tauri commands need to be registered in `tauri.conf.json` capabilities and `src-tauri/src/commands/mod.rs`
+- Pro/Free feature gating is checked via `MembershipStatus` (on-chain NFT balance) — do not add client-side-only gates
+- The referral contract is deployed at `0x69A7...1457` on BSC — do not redeploy unless intentional
 
 ## gstack Skills（工程流程）
 
