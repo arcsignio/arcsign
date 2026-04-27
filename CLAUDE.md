@@ -64,8 +64,8 @@ go test -run TestSpecificName ./...       # Run single test
 - `dashboard/src-tauri/src/ffi/bindings.rs` - Rust FFI bindings to Go dylib via libloading
 - `dashboard/src/services/tauri-api.ts` - Frontend Tauri invoke layer (2,500+ lines)
 - `contracts/` - Hardhat smart contracts: `ArcSignPro.sol` (Pro NFT), `ArcSignReferral.sol` (10-20% referral), on BSC
-- `landing-page/` - Static site (arcsign.io), includes blog (zh-TW + en), deployed via Cloudflare Pages
-- `landing-page-astro/` - New Astro-based landing page (in development)
+- `landing-page/` - Static site (arcsign.io) — 主頁、FAQ、whitepaper 等非 blog 頁面。**Blog 已移除**，改用 Astro。
+- `landing-page-astro/` - **Astro-based landing page（現役，部署到 arcsign.io）**。Cloudflare Pages 自動 build：`cd landing-page-astro && npm install && npm run build`，output 為 `landing-page-astro/dist`。
 - `mint-page/` - React app for Pro NFT minting on BSC
 - `marketing/` - SEO articles, strategy docs, social media content
 
@@ -228,6 +228,54 @@ The Release workflow (GitHub Actions) builds all 3 platforms (macOS, Windows, Li
 ### Ahrefs MCP（已連接）
 70+ 個端點：關鍵字研究、競品分析、排名追蹤、反向連結、流量分析
 
+## Blog 文章工作流（Astro）
+
+Blog source of truth 是 Astro Markdown，**不再使用靜態 HTML**。
+
+### 新增文章步驟
+
+```bash
+# 1. 寫中文文章
+landing-page-astro/src/content/blog/zh-TW/<slug>.md
+
+# 2. 寫英文文章
+landing-page-astro/src/content/blog/en/<slug>.md
+
+# 3. 生成 hero 圖（1200×630 OG image）
+cd /path/to/repo
+python3 marketing/scripts/gen_blog_hero.py "<slug>" "<英文標題>" "<英文副標題>" --tags "tag1,tag2"
+# 輸出到 landing-page-astro/public/blog/images/<slug>-hero.png
+
+# 4. 更新 sitemap
+landing-page/sitemap.xml  # 補入 ZH + EN 的 <url> 區塊
+
+# 5. 更新 marketing/strategy/05_SEO_文章地圖.md（文章狀態改為 ✅）
+
+# 6. Commit + push → Cloudflare Pages 自動 build
+```
+
+### Frontmatter 格式（必填欄位）
+
+```yaml
+---
+title: "文章標題"
+description: "120-155 字元的 meta description，含主要關鍵字"
+pubDate: 2026-04-27
+locale: zh-TW   # 或 en
+tags: ["標籤1", "標籤2"]
+author: "ArcSign Security Team"
+heroImage: "/blog/images/<slug>-hero.png"
+---
+```
+
+### 重要注意事項
+
+- **圖片放在** `landing-page-astro/public/blog/images/`（不是 landing-page/blog/images/，那個已刪除）
+- `landing-page/blog/` **已完全刪除**，不要在那裡新建 HTML
+- `landing-page-astro/scripts/convert-blog.mjs` **已刪除**，不再使用
+- SEO 工具腳本在 `marketing/scripts/optimize_blog_seo.py`（描述快取在 `marketing/scripts/seo_descriptions.json`）
+- 內部連結用 Markdown 格式：`[文字](/blog/slug)` 或 `[text](/blog/slug)`
+
 ## 開發與行銷工作流
 
 ```
@@ -241,7 +289,7 @@ The Release workflow (GitHub Actions) builds all 3 platforms (macOS, Windows, Li
 【行銷活動】
   策略：/market audit → /market competitors
   SEO：Ahrefs MCP 關鍵字研究 → /seo audit → /seo content
-  內容：/content-strategy → /copywriting → 發布到 blog
+  內容：/content-strategy → /copywriting → 直接寫 Astro MD → push
   社群：/market social → /social-content → Twitter MCP 發推
   追蹤：/market report → 每日報告
 ```
