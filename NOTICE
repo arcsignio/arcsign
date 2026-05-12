@@ -1,0 +1,22 @@
+ArcSign — Secure Multi-Chain HD Wallet
+Copyright 2025 ArcSign Contributors
+
+This product includes software developed by:
+  - The ArcSign team and contributors (https://github.com/arcsignio/arcsign)
+
+"ArcSign" and the ArcSign logo are unregistered trademarks
+of the ArcSign project and may not be used in derivative works
+without permission. See TRADEMARK.md for details.
+
+Official ArcSign contracts on BSC (Chain ID: 56):
+  - ArcSign Pro NFT: 0x02EA7B4870Aa0553EF357Af6475727f1E01c7b2F
+  - Referral:        0x69A7aa10e11958e79988553f1722a703F7411457
+  - Treasury:        0x2e26cbd533ac3e98d3b650c7f89406ebb6f2f634
+
+  Verify against:
+  - contracts/deployments/bsc.json          (Pro NFT deployment record)
+  - contracts/deployments/bsc-referral.json (Referral deployment record)
+
+This software contains components from third-party open source projects.
+See dashboard/package.json and go.mod for full dependency lists with
+their respective licenses.
