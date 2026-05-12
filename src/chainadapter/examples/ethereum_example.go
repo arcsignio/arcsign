@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter"
+	"github.com/arcsignio/arcsign/src/chainadapter"
 )
 
 // Example 1: 從 BIP44 路徑生成 Ethereum 地址

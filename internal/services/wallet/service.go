@@ -8,16 +8,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/models"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/address"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/audit"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/bip39service"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/coinregistry"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/crypto"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/hdkey"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/ratelimit"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/storage"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/utils"
+	"github.com/arcsignio/arcsign/internal/models"
+	"github.com/arcsignio/arcsign/internal/services/address"
+	"github.com/arcsignio/arcsign/internal/services/audit"
+	"github.com/arcsignio/arcsign/internal/services/bip39service"
+	"github.com/arcsignio/arcsign/internal/services/coinregistry"
+	"github.com/arcsignio/arcsign/internal/services/crypto"
+	"github.com/arcsignio/arcsign/internal/services/hdkey"
+	"github.com/arcsignio/arcsign/internal/services/ratelimit"
+	"github.com/arcsignio/arcsign/internal/services/storage"
+	"github.com/arcsignio/arcsign/internal/utils"
 )
 
 // WalletService handles wallet creation and management operations

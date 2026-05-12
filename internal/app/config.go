@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/constants"
+	"github.com/arcsignio/arcsign/internal/constants"
 )
 
 // AppConfig represents the top-level application configuration

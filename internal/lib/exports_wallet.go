@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/security"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/backup"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/wallet"
+	"github.com/arcsignio/arcsign/internal/security"
+	"github.com/arcsignio/arcsign/internal/services/backup"
+	"github.com/arcsignio/arcsign/internal/services/wallet"
 )
 
 //export CreateWallet

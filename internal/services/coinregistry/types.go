@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/models"
+	"github.com/arcsignio/arcsign/internal/models"
 )
 
 // KeyType represents the cryptographic key type for address derivation (v0.3.0+)

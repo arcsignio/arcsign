@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/constants"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/security"
+	"github.com/arcsignio/arcsign/internal/constants"
+	"github.com/arcsignio/arcsign/internal/security"
 	"golang.org/x/crypto/hkdf"
 )
 

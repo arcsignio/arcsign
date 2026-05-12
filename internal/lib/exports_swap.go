@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/rpc"
-	"github.com/Jason-chen-taiwan/arcSignv2/src/swap"
+	"github.com/arcsignio/arcsign/internal/rpc"
+	"github.com/arcsignio/arcsign/src/swap"
 )
 
 // ============================================================================

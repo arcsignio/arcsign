@@ -15,9 +15,9 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/app"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/provider"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/wallet"
+	"github.com/arcsignio/arcsign/internal/app"
+	"github.com/arcsignio/arcsign/internal/provider"
+	"github.com/arcsignio/arcsign/internal/services/wallet"
 )
 
 //export IsFirstTimeSetup

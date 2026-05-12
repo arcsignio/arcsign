@@ -18,12 +18,12 @@ import (
 	"time"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/contacts"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/provider"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/bip39service"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/hdkey"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/wallet"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/txlabels"
+	"github.com/arcsignio/arcsign/internal/contacts"
+	"github.com/arcsignio/arcsign/internal/provider"
+	"github.com/arcsignio/arcsign/internal/services/bip39service"
+	"github.com/arcsignio/arcsign/internal/services/hdkey"
+	"github.com/arcsignio/arcsign/internal/services/wallet"
+	"github.com/arcsignio/arcsign/internal/txlabels"
 )
 
 // ========================================================================

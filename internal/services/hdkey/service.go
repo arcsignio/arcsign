@@ -8,7 +8,7 @@ import (
 
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/security"
+	"github.com/arcsignio/arcsign/internal/security"
 )
 
 // HDKeyService handles BIP32 hierarchical deterministic key derivation

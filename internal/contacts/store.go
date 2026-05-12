@@ -9,9 +9,9 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/security"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/crypto"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/utils"
+	"github.com/arcsignio/arcsign/internal/security"
+	"github.com/arcsignio/arcsign/internal/services/crypto"
+	"github.com/arcsignio/arcsign/internal/utils"
 )
 
 // mustGenerateUUID generates a UUID v4 using the existing utils package

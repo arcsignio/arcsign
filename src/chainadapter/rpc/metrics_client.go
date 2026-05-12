@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter/metrics"
+	"github.com/arcsignio/arcsign/src/chainadapter/metrics"
 )
 
 // MetricsRPCClient wraps an RPCClient and records metrics for all RPC calls.

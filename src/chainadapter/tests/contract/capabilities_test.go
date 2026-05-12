@@ -4,11 +4,11 @@ package contract
 import (
 	"testing"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter"
-	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter/bitcoin"
-	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter/ethereum"
-	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter/storage"
-	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter/tests/mocks"
+	"github.com/arcsignio/arcsign/src/chainadapter"
+	"github.com/arcsignio/arcsign/src/chainadapter/bitcoin"
+	"github.com/arcsignio/arcsign/src/chainadapter/ethereum"
+	"github.com/arcsignio/arcsign/src/chainadapter/storage"
+	"github.com/arcsignio/arcsign/src/chainadapter/tests/mocks"
 )
 
 // TC-015: Capabilities Accuracy

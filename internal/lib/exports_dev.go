@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/app"
+	"github.com/arcsignio/arcsign/internal/app"
 )
 
 // Global DevSessionManager instance for Developer Mode auto-signing

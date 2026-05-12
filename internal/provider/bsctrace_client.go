@@ -28,7 +28,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/provider/adapter"
+	"github.com/arcsignio/arcsign/internal/provider/adapter"
 )
 
 // Constants are now defined in adapter/nodereal.go

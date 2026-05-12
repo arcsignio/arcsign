@@ -20,8 +20,8 @@ import (
 	"time"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/app"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/constants"
+	"github.com/arcsignio/arcsign/internal/app"
+	"github.com/arcsignio/arcsign/internal/constants"
 )
 
 // ============================================================================

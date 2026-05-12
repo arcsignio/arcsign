@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/models"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/crypto"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/utils"
+	"github.com/arcsignio/arcsign/internal/models"
+	"github.com/arcsignio/arcsign/internal/services/crypto"
+	"github.com/arcsignio/arcsign/internal/utils"
 )
 
 const validPassword = "TestP@ssw0rd!Secure123"

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter"
+	"github.com/arcsignio/arcsign/src/chainadapter"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"

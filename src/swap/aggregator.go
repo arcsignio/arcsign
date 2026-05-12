@@ -8,8 +8,8 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/src/swap/kyberswap"
-	"github.com/Jason-chen-taiwan/arcSignv2/src/swap/openocean"
+	"github.com/arcsignio/arcsign/src/swap/kyberswap"
+	"github.com/arcsignio/arcsign/src/swap/openocean"
 )
 
 // Provider represents a DEX aggregator provider

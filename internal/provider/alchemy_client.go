@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/provider/adapter"
+	"github.com/arcsignio/arcsign/internal/provider/adapter"
 )
 
 const (

@@ -13,7 +13,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/provider"
+	"github.com/arcsignio/arcsign/internal/provider"
 )
 
 //export SetProviderConfig

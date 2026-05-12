@@ -21,13 +21,61 @@ extern const char *_GoStringPtr(_GoString_ s);
 /* Start of preamble from import "C" comments.  */
 
 
-#line 19 "exports.go"
+#line 8 "exports_address.go"
+
+#include <stdlib.h>
+
+#line 1 "cgo-generated-wrapper"
+
+#line 7 "exports_app.go"
 
 #include <stdlib.h>
 
 #line 1 "cgo-generated-wrapper"
 
 #line 11 "exports_dev.go"
+
+#include <stdlib.h>
+
+#line 1 "cgo-generated-wrapper"
+
+#line 10 "exports_membership.go"
+
+#include <stdlib.h>
+
+#line 1 "cgo-generated-wrapper"
+
+#line 6 "exports_provider.go"
+
+#include <stdlib.h>
+
+#line 1 "cgo-generated-wrapper"
+
+#line 6 "exports_signing.go"
+
+#include <stdlib.h>
+
+#line 1 "cgo-generated-wrapper"
+
+#line 8 "exports_swap.go"
+
+#include <stdlib.h>
+
+#line 1 "cgo-generated-wrapper"
+
+#line 6 "exports_transaction.go"
+
+#include <stdlib.h>
+
+#line 1 "cgo-generated-wrapper"
+
+#line 8 "exports_wallet.go"
+
+#include <stdlib.h>
+
+#line 1 "cgo-generated-wrapper"
+
+#line 19 "exports.go"
 
 #include <stdlib.h>
 
@@ -94,212 +142,366 @@ extern "C" {
 #endif
 
 
-// GoFree frees memory allocated by Go and returned to Rust.
-// CRITICAL: Rust MUST call this function on every pointer returned by FFI exports.
-//
-// Memory Safety:
-// - Only call on pointers returned by this library's export functions
-// - Never call twice on the same pointer (double-free)
-// - Includes panic recovery to handle invalid pointers gracefully
-extern void GoFree(char* ptr);
-
-// GetVersion returns library version information as JSON.
-// This is the simplest FFI function, useful for testing library loading.
-//
-// Returns: {"success": true, "data": {"version": "0.2.0", "buildTime": "...", "goVersion": "..."}}
-// Caller MUST call GoFree() on the returned pointer.
-extern char* GetVersion(void);
-
-// CreateWallet creates a new HD wallet with auto-generated mnemonic.
-// T021: Implement CreateWallet export function calling existing wallet.CreateWallet service
-//
-// Input JSON: {"walletName": "...", "password": "...", "usbPath": "...", "wordCount": 12|24, "passphrase": "..."}
-// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "mnemonic": "...", "createdAt": "..."}}
-//
-// Caller MUST call GoFree() on the returned pointer.
-extern char* CreateWallet(char* params);
-
-// ImportWallet imports an existing wallet from mnemonic.
-// T022: Implement ImportWallet export function
-//
-// Input JSON: {"walletName": "...", "mnemonic": "...", "password": "...", "usbPath": "...", "passphrase": "..."}
-// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "importedAt": "..."}}
-extern char* ImportWallet(char* params);
-
-// UnlockWallet authenticates and loads wallet into memory.
-// T023: Implement UnlockWallet export function with real password verification
-//
-// Input JSON: {"walletId": "...", "password": "...", "usbPath": "..."}
-// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "unlockedAt": "..."}}
-extern char* UnlockWallet(char* params);
-
-// GenerateAddresses derives addresses for specified blockchains from wallet's AddressBook.
-// T024: Implement GenerateAddresses export function (returns all addresses from wallet metadata)
-//
-// Input JSON: {"walletId": "...", "blockchains": []}
-// Output JSON: {"success": true, "data": {"addresses": [{"blockchain": "...", "address": "...", "derivationPath": "...", "symbol": "...", "coinType": ...}], "generatedAt": "..."}}
-extern char* GenerateAddresses(char* params);
-
-// ExportWallet exports a wallet as an encrypted .arcsign backup file.
-// The mnemonic.enc inside is already AES-256-GCM encrypted — no additional encryption needed.
-// No password required for export.
-//
-// Input JSON: {"walletId": "...", "usbPath": "..."}
-// Output JSON: {"success": true, "data": {"walletName": "...", "backupData": "<base64>", "exportedAt": "..."}}
-extern char* ExportWallet(char* params);
-
-// ImportBackupWallet restores a wallet from an encrypted .arcsign backup file.
-// Password is required to verify ownership (decrypt mnemonic).
-//
-// Input JSON: {"backupData": "<base64>", "password": "...", "usbPath": "...", "walletName": "..."}
-// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "importedAt": "..."}}
-extern char* ImportBackupWallet(char* params);
-
-// ExportAllWallets packages all wallets into an encrypted .arcsign-bundle file.
-// Password is used as the outer encryption key (Argon2id + AES-256-GCM).
-//
-// Input JSON: {"password": "...", "usbPath": "..."}
-// Output JSON: {"success": true, "data": {"bundleData": "<base64>", "walletCount": N, "exportedAt": "..."}}
-extern char* ExportAllWallets(char* params);
-
-// ImportAllWallets restores all wallets from an encrypted .arcsign-bundle file.
-// Password decrypts the outer layer; individual wallet passwords are not needed.
-//
-// Input JSON: {"bundleData": "<base64>", "password": "...", "usbPath": "..."}
-// Output JSON: {"success": true, "data": {"wallets": [...], "importedCount": N, "importedAt": "..."}}
-extern char* ImportAllWallets(char* params);
-
-// RenameWallet changes wallet display name.
-// T024.2: Implement RenameWallet export function
-//
-// Input JSON: {"walletName": "...", "newWalletName": "...", "usbPath": "..."}
-// Output JSON: {"success": true, "data": {"walletId": "...", "oldName": "...", "newName": "...", "renamedAt": "..."}}
-extern char* RenameWallet(char* params);
-
-// DeleteWallet permanently deletes a wallet from storage after password verification.
-// This is a destructive operation that cannot be undone.
-//
-// Security: Requires correct wallet password for authentication.
+// ListContacts returns all saved contacts from encrypted storage.
+// Feature: Address Book (v1.3)
 //
 // Input JSON: {
-//   "walletId": "uuid",
-//   "password": "wallet-password",  // REQUIRED: Must be correct
-//   "usbPath": "/path/to/usb"
-// }
-//
-// Returns: {"success": true, "data": {"walletId": "...", "deletedAt": "..."}}
-extern char* DeleteWallet(char* params);
-
-// ListWallets enumerates all wallets on USB.
-// T024.3: Implement ListWallets export function
-//
-// Input JSON: {"usbPath": "..."}
-// Output JSON: {"success": true, "data": {"wallets": [{"walletId": "...", "walletName": "...", "createdAt": "..."}], "count": 2}}
-extern char* ListWallets(char* params);
-
-// BuildTransaction constructs an unsigned transaction ready for signing.
-// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
-// Security: Uses session token for app-level auth (low-risk operation).
-//
-// Input JSON: {
-//   "chainId": "bitcoin" | "ethereum" | "ethereum-sepolia",
-//   "from": "address",
-//   "to": "address",
-//   "asset": "BTC" | "ETH",
-//   "amount": "1000000",  // string representation of big.Int
-//   "feeSpeed": "slow" | "normal" | "fast",
-//   "memo": "optional",
-//   "tokenAddress": "optional ERC-20 contract address",
 //   "usbPath": "/path/to/usb",
-//   "sessionToken": "session-token",    // REQUIRED: Valid session token
-//   "appPassword": "app-password"       // DEPRECATED: Use sessionToken instead
+//   "sessionToken": "session-token",
+//   "appPassword": "app-password"
 // }
 //
 // Output JSON: {
 //   "success": true,
-//   "data": {
-//     "id": "unique-tx-id",
-//     "chainId": "bitcoin",
-//     "from": "address",
-//     "to": "address",
-//     "amount": "1000000",
-//     "fee": "5000",
-//     "signingPayload": "base64-encoded-bytes",
-//     "humanReadable": "JSON representation for audit"
-//   }
+//   "data": { "contacts": [...] }
 // }
-extern char* BuildTransaction(char* params);
+extern char* ListContacts(char* params);
 
-// SignTransaction signs an unsigned transaction using wallet password.
-// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+// AddContact creates a new contact in encrypted storage.
+// Feature: Address Book (v1.3)
 //
-// Security Design:
-// - Private key is derived on-demand from mnemonic using password
-// - Private key exists only during signing (~50-100ms)
-// - All sensitive data (password, mnemonic, privateKey) cleared after use
+// Input JSON: {
+//   "name": "Alice",
+//   "address": "0x...",
+//   "symbol": "ETH",
+//   "coinName": "Ethereum",
+//   "notes": "optional",
+//   "usbPath": "/path/to/usb",
+//   "sessionToken": "session-token",
+//   "appPassword": "app-password"
+// }
+extern char* AddContact(char* params);
+
+// UpdateContact modifies an existing contact in encrypted storage.
+// Feature: Address Book (v1.3)
+//
+// Input JSON: {
+//   "contactId": "uuid",
+//   "name": "Alice",
+//   "address": "0x...",
+//   "symbol": "ETH",
+//   "coinName": "Ethereum",
+//   "notes": "optional",
+//   "usbPath": "/path/to/usb",
+//   "sessionToken": "session-token",
+//   "appPassword": "app-password"
+// }
+extern char* UpdateContact(char* params);
+
+// DeleteContact removes a contact from encrypted storage.
+// Feature: Address Book (v1.3)
+//
+// Input JSON: {
+//   "contactId": "uuid",
+//   "usbPath": "/path/to/usb",
+//   "sessionToken": "session-token",
+//   "appPassword": "app-password"
+// }
+extern char* DeleteContact(char* params);
+
+// SetTransactionLabel adds or updates a transaction label (upsert).
+// Feature: Transaction Labels (v1.3)
+extern char* SetTransactionLabel(char* params);
+
+// GetTransactionLabels returns transaction labels, optionally filtered by network.
+// Feature: Transaction Labels (v1.3)
+extern char* GetTransactionLabels(char* params);
+
+// DeleteTransactionLabel removes a transaction label.
+// Feature: Transaction Labels (v1.3)
+extern char* DeleteTransactionLabel(char* params);
+
+// GetAssetTransfers queries transaction history for an address using Alchemy API.
+// Feature: Transaction History - Asset Transfers API Integration
+//
+// Input JSON: {
+//   "address": "0x...",           // The wallet address to query
+//   "network": "eth-mainnet",     // Network identifier (eth-mainnet, polygon-mainnet, etc.)
+//   "maxCount": 50,               // Optional: maximum number of transfers to return
+//   "pageKey": "",                // Optional: pagination key for next page
+//   "appPassword": "app-password",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Returns: {"success": true, "data": {"transfers": [...], "pageKey": "..."}}
+extern char* GetAssetTransfers(char* params);
+
+// ValidatePassphrase validates a BIP39 passphrase by deriving an Ethereum address
+// and comparing it with the stored address in the wallet's AddressBook.
+// Feature: Passphrase validation for wallets with BIP39 passphrase
+//
+// This is used during wallet unlock flow:
+// 1. User enters wallet password (validated via unlock_wallet)
+// 2. If wallet has_passphrase=true, user is prompted for passphrase
+// 3. This function validates the passphrase by comparing derived address
 //
 // Input JSON: {
 //   "walletId": "uuid-xxx",
 //   "password": "user-password",
-//   "passphrase": "bip39-passphrase",  // Optional BIP39 passphrase (empty string if not used)
+//   "passphrase": "bip39-passphrase",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "valid": true,
+//     "derivedAddress": "0x...",
+//     "expectedAddress": "0x..."
+//   }
+// }
+extern char* ValidatePassphrase(char* params);
+
+// IsFirstTimeSetup checks if app_config.enc exists at the USB path.
+// Feature: App-level authentication
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "isFirstTime": true  // true if app_config.enc doesn't exist
+//   }
+// }
+extern char* IsFirstTimeSetup(char* params);
+
+// InitializeApp creates a new encrypted app_config.enc file for first-time setup.
+// Feature: App-level authentication
+//
+// Input JSON: {
+//   "password": "user-master-password",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "message": "App initialized successfully"
+//   }
+// }
+extern char* InitializeApp(char* params);
+
+// UnlockApp decrypts and loads app_config.enc using the provided password.
+// Feature: App-level authentication
+//
+// Input JSON: {
+//   "password": "user-master-password",
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "config": {
+//       "version": "1.0.0",
+//       "wallets": [{"id": "...", "name": "...", "createdAt": "..."}],
+//       "providers": [{"providerType": "alchemy", "apiKey": "...", "priority": 100, "enabled": true}],
+//       "settings": {"theme": "light", "language": "en"}
+//     }
+//   }
+// }
+extern char* UnlockApp(char* params);
+extern char* GetTokenBalances(char* params);
+
+// GetNFTs queries NFT holdings for a wallet across multiple chains using Alchemy API.
+// Feature: NFT Gallery - Display owned NFTs
+//
+// Input JSON: {
+//   "walletId": "wallet-id",
+//   "password": "wallet-password",
 //   "usbPath": "/path/to/usb",
-//   "chainId": "bitcoin" | "ethereum",
-//   "unsignedTx": {...}  // UnsignedTransaction from BuildTransaction (includes "from" address)
+//   "sessionToken": "session-token",
+//   "appPassword": "app-level-password"
 // }
 //
-// Output JSON: {
-//   "success": true,
-//   "data": {
-//     "txHash": "0x...",
-//     "signature": "base64-encoded-signature",
-//     "serializedTx": "base64-encoded-serialized-tx",
-//     "signedBy": "address"
-//   }
-// }
-extern char* SignTransaction(char* params);
+// Returns: {"success": true, "data": {"nfts": [...], "totalCount": 5, ...}}
+extern char* GetNFTs(char* params);
 
-// BroadcastTransaction submits a signed transaction to the blockchain network.
-// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+// GetTokenApprovals queries all active ERC-20 token approvals for a wallet's EVM addresses.
+// Uses eth_getLogs (Approval events) + eth_call (allowance) to find active approvals.
+// Feature: Token Approvals Management (v1.3 Dashboard)
 //
 // Input JSON: {
-//   "chainId": "bitcoin" | "ethereum",
-//   "signedTx": {...},  // SignedTransaction from SignTransaction
-//   "rpcConfig": "optional-rpc-endpoint"
+//   "walletId": "wallet-uuid",
+//   "password": "wallet-password",
+//   "usbPath": "/path/to/usb",
+//   "sessionToken": "session-token",
+//   "appPassword": "app-password"
 // }
 //
 // Output JSON: {
 //   "success": true,
 //   "data": {
-//     "txHash": "0x...",
-//     "chainId": "bitcoin",
-//     "submittedAt": "2025-11-04T15:30:00Z",
-//     "status": "pending",
-//     "statusUrl": "https://blockexplorer.com/tx/..."
+//     "approvals": [{ tokenAddress, tokenName, tokenSymbol, spender, allowance, isUnlimited, network, networkLabel, ownerAddress }],
+//     "totalCount": 5
 //   }
 // }
-extern char* BroadcastTransaction(char* params);
+extern char* GetTokenApprovals(char* params);
 
-// QueryTransactionStatus retrieves the current status of a transaction.
-// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+// CreateDevSession creates a new developer session for auto-signing.
+// The session stores pre-derived signing keys in memory for fast signing.
 //
 // Input JSON: {
-//   "chainId": "bitcoin" | "ethereum",
-//   "txHash": "0x..." | "bitcoin-tx-hash",
-//   "rpcConfig": "optional-rpc-endpoint"
+//   "walletId": "wallet-uuid",
+//   "password": "wallet-password",
+//   "passphrase": "optional-bip39-passphrase",
+//   "usbPath": "/Volumes/ArcSign",
+//   "durationMinutes": 30,
+//   "trustedNetworks": ["sepolia", "goerli", "bsc-testnet"]
 // }
 //
 // Output JSON: {
 //   "success": true,
 //   "data": {
-//     "txHash": "0x...",
-//     "status": "pending" | "confirmed" | "finalized" | "failed",
-//     "confirmations": 3,
-//     "blockNumber": 12345,
-//     "blockHash": "0x...",
-//     "updatedAt": "2025-11-04T15:35:00Z"
+//     "sessionToken": "dev_xxx...",
+//     "expiresAt": 1234567890000,
+//     "trustedNetworks": ["sepolia", "goerli"],
+//     "addresses": ["0x..."]
 //   }
 // }
-extern char* QueryTransactionStatus(char* params);
+extern char* CreateDevSession(char* params);
+
+// DevSessionSign signs a transaction using a developer session (no password needed).
+// Only works for testnet transactions in trusted networks.
+//
+// Input JSON: {
+//   "sessionToken": "dev_xxx...",
+//   "chainId": 11155111,
+//   "from": "0x...",
+//   "to": "0x...",
+//   "data": "0x...",
+//   "value": "0",
+//   "gas": "21000",
+//   "gasPrice": "1000000000",
+//   "maxFeePerGas": "1000000000",
+//   "maxPriorityFeePerGas": "1000000000",
+//   "nonce": 0
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "signedTx": "0x...",
+//     "txHash": "0x...",
+//     "signedBy": "0x..."
+//   }
+// }
+extern char* DevSessionSign(char* params);
+
+// GetDevSession returns information about a developer session.
+//
+// Input JSON: {
+//   "sessionToken": "dev_xxx..."
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "active": true,
+//     "walletId": "...",
+//     "expiresAt": 1234567890000,
+//     "remainingMs": 60000,
+//     "signCount": 5,
+//     "trustedNetworks": ["sepolia"],
+//     "addresses": ["0x..."]
+//   }
+// }
+extern char* GetDevSession(char* params);
+
+// EndDevSession terminates a developer session and clears all stored keys.
+//
+// Input JSON: {
+//   "sessionToken": "dev_xxx..."
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "status": "ended"
+//   }
+// }
+extern char* EndDevSession(char* params);
+
+// GetMembershipStatus returns the USB device identity and membership status.
+// This also ensures the deviceId is generated if it doesn't exist.
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "deviceId": "uuid-string",
+//     "deviceIdHash": "0x...",  // keccak256(deviceId) for contract binding
+//     "walletLimit": 1,
+//     "walletCount": 1,
+//     "canCreateWallet": true,
+//     "memberships": [{
+//       "nftTokenId": "1",
+//       "nftContract": "0x...",
+//       "chainId": "bnb",
+//       "boundAddress": "0x...",
+//       "isValid": true
+//     }]
+//   }
+// }
+extern char* GetMembershipStatus(char* params);
+
+// AddMembershipBinding adds a new NFT membership binding to this USB device.
+// Call this after the user has bound their deviceId on the NFT contract.
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password",
+//   "nftTokenId": "1",
+//   "nftContract": "0x...",
+//   "chainId": "bnb",
+//   "boundAddress": "0x...",
+//   "signature": "0x..."
+// }
+extern char* AddMembershipBinding(char* params);
+
+// RemoveMembershipBinding removes an NFT membership binding from this USB device.
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb",
+//   "appPassword": "password",
+//   "nftTokenId": "1",
+//   "nftContract": "0x..."
+// }
+extern char* RemoveMembershipBinding(char* params);
+
+// SyncMembershipBindingWithToken adds a membership binding using session token instead of password.
+// This allows frontend to sync on-chain bindings to USB without re-entering password.
+//
+// Input JSON: {
+//   "token": "session-token",
+//   "nftTokenId": "1",
+//   "nftContract": "0x...",
+//   "chainId": "bnb",
+//   "boundAddress": "0x..."
+// }
+extern char* SyncMembershipBindingWithToken(char* params);
+
+// RemoveMembershipBindingWithToken removes a membership binding using session token.
+//
+// Input JSON: {
+//   "token": "session-token",
+//   "nftTokenId": "1",
+//   "nftContract": "0x..."
+// }
+extern char* RemoveMembershipBindingWithToken(char* params);
+extern char* CreateSessionToken(char* params);
+extern char* ValidateSessionToken(char* params);
+extern char* RevokeSessionToken(char* params);
+extern char* GetDeviceMembershipStatusWithToken(char* params);
+extern char* CreateWalletSessionToken(char* params);
+extern char* ValidateWalletSessionToken(char* params);
+extern char* RevokeWalletSessionToken(char* params);
 
 // SetProviderConfig saves a blockchain data provider configuration.
 // Feature: Provider Registry System - API Key Management
@@ -397,176 +599,55 @@ extern char* ListProviderConfigs(char* params);
 // }
 extern char* DeleteProviderConfig(char* params);
 
-// EstimateFee calculates fee estimates with confidence bounds.
-// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+// SignMessage signs a message using EIP-191 personal_sign standard.
+// Feature: WalletConnect Phase 2 - personal_sign support
 //
-// Input JSON: {
-//   "chainId": "bitcoin" | "ethereum",
-//   "from": "address",
-//   "to": "address",
-//   "asset": "BTC" | "ETH",
-//   "amount": "1000000",
-//   "rpcConfig": "optional-rpc-endpoint"
-// }
-//
-// Output JSON: {
-//   "success": true,
-//   "data": {
-//     "chainId": "bitcoin",
-//     "minFee": "1000",
-//     "recommendedFee": "5000",
-//     "maxFee": "10000",
-//     "confidence": 85,
-//     "estimatedBlocks": 6,
-//     "timestamp": "2025-11-04T15:40:00Z"
-//   }
-// }
-extern char* EstimateFee(char* params);
-
-// IsFirstTimeSetup checks if app_config.enc exists at the USB path.
-// Feature: App-level authentication
-//
-// Input JSON: {
-//   "usbPath": "/path/to/usb"
-// }
-//
-// Output JSON: {
-//   "success": true,
-//   "data": {
-//     "isFirstTime": true  // true if app_config.enc doesn't exist
-//   }
-// }
-extern char* IsFirstTimeSetup(char* params);
-
-// InitializeApp creates a new encrypted app_config.enc file for first-time setup.
-// Feature: App-level authentication
-//
-// Input JSON: {
-//   "password": "user-master-password",
-//   "usbPath": "/path/to/usb"
-// }
-//
-// Output JSON: {
-//   "success": true,
-//   "data": {
-//     "message": "App initialized successfully"
-//   }
-// }
-extern char* InitializeApp(char* params);
-
-// UnlockApp decrypts and loads app_config.enc using the provided password.
-// Feature: App-level authentication
-//
-// Input JSON: {
-//   "password": "user-master-password",
-//   "usbPath": "/path/to/usb"
-// }
-//
-// Output JSON: {
-//   "success": true,
-//   "data": {
-//     "config": {
-//       "version": "1.0.0",
-//       "wallets": [{"id": "...", "name": "...", "createdAt": "..."}],
-//       "providers": [{"providerType": "alchemy", "apiKey": "...", "priority": 100, "enabled": true}],
-//       "settings": {"theme": "light", "language": "en"}
-//     }
-//   }
-// }
-extern char* UnlockApp(char* params);
-
-// GetTokenBalances queries token balances for all addresses in a wallet across multiple chains
-// using Alchemy API. Returns aggregated token balances with USD values.
-//
-// Security: Uses session token for app-level auth (low-risk operation).
-// Wallet password still required to verify wallet access.
-//
-// Input JSON: {
-//   "walletId": "uuid",
-//   "password": "wallet-password",      // REQUIRED: Must be correct wallet password
-//   "usbPath": "/path/to/usb",
-//   "sessionToken": "session-token",    // REQUIRED: Valid session token
-//   "appPassword": "app-level-password" // DEPRECATED: Use sessionToken instead
-// }
-//
-// Returns: {"success": true, "data": {"tokens": [...], "totalUsd": 5000.50, ...}}
-extern char* GetTokenBalances(char* params);
-
-// GetNFTs queries NFT holdings for a wallet across multiple chains using Alchemy API.
-// Feature: NFT Gallery - Display owned NFTs
-//
-// Input JSON: {
-//   "walletId": "wallet-id",
-//   "password": "wallet-password",
-//   "usbPath": "/path/to/usb",
-//   "sessionToken": "session-token",
-//   "appPassword": "app-level-password"
-// }
-//
-// Returns: {"success": true, "data": {"nfts": [...], "totalCount": 5, ...}}
-extern char* GetNFTs(char* params);
-
-// GetTokenApprovals queries all active ERC-20 token approvals for a wallet's EVM addresses.
-// Uses eth_getLogs (Approval events) + eth_call (allowance) to find active approvals.
-// Feature: Token Approvals Management (v1.3 Dashboard)
-//
-// Input JSON: {
-//   "walletId": "wallet-uuid",
-//   "password": "wallet-password",
-//   "usbPath": "/path/to/usb",
-//   "sessionToken": "session-token",
-//   "appPassword": "app-password"
-// }
-//
-// Output JSON: {
-//   "success": true,
-//   "data": {
-//     "approvals": [{ tokenAddress, tokenName, tokenSymbol, spender, allowance, isUnlimited, network, networkLabel, ownerAddress }],
-//     "totalCount": 5
-//   }
-// }
-extern char* GetTokenApprovals(char* params);
-
-// GetAssetTransfers queries transaction history for an address using Alchemy API.
-// Feature: Transaction History - Asset Transfers API Integration
-//
-// Input JSON: {
-//   "address": "0x...",           // The wallet address to query
-//   "network": "eth-mainnet",     // Network identifier (eth-mainnet, polygon-mainnet, etc.)
-//   "maxCount": 50,               // Optional: maximum number of transfers to return
-//   "pageKey": "",                // Optional: pagination key for next page
-//   "appPassword": "app-password",
-//   "usbPath": "/path/to/usb"
-// }
-//
-// Returns: {"success": true, "data": {"transfers": [...], "pageKey": "..."}}
-extern char* GetAssetTransfers(char* params);
-
-// ValidatePassphrase validates a BIP39 passphrase by deriving an Ethereum address
-// and comparing it with the stored address in the wallet's AddressBook.
-// Feature: Passphrase validation for wallets with BIP39 passphrase
-//
-// This is used during wallet unlock flow:
-// 1. User enters wallet password (validated via unlock_wallet)
-// 2. If wallet has_passphrase=true, user is prompted for passphrase
-// 3. This function validates the passphrase by comparing derived address
+// EIP-191 format: keccak256("\x19Ethereum Signed Message:\n" + len(message) + message)
 //
 // Input JSON: {
 //   "walletId": "uuid-xxx",
 //   "password": "user-password",
-//   "passphrase": "bip39-passphrase",
-//   "usbPath": "/path/to/usb"
+//   "passphrase": "bip39-passphrase",  // Optional BIP39 passphrase
+//   "usbPath": "/path/to/usb",
+//   "address": "0x...",  // Signing address
+//   "message": "0x..." | "plain text"  // Message to sign (hex or plain text)
 // }
 //
 // Output JSON: {
 //   "success": true,
 //   "data": {
-//     "valid": true,
-//     "derivedAddress": "0x...",
-//     "expectedAddress": "0x..."
+//     "signature": "0x...",  // 65-byte signature (r + s + v)
+//     "messageHash": "0x...",  // EIP-191 hash of message
+//     "signedBy": "0x..."  // Address that signed
 //   }
 // }
-extern char* ValidatePassphrase(char* params);
+extern char* SignMessage(char* params);
+
+// SignTypedData signs EIP-712 typed data.
+// This is used for eth_signTypedData_v4 in WalletConnect.
+//
+// Input JSON:
+//
+//	{
+//	  "walletId": "...",
+//	  "password": "...",
+//	  "passphrase": "...",
+//	  "usbPath": "...",
+//	  "address": "0x...",
+//	  "typedData": "{...}" // EIP-712 JSON string
+//	}
+//
+// Output JSON:
+//
+//	{
+//	  "success": true,
+//	  "data": {
+//	    "signature": "0x...",
+//	    "signedBy": "0x..."
+//	  }
+//	}
+//
+extern char* SignTypedData(char* params);
 
 // GetSwapQuote fetches a swap quote from OpenOcean DEX aggregator.
 // Feature: Token Swap (OpenOcean - FREE, No KYC required)
@@ -700,218 +781,238 @@ extern char* GetNativeTokenAddress(void);
 // }
 extern char* GetSwapTokens(char* params);
 
-// GetMembershipStatus returns the USB device identity and membership status.
-// This also ensures the deviceId is generated if it doesn't exist.
+// BuildTransaction constructs an unsigned transaction ready for signing.
+// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+// Security: Uses session token for app-level auth (low-risk operation).
 //
 // Input JSON: {
+//   "chainId": "bitcoin" | "ethereum" | "ethereum-sepolia",
+//   "from": "address",
+//   "to": "address",
+//   "asset": "BTC" | "ETH",
+//   "amount": "1000000",  // string representation of big.Int
+//   "feeSpeed": "slow" | "normal" | "fast",
+//   "memo": "optional",
+//   "tokenAddress": "optional ERC-20 contract address",
 //   "usbPath": "/path/to/usb",
-//   "appPassword": "password"
+//   "sessionToken": "session-token",    // REQUIRED: Valid session token
+//   "appPassword": "app-password"       // DEPRECATED: Use sessionToken instead
 // }
 //
 // Output JSON: {
 //   "success": true,
 //   "data": {
-//     "deviceId": "uuid-string",
-//     "deviceIdHash": "0x...",  // keccak256(deviceId) for contract binding
-//     "walletLimit": 1,
-//     "walletCount": 1,
-//     "canCreateWallet": true,
-//     "memberships": [{
-//       "nftTokenId": "1",
-//       "nftContract": "0x...",
-//       "chainId": "bnb",
-//       "boundAddress": "0x...",
-//       "isValid": true
-//     }]
+//     "id": "unique-tx-id",
+//     "chainId": "bitcoin",
+//     "from": "address",
+//     "to": "address",
+//     "amount": "1000000",
+//     "fee": "5000",
+//     "signingPayload": "base64-encoded-bytes",
+//     "humanReadable": "JSON representation for audit"
 //   }
 // }
-extern char* GetMembershipStatus(char* params);
+extern char* BuildTransaction(char* params);
 
-// AddMembershipBinding adds a new NFT membership binding to this USB device.
-// Call this after the user has bound their deviceId on the NFT contract.
+// SignTransaction signs an unsigned transaction using wallet password.
+// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
 //
-// Input JSON: {
-//   "usbPath": "/path/to/usb",
-//   "appPassword": "password",
-//   "nftTokenId": "1",
-//   "nftContract": "0x...",
-//   "chainId": "bnb",
-//   "boundAddress": "0x...",
-//   "signature": "0x..."
-// }
-extern char* AddMembershipBinding(char* params);
-
-// RemoveMembershipBinding removes an NFT membership binding from this USB device.
-//
-// Input JSON: {
-//   "usbPath": "/path/to/usb",
-//   "appPassword": "password",
-//   "nftTokenId": "1",
-//   "nftContract": "0x..."
-// }
-extern char* RemoveMembershipBinding(char* params);
-
-// SyncMembershipBindingWithToken adds a membership binding using session token instead of password.
-// This allows frontend to sync on-chain bindings to USB without re-entering password.
-//
-// Input JSON: {
-//   "token": "session-token",
-//   "nftTokenId": "1",
-//   "nftContract": "0x...",
-//   "chainId": "bnb",
-//   "boundAddress": "0x..."
-// }
-extern char* SyncMembershipBindingWithToken(char* params);
-
-// RemoveMembershipBindingWithToken removes a membership binding using session token.
-//
-// Input JSON: {
-//   "token": "session-token",
-//   "nftTokenId": "1",
-//   "nftContract": "0x..."
-// }
-extern char* RemoveMembershipBindingWithToken(char* params);
-extern char* CreateSessionToken(char* params);
-extern char* ValidateSessionToken(char* params);
-extern char* RevokeSessionToken(char* params);
-extern char* GetDeviceMembershipStatusWithToken(char* params);
-extern char* CreateWalletSessionToken(char* params);
-extern char* ValidateWalletSessionToken(char* params);
-extern char* RevokeWalletSessionToken(char* params);
-
-// SignMessage signs a message using EIP-191 personal_sign standard.
-// Feature: WalletConnect Phase 2 - personal_sign support
-//
-// EIP-191 format: keccak256("\x19Ethereum Signed Message:\n" + len(message) + message)
+// Security Design:
+// - Private key is derived on-demand from mnemonic using password
+// - Private key exists only during signing (~50-100ms)
+// - All sensitive data (password, mnemonic, privateKey) cleared after use
 //
 // Input JSON: {
 //   "walletId": "uuid-xxx",
 //   "password": "user-password",
-//   "passphrase": "bip39-passphrase",  // Optional BIP39 passphrase
+//   "passphrase": "bip39-passphrase",  // Optional BIP39 passphrase (empty string if not used)
 //   "usbPath": "/path/to/usb",
-//   "address": "0x...",  // Signing address
-//   "message": "0x..." | "plain text"  // Message to sign (hex or plain text)
+//   "chainId": "bitcoin" | "ethereum",
+//   "unsignedTx": {...}  // UnsignedTransaction from BuildTransaction (includes "from" address)
 // }
 //
 // Output JSON: {
 //   "success": true,
 //   "data": {
-//     "signature": "0x...",  // 65-byte signature (r + s + v)
-//     "messageHash": "0x...",  // EIP-191 hash of message
-//     "signedBy": "0x..."  // Address that signed
-//   }
-// }
-extern char* SignMessage(char* params);
-
-// SignTypedData signs EIP-712 typed data.
-// This is used for eth_signTypedData_v4 in WalletConnect.
-//
-// Input JSON:
-//
-//	{
-//	  "walletId": "...",
-//	  "password": "...",
-//	  "passphrase": "...",
-//	  "usbPath": "...",
-//	  "address": "0x...",
-//	  "typedData": "{...}" // EIP-712 JSON string
-//	}
-//
-// Output JSON:
-//
-//	{
-//	  "success": true,
-//	  "data": {
-//	    "signature": "0x...",
-//	    "signedBy": "0x..."
-//	  }
-//	}
-//
-extern char* SignTypedData(char* params);
-
-// CreateDevSession creates a new developer session for auto-signing.
-// The session stores pre-derived signing keys in memory for fast signing.
-//
-// Input JSON: {
-//   "walletId": "wallet-uuid",
-//   "password": "wallet-password",
-//   "passphrase": "optional-bip39-passphrase",
-//   "usbPath": "/Volumes/ArcSign",
-//   "durationMinutes": 30,
-//   "trustedNetworks": ["sepolia", "goerli", "bsc-testnet"]
-// }
-//
-// Output JSON: {
-//   "success": true,
-//   "data": {
-//     "sessionToken": "dev_xxx...",
-//     "expiresAt": 1234567890000,
-//     "trustedNetworks": ["sepolia", "goerli"],
-//     "addresses": ["0x..."]
-//   }
-// }
-extern char* CreateDevSession(char* params);
-
-// DevSessionSign signs a transaction using a developer session (no password needed).
-// Only works for testnet transactions in trusted networks.
-//
-// Input JSON: {
-//   "sessionToken": "dev_xxx...",
-//   "chainId": 11155111,
-//   "from": "0x...",
-//   "to": "0x...",
-//   "data": "0x...",
-//   "value": "0",
-//   "gas": "21000",
-//   "gasPrice": "1000000000",
-//   "maxFeePerGas": "1000000000",
-//   "maxPriorityFeePerGas": "1000000000",
-//   "nonce": 0
-// }
-//
-// Output JSON: {
-//   "success": true,
-//   "data": {
-//     "signedTx": "0x...",
 //     "txHash": "0x...",
-//     "signedBy": "0x..."
+//     "signature": "base64-encoded-signature",
+//     "serializedTx": "base64-encoded-serialized-tx",
+//     "signedBy": "address"
 //   }
 // }
-extern char* DevSessionSign(char* params);
+extern char* SignTransaction(char* params);
 
-// GetDevSession returns information about a developer session.
+// BroadcastTransaction submits a signed transaction to the blockchain network.
+// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
 //
 // Input JSON: {
-//   "sessionToken": "dev_xxx..."
+//   "chainId": "bitcoin" | "ethereum",
+//   "signedTx": {...},  // SignedTransaction from SignTransaction
+//   "rpcConfig": "optional-rpc-endpoint"
 // }
 //
 // Output JSON: {
 //   "success": true,
 //   "data": {
-//     "active": true,
-//     "walletId": "...",
-//     "expiresAt": 1234567890000,
-//     "remainingMs": 60000,
-//     "signCount": 5,
-//     "trustedNetworks": ["sepolia"],
-//     "addresses": ["0x..."]
+//     "txHash": "0x...",
+//     "chainId": "bitcoin",
+//     "submittedAt": "2025-11-04T15:30:00Z",
+//     "status": "pending",
+//     "statusUrl": "https://blockexplorer.com/tx/..."
 //   }
 // }
-extern char* GetDevSession(char* params);
+extern char* BroadcastTransaction(char* params);
 
-// EndDevSession terminates a developer session and clears all stored keys.
+// QueryTransactionStatus retrieves the current status of a transaction.
+// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
 //
 // Input JSON: {
-//   "sessionToken": "dev_xxx..."
+//   "chainId": "bitcoin" | "ethereum",
+//   "txHash": "0x..." | "bitcoin-tx-hash",
+//   "rpcConfig": "optional-rpc-endpoint"
 // }
 //
 // Output JSON: {
 //   "success": true,
 //   "data": {
-//     "status": "ended"
+//     "txHash": "0x...",
+//     "status": "pending" | "confirmed" | "finalized" | "failed",
+//     "confirmations": 3,
+//     "blockNumber": 12345,
+//     "blockHash": "0x...",
+//     "updatedAt": "2025-11-04T15:35:00Z"
 //   }
 // }
-extern char* EndDevSession(char* params);
+extern char* QueryTransactionStatus(char* params);
+
+// EstimateFee calculates fee estimates with confidence bounds.
+// Feature: 006-chain-adapter - ChainAdapter Transaction FFI
+//
+// Input JSON: {
+//   "chainId": "bitcoin" | "ethereum",
+//   "from": "address",
+//   "to": "address",
+//   "asset": "BTC" | "ETH",
+//   "amount": "1000000",
+//   "rpcConfig": "optional-rpc-endpoint"
+// }
+//
+// Output JSON: {
+//   "success": true,
+//   "data": {
+//     "chainId": "bitcoin",
+//     "minFee": "1000",
+//     "recommendedFee": "5000",
+//     "maxFee": "10000",
+//     "confidence": 85,
+//     "estimatedBlocks": 6,
+//     "timestamp": "2025-11-04T15:40:00Z"
+//   }
+// }
+extern char* EstimateFee(char* params);
+
+// CreateWallet creates a new HD wallet with auto-generated mnemonic.
+// T021: Implement CreateWallet export function calling existing wallet.CreateWallet service
+//
+// Input JSON: {"walletName": "...", "password": "...", "usbPath": "...", "wordCount": 12|24, "passphrase": "..."}
+// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "mnemonic": "...", "createdAt": "..."}}
+//
+// Caller MUST call GoFree() on the returned pointer.
+extern char* CreateWallet(char* params);
+
+// ImportWallet imports an existing wallet from mnemonic.
+// T022: Implement ImportWallet export function
+//
+// Input JSON: {"walletName": "...", "mnemonic": "...", "password": "...", "usbPath": "...", "passphrase": "..."}
+// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "importedAt": "..."}}
+extern char* ImportWallet(char* params);
+
+// UnlockWallet authenticates and loads wallet into memory.
+// T023: Implement UnlockWallet export function with real password verification
+//
+// Input JSON: {"walletId": "...", "password": "...", "usbPath": "..."}
+// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "unlockedAt": "..."}}
+extern char* UnlockWallet(char* params);
+
+// GenerateAddresses derives addresses for specified blockchains from wallet's AddressBook.
+// T024: Implement GenerateAddresses export function (returns all addresses from wallet metadata)
+//
+// Input JSON: {"walletId": "...", "blockchains": []}
+// Output JSON: {"success": true, "data": {"addresses": [{"blockchain": "...", "address": "...", "derivationPath": "...", "symbol": "...", "coinType": ...}], "generatedAt": "..."}}
+extern char* GenerateAddresses(char* params);
+
+// ExportWallet exports a wallet as an encrypted .arcsign backup file.
+// The mnemonic.enc inside is already AES-256-GCM encrypted — no additional encryption needed.
+// No password required for export.
+//
+// Input JSON: {"walletId": "...", "usbPath": "..."}
+// Output JSON: {"success": true, "data": {"walletName": "...", "backupData": "<base64>", "exportedAt": "..."}}
+extern char* ExportWallet(char* params);
+
+// ImportBackupWallet restores a wallet from an encrypted .arcsign backup file.
+// Password is required to verify ownership (decrypt mnemonic).
+//
+// Input JSON: {"backupData": "<base64>", "password": "...", "usbPath": "...", "walletName": "..."}
+// Output JSON: {"success": true, "data": {"walletId": "...", "walletName": "...", "importedAt": "..."}}
+extern char* ImportBackupWallet(char* params);
+
+// ExportAllWallets packages all wallets into an encrypted .arcsign-bundle file.
+// Password is used as the outer encryption key (Argon2id + AES-256-GCM).
+//
+// Input JSON: {"password": "...", "usbPath": "..."}
+// Output JSON: {"success": true, "data": {"bundleData": "<base64>", "walletCount": N, "exportedAt": "..."}}
+extern char* ExportAllWallets(char* params);
+
+// ImportAllWallets restores all wallets from an encrypted .arcsign-bundle file.
+// Password decrypts the outer layer; individual wallet passwords are not needed.
+//
+// Input JSON: {"bundleData": "<base64>", "password": "...", "usbPath": "..."}
+// Output JSON: {"success": true, "data": {"wallets": [...], "importedCount": N, "importedAt": "..."}}
+extern char* ImportAllWallets(char* params);
+
+// RenameWallet changes wallet display name.
+// T024.2: Implement RenameWallet export function
+//
+// Input JSON: {"walletName": "...", "newWalletName": "...", "usbPath": "..."}
+// Output JSON: {"success": true, "data": {"walletId": "...", "oldName": "...", "newName": "...", "renamedAt": "..."}}
+extern char* RenameWallet(char* params);
+
+// DeleteWallet permanently deletes a wallet from storage after password verification.
+// This is a destructive operation that cannot be undone.
+//
+// Security: Requires correct wallet password for authentication.
+//
+// Input JSON: {
+//   "walletId": "uuid",
+//   "password": "wallet-password",  // REQUIRED: Must be correct
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Returns: {"success": true, "data": {"walletId": "...", "deletedAt": "..."}}
+extern char* DeleteWallet(char* params);
+
+// ListWallets enumerates all wallets on USB.
+// T024.3: Implement ListWallets export function
+//
+// Input JSON: {"usbPath": "..."}
+// Output JSON: {"success": true, "data": {"wallets": [{"walletId": "...", "walletName": "...", "createdAt": "..."}], "count": 2}}
+extern char* ListWallets(char* params);
+
+// GoFree frees memory allocated by Go and returned to Rust.
+// CRITICAL: Rust MUST call this function on every pointer returned by FFI exports.
+//
+// Memory Safety:
+// - Only call on pointers returned by this library's export functions
+// - Never call twice on the same pointer (double-free)
+// - Includes panic recovery to handle invalid pointers gracefully
+extern void GoFree(char* ptr);
+
+// GetVersion returns library version information as JSON.
+// This is the simplest FFI function, useful for testing library loading.
+//
+// Returns: {"success": true, "data": {"version": "0.2.0", "buildTime": "...", "goVersion": "..."}}
+// Caller MUST call GoFree() on the returned pointer.
+extern char* GetVersion(void);
 
 #ifdef __cplusplus
 }

@@ -308,7 +308,7 @@ jobs:
       - name: Generate updater manifest (latest.json)
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          REPO="Jason-chen-taiwan/arcSignv2"
+          REPO="arcsignio/arcsign"
           BASE_URL="https://dl.arcsign.io/${GITHUB_REF_NAME}"
           DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 

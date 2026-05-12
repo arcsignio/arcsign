@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/models"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/audit"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/crypto"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/storage"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/utils"
+	"github.com/arcsignio/arcsign/internal/models"
+	"github.com/arcsignio/arcsign/internal/services/audit"
+	"github.com/arcsignio/arcsign/internal/services/crypto"
+	"github.com/arcsignio/arcsign/internal/services/storage"
+	"github.com/arcsignio/arcsign/internal/utils"
 )
 
 const (

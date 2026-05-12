@@ -30,14 +30,14 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/app"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/rpc"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/security"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/security/blacklist"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/security/simulation"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/security/txguard"
-	chainadapterService "github.com/Jason-chen-taiwan/arcSignv2/internal/services/chainadapter"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/ratelimit"
+	"github.com/arcsignio/arcsign/internal/app"
+	"github.com/arcsignio/arcsign/internal/rpc"
+	"github.com/arcsignio/arcsign/internal/security"
+	"github.com/arcsignio/arcsign/internal/security/blacklist"
+	"github.com/arcsignio/arcsign/internal/security/simulation"
+	"github.com/arcsignio/arcsign/internal/security/txguard"
+	chainadapterService "github.com/arcsignio/arcsign/internal/services/chainadapter"
+	"github.com/arcsignio/arcsign/internal/services/ratelimit"
 )
 
 // Global ChainAdapter service instance (initialized on first use)

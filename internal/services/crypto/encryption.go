@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/models"
+	"github.com/arcsignio/arcsign/internal/models"
 	"golang.org/x/crypto/argon2"
 )
 

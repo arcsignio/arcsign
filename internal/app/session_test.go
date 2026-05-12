@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/constants"
+	"github.com/arcsignio/arcsign/internal/constants"
 )
 
 // --- SessionManager Token Validation Tests ---

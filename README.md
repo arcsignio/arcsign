@@ -2,9 +2,9 @@
 
 **Secure Hierarchical Deterministic (HD) Wallet with USB-Only Storage**
 
-[![CI](https://github.com/Jason-chen-taiwan/arcSignv2/actions/workflows/ci.yml/badge.svg)](https://github.com/Jason-chen-taiwan/arcSignv2/actions/workflows/ci.yml)
-[![Release](https://github.com/Jason-chen-taiwan/arcSignv2/actions/workflows/release.yml/badge.svg)](https://github.com/Jason-chen-taiwan/arcSignv2/actions/workflows/release.yml)
-[![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)](https://github.com/Jason-chen-taiwan/arcSignv2/releases/tag/v1.2.1)
+[![CI](https://github.com/arcsignio/arcsign/actions/workflows/ci.yml/badge.svg)](https://github.com/arcsignio/arcsign/actions/workflows/ci.yml)
+[![Release](https://github.com/arcsignio/arcsign/actions/workflows/release.yml/badge.svg)](https://github.com/arcsignio/arcsign/actions/workflows/release.yml)
+[![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)](https://github.com/arcsignio/arcsign/releases/tag/v1.2.1)
 [![Go Version](https://img.shields.io/badge/Go-1.25+-blue.svg)](https://golang.org/dl/)
 [![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)]()
 
@@ -2089,7 +2089,7 @@ Release workflow 會自動：
 ### 開發設置
 
 ```bash
-git clone https://github.com/Jason-chen-taiwan/arcSignv2.git
+git clone https://github.com/arcsignio/arcsign.git
 cd arcsign
 go mod download
 go test ./tests/... -v

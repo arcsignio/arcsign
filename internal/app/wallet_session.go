@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/wallet"
+	"github.com/arcsignio/arcsign/internal/services/wallet"
 )
 
 var (

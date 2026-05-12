@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/models"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/crypto"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/services/storage"
+	"github.com/arcsignio/arcsign/internal/models"
+	"github.com/arcsignio/arcsign/internal/services/crypto"
+	"github.com/arcsignio/arcsign/internal/services/storage"
 )
 
 // createTestWallet creates a minimal wallet directory for testing

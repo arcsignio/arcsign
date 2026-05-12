@@ -13,12 +13,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter"
-	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter/bitcoin"
-	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter/ethereum"
-	caRPC "github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter/rpc"
-	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter/storage"
-	"github.com/Jason-chen-taiwan/arcSignv2/internal/rpc"
+	"github.com/arcsignio/arcsign/src/chainadapter"
+	"github.com/arcsignio/arcsign/src/chainadapter/bitcoin"
+	"github.com/arcsignio/arcsign/src/chainadapter/ethereum"
+	caRPC "github.com/arcsignio/arcsign/src/chainadapter/rpc"
+	"github.com/arcsignio/arcsign/src/chainadapter/storage"
+	"github.com/arcsignio/arcsign/internal/rpc"
 )
 
 // Service manages ChainAdapter instances for different blockchains.

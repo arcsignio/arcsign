@@ -8,7 +8,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/Jason-chen-taiwan/arcSignv2/src/chainadapter"
+	"github.com/arcsignio/arcsign/src/chainadapter"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
