@@ -1,0 +1,41 @@
+# Gitleaks configuration for ArcSign
+#
+# Inherits the default ruleset, then allowlists known-safe matches that
+# were classified during the open-source preparation audit.
+#
+# Categories of allowlisted findings:
+#   1. Public EVM contract addresses (USDC, stETH, wstETH, etc.) hardcoded
+#      in dashboard/src/constants/ for routing — these are public on-chain
+#      data, not secrets.
+#   2. The canonical go-ethereum docs test private key (4c0883a6...) used
+#      in fixture-level signer / contract tests. Funds: 0 on mainnet.
+#   3. Placeholder session tokens in unit tests (abcdef1234...).
+#   4. BIP39 example passphrases used in CLI tests.
+#   5. Analytics HMAC namespace constant (intentionally client-visible).
+#   6. Generic test fixture matches in *_test.go / *.test.tsx / research.md.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlist known-safe matches from 2026-05 audit"
+
+paths = [
+  '''dashboard/src/constants/stakingRegistry\.ts''',
+  '''dashboard/src/constants/defiProtocols\.ts''',
+  '''dashboard/src/constants/contracts\.ts''',
+  '''.*_test\.go''',
+  '''.*\.test\.tsx?''',
+  '''specs/.*/research\.md''',
+]
+
+regexes = [
+  # 2. go-ethereum docs canonical test key, funds = 0
+  '''4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318''',
+  # 3. Test placeholder session tokens in *_test.go
+  '''abcdef1234567890abcdef1234567890[a-f0-9]+''',
+  # 4. BIP39 passphrase example in tests/cli/
+  '''my-secret-25th-word''',
+  # 5. Analytics namespace constant
+  '''ARCSIGN_HEARTBEAT_2026''',
+]

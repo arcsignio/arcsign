@@ -143,6 +143,20 @@ build-lib-linux: check-cgo
 		exit 1; \
 	fi
 
+# Reproducible build — strips embedded timestamps + path prefixes so anyone
+# rebuilding at the same git tag should produce a byte-identical binary.
+# See docs/reproducible-builds.md.
+build-reproducible:
+	@echo "=== Reproducible build ==="
+	@echo "SOURCE_DATE_EPOCH = $$(git log -1 --pretty=%ct)"
+	@echo "GOFLAGS           = -trimpath"
+	@echo ""
+	SOURCE_DATE_EPOCH=$$(git log -1 --pretty=%ct) \
+	  GOFLAGS="-trimpath" \
+	  $(MAKE) build-lib
+
+.PHONY: build-reproducible
+
 # Clean artifacts
 clean:
 	@echo "Cleaning build artifacts..."

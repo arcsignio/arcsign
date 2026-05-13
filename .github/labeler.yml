@@ -1,0 +1,52 @@
+'area/wallet-core':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/wallet/**'
+          - 'internal/security/**'
+          - 'internal/lib/exports_signing.go'
+          - 'internal/lib/exports_wallet.go'
+
+'area/dashboard':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'dashboard/**'
+
+'area/contracts':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'contracts/**'
+
+'area/chains':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/chainadapter/**'
+
+'area/swap':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/swap/**'
+
+'area/landing':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'landing-page/**'
+          - 'landing-page-astro/**'
+
+'area/docs':
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.md'
+          - 'docs/**'
+
+'area/ci':
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - 'Makefile'
+
+'needs-design':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/wallet/constants.go'
+          - 'dashboard/src/constants/contracts.ts'
+          - 'OFFICIAL_ADDRESSES.md'
