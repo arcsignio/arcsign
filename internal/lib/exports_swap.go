@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/arcsignio/arcsign/internal/rpc"
+	"github.com/arcsignio/arcsign/internal/wallet"
 	"github.com/arcsignio/arcsign/src/swap"
 )
 
@@ -183,11 +184,14 @@ func GetSwapQuote(params *C.char) (result *C.char) {
 		IsPro:            input.IsPro,
 	}
 
-	// Free users: add referrer fee config (0.1% via OpenOcean referrer mechanism)
+	// Free users: add referrer fee config (0.1% via OpenOcean referrer mechanism).
+	// Receiver is the official ArcSign Treasury (an EOA, not a contract), so it can
+	// hold any ERC20 the swap router pays in. See internal/wallet/constants.go and
+	// OFFICIAL_ADDRESSES.md for verification.
 	if !input.IsPro {
 		quoteParams.Fee = &swap.FeeConfig{
-			ReferrerAddress: "0x02EA7B4870Aa0553EF357Af6475727f1E01c7b2F", // ArcSignPro NFT contract
-			FeeRate:         0.1,
+			ReferrerAddress: wallet.ArcSignSwapReferrer,
+			FeeRate:         wallet.ArcSignSwapReferrerFeeRate,
 		}
 	}
 
@@ -317,11 +321,14 @@ func BuildSwapTransaction(params *C.char) (result *C.char) {
 		IsPro:            input.IsPro,
 	}
 
-	// Free users: add referrer fee config (0.1% via OpenOcean referrer mechanism)
+	// Free users: add referrer fee config (0.1% via OpenOcean referrer mechanism).
+	// Receiver is the official ArcSign Treasury (an EOA, not a contract), so it can
+	// hold any ERC20 the swap router pays in. See internal/wallet/constants.go and
+	// OFFICIAL_ADDRESSES.md for verification.
 	if !input.IsPro {
 		quoteParams.Fee = &swap.FeeConfig{
-			ReferrerAddress: "0x02EA7B4870Aa0553EF357Af6475727f1E01c7b2F", // ArcSignPro NFT contract
-			FeeRate:         0.1,
+			ReferrerAddress: wallet.ArcSignSwapReferrer,
+			FeeRate:         wallet.ArcSignSwapReferrerFeeRate,
 		}
 	}
 
