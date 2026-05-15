@@ -14,6 +14,13 @@ const mockListen = vi.fn();
 const mockEmit = vi.fn();
 
 // Mock @tauri-apps/api modules
+// IMPORTANT: Tauri v2 uses @tauri-apps/api/core for invoke. Tauri v1 used @tauri-apps/api
+// or @tauri-apps/api/tauri. All three paths share the same mockInvoke so tests can use
+// any path interchangeably without coordination.
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: mockInvoke,
+}));
+
 vi.mock('@tauri-apps/api', () => ({
   invoke: mockInvoke,
 }));
@@ -42,8 +49,8 @@ vi.mock('@tauri-apps/api/tauri', () => ({
   invoke: mockInvoke,
 }));
 
-// Mock @tauri-apps/api/dialog
-vi.mock('@tauri-apps/api/dialog', () => ({
+// Mock @tauri-apps/plugin-dialog (Tauri v2)
+vi.mock('@tauri-apps/plugin-dialog', () => ({
   save: vi.fn(),
   open: vi.fn(),
   ask: vi.fn(),
@@ -51,24 +58,22 @@ vi.mock('@tauri-apps/api/dialog', () => ({
   confirm: vi.fn(),
 }));
 
-// Mock @tauri-apps/api/fs
-vi.mock('@tauri-apps/api/fs', () => ({
-  writeBinaryFile: vi.fn(),
-  readBinaryFile: vi.fn(),
+// Mock @tauri-apps/plugin-fs (Tauri v2)
+vi.mock('@tauri-apps/plugin-fs', () => ({
+  writeFile: vi.fn(),
+  readFile: vi.fn(),
   readTextFile: vi.fn(),
   writeTextFile: vi.fn(),
   exists: vi.fn(),
 }));
 
-// Mock @tauri-apps/api/updater
-vi.mock('@tauri-apps/api/updater', () => ({
-  checkUpdate: vi.fn(),
-  installUpdate: vi.fn(),
-  onUpdaterEvent: vi.fn(),
+// Mock @tauri-apps/plugin-updater (Tauri v2)
+vi.mock('@tauri-apps/plugin-updater', () => ({
+  check: vi.fn(),
 }));
 
-// Mock @tauri-apps/api/process
-vi.mock('@tauri-apps/api/process', () => ({
+// Mock @tauri-apps/plugin-process (Tauri v2)
+vi.mock('@tauri-apps/plugin-process', () => ({
   relaunch: vi.fn(),
   exit: vi.fn(),
 }));

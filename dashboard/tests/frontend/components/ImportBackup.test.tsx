@@ -10,8 +10,8 @@ vi.mock('@/services/tauri-api', () => ({
 }));
 
 import tauriApi from '@/services/tauri-api';
-import { open } from '@tauri-apps/api/dialog';
-import { readBinaryFile } from '@tauri-apps/api/fs';
+import { open } from '@tauri-apps/plugin-dialog';
+import { readFile } from '@tauri-apps/plugin-fs';
 
 const defaultProps = {
   usbPath: '/dev/usb0',
@@ -52,14 +52,14 @@ describe('ImportBackup', () => {
     const user = userEvent.setup();
     const fakeBytes = new Uint8Array([65, 66, 67]);
     (open as any).mockResolvedValue('/path/to/wallet.arcsign');
-    (readBinaryFile as any).mockResolvedValue(fakeBytes);
+    (readFile as any).mockResolvedValue(fakeBytes);
 
     render(<ImportBackup {...defaultProps} />);
     await clickFileButton(user);
 
     await waitFor(() => {
       expect(open).toHaveBeenCalled();
-      expect(readBinaryFile).toHaveBeenCalledWith('/path/to/wallet.arcsign');
+      expect(readFile).toHaveBeenCalledWith('/path/to/wallet.arcsign');
       expect(screen.getByText('wallet.arcsign')).toBeInTheDocument();
     });
   });
@@ -68,7 +68,7 @@ describe('ImportBackup', () => {
     const user = userEvent.setup();
     const fakeBytes = new Uint8Array([65, 66]);
     (open as any).mockResolvedValue('/path/wallet.arcsign');
-    (readBinaryFile as any).mockResolvedValue(fakeBytes);
+    (readFile as any).mockResolvedValue(fakeBytes);
     (tauriApi.importBackup as any).mockResolvedValue({ success: true });
 
     render(<ImportBackup {...defaultProps} />);
@@ -95,12 +95,12 @@ describe('ImportBackup', () => {
   it('shows wrong password error', async () => {
     const user = userEvent.setup();
     (open as any).mockResolvedValue('/path/w.arcsign');
-    (readBinaryFile as any).mockResolvedValue(new Uint8Array([1]));
+    (readFile as any).mockResolvedValue(new Uint8Array([1]));
     (tauriApi.importBackup as any).mockRejectedValue({ code: 'INVALID_PASSWORD' });
 
     render(<ImportBackup {...defaultProps} />);
     await clickFileButton(user);
-    await waitFor(() => expect(readBinaryFile).toHaveBeenCalled());
+    await waitFor(() => expect(readFile).toHaveBeenCalled());
     await user.type(screen.getByPlaceholderText('backup.enterPassword'), 'wrong');
 
     const submitBtn = screen.getByRole('button', { name: 'backup.importTitle' });
@@ -114,12 +114,12 @@ describe('ImportBackup', () => {
   it('shows invalid file error', async () => {
     const user = userEvent.setup();
     (open as any).mockResolvedValue('/path/bad.arcsign');
-    (readBinaryFile as any).mockResolvedValue(new Uint8Array([1]));
+    (readFile as any).mockResolvedValue(new Uint8Array([1]));
     (tauriApi.importBackup as any).mockRejectedValue({ code: 'BACKUP_INVALID' });
 
     render(<ImportBackup {...defaultProps} />);
     await clickFileButton(user);
-    await waitFor(() => expect(readBinaryFile).toHaveBeenCalled());
+    await waitFor(() => expect(readFile).toHaveBeenCalled());
     await user.type(screen.getByPlaceholderText('backup.enterPassword'), 'pw');
 
     const submitBtn = screen.getByRole('button', { name: 'backup.importTitle' });

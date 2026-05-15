@@ -10,8 +10,8 @@ vi.mock('@/services/tauri-api', () => ({
 }));
 
 import tauriApi from '@/services/tauri-api';
-import { save } from '@tauri-apps/api/dialog';
-import { writeBinaryFile } from '@tauri-apps/api/fs';
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeFile } from '@tauri-apps/plugin-fs';
 
 const defaultProps = {
   usbPath: '/dev/usb0',
@@ -49,7 +49,7 @@ describe('ExportAllBackups', () => {
       data: { bundleData: btoa('bundle-data') },
     });
     (save as any).mockResolvedValue('/path/bundle.arcsign-bundle');
-    (writeBinaryFile as any).mockResolvedValue(undefined);
+    (writeFile as any).mockResolvedValue(undefined);
 
     render(<ExportAllBackups {...defaultProps} />);
     await user.type(screen.getByPlaceholderText('backup.enterPassword'), 'mypassword');
@@ -61,7 +61,7 @@ describe('ExportAllBackups', () => {
         usb_path: '/dev/usb0',
       });
       expect(save).toHaveBeenCalled();
-      expect(writeBinaryFile).toHaveBeenCalled();
+      expect(writeFile).toHaveBeenCalled();
       expect(screen.getByText('backup.exportAllSuccess')).toBeInTheDocument();
     });
   });
@@ -91,7 +91,7 @@ describe('ExportAllBackups', () => {
     await user.click(screen.getByText('backup.exportAllConfirm'));
 
     await waitFor(() => {
-      expect(writeBinaryFile).not.toHaveBeenCalled();
+      expect(writeFile).not.toHaveBeenCalled();
     });
   });
 
@@ -101,7 +101,7 @@ describe('ExportAllBackups', () => {
       data: { bundleData: btoa('d') },
     });
     (save as any).mockResolvedValue('/path.arcsign-bundle');
-    (writeBinaryFile as any).mockResolvedValue(undefined);
+    (writeFile as any).mockResolvedValue(undefined);
 
     render(<ExportAllBackups {...defaultProps} />);
     await user.type(screen.getByPlaceholderText('backup.enterPassword'), 'pw');

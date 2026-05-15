@@ -2,21 +2,31 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useUpdateChecker } from '@/hooks/useUpdateChecker';
 
-// Mock Tauri updater API
-const mockCheckUpdate = vi.fn();
-const mockInstallUpdate = vi.fn();
-const mockOnUpdaterEvent = vi.fn();
+const mockCheck = vi.fn();
 const mockRelaunch = vi.fn();
 
-vi.mock('@tauri-apps/api/updater', () => ({
-  checkUpdate: (...args: any[]) => mockCheckUpdate(...args),
-  installUpdate: (...args: any[]) => mockInstallUpdate(...args),
-  onUpdaterEvent: (...args: any[]) => mockOnUpdaterEvent(...args),
+vi.mock('@tauri-apps/plugin-updater', () => ({
+  check: (...args: unknown[]) => mockCheck(...args),
 }));
 
-vi.mock('@tauri-apps/api/process', () => ({
-  relaunch: (...args: any[]) => mockRelaunch(...args),
+vi.mock('@tauri-apps/plugin-process', () => ({
+  relaunch: (...args: unknown[]) => mockRelaunch(...args),
 }));
+
+function makeUpdate(overrides: Partial<{
+  version: string;
+  date: string;
+  body: string;
+  downloadAndInstall: (cb?: (event: { event: string }) => void) => Promise<void>;
+}> = {}) {
+  return {
+    version: '2.0.0',
+    date: '2025-01-01',
+    body: 'New features',
+    downloadAndInstall: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+}
 
 describe('useUpdateChecker', () => {
   beforeEach(() => {
@@ -40,10 +50,7 @@ describe('useUpdateChecker', () => {
 
   describe('checkForUpdates', () => {
     it('sets status to available when update found', async () => {
-      mockCheckUpdate.mockResolvedValue({
-        shouldUpdate: true,
-        manifest: { version: '2.0.0', date: '2025-01-01', body: 'New features' },
-      });
+      mockCheck.mockResolvedValue(makeUpdate());
 
       const { result } = renderHook(() => useUpdateChecker({ enabled: false }));
 
@@ -56,10 +63,7 @@ describe('useUpdateChecker', () => {
     });
 
     it('sets status to up-to-date when no update', async () => {
-      mockCheckUpdate.mockResolvedValue({
-        shouldUpdate: false,
-        manifest: null,
-      });
+      mockCheck.mockResolvedValue(null);
 
       const { result } = renderHook(() => useUpdateChecker({ enabled: false }));
 
@@ -71,7 +75,7 @@ describe('useUpdateChecker', () => {
     });
 
     it('handles error status', async () => {
-      mockCheckUpdate.mockRejectedValue(new Error('Network failure'));
+      mockCheck.mockRejectedValue(new Error('Network failure'));
 
       const { result } = renderHook(() => useUpdateChecker({ enabled: false }));
 
@@ -84,7 +88,7 @@ describe('useUpdateChecker', () => {
     });
 
     it('treats "could not fetch" as up-to-date', async () => {
-      mockCheckUpdate.mockRejectedValue(new Error('Could not fetch latest release'));
+      mockCheck.mockRejectedValue(new Error('Could not fetch latest release'));
 
       const { result } = renderHook(() => useUpdateChecker({ enabled: false }));
 
@@ -99,10 +103,7 @@ describe('useUpdateChecker', () => {
 
   describe('dismissUpdate', () => {
     it('resets state to idle', async () => {
-      mockCheckUpdate.mockResolvedValue({
-        shouldUpdate: true,
-        manifest: { version: '2.0.0', date: '2025-01-01', body: 'Update' },
-      });
+      mockCheck.mockResolvedValue(makeUpdate());
 
       const { result } = renderHook(() => useUpdateChecker({ enabled: false }));
 
@@ -120,10 +121,7 @@ describe('useUpdateChecker', () => {
 
   describe('skipVersion', () => {
     it('saves skipped version to localStorage', async () => {
-      mockCheckUpdate.mockResolvedValue({
-        shouldUpdate: true,
-        manifest: { version: '2.0.0', date: '2025-01-01', body: 'Update' },
-      });
+      mockCheck.mockResolvedValue(makeUpdate({ version: '2.0.0' }));
 
       const { result } = renderHook(() => useUpdateChecker({ enabled: false }));
 
@@ -142,26 +140,33 @@ describe('useUpdateChecker', () => {
 
   describe('startInstall', () => {
     it('starts download and install process', async () => {
-      const mockUnlisten = vi.fn();
-      mockOnUpdaterEvent.mockResolvedValue(mockUnlisten);
-      mockInstallUpdate.mockResolvedValue(undefined);
+      const downloadAndInstall = vi.fn().mockResolvedValue(undefined);
+      mockCheck.mockResolvedValue(makeUpdate({ downloadAndInstall }));
 
       const { result } = renderHook(() => useUpdateChecker({ enabled: false }));
+
+      // First check to populate updateRef
+      await act(async () => {
+        await result.current.checkForUpdates();
+      });
 
       await act(async () => {
         await result.current.startInstall();
       });
 
-      expect(result.current.state.status).toBe('downloading');
-      expect(mockOnUpdaterEvent).toHaveBeenCalled();
-      expect(mockInstallUpdate).toHaveBeenCalled();
+      expect(downloadAndInstall).toHaveBeenCalled();
+      expect(result.current.state.status).toBe('done');
     });
 
     it('handles install error', async () => {
-      mockOnUpdaterEvent.mockResolvedValue(vi.fn());
-      mockInstallUpdate.mockRejectedValue(new Error('Install failed'));
+      const downloadAndInstall = vi.fn().mockRejectedValue(new Error('Install failed'));
+      mockCheck.mockResolvedValue(makeUpdate({ downloadAndInstall }));
 
       const { result } = renderHook(() => useUpdateChecker({ enabled: false }));
+
+      await act(async () => {
+        await result.current.checkForUpdates();
+      });
 
       await act(async () => {
         await result.current.startInstall();
@@ -170,14 +175,22 @@ describe('useUpdateChecker', () => {
       expect(result.current.state.status).toBe('error');
       expect(result.current.state.error).toBe('Install failed');
     });
+
+    it('errors when called before checkForUpdates', async () => {
+      const { result } = renderHook(() => useUpdateChecker({ enabled: false }));
+
+      await act(async () => {
+        await result.current.startInstall();
+      });
+
+      expect(result.current.state.status).toBe('error');
+      expect(result.current.state.error).toBe('No update available');
+    });
   });
 
   describe('auto-check', () => {
     it('auto-checks after delay when enabled', async () => {
-      mockCheckUpdate.mockResolvedValue({
-        shouldUpdate: false,
-        manifest: null,
-      });
+      mockCheck.mockResolvedValue(null);
 
       renderHook(() => useUpdateChecker({ enabled: true }));
 
@@ -191,7 +204,7 @@ describe('useUpdateChecker', () => {
         await vi.runAllTimersAsync();
       });
 
-      expect(mockCheckUpdate).toHaveBeenCalled();
+      expect(mockCheck).toHaveBeenCalled();
     });
 
     it('does not auto-check when disabled', () => {
@@ -199,7 +212,7 @@ describe('useUpdateChecker', () => {
 
       vi.advanceTimersByTime(10000);
 
-      expect(mockCheckUpdate).not.toHaveBeenCalled();
+      expect(mockCheck).not.toHaveBeenCalled();
     });
   });
 });

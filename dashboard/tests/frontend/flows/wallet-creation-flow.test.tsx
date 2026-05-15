@@ -32,7 +32,7 @@ vi.mock('@/stores/sessionStore', () => ({
 }));
 
 import tauriApi from '@/services/tauri-api';
-import { invoke } from '@tauri-apps/api';
+import { invoke } from '@tauri-apps/api/core';
 import { useDashboardStore, useWalletLimitInfo } from '@/stores/dashboardStore';
 import { useSessionStore } from '@/stores/sessionStore';
 

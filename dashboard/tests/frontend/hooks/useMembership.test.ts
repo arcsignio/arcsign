@@ -9,7 +9,7 @@ import {
   useMembership,
   useCanCreateWallet,
 } from '@/hooks/useMembership';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 
 describe('useMembership - Pure Functions', () => {
   describe('getMembershipTierName', () => {

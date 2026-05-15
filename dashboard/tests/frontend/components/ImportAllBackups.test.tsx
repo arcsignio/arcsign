@@ -10,8 +10,8 @@ vi.mock('@/services/tauri-api', () => ({
 }));
 
 import tauriApi from '@/services/tauri-api';
-import { open } from '@tauri-apps/api/dialog';
-import { readBinaryFile } from '@tauri-apps/api/fs';
+import { open } from '@tauri-apps/plugin-dialog';
+import { readFile } from '@tauri-apps/plugin-fs';
 
 const defaultProps = {
   usbPath: '/dev/usb0',
@@ -51,7 +51,7 @@ describe('ImportAllBackups', () => {
   it('selects bundle file', async () => {
     const user = userEvent.setup();
     (open as any).mockResolvedValue('/path/all.arcsign-bundle');
-    (readBinaryFile as any).mockResolvedValue(new Uint8Array([1, 2, 3]));
+    (readFile as any).mockResolvedValue(new Uint8Array([1, 2, 3]));
 
     render(<ImportAllBackups {...defaultProps} />);
     await clickFileButton(user);
@@ -64,14 +64,14 @@ describe('ImportAllBackups', () => {
   it('imports successfully', async () => {
     const user = userEvent.setup();
     (open as any).mockResolvedValue('/path/all.arcsign-bundle');
-    (readBinaryFile as any).mockResolvedValue(new Uint8Array([1]));
+    (readFile as any).mockResolvedValue(new Uint8Array([1]));
     (tauriApi.importAllBackups as any).mockResolvedValue({
       data: { importedCount: 3 },
     });
 
     render(<ImportAllBackups {...defaultProps} />);
     await clickFileButton(user);
-    await waitFor(() => expect(readBinaryFile).toHaveBeenCalled());
+    await waitFor(() => expect(readFile).toHaveBeenCalled());
 
     await user.type(screen.getByPlaceholderText('backup.enterBundlePassword'), 'pw');
 
@@ -92,12 +92,12 @@ describe('ImportAllBackups', () => {
   it('shows wrong password error', async () => {
     const user = userEvent.setup();
     (open as any).mockResolvedValue('/path/a.arcsign-bundle');
-    (readBinaryFile as any).mockResolvedValue(new Uint8Array([1]));
+    (readFile as any).mockResolvedValue(new Uint8Array([1]));
     (tauriApi.importAllBackups as any).mockRejectedValue({ code: 'INVALID_PASSWORD' });
 
     render(<ImportAllBackups {...defaultProps} />);
     await clickFileButton(user);
-    await waitFor(() => expect(readBinaryFile).toHaveBeenCalled());
+    await waitFor(() => expect(readFile).toHaveBeenCalled());
 
     await user.type(screen.getByPlaceholderText('backup.enterBundlePassword'), 'wrong');
     const submitBtn = screen.getByRole('button', { name: 'backup.importAllTitle' });
@@ -111,7 +111,7 @@ describe('ImportAllBackups', () => {
   it('shows invalid bundle error', async () => {
     const user = userEvent.setup();
     (open as any).mockResolvedValue('/path/bad.arcsign-bundle');
-    (readBinaryFile as any).mockResolvedValue(new Uint8Array([1]));
+    (readFile as any).mockResolvedValue(new Uint8Array([1]));
     (tauriApi.importAllBackups as any).mockRejectedValue({
       code: 'BUNDLE_INVALID',
       message: 'invalid bundle',
@@ -119,7 +119,7 @@ describe('ImportAllBackups', () => {
 
     render(<ImportAllBackups {...defaultProps} />);
     await clickFileButton(user);
-    await waitFor(() => expect(readBinaryFile).toHaveBeenCalled());
+    await waitFor(() => expect(readFile).toHaveBeenCalled());
 
     await user.type(screen.getByPlaceholderText('backup.enterBundlePassword'), 'pw');
     const submitBtn = screen.getByRole('button', { name: 'backup.importAllTitle' });
@@ -133,12 +133,12 @@ describe('ImportAllBackups', () => {
   it('shows corrupted bundle error', async () => {
     const user = userEvent.setup();
     (open as any).mockResolvedValue('/path/c.arcsign-bundle');
-    (readBinaryFile as any).mockResolvedValue(new Uint8Array([1]));
+    (readFile as any).mockResolvedValue(new Uint8Array([1]));
     (tauriApi.importAllBackups as any).mockRejectedValue({ code: 'BUNDLE_CORRUPTED' });
 
     render(<ImportAllBackups {...defaultProps} />);
     await clickFileButton(user);
-    await waitFor(() => expect(readBinaryFile).toHaveBeenCalled());
+    await waitFor(() => expect(readFile).toHaveBeenCalled());
 
     await user.type(screen.getByPlaceholderText('backup.enterBundlePassword'), 'pw');
     const submitBtn = screen.getByRole('button', { name: 'backup.importAllTitle' });

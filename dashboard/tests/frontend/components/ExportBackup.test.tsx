@@ -10,8 +10,8 @@ vi.mock('@/services/tauri-api', () => ({
 }));
 
 import tauriApi from '@/services/tauri-api';
-import { save } from '@tauri-apps/api/dialog';
-import { writeBinaryFile } from '@tauri-apps/api/fs';
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeFile } from '@tauri-apps/plugin-fs';
 
 const defaultProps = {
   walletId: 'w1',
@@ -43,7 +43,7 @@ describe('ExportBackup', () => {
     const user = userEvent.setup();
     (tauriApi.exportBackup as any).mockResolvedValue({ backupData: btoa('test-data') });
     (save as any).mockResolvedValue('/path/to/save.arcsign');
-    (writeBinaryFile as any).mockResolvedValue(undefined);
+    (writeFile as any).mockResolvedValue(undefined);
 
     render(<ExportBackup {...defaultProps} />);
     // Click the confirm button (not the heading)
@@ -55,7 +55,7 @@ describe('ExportBackup', () => {
         usb_path: '/dev/usb0',
       });
       expect(save).toHaveBeenCalled();
-      expect(writeBinaryFile).toHaveBeenCalled();
+      expect(writeFile).toHaveBeenCalled();
       expect(screen.getByText('backup.exportSuccess')).toBeInTheDocument();
     });
   });
@@ -69,7 +69,7 @@ describe('ExportBackup', () => {
     await user.click(screen.getByRole('button', { name: 'backup.exportTitle' }));
 
     await waitFor(() => {
-      expect(writeBinaryFile).not.toHaveBeenCalled();
+      expect(writeFile).not.toHaveBeenCalled();
     });
     expect(screen.queryByText('backup.exportSuccess')).not.toBeInTheDocument();
   });
@@ -90,7 +90,7 @@ describe('ExportBackup', () => {
     const user = userEvent.setup();
     (tauriApi.exportBackup as any).mockResolvedValue({ backupData: btoa('test') });
     (save as any).mockResolvedValue('/path.arcsign');
-    (writeBinaryFile as any).mockResolvedValue(undefined);
+    (writeFile as any).mockResolvedValue(undefined);
 
     render(<ExportBackup {...defaultProps} />);
     await user.click(screen.getByRole('button', { name: 'backup.exportTitle' }));
