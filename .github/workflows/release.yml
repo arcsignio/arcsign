@@ -164,7 +164,13 @@ jobs:
         if: matrix.target == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+          # Tauri v2 requires webkit2gtk-4.1 and libsoup-3.0 (not the v4.0/2.4 used by Tauri v1)
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
 
       - name: Install dashboard dependencies
         working-directory: dashboard
