@@ -1,6 +1,12 @@
-# ArcSign
+<p align="center">
+  <img src="icon/ArcSign_Logo_Horizontal.png" alt="ArcSign" width="480">
+</p>
 
-> A USB-only multi-chain cold wallet you can audit instead of trust.
+<h1 align="center">ArcSign</h1>
+
+<p align="center">
+  <em>A USB-only multi-chain cold wallet you can audit instead of trust.</em>
+</p>
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Reproducible Builds](https://img.shields.io/badge/builds-reproducible-green.svg)](docs/reproducible-builds.md)
