@@ -36,7 +36,7 @@
 ### 步驟 1: 安裝前端依賴
 
 ```bash
-cd /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard
+cd /path/to/arcsign/dashboard
 npm install
 ```
 
@@ -164,7 +164,7 @@ cd ..
 確保 Go CLI 已構建並複製到正確位置：
 ```bash
 # 在項目根目錄
-cd /Users/jnr350/Desktop/Yansiang/arcSignv2
+cd /path/to/arcsign
 go build -o arcsign ./cmd/arcsign
 
 # 複製到 Tauri 目錄

@@ -145,15 +145,31 @@ build-lib-linux: check-cgo
 
 # Reproducible build — strips embedded timestamps + path prefixes so anyone
 # rebuilding at the same git tag should produce a byte-identical binary.
-# See docs/reproducible-builds.md.
+# Calls the platform-specific target that matches what release.yml ships,
+# so the hash a user computes locally matches the dylib/so/dll inside the
+# published GitHub Release. See docs/reproducible-builds.md.
 build-reproducible:
 	@echo "=== Reproducible build ==="
 	@echo "SOURCE_DATE_EPOCH = $$(git log -1 --pretty=%ct)"
 	@echo "GOFLAGS           = -trimpath"
+	@echo "Platform target   = $(PLATFORM)"
 	@echo ""
+ifeq ($(PLATFORM),macos)
 	SOURCE_DATE_EPOCH=$$(git log -1 --pretty=%ct) \
 	  GOFLAGS="-trimpath" \
-	  $(MAKE) build-lib
+	  $(MAKE) build-lib-macos
+else ifeq ($(PLATFORM),linux)
+	SOURCE_DATE_EPOCH=$$(git log -1 --pretty=%ct) \
+	  GOFLAGS="-trimpath" \
+	  $(MAKE) build-lib-linux
+else ifeq ($(PLATFORM),windows)
+	SOURCE_DATE_EPOCH=$$(git log -1 --pretty=%ct) \
+	  GOFLAGS="-trimpath" \
+	  $(MAKE) build-lib-windows
+else
+	@echo "::error::Unknown PLATFORM=$(PLATFORM)"
+	@exit 1
+endif
 
 .PHONY: build-reproducible
 

@@ -4,7 +4,7 @@
 **Tester:** _____________
 **Build Version:** 1.0.0
 **Platform:** Windows / macOS / Linux _(circle one)_
-**Test USB Path:** `C:\Users\yangs\Desktop\test-wallet-usb`
+**Test USB Path:** `C:\Users\<your-username>\Desktop\test-wallet-usb`
 
 ---
 
@@ -31,7 +31,7 @@
 - [ ] **Node/NPM Installed:** Run `npm --version` → v18.0.0 or higher
 - [ ] **Rust/Cargo Installed:** Run `cargo --version` → v1.75.0 or higher
 - [ ] **USB Drive Ready:** Minimum 100 MB free space, writable
-- [ ] **Test Directory Created:** `mkdir C:\Users\yangs\Desktop\test-wallet-usb`
+- [ ] **Test Directory Created:** `mkdir C:\Users\<your-username>\Desktop\test-wallet-usb`
 
 ### Application Launch
 - [ ] **Start Dev Server:** Run `start-dev.bat` OR `npm run tauri dev`
@@ -46,7 +46,7 @@
 ## Test Suite 1: USB Detection & Selection
 
 ### TC1.1 - USB Device Detection
-- [ ] Application detects test USB path: `C:\Users\yangs\Desktop\test-wallet-usb`
+- [ ] Application detects test USB path: `C:\Users\<your-username>\Desktop\test-wallet-usb`
 - [ ] USB shows correct available space (e.g., "150 GB available")
 - [ ] USB icon/name displays correctly
 - [ ] "Select USB" button is clickable
@@ -66,7 +66,7 @@
 **Notes:** ___________________________________________
 
 ### TC1.3 - Multiple USB Detection
-- [ ] Create second test path: `C:\Users\yangs\Desktop\test-wallet-usb2`
+- [ ] Create second test path: `C:\Users\<your-username>\Desktop\test-wallet-usb2`
 - [ ] Both paths appear in USB list
 - [ ] Can select either path
 - [ ] Selected path highlighted/active
@@ -194,7 +194,7 @@
 
 ### TC2.5 - Wallet File Creation
 **Verify USB Storage:**
-1. [ ] Navigate to `C:\Users\yangs\Desktop\test-wallet-usb\wallets\`
+1. [ ] Navigate to `C:\Users\<your-username>\Desktop\test-wallet-usb\wallets\`
 2. [ ] Find wallet directory (format: `<wallet-id>/`)
 3. [ ] Check `wallet.json` exists (encrypted wallet metadata)
 4. [ ] Check `addresses.json` does NOT exist yet (created on first unlock)
@@ -393,7 +393,7 @@ abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon 
 ### TC4.4 - Address File Creation
 **Verify USB Storage:**
 1. [ ] After addresses generated, navigate to wallet directory
-2. [ ] `C:\Users\yangs\Desktop\test-wallet-usb\wallets\<wallet-id>\`
+2. [ ] `C:\Users\<your-username>\Desktop\test-wallet-usb\wallets\<wallet-id>\`
 3. [ ] `addresses.json` now exists
 4. [ ] Open file, verify structure:
 
@@ -696,7 +696,7 @@ abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon 
 ### TC8.1 - USB Disconnected During Operation
 **Test Steps:**
 1. [ ] Unlock wallet, viewing addresses
-2. [ ] Delete test directory: `C:\Users\yangs\Desktop\test-wallet-usb`
+2. [ ] Delete test directory: `C:\Users\<your-username>\Desktop\test-wallet-usb`
 3. [ ] Try to export addresses
 4. [ ] Error message: "USB device not found" or similar
 5. [ ] Recreate directory

@@ -8,8 +8,8 @@
 trademarks** of the ArcSign project (common law trademarks under
 continuous, public use since 2025).
 
-Registered trademark application (USPTO + EUIPO + TW + CN) is planned
-at a future milestone (Pro NFT holders > 500). Until then, the
+Registered trademark application (USPTO + EUIPO + TW + CN) may be
+filed once the project has the budget for it. Until then, the
 unregistered ™ status is asserted under common law.
 
 ## What you MAY do
@@ -55,16 +55,18 @@ particularly those that:
 
 - Mislead users into thinking a fork is official.
 - Direct users to non-official download channels (anything other than
-  `dl.arcsign.io`).
+  GitHub Releases at `github.com/arcsignio/arcsign/releases`, or
+  `arcsign.io` which links to that page).
 - Risk user fund loss through impersonation.
 
 ## Verifying "official" ArcSign
 
 Only these channels are official:
 
-- **Website**: `arcsign.io` (and `dl.arcsign.io` for downloads).
+- **Website**: `arcsign.io`.
+- **Downloads**: `github.com/arcsignio/arcsign/releases`.
 - **GitHub**: `github.com/arcsignio/arcsign`.
-- **Twitter / X**: [@arcsign](https://twitter.com/arcsign).
+- **Twitter / X**: [@ArcSignWallet](https://twitter.com/ArcSignWallet).
 - **Discord**: invite link on the official website / README only.
 - **Email**: `security@arcsign.io`, `hello@arcsign.io`.
 

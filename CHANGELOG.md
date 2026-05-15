@@ -3,7 +3,7 @@
 All notable changes to ArcSign. Format follows [Keep a Changelog](https://keepachangelog.com/),
 Semantic Versioning.
 
-## [Unreleased] — Open Source Launch
+## [v1.4.0] — 2026-05-14 — Open Source Launch
 
 ### Changed
 

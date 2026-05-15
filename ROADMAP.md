@@ -4,10 +4,6 @@ This is the **public** roadmap. It lists shipped milestones and planned
 near-term direction. Specific dates are intentionally omitted — we ship
 when the quality bar is met, not by calendar.
 
-For internal-only roadmap with prioritization, KPIs, and revenue
-considerations, see the project's private maintainer repo (not publicly
-accessible).
-
 Last reviewed: 2026-05
 
 ---
@@ -47,11 +43,11 @@ Order is approximate. We may reprioritize as feedback comes in.
 - 📋 **Additional chain adapters** — beyond Bitcoin + 6 EVM chains.
   Community contributions following the existing `src/chainadapter/`
   pattern are very welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
-- 📋 **Bug bounty program** — launches when Pro NFT holders > 500.
-  See [`SECURITY.md`](SECURITY.md) for the placeholder policy and
-  retroactive payment commitment.
-- 📋 **Third-party security audit** — scoped after the open-source launch
-  has been stable for a few months.
+- 📋 **Bug bounty program** — will launch when the project is sustainable
+  enough to fund it. See [`SECURITY.md`](SECURITY.md) for what I can
+  offer in the meantime (Hall of Fame, references, CVE assignment help).
+- 📋 **Third-party security audit** — will be commissioned when there's
+  budget for it. No fixed timeline.
 - 📋 **Reproducible builds across all platforms** — we have CI for
   macOS / Linux / Windows; ongoing work to make every release bit-for-bit
   deterministic.

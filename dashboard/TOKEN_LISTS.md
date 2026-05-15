@@ -88,7 +88,7 @@ const token = await findTokenByAddress("0xA0b86991...", "ethereum");
 ### 方法 1: 手動更新
 
 ```bash
-cd /Users/jnr350/Desktop/Yansiang/arcSignv2/dashboard/public/token-lists
+cd /path/to/arcsign/dashboard/public/token-lists
 
 # 更新 Ethereum
 curl -o ethereum.json https://tokens.coingecko.com/uniswap/all.json

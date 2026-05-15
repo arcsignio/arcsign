@@ -7,10 +7,9 @@
 Instead, email **`security@arcsign.io`**. For sensitive reports, encrypt
 with our PGP key — fingerprint and download below.
 
-> Note: `security@arcsign.io` routing is being set up; if you do not get
-> an autoresponse within 24 hours, please also ping `@arcsign` on Twitter
-> or open a generic issue saying "please check security email" (no
-> details in public).
+> If you do not receive an acknowledgement within the SLA (see below),
+> please also ping `@ArcSignWallet` on Twitter or open a generic issue
+> saying "please check security email" — without disclosing any details.
 
 ### Response SLA
 
@@ -41,18 +40,19 @@ disclosure).
 
 ## Bug bounty
 
-ArcSign currently does **NOT** offer monetary bounty.
+ArcSign currently does **NOT** offer a monetary bounty.
 
-We do commit to:
+ArcSign is a single-maintainer project without the budget for a bounty
+program. A formal bounty program will follow once the project is
+sustainable enough to fund it; tiers and rules will be published in this
+file at that time.
 
-- Public credit in Hall of Fame.
-- **Retroactive bounty payments** when revenue allows — qualified
-  historical disclosures will receive backpay when the bounty program
-  launches.
-- First-priority access to the future bounty program.
+What I can offer today:
 
-The bounty program launches when **Pro NFT holders > 500**. Tentative
-tiers: Critical $5K / High $1K / Medium $200 / Low credit only.
+- Public credit in Hall of Fame for qualified disclosures.
+- Non-monetary support I can actually deliver: references, citations,
+  help with CVE assignment.
+- First-priority access to the bounty program once it launches.
 
 ## Threat model
 
@@ -127,17 +127,18 @@ gpg --encrypt --armor --recipient security@arcsign.io < report.txt
 
 ## Past audits
 
-None yet. First external audit is planned after the open-source launch
-has been stable for a few months (target: Pro NFT holders > 500
-milestone, coordinating with the bounty program launch).
+None yet. An external audit will be commissioned when the project has
+the budget to fund one. I'm not going to promise a specific milestone
+trigger here — solo project, limited resources, honesty matters.
 
 ## Verifying you have an official binary
 
 Before reporting a vulnerability, please verify you're running an
 official ArcSign binary — the bug may not exist in the official source.
 
-- Compare your binary's SHA-256 to
-  `https://dl.arcsign.io/v<VERSION>/SHA256SUMS`.
+- Compare your binary's SHA-256 to the `SHA256SUMS` file attached to the
+  matching GitHub Release at
+  `https://github.com/arcsignio/arcsign/releases`.
 - On startup, the Dashboard logs three official addresses (Pro NFT,
   Referral, Swap Referrer). They must match
   [`OFFICIAL_ADDRESSES.md`](OFFICIAL_ADDRESSES.md).

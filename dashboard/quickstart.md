@@ -83,7 +83,7 @@ sudo apt-get install -y libwebkit2gtk-4.0-dev \
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/arcSignv2.git
+git clone https://github.com/arcsignio/arcsign.git
 cd arcSignv2
 
 # Checkout dashboard feature branch
@@ -100,7 +100,7 @@ The dashboard requires a working CLI binary to function.
 
 ```bash
 # Navigate to project root
-cd /Users/jnr350/Desktop/Yansiang/arcSignv2
+cd /path/to/arcsign
 
 # Build CLI binary
 go build -o arcsign ./cmd/arcsign
@@ -416,7 +416,7 @@ Direct terminal usage with prompts:
 
 ```bash
 # Navigate to project root
-cd /Users/jnr350/Desktop/Yansiang/arcSignv2
+cd /path/to/arcsign
 
 # Run CLI interactively
 ./arcsign create

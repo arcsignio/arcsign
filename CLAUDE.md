@@ -141,16 +141,16 @@ git push origin v<VERSION>
 ```
 
 The Release workflow (GitHub Actions) builds all 3 platforms (macOS,
-Windows, Linux) and uploads artifacts to **Cloudflare R2** (`dl.arcsign.io`).
-Binary downloads and OTA updates are distributed through R2 rather than
-GitHub Releases — this lets users verify integrity against the published
-`SHA256SUMS` and rebuild from source for additional assurance (see
+Windows, Linux) and publishes artifacts to **GitHub Releases**. The
+SHA256SUMS file covers both the installer bundles and the Go shared
+library (`libarcsign.dylib` / `.so` / `.dll`) so anyone can verify
+integrity and reproduce the build from source (see
 [`docs/reproducible-builds.md`](docs/reproducible-builds.md)).
 
-- Download URLs: `https://dl.arcsign.io/v<VERSION>/<file>`
-- Tauri updater endpoint: `https://dl.arcsign.io/latest.json` (auto-uploaded
-  by workflow)
-- Landing page download links are auto-updated by the workflow.
+- Download URLs: `https://github.com/arcsignio/arcsign/releases/download/v<VERSION>/<file>`
+  (or `releases/latest/download/<file>` to always get the latest).
+- Tauri updater endpoint:
+  `https://github.com/arcsignio/arcsign/releases/latest/download/latest.json`.
 
 ## Product Facts (for content creation and LLM context)
 

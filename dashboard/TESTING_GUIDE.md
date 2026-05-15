@@ -28,7 +28,7 @@ npm run tauri dev
 ### 1. Create New Wallet (User Story 1)
 
 **Setup:**
-- Test USB Path: `C:\Users\yangs\Desktop\test-wallet-usb`
+- Test USB Path: `C:\Users\<your-username>\Desktop\test-wallet-usb`
 
 **Steps:**
 1. Click "Create New Wallet" button
@@ -37,7 +37,7 @@ npm run tauri dev
    - **Confirm Password**: `TestPassword123!`
    - **Wallet Name**: `My Test Wallet` (optional)
    - **Mnemonic Length**: Select `24 words`
-   - **USB Path**: `C:\Users\yangs\Desktop\test-wallet-usb`
+   - **USB Path**: `C:\Users\<your-username>\Desktop\test-wallet-usb`
 3. Click "Create Wallet"
 
 **Expected Results:**
@@ -196,10 +196,10 @@ rank,symbol,name,address,derivation_path
 **Check USB Files:**
 ```bash
 # View wallet metadata
-cat C:/Users/yangs/Desktop/test-wallet-usb/wallets/<wallet-id>/wallet.json
+cat C:/Users/<your-username>/Desktop/test-wallet-usb/wallets/<wallet-id>/wallet.json
 
 # View addresses file
-cat C:/Users/yangs/Desktop/test-wallet-usb/wallets/<wallet-id>/addresses.json
+cat C:/Users/<your-username>/Desktop/test-wallet-usb/wallets/<wallet-id>/addresses.json
 ```
 
 **Expected Structure:**
@@ -234,10 +234,10 @@ test-wallet-usb/
 **Solution:**
 ```bash
 # Ensure CLI is in Tauri directory
-ls C:/Users/yangs/Desktop/arcsign_v2/dashboard/src-tauri/arcsign.exe
+ls C:/Users/<your-username>/Desktop/arcsign_v2/dashboard/src-tauri/arcsign.exe
 
 # Rebuild if missing
-cd C:/Users/yangs/Desktop/arcsign_v2
+cd C:/Users/<your-username>/Desktop/arcsign_v2
 go build -o arcsign.exe ./cmd/arcsign
 cp arcsign.exe dashboard/src-tauri/
 ```
@@ -246,7 +246,7 @@ cp arcsign.exe dashboard/src-tauri/
 **Solution:**
 ```bash
 # Create test directory
-mkdir C:/Users/yangs/Desktop/test-wallet-usb
+mkdir C:/Users/<your-username>/Desktop/test-wallet-usb
 
 # Or use actual USB drive path
 # E.g., D:\ or E:\

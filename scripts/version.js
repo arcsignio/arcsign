@@ -39,7 +39,8 @@ const files = [
     path: 'dashboard/src-tauri/tauri.conf.json',
     update: (content) => {
       const json = JSON.parse(content);
-      json.package.version = version;
+      // Tauri v2: version is at the root, no `package` wrapper
+      json.version = version;
       return JSON.stringify(json, null, 2) + '\n';
     }
   },
@@ -53,36 +54,14 @@ const files = [
       );
     }
   },
-  {
-    path: 'landing-page/index.html',
-    update: (content) => {
-      // 更新 Cloudflare R2 下載連結中的版本號
-      return content.replace(
-        /dl\.arcsign\.io\/v[\d.]+\/ArcSign-[\d.]+-/g,
-        `dl.arcsign.io/v${version}/ArcSign-${version}-`
-      );
-    }
-  },
-  {
-    path: 'landing-page/install.sh',
-    update: (content) => {
-      // 更新 install.sh 頂部的 VERSION 變數
-      return content.replace(
-        /^VERSION="[\d.]+"/m,
-        `VERSION="${version}"`
-      );
-    }
-  },
-  {
-    path: 'landing-page/install.ps1',
-    update: (content) => {
-      // 更新 install.ps1 頂部的 $VERSION 變數
-      return content.replace(
-        /^\$VERSION = "[\d.]+"/m,
-        `$VERSION = "${version}"`
-      );
-    }
-  }
+  // NOTE: landing-page / landing-page-astro 已移到個人 repo
+  // the maintainer's personal repo master（這個 script 跑在公開 repo
+  // arcsignio/arcsign，不負責 marketing site）。
+  //
+  // 個人 repo 那邊也已切換到 GitHub Release：landing-page 下載按鈕用
+  // releases/latest/download/<asset>、install scripts 用 GitHub Release
+  // API 動態抓 latest tag — 不再 hardcode 版本號，version.js 不需動
+  // landing-page 任何檔案。
 ];
 
 console.log(`\n🔄 Updating version to ${version}...\n`);
@@ -115,10 +94,10 @@ if (success) {
   console.log(`✅ Version updated to ${version}`);
   console.log('');
   console.log('Next steps:');
-  console.log(`  1. Update landing-page/changelog.html (if needed)`);
+  console.log(`  1. Update CHANGELOG.md with the v${version} entry`);
   console.log(`  2. git add . && git commit -m "chore: release v${version}"`);
   console.log(`  3. git tag v${version}`);
-  console.log(`  4. git push && git push --tags`);
+  console.log(`  4. git push origin master && git push origin v${version}`);
   console.log(`  5. CI will auto-build, publish release, and update landing page`);
 } else {
   console.error('❌ Version update failed');

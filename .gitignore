@@ -136,7 +136,10 @@ contracts/artifacts/build-info/
 
 # Python bytecode
 *.pyc
-marketing/.env
+# marketing/ 為內部行銷協作目錄，永不進公開 repo
+marketing/
+# docs/superpowers/ 為內部 spec + launch plan，永不進公開 repo
+docs/superpowers/
 .~lock.*
 
 # Tauri v2 auto-generated schema files (build artifact)

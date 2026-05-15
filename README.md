@@ -71,13 +71,20 @@ For deeper detail see [`docs/architecture.md`](docs/architecture.md) and
 
 ## Downloading
 
-Pre-built binaries are at **https://dl.arcsign.io**.
+Pre-built binaries are published as **GitHub Releases**:
+https://github.com/arcsignio/arcsign/releases
+
+The `latest` tag always points to the newest stable release:
+- macOS: `releases/latest/download/ArcSign-macOS-ARM64.dmg`
+- Windows: `releases/latest/download/ArcSign-Windows-x64.msi`
+- Linux: `releases/latest/download/ArcSign-Linux-x64.AppImage`
 
 Verify your download:
 
 ```bash
-# 1. Download SHA256SUMS for your version
-curl -L https://dl.arcsign.io/v1.3.0/SHA256SUMS -o SHA256SUMS
+# 1. Download SHA256SUMS from the release
+curl -fsSL -o SHA256SUMS \
+  https://github.com/arcsignio/arcsign/releases/latest/download/SHA256SUMS
 
 # 2. Verify the binary you downloaded matches
 shasum -a 256 -c SHA256SUMS
@@ -85,6 +92,11 @@ shasum -a 256 -c SHA256SUMS
 # 3. Optionally: rebuild yourself and confirm the hash matches
 #    See docs/reproducible-builds.md
 ```
+
+> `SHA256SUMS` is available for v1.4.0 onwards (the first open-source
+> release). It covers both the installer bundles and the Go shared
+> library (`libarcsign.dylib` / `.so` / `.dll`) so you can verify the
+> reproducible-build chain end-to-end.
 
 ## Building from source
 
@@ -116,16 +128,28 @@ Found a vulnerability? **Do not open a public GitHub issue.**
 
 Email `security@arcsign.io` (PGP key in [`SECURITY.md`](SECURITY.md)).
 
-We aim for an initial response within 7 days. Full disclosure policy,
-threat model, and bug bounty status (currently retrospective-only;
-monetary bounty launches at Pro NFT holders > 500) in
+Initial response within 24 hours for security issues (see SLA below).
+Full disclosure policy, threat model, and bug bounty status (currently
+Hall-of-Fame credit + non-monetary support only; monetary bounty will
+launch when the project is sustainable enough to fund it) in
 [`SECURITY.md`](SECURITY.md).
 
 ## Contributing
 
-ArcSign is a one-maintainer project. **Please read
-[`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a PR** — particularly
-the "What we do NOT accept" section.
+ArcSign is a **one-maintainer project**. We don't pretend otherwise.
+Realistic response times:
+
+| Type | Initial acknowledgement | Resolution |
+|---|---|---|
+| Security vulnerability (`security@arcsign.io`) | within 24 hours | depends on severity |
+| Bug reports (GitHub issues) | within 72 hours | best-effort |
+| Pull requests | within 1 week | strict acceptance |
+| Feature requests | best-effort | no SLA |
+| Translations | open an issue first | see below |
+
+PRs are reviewed strictly — roughly 80% are rejected to keep maintenance
+manageable. **Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) before
+opening a PR**, particularly the "What we do NOT accept" section.
 
 TL;DR:
 - Open an issue first for any non-trivial change (>50 lines).
@@ -135,7 +159,8 @@ TL;DR:
   auto-blocked and require explicit maintainer review.
 
 Good first issues are tagged [`good-first-issue`](https://github.com/arcsignio/arcsign/issues?q=is%3Aissue+is%3Aopen+label%3Agood-first-issue).
-Translation contributions are especially welcome.
+Translation contributions are welcome but please open a coordination
+issue first — we'd rather have 2 well-maintained languages than 8 stale ones.
 
 ## License & trademarks
 
@@ -151,10 +176,10 @@ a fork under a name containing "ArcSign". See [`TRADEMARK.md`](TRADEMARK.md).
 | What | Where |
 |---|---|
 | Website | https://arcsign.io |
-| Downloads | https://dl.arcsign.io |
+| Downloads | https://github.com/arcsignio/arcsign/releases |
 | GitHub | https://github.com/arcsignio/arcsign |
 | Issues | https://github.com/arcsignio/arcsign/issues |
 | Discussions | https://github.com/arcsignio/arcsign/discussions |
-| Twitter / X | [@arcsign](https://twitter.com/arcsign) |
+| Twitter / X | [@ArcSignWallet](https://twitter.com/ArcSignWallet) |
 | Discord | https://discord.gg/WTyQakx4pb |
 | Security | security@arcsign.io ([PGP](docs/pgp-pubkey.asc)) |

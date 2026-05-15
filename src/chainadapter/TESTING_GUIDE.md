@@ -16,7 +16,7 @@
 ### 運行所有測試
 
 ```bash
-cd /Users/jnr350/Desktop/Yansiang/arcSignv2/src/chainadapter
+cd /path/to/arcsign/src/chainadapter
 
 # 運行 Bitcoin 測試
 go test ./bitcoin -v
@@ -90,7 +90,7 @@ go test ./... -v
 ### 查看 Bitcoin 使用範例
 
 ```bash
-cd /Users/jnr350/Desktop/Yansiang/arcSignv2/src/chainadapter
+cd /path/to/arcsign/src/chainadapter
 go run examples/bitcoin_example.go
 ```
 

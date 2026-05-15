@@ -16,67 +16,161 @@ permissions:
 
 jobs:
   build-macos:
+    name: Build & verify reproducibility (macOS)
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-      - name: Build Go shared library (reproducible)
+
+      - name: First build (reproducible)
         env:
           SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp || '0' }}
-        run: make build-reproducible
-      - name: Compute hashes
         run: |
-          shasum -a 256 dashboard/src-tauri/libarcsign*.dylib > sha256-macos.txt
-          cat sha256-macos.txt
+          make build-reproducible
+          shasum -a 256 dashboard/src-tauri/libarcsign.dylib | awk '{print $1}' > /tmp/hash-1.txt
+          cat /tmp/hash-1.txt
+
+      - name: Clean intermediate artifacts
+        run: |
+          rm -f dashboard/src-tauri/libarcsign.dylib dashboard/src-tauri/libarcsign.h
+          go clean -cache
+
+      - name: Second build (reproducible)
+        env:
+          SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp || '0' }}
+        run: |
+          make build-reproducible
+          shasum -a 256 dashboard/src-tauri/libarcsign.dylib | awk '{print $1}' > /tmp/hash-2.txt
+          cat /tmp/hash-2.txt
+
+      - name: Verify reproducibility (diff hashes)
+        run: |
+          h1=$(cat /tmp/hash-1.txt)
+          h2=$(cat /tmp/hash-2.txt)
+          if [ "$h1" != "$h2" ]; then
+            echo "::error::Reproducibility FAILED on macOS: $h1 != $h2"
+            exit 1
+          fi
+          echo "✅ macOS reproducible: $h1"
+          echo "$h1  dashboard/src-tauri/libarcsign.dylib" > sha256-macos.txt
+
       - uses: actions/upload-artifact@v4
         with:
           name: sha256-macos
           path: sha256-macos.txt
 
   build-linux:
+    name: Build & verify reproducibility (Linux)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-      - name: Build Go shared library
+
+      - name: First build (reproducible)
         env:
           SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp || '0' }}
-        run: make build-lib-linux
-      - name: Compute hashes
+          GOFLAGS: '-trimpath'
         run: |
-          sha256sum dashboard/src-tauri/libarcsign*.so > sha256-linux.txt || true
-          find . -name 'libarcsign*.so' -exec sha256sum {} \; >> sha256-linux.txt
-          cat sha256-linux.txt
+          make build-reproducible
+          SO=$(find dashboard/src-tauri -maxdepth 1 -name 'libarcsign*.so' | head -1)
+          [ -z "$SO" ] && { echo "::error::no .so produced"; exit 1; }
+          echo "SO_PATH=$SO" >> $GITHUB_ENV
+          sha256sum "$SO" | awk '{print $1}' > /tmp/hash-1.txt
+          cat /tmp/hash-1.txt
+
+      - name: Clean intermediate artifacts
+        run: |
+          rm -f dashboard/src-tauri/libarcsign*.so dashboard/src-tauri/libarcsign*.h
+          go clean -cache
+
+      - name: Second build (reproducible)
+        env:
+          SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp || '0' }}
+          GOFLAGS: '-trimpath'
+        run: |
+          make build-reproducible
+          sha256sum "$SO_PATH" | awk '{print $1}' > /tmp/hash-2.txt
+          cat /tmp/hash-2.txt
+
+      - name: Verify reproducibility (diff hashes)
+        run: |
+          h1=$(cat /tmp/hash-1.txt)
+          h2=$(cat /tmp/hash-2.txt)
+          if [ "$h1" != "$h2" ]; then
+            echo "::error::Reproducibility FAILED on Linux: $h1 != $h2"
+            exit 1
+          fi
+          echo "✅ Linux reproducible: $h1"
+          echo "$h1  $SO_PATH" > sha256-linux.txt
+
       - uses: actions/upload-artifact@v4
         with:
           name: sha256-linux
           path: sha256-linux.txt
 
   build-windows:
+    name: Build & verify reproducibility (Windows)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-      - name: Build Go shared library
+
+      - name: First build (reproducible)
         shell: bash
-        run: make build-lib-windows || true
-      - name: Compute hashes
+        env:
+          SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp || '0' }}
+          GOFLAGS: '-trimpath'
+        run: |
+          make build-reproducible
+          DLL=$(find dashboard/src-tauri -maxdepth 1 -name 'libarcsign*.dll' | head -1)
+          [ -z "$DLL" ] && { echo "::error::no .dll produced"; exit 1; }
+          echo "DLL_PATH=$DLL" >> $GITHUB_ENV
+          sha256sum "$DLL" | awk '{print $1}' > /tmp/hash-1.txt
+          cat /tmp/hash-1.txt
+
+      - name: Clean intermediate artifacts
         shell: bash
         run: |
-          find . -name 'libarcsign*.dll' -exec sha256sum {} \; > sha256-windows.txt || true
-          cat sha256-windows.txt
+          rm -f dashboard/src-tauri/libarcsign*.dll dashboard/src-tauri/libarcsign*.h
+          go clean -cache
+
+      - name: Second build (reproducible)
+        shell: bash
+        env:
+          SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp || '0' }}
+          GOFLAGS: '-trimpath'
+        run: |
+          make build-reproducible
+          sha256sum "$DLL_PATH" | awk '{print $1}' > /tmp/hash-2.txt
+          cat /tmp/hash-2.txt
+
+      - name: Verify reproducibility (diff hashes)
+        shell: bash
+        run: |
+          h1=$(cat /tmp/hash-1.txt)
+          h2=$(cat /tmp/hash-2.txt)
+          if [ "$h1" != "$h2" ]; then
+            echo "::warning::Reproducibility FAILED on Windows: $h1 != $h2"
+            echo "Windows CGO/MinGW builds have known non-determinism (PE timestamps)."
+            echo "Documenting both hashes — not failing the job."
+          else
+            echo "✅ Windows reproducible: $h1"
+          fi
+          echo "$h1  $DLL_PATH" > sha256-windows.txt
+
       - uses: actions/upload-artifact@v4
         with:
           name: sha256-windows
           path: sha256-windows.txt
 
   publish-hashes:
+    name: Combine SHA256SUMS
     needs: [build-macos, build-linux, build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
@@ -84,9 +178,12 @@ jobs:
       - uses: actions/download-artifact@v4
       - name: Combine SHA256SUMS
         run: |
-          cat sha256-macos/sha256-macos.txt \
-              sha256-linux/sha256-linux.txt \
-              sha256-windows/sha256-windows.txt > SHA256SUMS 2>/dev/null || true
+          {
+            cat sha256-macos/sha256-macos.txt
+            cat sha256-linux/sha256-linux.txt
+            cat sha256-windows/sha256-windows.txt
+          } > SHA256SUMS
+          echo "=== SHA256SUMS ==="
           cat SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:

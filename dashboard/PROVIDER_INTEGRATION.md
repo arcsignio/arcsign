@@ -157,7 +157,7 @@ dashboard/
 確保 Go 後端已編譯並包含新的 FFI 方法：
 
 ```bash
-cd /Users/jnr350/Desktop/Yansiang/arcSignv2
+cd /path/to/arcsign
 go build -buildmode=c-shared -o dashboard/src-tauri/libarcsign.dylib internal/lib/exports.go
 ```
 
