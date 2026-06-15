@@ -85,12 +85,11 @@ go test -run TestSpecificName ./...       # Run single test
   contract addresses. Stays in sync with `internal/wallet/constants.go`.
 - `contracts/` — Hardhat smart contracts: `ArcSignPro.sol` (Pro NFT),
   `ArcSignReferral.sol` (10-20% referral), on BSC
-- `landing-page/` — Static site (arcsign.io) — 主頁、FAQ、whitepaper 等
-  非 blog 頁面。**Blog 已移除**，改用 Astro。
-- `landing-page-astro/` — **Astro-based landing page（現役，部署到 arcsign.io）**。
-  Cloudflare Pages 自動 build：`cd landing-page-astro && npm install && npm run build`，
-  output 為 `landing-page-astro/dist`。
-- `mint-page/` — React app for Pro NFT minting on BSC
+- **網站與 web app 不在本 repo** — landing page、blog、NFT mint 頁面都已移到
+  獨立的 [`arcsignio/website`](https://github.com/arcsignio/website) repo（Astro 站，
+  部署到 arcsign.io，含 blog source of truth 與 Pro NFT mint app）。冷錢包桌面 app
+  與這些網頁無 build-time 依賴；唯一接觸點是 mint 頁面在執行期透過 localhost
+  WebSocket（`127.0.0.1:9527`）連到桌面 app 請求簽章。
 
 ### Data Flow
 
@@ -199,53 +198,12 @@ integrity and reproduce the build from source (see
   Any change requires explicit maintainer review — see
   [`OFFICIAL_ADDRESSES.md`](OFFICIAL_ADDRESSES.md).
 
-## Blog 文章工作流（Astro）
+## Blog 與網站內容
 
-Blog source of truth 是 Astro Markdown，**不再使用靜態 HTML**。
-
-### 新增文章步驟
-
-```bash
-# 1. 寫中文文章
-landing-page-astro/src/content/blog/zh-TW/<slug>.md
-
-# 2. 寫英文文章
-landing-page-astro/src/content/blog/en/<slug>.md
-
-# 3. 生成 hero 圖（1200×630 OG image）
-cd /path/to/repo
-python3 marketing/scripts/gen_blog_hero.py "<slug>" "<英文標題>" "<英文副標題>" --tags "tag1,tag2"
-# 輸出到 landing-page-astro/public/blog/images/<slug>-hero.png
-
-# 4. 更新 sitemap
-landing-page/sitemap.xml  # 補入 ZH + EN 的 <url> 區塊
-
-# 5. Commit + push → Cloudflare Pages 自動 build
-```
-
-### Frontmatter 格式（必填欄位）
-
-```yaml
----
-title: "文章標題"
-description: "120-155 字元的 meta description，含主要關鍵字"
-pubDate: 2026-04-27
-locale: zh-TW   # 或 en
-tags: ["標籤1", "標籤2"]
-author: "ArcSign Security Team"
-heroImage: "/blog/images/<slug>-hero.png"
----
-```
-
-### 重要注意事項
-
-- **圖片放在** `landing-page-astro/public/blog/images/`（不是
-  `landing-page/blog/images/`，那個已刪除）。
-- `landing-page/blog/` **已完全刪除**，不要在那裡新建 HTML。
-- `landing-page-astro/scripts/convert-blog.mjs` **已刪除**，不再使用。
-- SEO 工具腳本在 `marketing/scripts/optimize_blog_seo.py`
-  （描述快取在 `marketing/scripts/seo_descriptions.json`）。
-- 內部連結用 Markdown 格式：`[文字](/blog/slug)`。
+Blog、landing page、mint 頁面的 source of truth 都在
+[`arcsignio/website`](https://github.com/arcsignio/website) repo（Astro，
+部署到 arcsign.io），**不在本 repo**。新增/編輯文章、生成 hero 圖、更新 sitemap
+等工作流請在 website repo 進行。本 repo（冷錢包）不需要這些即可 build、test、貢獻。
 
 ## Maintainer-side Tooling
 

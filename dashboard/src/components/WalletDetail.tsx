@@ -1277,31 +1277,6 @@ export function WalletDetail({
     );
   }
 
-  // Original staking code (kept for reference)
-  /*
-  if (showStakingTransaction && sessionToken) {
-    return (
-      <StakingTransaction
-        walletId={wallet.id}
-        walletHasPassphrase={wallet.has_passphrase}
-        walletPassphrase={validatedPassphrase || undefined}
-        availableTokens={availableTokensForSend}
-        usbPath={usbPath}
-        appPassword={sessionToken}  // TODO: Fix this
-        onBack={() => {
-          setShowStakingTransaction(false);
-          handleRefreshBalances();
-        }}
-        onSuccess={(txHash) => {
-          console.log("✅ Staking transaction submitted:", txHash);
-          // Refresh balances after successful staking
-          handleRefreshBalances();
-        }}
-      />
-    );
-  }
-  */
-
   return (
     <div
       style={{

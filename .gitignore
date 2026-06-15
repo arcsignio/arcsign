@@ -145,3 +145,19 @@ docs/superpowers/
 # Tauri v2 auto-generated schema files (build artifact)
 dashboard/src-tauri/gen/
 .audit/
+
+# ============================================
+# 不屬於冷錢包 public repo 的目錄（已歸到外部 repo）
+# ============================================
+# 網頁 / web app — 歸 arcsignio/website.git
+landing-page/
+landing-page-astro/
+mint-page/
+# 內部商業/行銷資產 — 歸 arcsignio/internal.git
+doc/
+pitch_deck/
+outputs/
+# 本地除錯腳本 / 臨時檔
+quick-debug.sh
+test_provider_config.go
+.mcp.json
