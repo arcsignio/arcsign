@@ -23,7 +23,7 @@ import {
 } from '../request-handler';
 import type { SessionTypes } from '@walletconnect/types';
 
-// Supported chain IDs (matching our 6 EVM chains)
+// Supported chain IDs (matching our 7 EVM chains)
 const SUPPORTED_CHAIN_IDS = [
   1,     // Ethereum
   56,    // BSC
@@ -31,6 +31,7 @@ const SUPPORTED_CHAIN_IDS = [
   42161, // Arbitrum
   10,    // Optimism
   8453,  // Base
+  43114, // Avalanche C-Chain
 ];
 
 // Chain names for display
@@ -41,6 +42,7 @@ const CHAIN_NAMES: Record<number, string> = {
   42161: 'Arbitrum One',
   10: 'Optimism',
   8453: 'Base',
+  43114: 'Avalanche C-Chain',
 };
 
 /**
@@ -140,7 +142,7 @@ const switchChainHandler: RequestHandler = async (
     return createErrorResponse(
       id,
       RPC_ERROR_CODES.UNRECOGNIZED_CHAIN,
-      `Chain ${chainId} (${chainName}) is not supported by ArcSign. Supported chains: Ethereum, BSC, Polygon, Arbitrum, Optimism, Base.`
+      `Chain ${chainId} (${chainName}) is not supported by ArcSign. Supported chains: Ethereum, BSC, Polygon, Arbitrum, Optimism, Base, Avalanche.`
     );
   }
 

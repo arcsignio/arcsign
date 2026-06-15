@@ -101,6 +101,7 @@ export function getNativeSymbol(chainId: number): string {
     42161: 'ETH',  // Arbitrum
     10: 'ETH',     // Optimism
     8453: 'ETH',   // Base
+    43114: 'AVAX', // Avalanche C-Chain
   };
   return symbols[chainId] || 'ETH';
 }
@@ -116,6 +117,7 @@ export function getChainString(chainId: number): string {
     42161: 'arbitrum',
     10: 'optimism',
     8453: 'base',
+    43114: 'avalanche',
   };
   return chainStrings[chainId] || 'ethereum';
 }
