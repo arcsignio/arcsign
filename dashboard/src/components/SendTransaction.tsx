@@ -77,6 +77,7 @@ function networkToChainId(network: string): string {
     "optimism-mainnet": "optimism",
     "base-mainnet": "base",
     "bnb-mainnet": "bnb",
+    "avalanche-mainnet": "avalanche",
     "eth-sepolia": "ethereum-sepolia",
   };
   return mapping[network] || network;
@@ -91,6 +92,7 @@ function getExplorerUrl(network: string, txHash: string): string {
     "optimism-mainnet": "https://optimistic.etherscan.io/tx/",
     "base-mainnet": "https://basescan.org/tx/",
     "bnb-mainnet": "https://bscscan.com/tx/",
+    "avalanche-mainnet": "https://snowtrace.io/tx/",
     "eth-sepolia": "https://sepolia.etherscan.io/tx/",
   };
   return `${explorers[network] || "https://etherscan.io/tx/"}${txHash}`;
@@ -105,6 +107,7 @@ function getNetworkIcon(network: string): string {
     "optimism-mainnet": "O",
     "base-mainnet": "B",
     "bnb-mainnet": "N",
+    "avalanche-mainnet": "AV",
     "eth-sepolia": "T",
   };
   return icons[network] || "?";

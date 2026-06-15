@@ -33,6 +33,7 @@ const EVM_CHAINS = [
   { id: "optimism-mainnet", name: "Optimism", shortName: "OP", color: "#FF0420" },
   { id: "base-mainnet", name: "Base", shortName: "BASE", color: "#0052FF" },
   { id: "bnb-mainnet", name: "BNB Chain", shortName: "BNB", color: "#F0B90B" },
+  { id: "avalanche-mainnet", name: "Avalanche", shortName: "AVAX", color: "#E84142" },
 ];
 
 // Extended transfer with network info

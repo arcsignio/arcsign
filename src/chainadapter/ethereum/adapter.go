@@ -86,6 +86,8 @@ func networkIDToChainID(networkID int64) string {
 		return "optimism" // Optimism
 	case 8453:
 		return "base" // Base
+	case 43114:
+		return "avalanche" // Avalanche C-Chain
 	default:
 		return "ethereum" // Default fallback
 	}

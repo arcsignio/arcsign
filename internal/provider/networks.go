@@ -52,6 +52,13 @@ var ChainToInternalNetwork = map[string]string{
 	"bsc":                 NetworkBnbMainnet,
 	"binance-smart-chain": NetworkBnbMainnet,
 	"bnb-mainnet":         NetworkBnbMainnet,
+	// Avalanche C-Chain (wallet CoinName is "Avalanche")
+	"Avalanche":          NetworkAvalancheMainnet,
+	"avalanche":          NetworkAvalancheMainnet,
+	"avax":               NetworkAvalancheMainnet,
+	"AVAX":               NetworkAvalancheMainnet,
+	"avalanche-mainnet":  NetworkAvalancheMainnet,
+	"avax-mainnet":       NetworkAvalancheMainnet,
 	// Testnets (for development)
 	"Ethereum Sepolia": NetworkEthSepolia,
 	"ethereum-sepolia": NetworkEthSepolia,

@@ -30,6 +30,7 @@ const (
 	NetworkOptimismMainnet = "optimism-mainnet" // Internal format (Alchemy uses "opt-mainnet")
 	NetworkBaseMainnet     = "base-mainnet"
 	NetworkBnbMainnet      = "bnb-mainnet"
+	NetworkAvalancheMainnet = "avalanche-mainnet"
 
 	// Testnet networks (Internal canonical format)
 	NetworkEthSepolia      = "eth-sepolia"
@@ -44,6 +45,7 @@ const (
 	ProviderAlchemy  = "alchemy"
 	ProviderNodeReal = "nodereal"
 	ProviderBSCTrace = "bsctrace" // Alias for nodereal
+	ProviderGlacier  = "glacier"  // Avalanche Data API (anonymous, no API key)
 )
 
 // ================================================================================
@@ -105,6 +107,18 @@ var ProviderCapabilities = map[string]ProviderCapability{
 		RequiresAPIKey:     true,
 		ConfigKey:          "nodereal",
 	},
+	ProviderGlacier: {
+		SupportedNetworks: []string{
+			NetworkAvalancheMainnet,
+		},
+		InternalTransferNetworks: []string{
+			NetworkAvalancheMainnet,
+		},
+		TransferCategories: []string{"external", "erc20", "erc721", "erc1155"},
+		// Glacier has an anonymous (no key) tier — users do not need to register.
+		RequiresAPIKey: false,
+		ConfigKey:      "glacier",
+	},
 }
 
 // ================================================================================
@@ -127,6 +141,8 @@ var NetworkToProvider = map[string]string{
 	NetworkBaseSepolia:     ProviderAlchemy,
 	// NodeReal/BSCTrace networks
 	NetworkBnbMainnet: ProviderNodeReal,
+	// Glacier (Avalanche Data API, anonymous)
+	NetworkAvalancheMainnet: ProviderGlacier,
 }
 
 // GetProviderForNetwork returns the provider type for a given Internal Network ID
@@ -258,6 +274,7 @@ func AllMainnetNetworks() []string {
 		NetworkOptimismMainnet,
 		NetworkBaseMainnet,
 		NetworkBnbMainnet,
+		NetworkAvalancheMainnet,
 	}
 }
 
@@ -269,6 +286,7 @@ var NetworkLabels = map[string]string{
 	NetworkOptimismMainnet: "Optimism",
 	NetworkBaseMainnet:     "Base",
 	NetworkBnbMainnet:      "BNB Chain",
+	NetworkAvalancheMainnet: "Avalanche",
 	// Testnets
 	NetworkEthSepolia:      "Ethereum Sepolia",
 	NetworkPolygonAmoy:     "Polygon Amoy",

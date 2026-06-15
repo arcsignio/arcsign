@@ -30,6 +30,7 @@ const (
 type AlchemyClient struct {
 	apiKey     string
 	httpClient *http.Client
+	baseURL    string // overridable for testing; defaults to AlchemyAPIBaseURL
 }
 
 // NewAlchemyClient creates a new Alchemy API client
@@ -37,7 +38,16 @@ func NewAlchemyClient(apiKey string) *AlchemyClient {
 	return &AlchemyClient{
 		apiKey:     apiKey,
 		httpClient: &http.Client{},
+		baseURL:    AlchemyAPIBaseURL,
 	}
+}
+
+// dataBaseURL returns the Alchemy Data API base, honoring a test override.
+func (c *AlchemyClient) dataBaseURL() string {
+	if c.baseURL != "" {
+		return c.baseURL
+	}
+	return AlchemyAPIBaseURL
 }
 
 // ================================================================================
@@ -91,7 +101,7 @@ func (c *AlchemyClient) GetTokenBalancesByAddress(addresses []AlchemyAddressWith
 	}
 
 	// Construct URL
-	url := fmt.Sprintf("%s/%s/assets/tokens/by-address", AlchemyAPIBaseURL, c.apiKey)
+	url := fmt.Sprintf("%s/%s/assets/tokens/by-address", c.dataBaseURL(), c.apiKey)
 
 	// Create HTTP request
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
@@ -152,7 +162,7 @@ func (c *AlchemyClient) GetNFTsByAddress(addresses []AlchemyAddressWithNetworks)
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/%s/assets/nfts/by-address", AlchemyAPIBaseURL, c.apiKey)
+	url := fmt.Sprintf("%s/%s/assets/nfts/by-address", c.dataBaseURL(), c.apiKey)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {

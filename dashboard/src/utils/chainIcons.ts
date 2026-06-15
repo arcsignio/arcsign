@@ -110,9 +110,9 @@ const CHAIN_COLORS: Record<string, string> = {
  */
 const SUPPORTED_SYMBOLS = new Set([
   // Currently Supported - Short symbols (EVM chains only)
-  'ETH', 'BNB', 'MATIC', 'ARB', 'OP', 'BASE',
+  'ETH', 'BNB', 'MATIC', 'ARB', 'OP', 'BASE', 'AVAX',
   // Currently Supported - Full names
-  'ETHEREUM', 'BINANCE', 'BNB CHAIN', 'POLYGON', 'ARBITRUM', 'OPTIMISM',
+  'ETHEREUM', 'BINANCE', 'BNB CHAIN', 'POLYGON', 'ARBITRUM', 'OPTIMISM', 'AVALANCHE',
 ]);
 
 /**
@@ -121,9 +121,9 @@ const SUPPORTED_SYMBOLS = new Set([
  */
 const COMING_SOON_SYMBOLS = new Set([
   // Short symbols
-  'BTC', 'AVAX', 'ZKS', 'LINEA',
+  'BTC', 'ZKS', 'LINEA',
   // Full names
-  'BITCOIN', 'AVALANCHE', 'ZKSYNC',
+  'BITCOIN', 'ZKSYNC',
 ]);
 
 /**

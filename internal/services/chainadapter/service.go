@@ -146,6 +146,9 @@ func (s *Service) GetAdapter(ctx context.Context, chainId string, rpcEndpoint st
 	case "base", "base-mainnet":
 		// Base
 		adapter, err = ethereum.NewEthereumAdapter(rpcClient, s.txStore, 8453, nil)
+	case "avalanche", "avax", "avalanche-mainnet":
+		// Avalanche C-Chain - standard EIP-1559 EVM
+		adapter, err = ethereum.NewEthereumAdapter(rpcClient, s.txStore, 43114, nil)
 	default:
 		return nil, fmt.Errorf("unsupported chainId: %s", chainId)
 	}

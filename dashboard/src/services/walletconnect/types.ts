@@ -14,6 +14,7 @@ export const SUPPORTED_CHAINS = {
   ARBITRUM: 'eip155:42161',
   OPTIMISM: 'eip155:10',
   BASE: 'eip155:8453',
+  AVALANCHE: 'eip155:43114',
 } as const;
 
 export type SupportedChain = typeof SUPPORTED_CHAINS[keyof typeof SUPPORTED_CHAINS];
@@ -26,10 +27,11 @@ export const CHAIN_ID_MAP: Record<number, SupportedChain> = {
   42161: SUPPORTED_CHAINS.ARBITRUM,
   10: SUPPORTED_CHAINS.OPTIMISM,
   8453: SUPPORTED_CHAINS.BASE,
+  43114: SUPPORTED_CHAINS.AVALANCHE,
 };
 
 // Reverse mapping
-export const SUPPORTED_CHAIN_IDS = [1, 56, 137, 42161, 10, 8453] as const;
+export const SUPPORTED_CHAIN_IDS = [1, 56, 137, 42161, 10, 8453, 43114] as const;
 
 // Supported methods
 // Note: Read-only methods (eth_getBalance, eth_call, etc.) are NOT supported.
