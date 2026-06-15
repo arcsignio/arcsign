@@ -190,6 +190,12 @@ integrity and reproduce the build from source (see
 - Break complex work into 3-5 stages, document in `IMPLEMENTATION_PLAN.md`
   for the feature.
 - Follow TDD: write test first, implement minimal code, refactor.
+- **Every feature must ship with unit tests.** No new feature, FFI export,
+  provider client, chain adapter, or non-trivial helper is considered done
+  until it has unit tests covering its behavior and edge cases. This applies
+  to both Go (backend) and Vitest (frontend). New chains/providers must add
+  the relevant mapping/parsing tests (see `internal/provider/*_test.go`,
+  `src/chainadapter/ethereum/network_test.go` for the pattern).
 - Maximum 3 attempts per issue, then stop and reassess.
 - Every commit must compile and pass all existing tests.
 - Never use `--no-verify` to bypass commit hooks.

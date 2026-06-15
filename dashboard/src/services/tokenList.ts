@@ -80,6 +80,12 @@ export const CHAIN_CONFIG = {
     file: "/token-lists/base.json",
     coingeckoId: "base",
   },
+  avalanche: {
+    id: 43114,
+    name: "Avalanche",
+    file: "/token-lists/avalanche.json",
+    coingeckoId: "avalanche",
+  },
 } as const;
 
 export type ChainKey = keyof typeof CHAIN_CONFIG;

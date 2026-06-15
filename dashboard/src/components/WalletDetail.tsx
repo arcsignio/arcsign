@@ -496,6 +496,7 @@ export function WalletDetail({
       "Arbitrum": "arbitrum",
       "Optimism": "optimism",
       "Base": "base",
+      "Avalanche": "avalanche",
     };
 
     // Build whitelist from all known tokens across all chains
@@ -668,6 +669,7 @@ export function WalletDetail({
       "Arbitrum": "arbitrum",
       "Optimism": "optimism",
       "Base": "base",
+      "Avalanche": "avalanche",
     };
 
     // Build whitelist from CoinGecko token lists

@@ -61,6 +61,14 @@ download_list "Binance Smart Chain" \
     "https://tokens.coingecko.com/binance-smart-chain/all.json" \
     "bsc.json"
 
+download_list "Base" \
+    "https://tokens.coingecko.com/base/all.json" \
+    "base.json"
+
+download_list "Avalanche" \
+    "https://tokens.coingecko.com/avalanche/all.json" \
+    "avalanche.json"
+
 echo ""
 echo -e "${GREEN}====================================${NC}"
 echo -e "${GREEN}   All token lists updated!${NC}"

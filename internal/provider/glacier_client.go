@@ -35,6 +35,7 @@ const (
 type GlacierClient struct {
 	httpClient *http.Client
 	apiKey     string // optional; empty = anonymous tier
+	baseURL    string // overridable for testing; defaults to GlacierBaseURL
 }
 
 // NewGlacierClient creates a Glacier client. apiKey is optional — pass "" for
@@ -44,12 +45,17 @@ func NewGlacierClient(apiKey string) *GlacierClient {
 	return &GlacierClient{
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 		apiKey:     apiKey,
+		baseURL:    GlacierBaseURL,
 	}
 }
 
 // get issues a GET against the Glacier REST API and unmarshals into out.
 func (c *GlacierClient) get(path string, query url.Values, out interface{}) error {
-	u := GlacierBaseURL + path
+	base := c.baseURL
+	if base == "" {
+		base = GlacierBaseURL
+	}
+	u := base + path
 	if len(query) > 0 {
 		u += "?" + query.Encode()
 	}

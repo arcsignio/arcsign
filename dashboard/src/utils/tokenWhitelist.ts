@@ -16,6 +16,7 @@ const NETWORK_TO_CHAIN_MAP: Record<string, ChainKey> = {
   'optimism-mainnet': 'optimism',
   'base-mainnet': 'base',
   'bnb-mainnet': 'bsc',
+  'avalanche-mainnet': 'avalanche',
 };
 
 export interface TokenCheckResult {
