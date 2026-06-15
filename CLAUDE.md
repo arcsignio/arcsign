@@ -12,6 +12,15 @@ ArcSign is open source under the Apache License 2.0. See
 [`LICENSE`](LICENSE), [`SECURITY.md`](SECURITY.md), and
 [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
+## Repository Conventions
+
+- **Default branch is `master`** (not `main`). This is the branch GitHub
+  shows on the repo home page and the base for PRs.
+- The remote is named **`arcsignio`** (not `origin`):
+  `git push arcsignio master`. Confirm with `git remote -v`.
+- The maintainer is [@Jason-chen-taiwan](https://github.com/Jason-chen-taiwan)
+  (see [`MAINTAINERS.md`](MAINTAINERS.md) and `.github/CODEOWNERS`).
+
 ## Build Commands
 
 ### Go Shared Library (FFI)
