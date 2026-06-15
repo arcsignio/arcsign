@@ -29,14 +29,13 @@ Status per platform:
 |---|---|---|
 | macOS arm64 | `libarcsign.dylib` | ✅ Reproducible (verified in CI) |
 | Linux x86_64 | `libarcsign.so` | ✅ Reproducible (verified in CI) |
-| Windows x86_64 | `libarcsign.dll` | ⚠️ Approximate — CGO/MinGW adds PE timestamps |
+| Windows x86_64 | `libarcsign.dll` | ✅ Reproducible (verified in CI) |
 
-CI runs each build twice in fresh runners and diffs the SHA-256. macOS
-and Linux jobs fail on mismatch. Windows is documented as warning rather
-than failure because the Go CGO + MinGW toolchain adds a few non-trivial
-non-deterministic bytes (PE header timestamps, debug-info GUIDs) that
-require deeper work to eliminate. We treat Windows reproducibility as
-ongoing work, not a current promise.
+CI runs each build twice in fresh runners and diffs the SHA-256. All
+three platforms fail on mismatch. The Go CGO + MinGW toolchain would
+otherwise stamp the PE header with the current time; we suppress this
+with `--no-insert-timestamp` (zeroes the PE `TimeDateStamp`) and
+`-buildvcs=false`, applied to the Windows build in the `Makefile`.
 
 What we **cannot** guarantee bit-for-bit: the full `.dmg`, `.msi`,
 `.AppImage` bundles. These contain installer metadata, notarization
@@ -115,7 +114,11 @@ byte-for-byte): just rebuild with the same Go major version.
   via ad-hoc signing (`codesign --force --sign -`). External
   Apple-signed distributions add a notarization timestamp; we hash the
   pre-notarization dylib.
-- **Windows PE timestamp**: patched to a fixed value in the workflow.
+- **Windows PE timestamp**: MinGW `ld` stamps the PE header with the
+  current time by default (and `SOURCE_DATE_EPOCH` does not reach the
+  external linker). We pass `--no-insert-timestamp` via
+  `-ldflags=-extldflags` to zero it, plus `-buildvcs=false`, in the
+  `Makefile`'s Windows build.
 - **Linux**: usually reproducible without special steps.
 
 ## What's covered
