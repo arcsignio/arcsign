@@ -23,10 +23,6 @@ import "fmt"
 const (
 	// NodeRealBaseURL is the NodeReal MegaNode endpoint for BSC
 	NodeRealBaseURL = "https://bsc-mainnet.nodereal.io/v1"
-
-	// NodeRealPublicKey - NodeReal provides a public endpoint
-	// For production, users should get their own key at https://dashboard.nodereal.io
-	NodeRealPublicKey = "e7864b06cdbb4ec0a64c19c8bdcb3401"
 )
 
 func init() {
@@ -109,12 +105,12 @@ func (a *NodeRealAdapter) GetRPCEndpoint(internalNetwork string, apiKey string) 
 		return ""
 	}
 
-	key := apiKey
-	if key == "" {
-		key = NodeRealPublicKey
+	// No shared/public key fallback — NodeReal requires the user's own key.
+	if apiKey == "" {
+		return ""
 	}
 
-	return fmt.Sprintf("%s/%s", NodeRealBaseURL, key)
+	return fmt.Sprintf("%s/%s", NodeRealBaseURL, apiKey)
 }
 
 // GetTransferCategories returns transfer categories for transaction history
