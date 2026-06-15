@@ -50,7 +50,9 @@ func (w *alchemyWDP) GetAssetTransfers(address, network string, maxCount int, pa
 func toAlchemyAddresses(addrs []AddressWithNetworks) []AlchemyAddressWithNetworks {
 	out := make([]AlchemyAddressWithNetworks, 0, len(addrs))
 	for _, a := range addrs {
-		out = append(out, AlchemyAddressWithNetworks{Address: a.Address, Networks: a.Networks})
+		// AddressWithNetworks and AlchemyAddressWithNetworks have identical
+		// fields, so a direct conversion is enough (satisfies gosimple S1016).
+		out = append(out, AlchemyAddressWithNetworks(a))
 	}
 	return out
 }
