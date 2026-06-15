@@ -86,6 +86,17 @@ export const NATIVE_TOKENS: Record<string, NativeTokenMetadata> = {
     network: "base-mainnet",
   },
 
+  // Avalanche
+  "avalanche-mainnet": {
+    symbol: "AVAX",
+    name: "Avalanche",
+    decimals: 18,
+    logoURI: "/icons/chains/avax.png",
+    chainId: 43114,
+    chainName: "Avalanche",
+    network: "avalanche-mainnet",
+  },
+
   // Bitcoin
   "btc-mainnet": {
     symbol: "BTC",
@@ -158,6 +169,8 @@ export const NETWORK_LABEL_TO_KEY: Record<string, string> = {
   "Arbitrum One": "arbitrum-mainnet",
   Optimism: "optimism-mainnet",
   Base: "base-mainnet",
+  Avalanche: "avalanche-mainnet",
+  "Avalanche C-Chain": "avalanche-mainnet",
   Bitcoin: "btc-mainnet",
 
   // Internal Network IDs (canonical format)
@@ -168,6 +181,8 @@ export const NETWORK_LABEL_TO_KEY: Record<string, string> = {
   "arbitrum-mainnet": "arbitrum-mainnet",
   "optimism-mainnet": "optimism-mainnet",
   "base-mainnet": "base-mainnet",
+  "avalanche-mainnet": "avalanche-mainnet",
+  "avax-mainnet": "avalanche-mainnet",
   "bnb-mainnet": "bsc-mainnet",
   "bsc-mainnet": "bsc-mainnet",
 
@@ -218,6 +233,9 @@ export function getNetworkKey(networkLabel: string): string | null {
   }
   if (lowerLabel.includes("base")) {
     return "base-mainnet";
+  }
+  if (lowerLabel.includes("avax") || lowerLabel.includes("avalanche")) {
+    return "avalanche-mainnet";
   }
   if (lowerLabel.includes("btc") || lowerLabel.includes("bitcoin")) {
     return "btc-mainnet";

@@ -681,18 +681,9 @@ func GetAssetTransfers(params *C.char) (result *C.char) {
 	}
 	defer providerStore.Close()
 
-	providerConfig, err := providerStore.Get("global", "alchemy")
-	if err != nil || providerConfig == nil || providerConfig.APIKey == "" {
-		response := NewErrorResponse(ErrInvalidInput, "Alchemy API key not configured")
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	if !providerConfig.Enabled {
-		response := NewErrorResponse(ErrInvalidInput, "Alchemy provider is disabled")
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
+	// Alchemy config is fetched lazily — only providers that actually need a
+	// user key (Alchemy) require it. Glacier (Avalanche) is anonymous/no-key.
+	providerConfig, _ := providerStore.Get("global", "alchemy")
 
 	// Default max count
 	maxCount := input.MaxCount
@@ -707,6 +698,17 @@ func GetAssetTransfers(params *C.char) (result *C.char) {
 	providerType := provider.GetProviderForNetwork(input.Network)
 
 	switch providerType {
+	case provider.ProviderGlacier:
+		// Avalanche: use Glacier (Avalanche Data API), anonymous tier — no key required.
+		glacierClient := provider.NewGlacierClient(loadGlacierAPIKey(providerStore))
+		transfers, pageKey, err = glacierClient.GetAssetTransfersAVAX(input.Address, maxCount, input.PageKey)
+		if err != nil {
+			fmt.Printf("Glacier API error: %v\n", err)
+			response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
+			jsonBytes, _ := json.Marshal(response)
+			return C.CString(string(jsonBytes))
+		}
+
 	case provider.ProviderNodeReal:
 		// BSC network: Use BSCTrace (NodeReal) provider
 		// Check all possible config keys for nodereal
@@ -742,6 +744,11 @@ func GetAssetTransfers(params *C.char) (result *C.char) {
 	case provider.ProviderAlchemy:
 		// Alchemy networks: ETH, Polygon, Arbitrum, Optimism, Base
 		// Categories are automatically determined based on network (chains.go)
+		if providerConfig == nil || providerConfig.APIKey == "" || !providerConfig.Enabled {
+			response := NewErrorResponse(ErrInvalidInput, "Alchemy API key not configured")
+			jsonBytes, _ := json.Marshal(response)
+			return C.CString(string(jsonBytes))
+		}
 		alchemyClient := provider.NewAlchemyClient(providerConfig.APIKey)
 		transfers, pageKey, err = alchemyClient.GetAssetTransfers(input.Address, input.Network, maxCount, input.PageKey)
 		if err != nil {
@@ -753,6 +760,11 @@ func GetAssetTransfers(params *C.char) (result *C.char) {
 
 	default:
 		// Unknown provider - fallback to Alchemy
+		if providerConfig == nil || providerConfig.APIKey == "" || !providerConfig.Enabled {
+			response := NewErrorResponse(ErrInvalidInput, "Alchemy API key not configured")
+			jsonBytes, _ := json.Marshal(response)
+			return C.CString(string(jsonBytes))
+		}
 		alchemyClient := provider.NewAlchemyClient(providerConfig.APIKey)
 		transfers, pageKey, err = alchemyClient.GetAssetTransfers(input.Address, input.Network, maxCount, input.PageKey)
 		if err != nil {

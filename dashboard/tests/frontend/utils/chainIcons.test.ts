@@ -87,6 +87,7 @@ describe('chainIcons utility', () => {
       expect(isChainSupported('ARB')).toBe(true);
       expect(isChainSupported('OP')).toBe(true);
       expect(isChainSupported('BASE')).toBe(true);
+      expect(isChainSupported('AVAX')).toBe(true);
     });
 
     it('returns true for supported chains using full names', () => {
@@ -94,6 +95,7 @@ describe('chainIcons utility', () => {
       expect(isChainSupported('POLYGON')).toBe(true);
       expect(isChainSupported('ARBITRUM')).toBe(true);
       expect(isChainSupported('OPTIMISM')).toBe(true);
+      expect(isChainSupported('AVALANCHE')).toBe(true);
     });
 
     it('returns false for BTC (not yet supported for transactions)', () => {
@@ -113,14 +115,17 @@ describe('chainIcons utility', () => {
   describe('isChainComingSoon', () => {
     it('returns true for coming soon chains', () => {
       expect(isChainComingSoon('BTC')).toBe(true);
-      expect(isChainComingSoon('AVAX')).toBe(true);
       expect(isChainComingSoon('ZKS')).toBe(true);
     });
 
     it('returns true for coming soon chains using full names', () => {
       expect(isChainComingSoon('BITCOIN')).toBe(true);
-      expect(isChainComingSoon('AVALANCHE')).toBe(true);
       expect(isChainComingSoon('ZKSYNC')).toBe(true);
+    });
+
+    it('returns false for AVAX now that Avalanche is fully supported', () => {
+      expect(isChainComingSoon('AVAX')).toBe(false);
+      expect(isChainComingSoon('AVALANCHE')).toBe(false);
     });
 
     it('returns false for already supported chains', () => {
@@ -140,7 +145,7 @@ describe('chainIcons utility', () => {
 
     it('returns true for coming-soon chains (address generation enabled)', () => {
       expect(isChainEnabled('BTC')).toBe(true);
-      expect(isChainEnabled('AVAX')).toBe(true);
+      expect(isChainEnabled('ZKS')).toBe(true);
     });
 
     it('returns false for chains not in either set', () => {
