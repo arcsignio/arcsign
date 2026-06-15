@@ -12,6 +12,7 @@
 [![Reproducible Builds](https://img.shields.io/badge/builds-reproducible-green.svg)](docs/reproducible-builds.md)
 [![Security Policy](https://img.shields.io/badge/security-policy-red.svg)](SECURITY.md)
 [![DCO](https://img.shields.io/badge/Commits-DCO-blue.svg)](CONTRIBUTING.md)
+[![Maintainer](https://img.shields.io/badge/maintained%20by-%40Jason--chen--taiwan-0d9488.svg)](https://github.com/Jason-chen-taiwan)
 
 ArcSign is an open-source desktop cold wallet for Bitcoin and 6 EVM chains.
 Private keys are generated and stored only on a USB device. The `.arcsign`
@@ -142,8 +143,9 @@ launch when the project is sustainable enough to fund it) in
 
 ## Contributing
 
-ArcSign is a **one-maintainer project**. We don't pretend otherwise.
-Realistic response times:
+ArcSign is a **one-maintainer project**, created and maintained by
+[**@Jason-chen-taiwan**](https://github.com/Jason-chen-taiwan). We don't
+pretend otherwise. Realistic response times:
 
 | Type | Initial acknowledgement | Resolution |
 |---|---|---|
