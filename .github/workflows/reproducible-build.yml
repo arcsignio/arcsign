@@ -156,12 +156,10 @@ jobs:
           h1=$(cat /tmp/hash-1.txt)
           h2=$(cat /tmp/hash-2.txt)
           if [ "$h1" != "$h2" ]; then
-            echo "::warning::Reproducibility FAILED on Windows: $h1 != $h2"
-            echo "Windows CGO/MinGW builds have known non-determinism (PE timestamps)."
-            echo "Documenting both hashes — not failing the job."
-          else
-            echo "✅ Windows reproducible: $h1"
+            echo "::error::Reproducibility FAILED on Windows: $h1 != $h2"
+            exit 1
           fi
+          echo "✅ Windows reproducible: $h1"
           echo "$h1  $DLL_PATH" > sha256-windows.txt
 
       - uses: actions/upload-artifact@v4

@@ -58,6 +58,13 @@ BUILD_MODE := c-shared
 BUILD_TAGS := -tags dev
 SOURCE := internal/lib/*.go
 
+# Windows reproducibility: MinGW ld stamps the PE header with the current
+# wall-clock time by default (SOURCE_DATE_EPOCH does not reach the external
+# linker). --no-insert-timestamp zeroes the PE TimeDateStamp; -buildvcs=false
+# keeps Go from embedding VCS state. See docs/reproducible-builds.md.
+WIN_BUILD_FLAGS := -buildvcs=false
+WIN_LDFLAGS := -ldflags=-extldflags=-Wl,--no-insert-timestamp
+
 # Build for current platform
 build-lib:
 	@echo "Building shared library for $(PLATFORM)..."
@@ -70,7 +77,7 @@ build-lib-windows: check-cgo
 	@echo "Platform: Windows (amd64)"
 	@echo "CGO_ENABLED: $(CGO_ENABLED)"
 	@echo ""
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=windows GOARCH=amd64 $(GO) build $(BUILD_TAGS) -buildmode=$(BUILD_MODE) -o $(LIB_DIR)/$(LIB_NAME).dll $(SOURCE)
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=windows GOARCH=amd64 $(GO) build $(BUILD_TAGS) $(WIN_BUILD_FLAGS) $(WIN_LDFLAGS) -buildmode=$(BUILD_MODE) -o $(LIB_DIR)/$(LIB_NAME).dll $(SOURCE)
 	@echo ""
 	@echo "✓ Built: $(LIB_DIR)/$(LIB_NAME).dll"
 	@if [ -f "$(LIB_DIR)/$(LIB_NAME).dll" ]; then \
