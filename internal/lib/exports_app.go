@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/arcsignio/arcsign/internal/app"
+	"github.com/arcsignio/arcsign/internal/models"
 	"github.com/arcsignio/arcsign/internal/provider"
 	"github.com/arcsignio/arcsign/internal/services/wallet"
 )
@@ -254,32 +255,47 @@ func UnlockApp(params *C.char) (result *C.char) {
 	return C.CString(string(jsonBytes))
 }
 
-// loadNodeRealAPIKey attempts to load the NodeReal API key from the provider config store.
-// Returns empty string if not configured.
-func loadNodeRealAPIKey(providerStore *provider.ProviderConfigStore) string {
-	configKeys := provider.GetProviderConfigKeys(provider.ProviderNodeReal)
-	for _, key := range configKeys {
-		config, err := providerStore.Get("global", key)
-		if err == nil && config != nil && config.Enabled && config.APIKey != "" {
-			return config.APIKey
+// bucketAddressesByProvider routes each wallet address to its provider, keyed
+// by provider type, in the batch shape the WalletDataProvider interface expects.
+// includeSepolia adds the Ethereum Sepolia testnet network to Ethereum addresses
+// on Alchemy (token-balance-only behavior); pass false for NFTs/transfers.
+func bucketAddressesByProvider(addresses []models.DerivedAddress, includeSepolia bool) map[string][]provider.AddressWithNetworks {
+	// provider -> address -> networks
+	byProvider := make(map[string]map[string][]string)
+	for _, addr := range addresses {
+		network, ok := provider.GetInternalNetwork(addr.CoinName)
+		if !ok {
+			continue
+		}
+		providerType := provider.GetProviderForNetwork(network)
+		if byProvider[providerType] == nil {
+			byProvider[providerType] = make(map[string][]string)
+		}
+		byProvider[providerType][addr.Address] = append(byProvider[providerType][addr.Address], network)
+		if includeSepolia && providerType == provider.ProviderAlchemy && addr.CoinName == "Ethereum" {
+			byProvider[providerType][addr.Address] = append(byProvider[providerType][addr.Address], provider.NetworkEthSepolia)
 		}
 	}
-	return ""
+
+	out := make(map[string][]provider.AddressWithNetworks, len(byProvider))
+	for providerType, addrMap := range byProvider {
+		for addr, networks := range addrMap {
+			out[providerType] = append(out[providerType], provider.AddressWithNetworks{Address: addr, Networks: networks})
+		}
+	}
+	return out
 }
 
-// loadGlacierAPIKey returns an optional Glacier (Avalanche Data API) key. Glacier
-// has an anonymous tier, so an empty string is valid and just uses the public
-// rate limit — a key only raises the limit.
-func loadGlacierAPIKey(providerStore *provider.ProviderConfigStore) string {
-	configKeys := provider.GetProviderConfigKeys(provider.ProviderGlacier)
-	for _, key := range configKeys {
-		config, err := providerStore.Get("global", key)
-		if err == nil && config != nil && config.Enabled && config.APIKey != "" {
-			return config.APIKey
-		}
+// countBucketedAddresses returns the total number of (address) entries across
+// all provider buckets.
+func countBucketedAddresses(buckets map[string][]provider.AddressWithNetworks) int {
+	n := 0
+	for _, addrs := range buckets {
+		n += len(addrs)
 	}
-	return ""
+	return n
 }
+
 
 //export GetTokenBalances
 func GetTokenBalances(params *C.char) (result *C.char) {
@@ -347,14 +363,8 @@ func GetTokenBalances(params *C.char) (result *C.char) {
 	}
 	defer providerStore.Close()
 
-	// Alchemy key is OPTIONAL: an empty key just means Alchemy-backed chains
-	// return nothing, while no-key providers (e.g. Glacier for Avalanche) still
-	// work. So we never hard-fail here — only skip the Alchemy path when absent.
-	providerConfig, _ := providerStore.Get("global", "alchemy")
-	alchemyAPIKey := ""
-	if providerConfig != nil && providerConfig.Enabled {
-		alchemyAPIKey = providerConfig.APIKey
-	}
+	// API keys are resolved per-provider inside the WalletDataProvider registry
+	// (Alchemy/NodeReal need a key, Glacier is anonymous). No key check here.
 
 	// Step 2: Verify wallet password before loading addresses
 	// Security: Must authenticate user before exposing wallet data
@@ -393,36 +403,13 @@ func GetTokenBalances(params *C.char) (result *C.char) {
 	}
 
 	// Step 3: Separate addresses by provider (Alchemy vs NodeReal vs Glacier)
-	alchemyAddrMap := make(map[string][]string) // address -> networks (for Alchemy)
-	bscAddresses := make(map[string]bool)        // BSC addresses (for NodeReal)
-	avaxAddresses := make(map[string]bool)       // Avalanche addresses (for Glacier, no key)
-
 	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: includeTestnets = %v", input.IncludeTestnets))
 
-	for _, addr := range walletObj.AddressBook.Addresses {
-		network, ok := provider.GetInternalNetwork(addr.CoinName)
-		if !ok {
-			continue
-		}
-
-		providerType := provider.GetProviderForNetwork(network)
-		switch providerType {
-		case provider.ProviderAlchemy:
-			alchemyAddrMap[addr.Address] = append(alchemyAddrMap[addr.Address], network)
-			// If includeTestnets is true and this is an Ethereum address, also query Sepolia
-			if input.IncludeTestnets && addr.CoinName == "Ethereum" {
-				debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Adding Sepolia for address %s", addr.Address))
-				alchemyAddrMap[addr.Address] = append(alchemyAddrMap[addr.Address], provider.NetworkEthSepolia)
-			}
-		case provider.ProviderNodeReal:
-			bscAddresses[addr.Address] = true
-		case provider.ProviderGlacier:
-			avaxAddresses[addr.Address] = true
-		}
-	}
-
-	totalAddressCount := len(alchemyAddrMap) + len(bscAddresses) + len(avaxAddresses)
-	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Alchemy addresses: %d, BSC addresses: %d, AVAX addresses: %d", len(alchemyAddrMap), len(bscAddresses), len(avaxAddresses)))
+	// Step 3: Bucket each address by its provider. The Sepolia testnet special
+	// case is token-only and stays here in the bucketing stage.
+	buckets := bucketAddressesByProvider(walletObj.AddressBook.Addresses, input.IncludeTestnets)
+	totalAddressCount := countBucketedAddresses(buckets)
+	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: bucketed %d addresses across %d providers", totalAddressCount, len(buckets)))
 
 	if totalAddressCount == 0 {
 		emptyOutput := provider.GetTokenBalancesOutput{
@@ -436,57 +423,19 @@ func GetTokenBalances(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
+	// Step 4: Dispatch polymorphically — one call per provider bucket.
 	var allTokens []provider.SimplifiedTokenBalance
-
-	// Step 4a: Query Alchemy for non-BSC chains (only if a key is configured)
-	if len(alchemyAddrMap) > 0 && alchemyAPIKey != "" {
-		var alchemyAddresses []provider.AlchemyAddressWithNetworks
-		for addr, networks := range alchemyAddrMap {
-			alchemyAddresses = append(alchemyAddresses, provider.AlchemyAddressWithNetworks{
-				Address:  addr,
-				Networks: networks,
-			})
+	for providerType, addrs := range buckets {
+		wdp, err := provider.GetWalletDataProvider(providerType, providerStore)
+		if err != nil || wdp == nil {
+			// nil = provider unavailable (e.g. Alchemy without key) — skip.
+			continue
 		}
-
-		alchemyClient := provider.NewAlchemyClient(alchemyAPIKey)
-		alchemyResponse, err := alchemyClient.GetTokenBalancesByAddress(alchemyAddresses)
+		tokens, err := wdp.GetTokenBalances(addrs)
 		if err != nil {
-			fmt.Printf("Alchemy GetTokenBalances error: %v\n", err)
-		} else {
-			alchemyTokens := provider.SimplifyTokenBalances(alchemyResponse)
-			allTokens = append(allTokens, alchemyTokens...)
+			fmt.Printf("%s GetTokenBalances error: %v\n", providerType, err)
 		}
-	}
-
-	// Step 4b: Query NodeReal for BSC addresses
-	if len(bscAddresses) > 0 {
-		nodeRealKey := loadNodeRealAPIKey(providerStore)
-		if nodeRealKey != "" {
-			bscClient := provider.NewBSCTraceClient(nodeRealKey)
-			for addr := range bscAddresses {
-				bscTokens, err := bscClient.GetTokenHoldingsBSC(addr)
-				if err != nil {
-					fmt.Printf("NodeReal GetTokenHoldings error for %s: %v\n", addr[:10], err)
-					continue
-				}
-				allTokens = append(allTokens, bscTokens...)
-			}
-		} else {
-			debugLog("[DEBUG] GetTokenBalances: No NodeReal API key configured, skipping BSC")
-		}
-	}
-
-	// Step 4c: Query Glacier for Avalanche addresses (anonymous, no API key needed)
-	if len(avaxAddresses) > 0 {
-		glacierClient := provider.NewGlacierClient(loadGlacierAPIKey(providerStore))
-		for addr := range avaxAddresses {
-			avaxTokens, err := glacierClient.GetTokenHoldingsAVAX(addr)
-			if err != nil {
-				fmt.Printf("Glacier GetTokenHoldings error for %s: %v\n", addr[:10], err)
-				continue
-			}
-			allTokens = append(allTokens, avaxTokens...)
-		}
+		allTokens = append(allTokens, tokens...)
 	}
 
 	// Step 5: Aggregate results
@@ -581,13 +530,7 @@ func GetNFTs(params *C.char) (result *C.char) {
 	}
 	defer providerStore.Close()
 
-	// Alchemy key is OPTIONAL (see GetTokenBalances): no key means Alchemy-backed
-	// chains return no NFTs, but Glacier (Avalanche) still works.
-	providerConfig, _ := providerStore.Get("global", "alchemy")
-	alchemyAPIKey := ""
-	if providerConfig != nil && providerConfig.Enabled {
-		alchemyAPIKey = providerConfig.APIKey
-	}
+	// API keys are resolved per-provider inside the WalletDataProvider registry.
 
 	// Verify wallet password before loading addresses
 	walletService := wallet.NewWalletService(input.USBPath)
@@ -619,27 +562,9 @@ func GetNFTs(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Separate addresses by provider (Alchemy vs NodeReal vs Glacier)
-	alchemyAddrMap := make(map[string][]string)
-	bscAddresses := make(map[string]bool)
-	avaxAddresses := make(map[string]bool)
-	for _, addr := range walletObj.AddressBook.Addresses {
-		network, ok := provider.GetInternalNetwork(addr.CoinName)
-		if !ok {
-			continue
-		}
-		providerType := provider.GetProviderForNetwork(network)
-		switch providerType {
-		case provider.ProviderAlchemy:
-			alchemyAddrMap[addr.Address] = append(alchemyAddrMap[addr.Address], network)
-		case provider.ProviderNodeReal:
-			bscAddresses[addr.Address] = true
-		case provider.ProviderGlacier:
-			avaxAddresses[addr.Address] = true
-		}
-	}
-
-	totalAddressCount := len(alchemyAddrMap) + len(bscAddresses) + len(avaxAddresses)
+	// Bucket addresses by provider (NFTs have no Sepolia special case).
+	buckets := bucketAddressesByProvider(walletObj.AddressBook.Addresses, false)
+	totalAddressCount := countBucketedAddresses(buckets)
 	if totalAddressCount == 0 {
 		emptyOutput := provider.GetNFTsOutput{
 			NFTs:         []provider.SimplifiedNFT{},
@@ -652,57 +577,18 @@ func GetNFTs(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
+	// Dispatch polymorphically — one call per provider bucket.
 	var allNFTs []provider.SimplifiedNFT
-
-	// Query Alchemy for non-BSC chains (only if a key is configured)
-	if len(alchemyAddrMap) > 0 && alchemyAPIKey != "" {
-		var alchemyAddresses []provider.AlchemyAddressWithNetworks
-		for addr, networks := range alchemyAddrMap {
-			alchemyAddresses = append(alchemyAddresses, provider.AlchemyAddressWithNetworks{
-				Address:  addr,
-				Networks: networks,
-			})
+	for providerType, addrs := range buckets {
+		wdp, err := provider.GetWalletDataProvider(providerType, providerStore)
+		if err != nil || wdp == nil {
+			continue
 		}
-
-		alchemyClient := provider.NewAlchemyClient(alchemyAPIKey)
-		alchemyResponse, err := alchemyClient.GetNFTsByAddress(alchemyAddresses)
+		nfts, err := wdp.GetNFTs(addrs)
 		if err != nil {
-			fmt.Printf("Alchemy GetNFTs error: %v\n", err)
-		} else {
-			alchemyNFTs := provider.SimplifyNFTs(alchemyResponse)
-			allNFTs = append(allNFTs, alchemyNFTs...)
+			fmt.Printf("%s GetNFTs error: %v\n", providerType, err)
 		}
-	}
-
-	// Query NodeReal for BSC addresses
-	if len(bscAddresses) > 0 {
-		nodeRealKey := loadNodeRealAPIKey(providerStore)
-		if nodeRealKey != "" {
-			bscClient := provider.NewBSCTraceClient(nodeRealKey)
-			for addr := range bscAddresses {
-				bscNFTs, err := bscClient.GetNFTHoldingsBSC(addr)
-				if err != nil {
-					fmt.Printf("NodeReal GetNFTHoldings error for %s: %v\n", addr[:10], err)
-					continue
-				}
-				allNFTs = append(allNFTs, bscNFTs...)
-			}
-		} else {
-			debugLog("[DEBUG] GetNFTs: No NodeReal API key configured, skipping BSC")
-		}
-	}
-
-	// Query Glacier for Avalanche addresses (anonymous, no API key needed)
-	if len(avaxAddresses) > 0 {
-		glacierClient := provider.NewGlacierClient(loadGlacierAPIKey(providerStore))
-		for addr := range avaxAddresses {
-			avaxNFTs, err := glacierClient.GetNFTHoldingsAVAX(addr)
-			if err != nil {
-				fmt.Printf("Glacier GetNFTHoldings error for %s: %v\n", addr[:10], err)
-				continue
-			}
-			allNFTs = append(allNFTs, avaxNFTs...)
-		}
+		allNFTs = append(allNFTs, nfts...)
 	}
 
 	// Aggregate results

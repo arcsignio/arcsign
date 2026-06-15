@@ -19,7 +19,7 @@ func newTestGlacier(t *testing.T, handler http.HandlerFunc) (*GlacierClient, fun
 func TestGlacierGetTokenHoldings(t *testing.T) {
 	const body = `{
 		"erc20TokenBalances": [
-			{"address":"0xAAA","name":"Token A","symbol":"TKA","decimals":18,"balance":"1000000000000000000"},
+			{"address":"0xAAA","name":"Token A","symbol":"TKA","decimals":18,"balance":"1000000000000000000","price":{"value":2.5,"currencyCode":"usd"},"balanceValue":{"value":2.5,"currencyCode":"usd"}},
 			{"address":"0xBBB","name":"Token B","symbol":"TKB","decimals":6,"balance":"5000000"}
 		],
 		"nextPageToken": ""
@@ -51,6 +51,15 @@ func TestGlacierGetTokenHoldings(t *testing.T) {
 	}
 	if tokens[1].Decimals != 6 || tokens[1].Balance != "5" {
 		t.Errorf("token 1 wrong: decimals=%d balance=%q", tokens[1].Decimals, tokens[1].Balance)
+	}
+	// Glacier supplies pricing — it must flow into USDValue/PriceUSD so
+	// Avalanche tokens count toward the wallet's total USD value.
+	if tokens[0].PriceUSD != 2.5 || tokens[0].USDValue != 2.5 {
+		t.Errorf("token 0 pricing not surfaced: priceUSD=%v usdValue=%v", tokens[0].PriceUSD, tokens[0].USDValue)
+	}
+	// Token without price stays at 0 (no panic on nil price).
+	if tokens[1].PriceUSD != 0 || tokens[1].USDValue != 0 {
+		t.Errorf("token 1 should have zero pricing, got priceUSD=%v usdValue=%v", tokens[1].PriceUSD, tokens[1].USDValue)
 	}
 }
 

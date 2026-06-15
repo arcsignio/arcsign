@@ -681,98 +681,38 @@ func GetAssetTransfers(params *C.char) (result *C.char) {
 	}
 	defer providerStore.Close()
 
-	// Alchemy config is fetched lazily — only providers that actually need a
-	// user key (Alchemy) require it. Glacier (Avalanche) is anonymous/no-key.
-	providerConfig, _ := providerStore.Get("global", "alchemy")
-
 	// Default max count
 	maxCount := input.MaxCount
 	if maxCount <= 0 {
 		maxCount = 50
 	}
 
-	var transfers []provider.AssetTransfer
-	var pageKey string
-
-	// Determine which provider to use based on network (centralized in chains.go)
+	// Determine provider (centralized in chains.go; unknown networks default to
+	// Alchemy) and obtain it via the unified registry.
 	providerType := provider.GetProviderForNetwork(input.Network)
+	wdp, _ := provider.GetWalletDataProvider(providerType, providerStore)
+	if wdp == nil {
+		// Provider unavailable — almost always a missing required API key.
+		// Preserve the provider-specific, actionable error messages.
+		msg := "Provider not configured for this network."
+		switch providerType {
+		case provider.ProviderNodeReal:
+			msg = "BSC transaction history requires NodeReal API key. " +
+				"Get a free key at https://dashboard.nodereal.io and configure it in provider settings."
+		case provider.ProviderAlchemy:
+			msg = "Alchemy API key not configured"
+		}
+		response := NewErrorResponse(ErrInvalidInput, msg)
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
 
-	switch providerType {
-	case provider.ProviderGlacier:
-		// Avalanche: use Glacier (Avalanche Data API), anonymous tier — no key required.
-		glacierClient := provider.NewGlacierClient(loadGlacierAPIKey(providerStore))
-		transfers, pageKey, err = glacierClient.GetAssetTransfersAVAX(input.Address, maxCount, input.PageKey)
-		if err != nil {
-			fmt.Printf("Glacier API error: %v\n", err)
-			response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
-			jsonBytes, _ := json.Marshal(response)
-			return C.CString(string(jsonBytes))
-		}
-
-	case provider.ProviderNodeReal:
-		// BSC network: Use BSCTrace (NodeReal) provider
-		// Check all possible config keys for nodereal
-		nodeRealAPIKey := ""
-		configKeys := provider.GetProviderConfigKeys(provider.ProviderNodeReal)
-		for _, key := range configKeys {
-			config, configErr := providerStore.Get("global", key)
-			if configErr == nil && config != nil && config.Enabled && config.APIKey != "" {
-				nodeRealAPIKey = config.APIKey
-				break
-			}
-		}
-
-		if nodeRealAPIKey == "" {
-			// No BSCTrace API key configured - return informative message
-			response := NewErrorResponse(ErrInvalidInput,
-				"BSC transaction history requires NodeReal API key. "+
-					"Get a free key at https://dashboard.nodereal.io and configure it in provider settings.")
-			jsonBytes, _ := json.Marshal(response)
-			return C.CString(string(jsonBytes))
-		}
-
-		// Use BSCTrace for BSC network
-		bscTraceClient := provider.NewBSCTraceClient(nodeRealAPIKey)
-		transfers, pageKey, err = bscTraceClient.GetAssetTransfersBSC(input.Address, maxCount, input.PageKey)
-		if err != nil {
-			fmt.Printf("BSCTrace API error: %v\n", err)
-			response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
-			jsonBytes, _ := json.Marshal(response)
-			return C.CString(string(jsonBytes))
-		}
-
-	case provider.ProviderAlchemy:
-		// Alchemy networks: ETH, Polygon, Arbitrum, Optimism, Base
-		// Categories are automatically determined based on network (chains.go)
-		if providerConfig == nil || providerConfig.APIKey == "" || !providerConfig.Enabled {
-			response := NewErrorResponse(ErrInvalidInput, "Alchemy API key not configured")
-			jsonBytes, _ := json.Marshal(response)
-			return C.CString(string(jsonBytes))
-		}
-		alchemyClient := provider.NewAlchemyClient(providerConfig.APIKey)
-		transfers, pageKey, err = alchemyClient.GetAssetTransfers(input.Address, input.Network, maxCount, input.PageKey)
-		if err != nil {
-			fmt.Printf("Alchemy API error: %v\n", err)
-			response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
-			jsonBytes, _ := json.Marshal(response)
-			return C.CString(string(jsonBytes))
-		}
-
-	default:
-		// Unknown provider - fallback to Alchemy
-		if providerConfig == nil || providerConfig.APIKey == "" || !providerConfig.Enabled {
-			response := NewErrorResponse(ErrInvalidInput, "Alchemy API key not configured")
-			jsonBytes, _ := json.Marshal(response)
-			return C.CString(string(jsonBytes))
-		}
-		alchemyClient := provider.NewAlchemyClient(providerConfig.APIKey)
-		transfers, pageKey, err = alchemyClient.GetAssetTransfers(input.Address, input.Network, maxCount, input.PageKey)
-		if err != nil {
-			fmt.Printf("Alchemy API error (fallback): %v\n", err)
-			response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
-			jsonBytes, _ := json.Marshal(response)
-			return C.CString(string(jsonBytes))
-		}
+	transfers, pageKey, err := wdp.GetAssetTransfers(input.Address, input.Network, maxCount, input.PageKey)
+	if err != nil {
+		fmt.Printf("%s transfers error: %v\n", providerType, err)
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
 	}
 
 	output := map[string]interface{}{
