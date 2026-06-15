@@ -102,6 +102,15 @@ type glacierErc20Token struct {
 	Decimals int    `json:"decimals"`
 	Balance  string `json:"balance"` // raw integer string
 	LogoURI  string `json:"logoUri"`
+	// Glacier provides pricing and a security reputation — surface both.
+	Price           *glacierPrice `json:"price"`
+	BalanceValue    *glacierPrice `json:"balanceValue"`
+	TokenReputation string        `json:"tokenReputation"` // "Benign" / "Malicious" / ""
+}
+
+type glacierPrice struct {
+	Value        float64 `json:"value"`
+	CurrencyCode string  `json:"currencyCode"`
 }
 
 // GetTokenHoldingsAVAX fetches ERC-20 balances for an address on Avalanche
@@ -130,6 +139,15 @@ func (c *GlacierClient) GetTokenHoldingsAVAX(address string) ([]SimplifiedTokenB
 			if decimals == 0 {
 				decimals = 18
 			}
+			// Glacier supplies pricing directly (unlike NodeReal); use it so
+			// Avalanche tokens contribute to the wallet's total USD value.
+			var priceUSD, usdValue float64
+			if t.Price != nil {
+				priceUSD = t.Price.Value
+			}
+			if t.BalanceValue != nil {
+				usdValue = t.BalanceValue.Value
+			}
 			all = append(all, SimplifiedTokenBalance{
 				Address:      address,
 				Network:      NetworkAvalancheMainnet,
@@ -141,8 +159,8 @@ func (c *GlacierClient) GetTokenHoldingsAVAX(address string) ([]SimplifiedTokenB
 				Balance:      formatTokenBalance(t.Balance, decimals),
 				RawBalance:   t.Balance,
 				Decimals:     decimals,
-				USDValue:     0, // pricing not requested
-				PriceUSD:     0,
+				USDValue:     usdValue,
+				PriceUSD:     priceUSD,
 			})
 		}
 
