@@ -136,10 +136,23 @@ jobs:
         with:
           workspaces: dashboard/src-tauri
 
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: stable
+
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+          # Tauri v2 requires webkit2gtk-4.1 and libsoup-3.0 (not the v4.0/2.4 used by Tauri v1)
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Build Go shared library (required by src-tauri build.rs)
+        run: CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -buildmode=c-shared -o dashboard/src-tauri/libarcsign.so ./internal/lib
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:

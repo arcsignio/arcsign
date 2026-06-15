@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"sort"
 	"time"
 
 	"github.com/arcsignio/arcsign/src/chainadapter"
@@ -272,12 +273,20 @@ func (tb *TransactionBuilder) selectUTXOs(utxos []UTXO, amount int64, feeRate in
 
 	totalNeeded := amount + estimatedFee
 
-	// Sort UTXOs by amount (largest first)
+	// Sort UTXOs by amount (largest first) so selection is deterministic and
+	// minimizes the number of inputs (lower fees, less fragmentation). Sort a
+	// copy to avoid mutating the caller's slice.
 	// TODO: Implement more sophisticated UTXO selection (e.g., Branch and Bound)
+	sorted := make([]UTXO, len(utxos))
+	copy(sorted, utxos)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return sorted[i].Amount > sorted[j].Amount
+	})
+
 	selected := make([]UTXO, 0)
 	totalSelected := int64(0)
 
-	for _, utxo := range utxos {
+	for _, utxo := range sorted {
 		selected = append(selected, utxo)
 		totalSelected += utxo.Amount
 

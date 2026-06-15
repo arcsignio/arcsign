@@ -1,7 +1,6 @@
 /**
  * Provider configuration commands
  * Feature: Provider Registry System - API Key Management
- * TODO: Implement provider methods in WalletQueue
  */
 
 use serde::{Deserialize, Serialize};
