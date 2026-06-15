@@ -1047,13 +1047,13 @@ describe('WalletDetail', () => {
             tokenSymbol: 'ETH',
             tokenName: 'Ethereum',
             tokenLogo: 'https://logo.example/eth.png',
-            balance: '0',
-            usdValue: 0,
+            balance: '1.5',
+            usdValue: 3000,
             decimals: 18,
             address: '0xabc123',
           },
         ],
-        totalUsd: 0,
+        totalUsd: 3000,
       })
     );
 
@@ -1067,8 +1067,10 @@ describe('WalletDetail', () => {
       expect(screen.queryByText('walletDetail.unlockAndViewAssets')).not.toBeInTheDocument();
     });
 
-    // Zero balance should show "0"
-    expect(screen.getByText(/^0 ETH$/)).toBeInTheDocument();
+    // Balance is formatted with its symbol (zero-balance tokens are hidden by
+    // default in the OKX-style assets list, so this uses a non-zero balance).
+    // formatBalance truncates to 6 decimals for values < 1000.
+    expect(screen.getByText(/^1\.500000 ETH$/)).toBeInTheDocument();
   });
 
   // ── 37. Wallet locked state disables Send and Swap ────────────────────────

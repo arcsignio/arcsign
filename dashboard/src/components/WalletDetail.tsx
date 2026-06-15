@@ -26,6 +26,7 @@ import { SendTransaction, type SendableToken } from "@/components/SendTransactio
 import SwapTransaction from "@/components/SwapTransaction";
 import StakingTransaction from "@/components/StakingTransaction";
 import { getChainIconUrl, getChainFallbackIcon, isChainSupported, isChainEnabled } from "@/utils/chainIcons";
+import { aggregateTokens, type AggregatedToken } from "@/utils/aggregateTokens";
 import { isWalletLocked } from "@/utils/walletLock";
 import ReceiveAddressModal from "@/components/ReceiveAddressModal";
 import { SessionsManagerModal } from "@/components/WalletConnect/SessionsManagerModal";
@@ -75,6 +76,10 @@ export function WalletDetail({
 
   // Unknown token filter state (whitelist-based)
   const [showScamTokens, setShowScamTokens] = useState(false);
+  // Hide zero-balance / valueless tokens by default (like OKX), with a toggle.
+  const [showZeroBalance, setShowZeroBalance] = useState(false);
+  // Token detail modal: the aggregated row the user tapped (per-chain breakdown).
+  const [selectedToken, setSelectedToken] = useState<AggregatedToken | null>(null);
 
   // Wallet session state (replaces password state)
   const [tempPassword, setTempPassword] = useState(""); // Only used during unlock, immediately discarded
@@ -649,15 +654,21 @@ export function WalletDetail({
     return result;
   }, [tokens, priorityTokens, isLoadingPriority, allTokensByChain, showScamTokens]);
 
-  // Group tokens by network (prepared for future use in network grouping view)
-  const _tokensByNetwork = displayTokens.reduce((acc, token) => {
-    if (!acc[token.networkLabel]) {
-      acc[token.networkLabel] = [];
-    }
-    acc[token.networkLabel].push(token);
-    return acc;
-  }, {} as Record<string, TokenBalance[]>);
-  void _tokensByNetwork; // Suppress unused variable warning
+  // Assets list view: native coins merged across chains, ERC-20 kept per-chain.
+  // (See utils/aggregateTokens — also normalizes differently-spelled networks.)
+  const allAggregatedTokens = useMemo(() => aggregateTokens(displayTokens), [displayTokens]);
+
+  // A row has value if it has any USD value OR any non-zero balance.
+  const hasValue = (a: (typeof allAggregatedTokens)[number]) =>
+    a.totalUsdValue > 0 || a.totalBalance > 0;
+  const zeroBalanceCount = useMemo(
+    () => allAggregatedTokens.filter((a) => !hasValue(a)).length,
+    [allAggregatedTokens],
+  );
+  const aggregatedTokens = useMemo(
+    () => (showZeroBalance ? allAggregatedTokens : allAggregatedTokens.filter(hasValue)),
+    [allAggregatedTokens, showZeroBalance],
+  );
 
   // Calculate filtered unknown tokens count (whitelist-based)
   const filteredScamCount = useMemo(() => {
@@ -1495,6 +1506,38 @@ export function WalletDetail({
                 <span>{filteredScamCount}</span>
               </button>
             )}
+            {/* Zero-balance toggle */}
+            {zeroBalanceCount > 0 && (
+              <button
+                title={showZeroBalance
+                  ? t('walletDetail.hideZeroBalance', 'Hide zero-balance tokens')
+                  : t('walletDetail.showZeroBalance', { count: zeroBalanceCount, defaultValue: `Show ${zeroBalanceCount} zero-balance tokens` })
+                }
+                onClick={() => setShowZeroBalance(!showZeroBalance)}
+                style={{
+                  background: showZeroBalance ? "#e0e7ff" : "transparent",
+                  border: showZeroBalance ? "1px solid #818cf8" : "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  padding: "0.5rem 0.75rem",
+                  cursor: "pointer",
+                  color: showZeroBalance ? "#4338ca" : "#1e293b",
+                  fontSize: "0.875rem",
+                  fontWeight: "500",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.25rem",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = showZeroBalance ? "#c7d2fe" : "#f1f5f9";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = showZeroBalance ? "#e0e7ff" : "transparent";
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg>
+                <span>{zeroBalanceCount}</span>
+              </button>
+            )}
             <button
               title={t('walletDetail.networkSettings')}
               style={{
@@ -1927,7 +1970,7 @@ export function WalletDetail({
                 {t('walletDetail.loadingAssetsDot')}
               </p>
             </div>
-          ) : displayTokens.length === 0 ? (
+          ) : aggregatedTokens.length === 0 ? (
             <div
               style={{
                 textAlign: "center",
@@ -1946,10 +1989,30 @@ export function WalletDetail({
                 gap: "0.5rem",
               }}
             >
-              {displayTokens.map((token, idx) => (
+              {aggregatedTokens.map((agg) => {
+                // View shape compatible with the existing row markup. Native
+                // coins are merged across chains; ERC-20 stay per-chain.
+                const primary = agg.sources[0];
+                const token = {
+                  tokenSymbol: agg.symbol,
+                  tokenName: agg.name,
+                  tokenLogo: agg.logo,
+                  usdValue: agg.totalUsdValue,
+                  balance: String(agg.totalBalance),
+                  network: primary.network,
+                  networkLabel: agg.isMultiChain
+                    ? `${agg.networks.length} chains`
+                    : primary.networkLabel,
+                  // For multi-chain rows there is no single wallet/contract
+                  // address; hide them by leaving these empty.
+                  address: agg.isMultiChain ? "" : primary.address,
+                  tokenAddress: agg.isMultiChain ? "" : primary.tokenAddress,
+                };
+                return (
                 <button
-                  key={`${token.network}-${token.tokenSymbol}-${idx}`}
+                  key={agg.key}
                   title={`View ${token.tokenSymbol} details`}
+                  onClick={() => setSelectedToken(agg)}
                   style={{
                     background: "#ffffff",
                     border: "1px solid #e2e8f0",
@@ -2071,17 +2134,23 @@ export function WalletDetail({
                         gap: "0.5rem",
                       }}
                     >
-                      <div
-                        style={{
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                        title={`Wallet: ${token.address}`}
-                      >
-                        💼 {token.address.slice(0, 6)}...
-                        {token.address.slice(-4)}
-                      </div>
+                      {agg.isMultiChain ? (
+                        <div title={agg.networks.join(", ")}>
+                          🌐 on {agg.networks.length} chains
+                        </div>
+                      ) : token.address ? (
+                        <div
+                          style={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                          title={`Wallet: ${token.address}`}
+                        >
+                          💼 {token.address.slice(0, 6)}...
+                          {token.address.slice(-4)}
+                        </div>
+                      ) : null}
                       {token.tokenAddress &&
                         token.tokenAddress !==
                           "0x0000000000000000000000000000000000000000" && (
@@ -2122,7 +2191,8 @@ export function WalletDetail({
                     </div>
                   </div>
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -2168,6 +2238,81 @@ export function WalletDetail({
           }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {error}
+        </div>
+      )}
+
+      {/* Token Detail Modal — per-chain breakdown of the tapped asset */}
+      {selectedToken && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: "rgba(0, 0, 0, 0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setSelectedToken(null)}
+        >
+          <div
+            style={{
+              background: "#ffffff",
+              borderRadius: "16px",
+              width: "90%", maxWidth: "520px", maxHeight: "85vh",
+              overflow: "auto",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ padding: "1.5rem", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: "1rem" }}>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", overflow: "hidden", background: "#f1f5f9", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {selectedToken.logo
+                  ? <img src={selectedToken.logo} alt={selectedToken.symbol} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  : <span style={{ fontWeight: 600 }}>{selectedToken.symbol.charAt(0)}</span>}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "1.125rem", fontWeight: 600, color: "#1e293b" }}>{selectedToken.symbol}</div>
+                <div style={{ fontSize: "0.8125rem", color: "#64748b" }}>{selectedToken.name}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "1.125rem", fontWeight: 600, color: "#1e293b" }}>${selectedToken.totalUsdValue.toFixed(2)}</div>
+                <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{selectedToken.isMultiChain ? `${selectedToken.networks.length} chains` : "1 chain"}</div>
+              </div>
+            </div>
+            {/* Per-chain breakdown */}
+            <div style={{ padding: "1rem 1.5rem 1.5rem" }}>
+              <div style={{ fontSize: "0.75rem", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>
+                {t('walletDetail.byChain', 'By chain')}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {selectedToken.sources
+                  .slice()
+                  .sort((a, b) => (b.usdValue || 0) - (a.usdValue || 0))
+                  .map((src, i) => (
+                  <div key={`${src.network}-${i}`} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem", border: "1px solid #e2e8f0", borderRadius: "10px" }}>
+                    <img
+                      src={getChainIconUrl(src.network) || getChainFallbackIcon(src.network)}
+                      alt={src.networkLabel}
+                      style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0 }}
+                      onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "0.875rem", fontWeight: 500, color: "#1e293b" }}>{src.networkLabel}</div>
+                      {src.address && (
+                        <div style={{ fontSize: "0.6875rem", color: "#94a3b8", fontFamily: "monospace" }} title={src.address}>
+                          {src.address.slice(0, 6)}...{src.address.slice(-4)}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: "0.875rem", fontWeight: 500, color: "#1e293b" }}>{formatBalance(src.balance)} {src.tokenSymbol}</div>
+                      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>${(src.usdValue || 0).toFixed(2)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2688,3 +2833,4 @@ export function WalletDetail({
     </div>
   );
 }
+
