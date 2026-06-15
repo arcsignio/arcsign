@@ -34,8 +34,7 @@ import (
 // Constants are now defined in adapter/nodereal.go
 // Re-export for backward compatibility
 const (
-	BSCTraceBaseURL   = adapter.NodeRealBaseURL
-	BSCTracePublicKey = adapter.NodeRealPublicKey
+	BSCTraceBaseURL = adapter.NodeRealBaseURL
 )
 
 // BSCTraceClient handles communication with NodeReal BSCTrace API
@@ -97,17 +96,16 @@ func IsNodeRealNetwork(network string) bool {
 	return false
 }
 
-// NewBSCTraceClient creates a new BSCTrace API client
+// NewBSCTraceClient creates a new BSCTrace API client. apiKey is the user's own
+// NodeReal key — there is no shared/public fallback (a previously hard-coded key
+// was removed after it leaked). With an empty key the endpoint is unusable and
+// requests will fail; callers should only construct this when a key is present.
 func NewBSCTraceClient(apiKey string) *BSCTraceClient {
-	key := apiKey
-	if key == "" {
-		key = BSCTracePublicKey
-	}
 	return &BSCTraceClient{
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		endpoint: fmt.Sprintf("%s/%s", BSCTraceBaseURL, key),
+		endpoint: fmt.Sprintf("%s/%s", BSCTraceBaseURL, apiKey),
 	}
 }
 
