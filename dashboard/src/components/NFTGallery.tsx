@@ -10,10 +10,10 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import tauriApi from "@/services/tauri-api";
 import type { NFT } from "@/types/nft";
+import type { ProviderUnavailable } from "@/types/tokens";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { getChainIconUrl, getChainFallbackIcon } from "@/utils/chainIcons";
 import { useMembership, type MembershipStatus } from "@/hooks/useMembership";
-import { useHasProviderKey } from "@/hooks/useHasProviderKey";
 import { ACTIVE_NETWORK } from "@/constants/contracts";
 
 // Sentinel slug for identifying membership NFTs
@@ -70,12 +70,10 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
   const [selectedNft, setSelectedNft] = useState<NFT | null>(null);
   const [filterNetwork, setFilterNetwork] = useState<string>("all");
   const [imgErrors, setImgErrors] = useState<Set<string>>(new Set());
+  const [unavailableProviders, setUnavailableProviders] = useState<ProviderUnavailable[]>([]);
 
   // Membership NFT via BSC direct query
   const { status: membershipStatus } = useMembership(bscAddress || null);
-
-  // Detect provider key presence to show actionable empty state
-  const { hasAlchemyKey, isLoading: isKeyLoading } = useHasProviderKey(usbPath, sessionToken, password);
 
   const loadNFTs = useCallback(async () => {
     setIsLoading(true);
@@ -88,6 +86,7 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
         sessionToken,
       });
       setNfts(response.nfts || []);
+      setUnavailableProviders(response.unavailableProviders || []);
     } catch (err: unknown) {
       const errorObj = err as { message?: string };
       setError(errorObj?.message || t("nftGallery.loadError"));
@@ -160,25 +159,43 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
             <polyline points="21 15 16 10 5 21"/>
           </svg>
         </div>
-        {isKeyLoading ? null : !hasAlchemyKey ? (
-          <>
-            <p style={{ fontWeight: "600", color: "#1e293b", marginBottom: "0.5rem" }}>
-              {t("nftGallery.needKeyTitle")}
-            </p>
-            <p style={{ fontSize: "0.875rem", maxWidth: "32rem", margin: "0 auto" }}>
-              {t("nftGallery.needKeyDescription")}
-            </p>
-          </>
-        ) : (
-          <>
-            <p style={{ fontWeight: "600", color: "#1e293b", marginBottom: "0.5rem" }}>
-              {t("nftGallery.empty")}
-            </p>
-            <p style={{ fontSize: "0.875rem" }}>
-              {t("nftGallery.emptyDescription")}
-            </p>
-          </>
-        )}
+        {(() => {
+          const alchemyMissing = unavailableProviders.some(
+            (p) => p.provider === "alchemy" && (p.reason === "missing_key" || p.reason === "query_failed")
+          );
+          const noderealMissing = unavailableProviders.some(
+            (p) => p.provider === "nodereal" && (p.reason === "missing_key" || p.reason === "query_failed")
+          );
+          if (alchemyMissing || noderealMissing) {
+            return (
+              <>
+                <p style={{ fontWeight: "600", color: "#1e293b", marginBottom: "0.5rem" }}>
+                  {t("nftGallery.needKeyTitle")}
+                </p>
+                {alchemyMissing && (
+                  <p style={{ fontSize: "0.875rem", maxWidth: "32rem", margin: "0 auto 0.25rem" }}>
+                    {t("nftGallery.needAlchemyKey")}
+                  </p>
+                )}
+                {noderealMissing && (
+                  <p style={{ fontSize: "0.875rem", maxWidth: "32rem", margin: "0 auto" }}>
+                    {t("nftGallery.needNodeRealKey")}
+                  </p>
+                )}
+              </>
+            );
+          }
+          return (
+            <>
+              <p style={{ fontWeight: "600", color: "#1e293b", marginBottom: "0.5rem" }}>
+                {t("nftGallery.empty")}
+              </p>
+              <p style={{ fontSize: "0.875rem" }}>
+                {t("nftGallery.emptyDescription")}
+              </p>
+            </>
+          );
+        })()}
       </div>
     );
   }

@@ -549,34 +549,29 @@ describe('NFTGallery', () => {
     unmount();
   });
 
-  // --- Need-key empty state ---
+  // --- unavailableProviders empty state ---
 
-  it('shows the need-key prompt when no Alchemy key and empty', async () => {
-    (useHasProviderKey as any).mockReturnValue({ hasAlchemyKey: false, hasNodeRealKey: false, isLoading: false });
-    const { unmount } = render(<NFTGallery {...defaultProps} />);
-    await waitFor(() => {
-      expect(screen.getByText('nftGallery.needKeyTitle')).toBeInTheDocument();
+  it('shows Alchemy-specific prompt when alchemy provider is unavailable', async () => {
+    (tauriApi.getNFTs as any).mockResolvedValue({
+      nfts: [],
+      unavailableProviders: [{ provider: 'alchemy', reason: 'missing_key' }],
     });
-    expect(screen.queryByText('nftGallery.empty')).not.toBeInTheDocument();
-    unmount();
-  });
-
-  it('shows the normal empty state when a key is present and empty', async () => {
-    (useHasProviderKey as any).mockReturnValue({ hasAlchemyKey: true, hasNodeRealKey: true, isLoading: false });
-    const { unmount } = render(<NFTGallery {...defaultProps} />);
-    await waitFor(() => {
-      expect(screen.getByText('nftGallery.empty')).toBeInTheDocument();
-    });
-    expect(screen.queryByText('nftGallery.needKeyTitle')).not.toBeInTheDocument();
-    unmount();
-  });
-
-  it('does not flash empty/need-key text while key status is loading', async () => {
-    (useHasProviderKey as any).mockReturnValue({ hasAlchemyKey: false, hasNodeRealKey: false, isLoading: true });
     render(<NFTGallery {...defaultProps} />);
-    // 等 getNFTs 解析（空），確認載入中不顯示 needKey 也不顯示 empty 文案
-    await new Promise((r) => setTimeout(r, 0));
-    expect(screen.queryByText(/nftGallery.needKeyTitle/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/nftGallery.empty$/)).not.toBeInTheDocument();
+    expect(await screen.findByText('nftGallery.needAlchemyKey')).toBeInTheDocument();
+  });
+
+  it('shows NodeReal-specific prompt when nodereal provider is unavailable', async () => {
+    (tauriApi.getNFTs as any).mockResolvedValue({
+      nfts: [],
+      unavailableProviders: [{ provider: 'nodereal', reason: 'missing_key' }],
+    });
+    render(<NFTGallery {...defaultProps} />);
+    expect(await screen.findByText('nftGallery.needNodeRealKey')).toBeInTheDocument();
+  });
+
+  it('shows the plain empty state when nothing is unavailable (e.g. Avalanche only)', async () => {
+    (tauriApi.getNFTs as any).mockResolvedValue({ nfts: [], unavailableProviders: [] });
+    render(<NFTGallery {...defaultProps} />);
+    expect(await screen.findByText('nftGallery.empty')).toBeInTheDocument();
   });
 });

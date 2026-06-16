@@ -3,6 +3,8 @@
  * Feature: NFT Gallery in Dashboard WalletDetail
  */
 
+import type { ProviderUnavailable } from "@/types/tokens";
+
 export interface NFT {
   address: string;         // Owner wallet address
   network: string;         // Internal Network ID (e.g., "eth-mainnet")
@@ -24,6 +26,7 @@ export interface NFTsResponse {
   totalCount: number;
   addressCount: number;
   networkCount: number;
+  unavailableProviders?: ProviderUnavailable[];
 }
 
 export interface GetNFTsParams {
