@@ -1,6 +1,6 @@
 module github.com/arcsignio/arcsign
 
-go 1.25.0
+go 1.25.11
 
 require (
 	github.com/SonarBeserk/gousbdrivedetector v0.0.0-20161027045320-4d29e4d6f1b7
