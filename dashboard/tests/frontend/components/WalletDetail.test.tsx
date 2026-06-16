@@ -1306,6 +1306,47 @@ describe('WalletDetail', () => {
     expect(screen.queryByText('SCAM')).not.toBeInTheDocument();
   });
 
+  // ── 43b. Tokens on a chain whose whitelist hasn't loaded must NOT be hidden ──
+  // Regression: the no-key degraded path returns curated tokens (e.g. USDC on
+  // Arbitrum). If that chain's CoinGecko list isn't loaded, "can't verify" must
+  // not mean "hide" — otherwise legitimate USDC vanishes. We only hide a token
+  // when we positively have its chain's whitelist AND it's absent from it.
+  it('shows a curated token on a chain whose whitelist is not loaded', async () => {
+    // allTokensByChain (from beforeEach) only has "ethereum" — NOT "arbitrum".
+    (tauriApi.getTokenBalances as ReturnType<typeof vi.fn>).mockImplementation(() =>
+      Promise.resolve({
+        tokens: [
+          {
+            network: 'arbitrum-mainnet',
+            networkLabel: 'Arbitrum',
+            tokenAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831', // native USDC on Arbitrum
+            tokenSymbol: 'USDC',
+            tokenName: 'USD Coin',
+            tokenLogo: '',
+            balance: '156.72',
+            usdValue: 156.7,
+            decimals: 6,
+            address: '0xabc123',
+          },
+        ],
+        totalUsd: 156.7,
+      })
+    );
+
+    const user = userEvent.setup();
+    render(<WalletDetail {...defaultProps} />);
+
+    await user.type(screen.getByLabelText('walletDetail.walletPassword'), 'mypassword');
+    await user.click(screen.getByText('walletDetail.unlockAndViewAssets'));
+
+    await waitFor(() => {
+      expect(screen.queryByText('walletDetail.unlockAndViewAssets')).not.toBeInTheDocument();
+    });
+
+    // USDC must be visible even though the Arbitrum whitelist isn't loaded.
+    expect(screen.getByText('USDC')).toBeInTheDocument();
+  });
+
   // ── 44. Percentage toggle ─────────────────────────────────────────────────
   it('toggles percentage display when time period button is clicked', async () => {
     const user = userEvent.setup();

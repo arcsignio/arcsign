@@ -538,8 +538,18 @@ export function WalletDetail({
       const whitelistKey = chainKey ? `${chainKey}-${tokenAddress}` : null;
       const isKnownToken = whitelistKey && knownTokenAddresses.has(whitelistKey);
 
-      // 🛡️ Filter logic: Only show if native OR in whitelist (unless user wants to see all)
-      const isUnknownToken = !isNative && !isKnownToken;
+      // Whether we actually HAVE a whitelist for this token's chain. The scam
+      // filter only makes sense when we can verify against a loaded list. If the
+      // chain's CoinGecko list hasn't loaded yet (or failed), "can't verify" must
+      // NOT mean "hide" — otherwise legitimate balances (e.g. USDC from the
+      // no-key degraded path) vanish until/unless the list loads. We only hide a
+      // token when we positively have its chain's list AND it's absent from it.
+      const chainWhitelist = chainKey ? allTokensByChain.get(chainKey) : undefined;
+      const haveWhitelistForChain = !!chainWhitelist && chainWhitelist.length > 0;
+
+      // 🛡️ Filter logic: hide only when verifiable-and-absent. Native always shows.
+      const isUnknownToken =
+        !isNative && haveWhitelistForChain && !isKnownToken;
 
       if (isUnknownToken && !showScamTokens) {
         console.log(`🚫 Hiding unknown token: ${token.tokenSymbol} (${token.tokenName}) at ${tokenAddress}`);
@@ -732,7 +742,12 @@ export function WalletDetail({
       const whitelistKey = chainKey ? `${chainKey}-${tokenAddress}` : null;
       const isKnownToken = whitelistKey && knownTokenAddresses.has(whitelistKey);
 
-      if (!isNative && !isKnownToken) {
+      // Mirror the display filter: only count as "unknown" (hidden) when we
+      // positively have the chain's whitelist AND the token is absent from it.
+      const chainWhitelist = chainKey ? allTokensByChain.get(chainKey) : undefined;
+      const haveWhitelistForChain = !!chainWhitelist && chainWhitelist.length > 0;
+
+      if (!isNative && haveWhitelistForChain && !isKnownToken) {
         unknownCount++;
       }
     });
