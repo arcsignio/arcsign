@@ -691,8 +691,17 @@ func GetAssetTransfers(params *C.char) (result *C.char) {
 	// Alchemy) and obtain it via the unified registry.
 	providerType := provider.GetProviderForNetwork(input.Network)
 	wdp, _ := provider.GetWalletDataProvider(providerType, providerStore)
-	if wdp == nil {
-		// Provider unavailable — almost always a missing required API key.
+	// Transaction history genuinely requires the provider's key — there is no
+	// key-free fallback (unlike token balances, which degrade). A provider is
+	// "unavailable" for history either when it's nil OR when it's running in the
+	// no-key degraded mode (since the progressive-key change, Alchemy/NodeReal
+	// are non-nil but degraded without a key). Either way, return the actionable
+	// message instead of a silent empty list that looks like "no transactions".
+	degraded := false
+	if d, ok := wdp.(provider.DegradedProvider); ok && d.IsDegraded() {
+		degraded = true
+	}
+	if wdp == nil || degraded {
 		// Preserve the provider-specific, actionable error messages.
 		msg := "Provider not configured for this network."
 		switch providerType {

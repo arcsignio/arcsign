@@ -200,10 +200,11 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
       setTransfers(allTransfers);
       setChainStats(stats);
 
-      // Detect chains that failed because a key is missing (so a partial result
-      // — e.g. Avalanche succeeded — still tells the user which chains need a
-      // key, instead of silently dropping them). A missing-key error carries the
-      // backend's actionable message.
+      // Detect chains that couldn't be queried (so a partial result — e.g.
+      // Avalanche succeeded — still tells the user which chains need a key,
+      // instead of silently dropping them). The backend returns an actionable
+      // error for no-key chains; here we group failures by provider. Avalanche
+      // (Glacier) is key-free and never fails this way.
       const isKeyError = (msg: string | null) =>
         !!msg && (/alchemy api key/i.test(msg) || /nodereal/i.test(msg) || /api key/i.test(msg));
       const noderealMissing = results.some(r => r.chainId === "bnb-mainnet" && isKeyError(r.error));

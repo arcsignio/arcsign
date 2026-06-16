@@ -603,15 +603,19 @@ func GetNFTs(params *C.char) (result *C.char) {
 			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "missing_key"})
 			continue
 		}
+		// A provider running without its key (degraded) returns no NFTs at all —
+		// NFT discovery genuinely needs the key (no key-free fallback). Treat it
+		// as missing_key so the UI prompts for a key, instead of silently showing
+		// "no NFTs". Since the progressive-key change, such a provider is non-nil
+		// but degraded, so the wdp==nil check above doesn't catch this case.
+		if d, ok := wdp.(provider.DegradedProvider); ok && d.IsDegraded() {
+			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "missing_key"})
+			continue
+		}
 		nfts, err := wdp.GetNFTs(addrs)
 		if err != nil {
 			fmt.Printf("%s GetNFTs error: %v\n", providerType, err)
 			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "query_failed"})
-		}
-		// A keyless provider that still returns basic data reports "degraded";
-		// for NFTs there is no degraded path, but keep the shape consistent.
-		if d, ok := wdp.(provider.DegradedProvider); ok && d.IsDegraded() {
-			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "degraded"})
 		}
 		allNFTs = append(allNFTs, nfts...)
 	}
