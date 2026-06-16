@@ -101,7 +101,17 @@ export function aggregateTokens(
 
     group.totalUsdValue += token.usdValue || 0;
     group.totalBalance += toNumber(token.balance);
-    group.sources.push(token);
+    // Merge sources by CANONICAL network so the detail view shows one row per
+    // chain, even when a chain arrives under two spellings (e.g. a BSC token
+    // reported once as "BNB Chain"/bnb-mainnet and once as "BSC"/bsc-mainnet).
+    const existingSource = group.sources.find((s) => canonicalNetwork(s) === net);
+    if (existingSource) {
+      existingSource.usdValue = (existingSource.usdValue || 0) + (token.usdValue || 0);
+      existingSource.balance = String(toNumber(existingSource.balance) + toNumber(token.balance));
+      if (!existingSource.tokenAddress && token.tokenAddress) existingSource.tokenAddress = token.tokenAddress;
+    } else {
+      group.sources.push({ ...token }); // copy so we don't mutate the input
+    }
     if (!group.networks.includes(net)) {
       group.networks.push(net);
     }

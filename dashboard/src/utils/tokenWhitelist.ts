@@ -16,6 +16,10 @@ export const NETWORK_TO_CHAIN_MAP: Record<string, ChainKey> = {
   'optimism-mainnet': 'optimism',
   'base-mainnet': 'base',
   'bnb-mainnet': 'bsc',
+  // canonicalNetwork (getNetworkKey) normalizes BSC to "bsc-mainnet", so this
+  // alias must exist too — otherwise BSC whitelist lookups always miss and BSC
+  // ERC-20s never merge cross-chain.
+  'bsc-mainnet': 'bsc',
   'avalanche-mainnet': 'avalanche',
 };
 

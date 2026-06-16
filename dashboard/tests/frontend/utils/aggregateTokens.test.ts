@@ -95,6 +95,21 @@ describe("aggregateTokens", () => {
     expect(out[1].symbol).toBe("ETH");
   });
 
+  it("merges sources from the same chain reported under two spellings", () => {
+    // BSC arriving once as "BNB Chain"/bnb-mainnet and once as "BSC"/bsc-mainnet
+    // must collapse to ONE detail row (not two), with balances summed.
+    const known = () => true;
+    const out = aggregateTokens([
+      tok({ tokenSymbol: "USDC", tokenAddress: "0xC", network: "bnb-mainnet", networkLabel: "BNB Chain", balance: "50", usdValue: 50 }),
+      tok({ tokenSymbol: "USDC", tokenAddress: "0xC", network: "bsc", networkLabel: "BSC", balance: "0", usdValue: 0 }),
+    ], known);
+    expect(out).toHaveLength(1);
+    expect(out[0].sources).toHaveLength(1); // one BSC row, not two
+    expect(out[0].networks).toEqual(["bsc-mainnet"]);
+    expect(out[0].isMultiChain).toBe(false);
+    expect(out[0].sources[0].balance).toBe("50");
+  });
+
   it("handles empty input", () => {
     expect(aggregateTokens([])).toEqual([]);
   });
