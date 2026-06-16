@@ -37,6 +37,12 @@ jobs:
         working-directory: src/chainadapter
         run: CGO_ENABLED=1 go test $(go list ./... | grep -v /examples) -v -count=1
 
+      - name: Govulncheck (report-only, non-blocking)
+        continue-on-error: true
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          $(go env GOPATH)/bin/govulncheck ./...
+
   frontend-tests:
     name: Frontend Tests
     runs-on: ubuntu-latest
