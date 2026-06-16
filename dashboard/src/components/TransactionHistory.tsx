@@ -202,13 +202,15 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
       // Detect chains that couldn't be queried (so a partial result — e.g.
       // Avalanche succeeded — still tells the user which chains need a key,
-      // instead of silently dropping them). The backend returns an actionable
-      // error for no-key chains; here we group failures by provider. Avalanche
-      // (Glacier) is key-free and never fails this way.
-      const isKeyError = (msg: string | null) =>
-        !!msg && (/alchemy api key/i.test(msg) || /nodereal/i.test(msg) || /api key/i.test(msg));
-      const noderealMissing = results.some(r => r.chainId === "bnb-mainnet" && isKeyError(r.error));
-      const alchemyMissing = results.some(r => r.chainId !== "bnb-mainnet" && r.chainId !== "avalanche-mainnet" && isKeyError(r.error));
+      // instead of silently dropping them). We group failures by which chain
+      // failed (not by parsing the message — the backend sanitizes messages with
+      // URLs, e.g. the NodeReal hint, so text matching is unreliable). Avalanche
+      // (Glacier) is key-free and never fails this way; any other failed chain
+      // means that provider needs a key: BNB → NodeReal, the rest → Alchemy.
+      const noderealMissing = results.some(r => r.chainId === "bnb-mainnet" && !!r.error);
+      const alchemyMissing = results.some(
+        r => r.chainId !== "bnb-mainnet" && r.chainId !== "avalanche-mainnet" && !!r.error
+      );
       setKeyMissingProviders({ alchemy: alchemyMissing, nodereal: noderealMissing });
 
       // Only show the full error state if ALL chains failed

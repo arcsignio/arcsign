@@ -168,14 +168,18 @@ describe('TransactionHistory', () => {
         });
       }
       if (params.network === 'bnb-mainnet') {
-        return Promise.reject({ code: 'INVALID_INPUT', message: 'BSC transaction history requires NodeReal API key' });
+        // The NodeReal message contains a URL, so the Rust layer's sanitizer
+        // replaces it with a generic string. Detection must NOT depend on the
+        // message text — a failed BNB chain alone implies NodeReal is needed.
+        return Promise.reject({ code: 'INTERNAL_ERROR', message: 'Error occurred (path details hidden for security)' });
       }
       return Promise.reject({ code: 'INVALID_INPUT', message: 'Alchemy API key not configured' });
     });
 
     render(<TransactionHistory {...defaultProps} />);
 
-    // Partial banner appears with both provider hints.
+    // Partial banner appears with both provider hints — including NodeReal even
+    // though its error message was sanitized.
     expect(await screen.findByText('transactionHistory.partialKeyNotice')).toBeInTheDocument();
     expect(screen.getByText('transactionHistory.partialAlchemyChains')).toBeInTheDocument();
     expect(screen.getByText('transactionHistory.partialNodeRealChains')).toBeInTheDocument();
