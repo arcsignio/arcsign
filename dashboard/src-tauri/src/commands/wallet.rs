@@ -1416,8 +1416,15 @@ pub async fn get_nfts(
                 AppError::new(ErrorCode::WalletNotFound, "Wallet not found on USB")
             } else if e.contains("INVALID_PASSWORD") || e.contains("DECRYPTION_ERROR") {
                 AppError::new(ErrorCode::PasswordTooWeak, "Invalid password")
+            } else if e.contains("INVALID_INPUT") || e.contains("Alchemy API key") || e.contains("NodeReal") {
+                // Actionable backend messages must reach the user verbatim.
+                // The FFI string is "CODE: message" — strip the leading code.
+                let msg = e.splitn(2, ": ").nth(1).unwrap_or(&e).to_string();
+                AppError::new(ErrorCode::InvalidInput, msg)
             } else {
-                AppError::with_details(ErrorCode::CliExecutionFailed, "Failed to get NFTs", e)
+                // Surface the real FFI message rather than a generic title.
+                let msg = e.splitn(2, ": ").nth(1).unwrap_or(&e).to_string();
+                AppError::with_details(ErrorCode::CliExecutionFailed, msg, e)
             }
         })?;
 
