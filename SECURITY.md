@@ -164,6 +164,6 @@ To reproduce the scans locally:
 ```bash
 go install golang.org/x/vuln/cmd/govulncheck@latest
 govulncheck ./...
-(cd src/chainadapter && govulncheck ./...)
+(cd src/chainadapter && govulncheck $(go list ./... | grep -v /examples))
 cd dashboard && npm audit --omit=dev
 ```
