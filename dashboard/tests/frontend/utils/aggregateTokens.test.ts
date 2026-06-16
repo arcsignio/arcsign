@@ -2,7 +2,7 @@
  * Tests for the assets-list token aggregation layer.
  */
 import { describe, it, expect } from "vitest";
-import { aggregateTokens, canonicalNetwork } from "@/utils/aggregateTokens";
+import { aggregateTokens, canonicalNetwork, type IsKnownToken } from "@/utils/aggregateTokens";
 import type { TokenBalance } from "@/types/tokens";
 
 function tok(p: Partial<TokenBalance>): TokenBalance {
@@ -49,15 +49,41 @@ describe("aggregateTokens", () => {
     expect(out[0].isMultiChain).toBe(false);
   });
 
-  it("keeps ERC-20 tokens separate per chain (different contracts)", () => {
+  it("merges whitelisted ERC-20 across chains by symbol (USDC → one row)", () => {
+    // Both contracts are whitelisted → real USDC on 2 chains becomes one row.
+    const known = () => true;
     const out = aggregateTokens([
       tok({ tokenSymbol: "USDC", tokenName: "USD Coin", tokenAddress: "0xA", network: "eth-mainnet", usdValue: 100 }),
       tok({ tokenSymbol: "USDC", tokenName: "USD Coin", tokenAddress: "0xB", network: "polygon-mainnet", networkLabel: "Polygon", usdValue: 50 }),
-    ]);
-    // Same symbol, different chains/contracts → two rows, not merged.
+    ], known);
+    expect(out).toHaveLength(1);
+    expect(out[0].symbol).toBe("USDC");
+    expect(out[0].isMultiChain).toBe(true);
+    expect(out[0].totalUsdValue).toBe(150);
+    expect(out[0].sources).toHaveLength(2); // detail page can show both contracts
+  });
+
+  it("does NOT merge a same-named fake token into the real one (whitelist gate)", () => {
+    // Real USDC on Ethereum (whitelisted) + a fake "USDC" on Polygon (not).
+    const known: IsKnownToken = (net, addr) =>
+      net === "eth-mainnet" && addr.toLowerCase() === "0xreal";
+    const out = aggregateTokens([
+      tok({ tokenSymbol: "USDC", tokenAddress: "0xREAL", network: "eth-mainnet", usdValue: 100 }),
+      tok({ tokenSymbol: "USDC", tokenAddress: "0xFAKE", network: "polygon-mainnet", networkLabel: "Polygon", usdValue: 999999 }),
+    ], known);
+    // Two rows: the fake must NOT be merged into real USDC's value.
     expect(out).toHaveLength(2);
-    expect(out.every((r) => r.symbol === "USDC")).toBe(true);
-    expect(out.every((r) => !r.isMultiChain)).toBe(true);
+    const real = out.find((r) => r.sources[0].tokenAddress === "0xREAL")!;
+    expect(real.totalUsdValue).toBe(100); // not polluted by the fake's 999999
+    expect(real.isMultiChain).toBe(false);
+  });
+
+  it("keeps ERC-20 per-chain when no whitelist is provided (safe default)", () => {
+    const out = aggregateTokens([
+      tok({ tokenSymbol: "USDC", tokenAddress: "0xA", network: "eth-mainnet", usdValue: 100 }),
+      tok({ tokenSymbol: "USDC", tokenAddress: "0xB", network: "polygon-mainnet", networkLabel: "Polygon", usdValue: 50 }),
+    ]); // no isKnownToken arg
+    expect(out).toHaveLength(2);
   });
 
   it("sorts rows by total USD value descending", () => {

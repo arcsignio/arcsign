@@ -54,16 +54,34 @@ function toNumber(s: string): number {
  * per-chain (keyed by canonical network + contract address). Rows are sorted by
  * total USD value descending.
  */
-export function aggregateTokens(tokens: TokenBalance[]): AggregatedToken[] {
+/**
+ * isKnownToken decides whether an ERC-20 (canonical network, contract address)
+ * is on the trusted token whitelist. Only whitelisted ERC-20s are merged across
+ * chains by symbol — this keeps a same-named fake token (e.g. a scam "USDC") out
+ * of the real asset's row. When omitted, all ERC-20s stay per-chain (safe default).
+ */
+export type IsKnownToken = (canonicalNet: string, tokenAddress: string) => boolean;
+
+export function aggregateTokens(
+  tokens: TokenBalance[],
+  isKnownToken?: IsKnownToken,
+): AggregatedToken[] {
   const groups = new Map<string, AggregatedToken>();
 
   for (const token of tokens) {
     const net = canonicalNetwork(token);
-    // Native: one row per symbol (cross-chain). ERC-20: one row per
-    // network+contract (kept separate).
-    const groupKey = isNative(token)
-      ? `native:${token.tokenSymbol.toUpperCase()}`
-      : `erc20:${net}:${token.tokenAddress.toLowerCase()}`;
+    // Grouping strategy:
+    //   native           → one row per symbol (cross-chain)
+    //   ERC-20 (known)    → one row per symbol (cross-chain, e.g. USDC/USDT)
+    //   ERC-20 (unknown)  → one row per (network, contract) — keeps fakes apart
+    let groupKey: string;
+    if (isNative(token)) {
+      groupKey = `native:${token.tokenSymbol.toUpperCase()}`;
+    } else if (isKnownToken && isKnownToken(net, token.tokenAddress)) {
+      groupKey = `erc20:${token.tokenSymbol.toUpperCase()}`;
+    } else {
+      groupKey = `erc20:${net}:${token.tokenAddress.toLowerCase()}`;
+    }
 
     let group = groups.get(groupKey);
     if (!group) {

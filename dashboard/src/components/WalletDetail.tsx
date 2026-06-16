@@ -3,7 +3,7 @@
  * Feature: Asset management with Alchemy API integration + CoinGecko Token Lists
  */
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppPassword } from "@/contexts/AppPasswordContext";
 import { useWalletSessionStore } from "@/stores/walletSessionStore";
@@ -28,6 +28,7 @@ import StakingTransaction from "@/components/StakingTransaction";
 import { getChainIconUrl, getChainFallbackIcon, isChainSupported, isChainEnabled } from "@/utils/chainIcons";
 import { aggregateTokens, type AggregatedToken } from "@/utils/aggregateTokens";
 import { ChainAllocationTreemap, buildChainAllocation } from "@/components/ChainAllocationTreemap";
+import { NETWORK_TO_CHAIN_MAP } from "@/utils/tokenWhitelist";
 import { isWalletLocked } from "@/utils/walletLock";
 import ReceiveAddressModal from "@/components/ReceiveAddressModal";
 import { SessionsManagerModal } from "@/components/WalletConnect/SessionsManagerModal";
@@ -660,7 +661,30 @@ export function WalletDetail({
 
   // Assets list view: native coins merged across chains, ERC-20 kept per-chain.
   // (See utils/aggregateTokens — also normalizes differently-spelled networks.)
-  const allAggregatedTokens = useMemo(() => aggregateTokens(displayTokens), [displayTokens]);
+  // Whitelist lookup for cross-chain ERC-20 merging: a (canonical network,
+  // contract) is "known" if it's in the loaded CoinGecko token lists. Only known
+  // ERC-20s merge across chains by symbol (so a fake same-named token stays apart).
+  const knownErc20Set = useMemo(() => {
+    const set = new Set<string>(); // `${chainKey}-${address}`
+    allTokensByChain.forEach((chainTokens, chainKey) => {
+      chainTokens.forEach((kt) => set.add(`${chainKey}-${kt.address.toLowerCase()}`));
+    });
+    return set;
+  }, [allTokensByChain]);
+
+  const isKnownErc20 = useCallback(
+    (canonicalNet: string, tokenAddress: string) => {
+      const chainKey = NETWORK_TO_CHAIN_MAP[canonicalNet];
+      if (!chainKey || !tokenAddress) return false;
+      return knownErc20Set.has(`${chainKey}-${tokenAddress.toLowerCase()}`);
+    },
+    [knownErc20Set],
+  );
+
+  const allAggregatedTokens = useMemo(
+    () => aggregateTokens(displayTokens, isKnownErc20),
+    [displayTokens, isKnownErc20],
+  );
 
   // A row has value if it has any USD value OR any non-zero balance.
   const hasValue = (a: (typeof allAggregatedTokens)[number]) =>
@@ -2335,10 +2359,16 @@ export function WalletDetail({
                     />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: "0.875rem", fontWeight: 500, color: "#1e293b" }}>{src.networkLabel}</div>
-                      {src.address && (
-                        <div style={{ fontSize: "0.6875rem", color: "#94a3b8", fontFamily: "monospace" }} title={src.address}>
-                          {src.address.slice(0, 6)}...{src.address.slice(-4)}
-                        </div>
+                      {/* Per-chain contract address (ERC-20 only; native has none).
+                          Lets the user verify "USDT on each chain, contract = ...". */}
+                      {src.tokenAddress && (
+                        <button
+                          onClick={() => navigator.clipboard?.writeText(src.tokenAddress)}
+                          title={`${t('walletDetail.copyContract', 'Copy contract')}: ${src.tokenAddress}`}
+                          style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "block", textAlign: "left", fontSize: "0.6875rem", color: "#94a3b8", fontFamily: "monospace" }}
+                        >
+                          📜 {src.tokenAddress.slice(0, 8)}...{src.tokenAddress.slice(-6)}
+                        </button>
                       )}
                     </div>
                     <div style={{ textAlign: "right" }}>

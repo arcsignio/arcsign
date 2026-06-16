@@ -9,7 +9,7 @@ import { findTokenByAddress, type ChainKey } from '@/services/tokenList';
 /**
  * Map Alchemy network IDs to tokenList chain keys
  */
-const NETWORK_TO_CHAIN_MAP: Record<string, ChainKey> = {
+export const NETWORK_TO_CHAIN_MAP: Record<string, ChainKey> = {
   'eth-mainnet': 'ethereum',
   'polygon-mainnet': 'polygon',
   'arbitrum-mainnet': 'arbitrum',
