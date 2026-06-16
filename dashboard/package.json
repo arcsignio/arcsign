@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
-    "@metamask/eth-sig-util": "^7.0.3",
     "@tauri-apps/api": "^2.1.0",
     "@tauri-apps/plugin-dialog": "~2.6.0",
     "@tauri-apps/plugin-fs": "~2.4.0",
