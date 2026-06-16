@@ -1471,8 +1471,17 @@ pub async fn get_token_approvals(
                 AppError::new(ErrorCode::WalletNotFound, "Wallet not found on USB")
             } else if e.contains("INVALID_PASSWORD") || e.contains("DECRYPTION_ERROR") {
                 AppError::new(ErrorCode::PasswordTooWeak, "Invalid password")
+            } else if e.contains("INVALID_INPUT") || e.contains("Alchemy API key") {
+                // Actionable backend messages (e.g. "Alchemy API key not configured…")
+                // must reach the user verbatim, not be flattened to a generic title.
+                // The FFI string is "CODE: message" — strip the leading code.
+                let msg = e.splitn(2, ": ").nth(1).unwrap_or(&e).to_string();
+                AppError::new(ErrorCode::InvalidInput, msg)
             } else {
-                AppError::with_details(ErrorCode::CliExecutionFailed, "Failed to get token approvals", e)
+                // Surface the real FFI message rather than a generic title, so the
+                // user sees what actually went wrong.
+                let msg = e.splitn(2, ": ").nth(1).unwrap_or(&e).to_string();
+                AppError::with_details(ErrorCode::CliExecutionFailed, msg, e)
             }
         })?;
 
