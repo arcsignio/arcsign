@@ -43,8 +43,13 @@ export function useTokenApprovals(
       const data = (response as any)?.data ?? response;
       setApprovals(data.approvals || []);
     } catch (err) {
+      // parseError (tauri-api) throws a plain AppError-shaped object
+      // { code, message, details } — NOT an Error instance — so reading
+      // err.message directly is what surfaces the backend's actionable message
+      // (e.g. "Alchemy API key not configured..."). Gating on `instanceof Error`
+      // would silently drop it and show a useless generic string.
       const errorMessage =
-        err instanceof Error ? err.message : "Failed to load token approvals";
+        (err as { message?: string })?.message || "Failed to load token approvals";
       setError(errorMessage);
       console.error("Token approvals load failed:", err);
     } finally {
