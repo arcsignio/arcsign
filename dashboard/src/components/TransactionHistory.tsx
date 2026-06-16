@@ -107,6 +107,10 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [loadingChains, setLoadingChains] = useState<string[]>([]);
   const [chainStats, setChainStats] = useState<Record<string, number>>({});
+  // Providers whose chains couldn't be queried because a key is missing, while
+  // OTHER chains succeeded (e.g. Avalanche). Lets the UI warn instead of
+  // silently dropping those chains' transactions.
+  const [keyMissingProviders, setKeyMissingProviders] = useState<{ alchemy: boolean; nodereal: boolean }>({ alchemy: false, nodereal: false });
   const [tokenWarnings, setTokenWarnings] = useState<Map<string, TokenCheckResult>>(new Map());
   const [showUnverifiedTokens, setShowUnverifiedTokens] = useState(false);
   const [unverifiedTokenCount, setUnverifiedTokenCount] = useState(0);
@@ -130,6 +134,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
       setIsLoading(true);
       setError(null);
+      setKeyMissingProviders({ alchemy: false, nodereal: false });
       setLoadingChains(EVM_CHAINS.map(c => c.name));
       setChainStats({});
 
@@ -164,13 +169,13 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
             networkColor: chain.color,
           }));
 
-          return { chain: chain.name, transfers: transfersWithNetwork, error: null };
+          return { chain: chain.name, chainId: chain.id, transfers: transfersWithNetwork, error: null as string | null };
         } catch (err: unknown) {
           const errorMessage = (err as { message?: string })?.message || "Unknown error";
           console.warn(`⚠️ [TransactionHistory] ${chain.name} failed:`, errorMessage);
           errorCount++;
           stats[chain.name] = -1; // -1 indicates error
-          return { chain: chain.name, transfers: [], error: errorMessage };
+          return { chain: chain.name, chainId: chain.id, transfers: [], error: errorMessage };
         } finally {
           setLoadingChains(prev => prev.filter(c => c !== chain.name));
         }
@@ -195,7 +200,17 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
       setTransfers(allTransfers);
       setChainStats(stats);
 
-      // Only show error if ALL chains failed
+      // Detect chains that failed because a key is missing (so a partial result
+      // — e.g. Avalanche succeeded — still tells the user which chains need a
+      // key, instead of silently dropping them). A missing-key error carries the
+      // backend's actionable message.
+      const isKeyError = (msg: string | null) =>
+        !!msg && (/alchemy api key/i.test(msg) || /nodereal/i.test(msg) || /api key/i.test(msg));
+      const noderealMissing = results.some(r => r.chainId === "bnb-mainnet" && isKeyError(r.error));
+      const alchemyMissing = results.some(r => r.chainId !== "bnb-mainnet" && r.chainId !== "avalanche-mainnet" && isKeyError(r.error));
+      setKeyMissingProviders({ alchemy: alchemyMissing, nodereal: noderealMissing });
+
+      // Only show the full error state if ALL chains failed
       if (errorCount === EVM_CHAINS.length) {
         const firstBackendError = results.find(r => r.error)?.error;
         setError(firstBackendError || "Failed to load transaction history from all chains. Please check your network connection.");
@@ -313,6 +328,30 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
               </span>
             );
           })}
+        </div>
+      )}
+
+      {/* Partial-key notice: some chains succeeded (e.g. Avalanche) but others
+          couldn't be queried because a key is missing. Shown only when NOT the
+          all-failed error state. */}
+      {!error && !isLoading && (keyMissingProviders.alchemy || keyMissingProviders.nodereal) && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.25rem",
+            padding: "0.75rem 1rem",
+            margin: "0.75rem 0",
+            background: "#eff6ff",
+            border: "1px solid #bfdbfe",
+            borderRadius: "10px",
+            fontSize: "0.8125rem",
+            color: "#1e40af",
+          }}
+        >
+          <span style={{ fontWeight: 600 }}>{t("transactionHistory.partialKeyNotice")}</span>
+          {keyMissingProviders.alchemy && <span>{t("transactionHistory.partialAlchemyChains")}</span>}
+          {keyMissingProviders.nodereal && <span>{t("transactionHistory.partialNodeRealChains")}</span>}
         </div>
       )}
 

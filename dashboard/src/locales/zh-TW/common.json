@@ -1052,11 +1052,9 @@
     "getStarted": "開始使用",
     "laterSetup": "稍後設定",
     "stepOf": "第 {{current}} 步，共 {{total}} 步",
-
     "welcomeTitle": "歡迎使用 ArcSign",
     "welcomeBody": "ArcSign 是一款安全的多鏈 HD 錢包，將您的私鑰專門儲存在 USB 隨身碟上。沒有雲端伺服器、沒有網路暴露 — 您的密鑰永遠不會離開您的硬體裝置。",
     "welcomeHighlight": "您的密鑰。您的 USB。您做主。",
-
     "securityTitle": "USB 冷錢包儲存",
     "securityBody": "ArcSign 將您的加密密鑰與網路威脅完全物理隔離。",
     "securityPoint1Title": "氣隙隔離密鑰",
@@ -1065,7 +1063,6 @@
     "securityPoint2Body": "主密碼保護應用程式設定。個別錢包密碼分別加密每個錢包的密鑰。",
     "securityPoint3Title": "物理安全",
     "securityPoint3Body": "拔出 USB 隨身碟，您的密鑰就與任何網路威脅完全隔離。",
-
     "featuresTitle": "強大功能",
     "featuresBody": "安全的多鏈資產管理所需的一切。",
     "feature1Title": "22 條區塊鏈",
@@ -1078,7 +1075,6 @@
     "feature4Body": "內建 OpenOcean 與 KyberSwap DEX 聚合，即時兌換代幣。",
     "feature5Title": "開發者模式",
     "feature5Body": "簽署 Hardhat 和 Foundry 交易，無需暴露私鑰。",
-
     "practicesTitle": "安全最佳實踐",
     "practicesBody": "遵循以下準則保護您的資產安全。",
     "practice1Title": "備份加密錢包檔案",
@@ -1091,7 +1087,6 @@
     "practice4Body": "將您的 USB 隨身碟視為實體金庫。考慮在不同地點保留一份備份。",
     "practice5Title": "自動鎖定保護您",
     "practice5Body": "ArcSign 在閒置 15 分鐘後會自動鎖定。這是安全功能，不是錯誤。",
-
     "apiKeyTitle": "設定 API 金鑰",
     "apiKeyBody": "ArcSign 需要 API 金鑰來查詢區塊鏈資料（餘額、Gas 費用、交易）。免費方案即可使用。",
     "apiKeyAlchemyDesc": "查詢代幣餘額、Gas 費用和廣播交易",
@@ -1113,7 +1108,6 @@
     "apiKeyHide": "隱藏",
     "apiKeySkipHint": "您可以稍後在設定 > API 提供者設定中設定 API 金鑰。",
     "apiKeyNoKeysWarning": "沒有 API 金鑰，餘額查詢和交易功能將無法使用。",
-
     "readyTitle": "準備就緒！",
     "readyBody": "您已準備好建立第一個錢包，開始安全地管理您的數位資產。",
     "createFirstWallet": "建立第一個錢包",
@@ -1221,7 +1215,10 @@
     "emptyDescription": "此地址在支援的 EVM 鏈上沒有交易紀錄。",
     "needKeyTitle": "連接 Alchemy key 以查看交易紀錄",
     "needKeyDescription": "以太坊、Polygon、Arbitrum、Optimism、Base 的交易紀錄需要免費的 Alchemy API key；Avalanche 的紀錄免 key 就能顯示。請在 Provider 設定中填入 key。",
-    "needKeyAction": "前往 Provider 設定"
+    "needKeyAction": "前往 Provider 設定",
+    "partialKeyNotice": "部分鏈需要 API key 才能顯示交易：",
+    "partialAlchemyChains": "以太坊、Polygon、Arbitrum、Optimism、Base 需要免費的 Alchemy API key。",
+    "partialNodeRealChains": "BNB Chain 需要 NodeReal API key。"
   },
   "tokenApprovals": {
     "risk": {

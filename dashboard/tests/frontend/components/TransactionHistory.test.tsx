@@ -156,6 +156,30 @@ describe('TransactionHistory', () => {
       await screen.findByText(/Alchemy API key not configured/)
     ).toBeInTheDocument();
   });
+
+  it('shows a partial-key banner when some chains succeed and others lack a key', async () => {
+    // Avalanche (no key) returns a transfer; the Alchemy chains reject with a
+    // missing-key error. The page must still list the AVAX transfer AND warn
+    // that the Alchemy chains need a key (not silently swallow them).
+    (tauriApi.getAssetTransfers as any).mockImplementation((params: { network: string }) => {
+      if (params.network === 'avalanche-mainnet') {
+        return Promise.resolve({
+          transfers: [{ uniqueId: 'avax-1', category: 'external', value: 1, asset: 'AVAX', from: '0xother', to: '0xuser123', hash: '0xhash', metadata: { blockTimestamp: '2026-06-16T00:00:00Z' } }],
+        });
+      }
+      if (params.network === 'bnb-mainnet') {
+        return Promise.reject({ code: 'INVALID_INPUT', message: 'BSC transaction history requires NodeReal API key' });
+      }
+      return Promise.reject({ code: 'INVALID_INPUT', message: 'Alchemy API key not configured' });
+    });
+
+    render(<TransactionHistory {...defaultProps} />);
+
+    // Partial banner appears with both provider hints.
+    expect(await screen.findByText('transactionHistory.partialKeyNotice')).toBeInTheDocument();
+    expect(screen.getByText('transactionHistory.partialAlchemyChains')).toBeInTheDocument();
+    expect(screen.getByText('transactionHistory.partialNodeRealChains')).toBeInTheDocument();
+  });
 });
 
 describe('TransactionHistory empty state', () => {

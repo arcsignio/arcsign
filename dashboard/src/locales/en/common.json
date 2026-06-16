@@ -1052,11 +1052,9 @@
     "getStarted": "Get Started",
     "laterSetup": "Set up later",
     "stepOf": "Step {{current}} of {{total}}",
-
     "welcomeTitle": "Welcome to ArcSign",
     "welcomeBody": "ArcSign is a secure multi-chain HD wallet that stores your private keys exclusively on USB drives. No cloud servers, no internet exposure — your keys never leave your hardware.",
     "welcomeHighlight": "Your keys. Your USB. Your control.",
-
     "securityTitle": "USB-Only Cold Storage",
     "securityBody": "ArcSign keeps your cryptographic keys physically isolated from online threats.",
     "securityPoint1Title": "Air-Gapped Keys",
@@ -1065,7 +1063,6 @@
     "securityPoint2Body": "Master password protects app config. Individual wallet passwords encrypt each wallet's keys separately.",
     "securityPoint3Title": "Physical Security",
     "securityPoint3Body": "Remove the USB drive and your keys are completely air-gapped from any online threat.",
-
     "featuresTitle": "Powerful Features",
     "featuresBody": "Everything you need for secure multi-chain asset management.",
     "feature1Title": "22 Blockchains",
@@ -1078,7 +1075,6 @@
     "feature4Body": "Built-in DEX aggregation via OpenOcean & KyberSwap for instant token exchanges.",
     "feature5Title": "Developer Mode",
     "feature5Body": "Sign Hardhat and Foundry transactions without exposing private keys.",
-
     "practicesTitle": "Security Best Practices",
     "practicesBody": "Follow these guidelines to keep your assets safe.",
     "practice1Title": "Back up your encrypted wallet files",
@@ -1091,7 +1087,6 @@
     "practice4Body": "Treat your USB drive like a physical vault. Consider keeping a backup in a separate location.",
     "practice5Title": "Auto-lock protects you",
     "practice5Body": "ArcSign auto-locks after 15 minutes of inactivity. This is a security feature, not a bug.",
-
     "apiKeyTitle": "Set Up API Keys",
     "apiKeyBody": "ArcSign needs API keys to query blockchain data (balances, gas fees, transactions). Free plans are sufficient.",
     "apiKeyAlchemyDesc": "Query token balances, gas fees, and broadcast transactions",
@@ -1113,7 +1108,6 @@
     "apiKeyHide": "Hide",
     "apiKeySkipHint": "You can set up API keys later in Settings > API Provider Settings.",
     "apiKeyNoKeysWarning": "Without API keys, balance queries and transactions won't work.",
-
     "readyTitle": "You're All Set!",
     "readyBody": "You're ready to create your first wallet and start managing your digital assets securely.",
     "createFirstWallet": "Create Your First Wallet",
@@ -1221,7 +1215,10 @@
     "emptyDescription": "This address has no transaction history on supported EVM chains.",
     "needKeyTitle": "Connect an Alchemy key to see transaction history",
     "needKeyDescription": "Transaction history on Ethereum, Polygon, Arbitrum, Optimism and Base needs a free Alchemy API key. Avalanche history already shows without one. Add a key in Provider settings.",
-    "needKeyAction": "Open Provider settings"
+    "needKeyAction": "Open Provider settings",
+    "partialKeyNotice": "Some chains need an API key to show transactions:",
+    "partialAlchemyChains": "Ethereum, Polygon, Arbitrum, Optimism, Base need a free Alchemy API key.",
+    "partialNodeRealChains": "BNB Chain needs a NodeReal API key."
   },
   "tokenApprovals": {
     "risk": {
