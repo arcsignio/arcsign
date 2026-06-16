@@ -235,6 +235,63 @@ when providers report `degraded`, versus a yellow warning only on hard errors.
 | NFT gallery | Avalanche only | ✅ all EVM chains |
 | Transaction history | ❌ | ✅ |
 
+### 4.2 No-key error surfacing — how "needs a key" reaches the user
+
+Features that genuinely require a key (NFT, transaction history, token approvals)
+must tell the user *why* a chain is empty, not silently show "no data". The
+message travels Go → Rust → frontend, and **each layer has a pitfall that has
+bitten us** — document them so the next change doesn't reintroduce them:
+
+```
+Go (internal/lib + internal/provider)
+  GetWalletDataProvider(provider, store):
+    has key  → real provider
+    no key   → DEGRADED provider — NON-nil  ← the big trap (progressive-key)
+  Per feature, "unavailable" must check  wdp == nil  OR  IsDegraded():
+    • balances → degraded still returns native + common tokens → reason "degraded"
+    • NFT      → degraded returns nothing → record reason "missing_key", continue
+    • history  → wdp == nil || IsDegraded() → return actionable error
+    • approval → LoadProviderAPIKey == "" → return "Alchemy API key not configured"
+  Shape:
+    partial (multi-provider)  → success + unavailableProviders[]
+    needs-key (single)        → error "INVALID_INPUT: <actionable message>"
+        │ C FFI (CString JSON: {success,data,error{code,message}})
+        ▼
+Rust (src-tauri/src/commands)
+  • map_err must NOT flatten to a generic title — strip the "CODE: " prefix and
+    pass the real message through (else the user sees "Failed to get NFTs").
+  • AppError::new runs sanitize_message: any line containing "/" is replaced
+    (security). The NodeReal hint has a URL → its message is wiped. So the
+    FRONTEND must not key off message text for that case.
+        │ invoke → parseError
+        ▼
+Frontend (services/tauri-api.ts → components)
+  • parseError throws a PLAIN object { code, message, details } — NOT an Error
+    instance. catch blocks must read err?.message, never gate on
+    `instanceof Error` (always false → drops the message).
+  • To decide WHICH provider needs a key, key off WHICH CHAIN FAILED, not the
+    message text (text may be sanitized). BNB failed → NodeReal; any other
+    non-Avalanche chain failed → Alchemy.
+  Surfaces: assets degraded banner · NFT/history per-provider "needs key" notice
+  · approval actionable error · Provider settings capability table.
+
+Avalanche (Glacier) is key-free, never fails this way, never appears in
+unavailableProviders.
+```
+
+**The six distinct pitfalls (each a separate root cause we hit):**
+1. Degraded provider is non-nil → a bare `wdp == nil` check misses no-key → the
+   feature silently returns empty. Use `wdp == nil || IsDegraded()` for
+   key-required features.
+2. Rust `map_err` flattening the FFI message into a generic title.
+3. Rust `sanitize_message` deleting any message line with a `/` (URLs).
+4. Frontend `instanceof Error` is false for `parseError`'s plain object → message
+   dropped.
+5. Frontend matching provider by message regex → breaks when the message is
+   sanitized; match by failed-chain instead.
+6. NFT recording reason `"degraded"` while the frontend only honors
+   `"missing_key"` → use `"missing_key"` for key-required features.
+
 ### Adding a provider
 
 Adding a backend is a one-place change per concern:
