@@ -822,6 +822,7 @@ func (c *AlchemyClient) GetApprovalEvents(ownerAddress, network string) ([]Appro
 	// allowance(address,address) selector: 0xdd62ed3e
 	var results []ApprovalEntry
 	threshold := new(big.Int).Exp(big.NewInt(2), big.NewInt(128), nil) // 2^128
+	eoaCache := make(map[string]bool)                                  // memoize eth_getCode per spender
 
 	for key := range latestApprovals {
 		allowance, err := c.ethCallAllowance(url, key.Token, ownerAddress, key.Spender)
@@ -848,6 +849,8 @@ func (c *AlchemyClient) GetApprovalEvents(ownerAddress, network string) ([]Appro
 			NetworkLabel: networkLabel,
 			OwnerAddress: ownerAddress,
 		}
+		// Security enrichment: spender label, blocklist, EOA probe, risk level.
+		c.enrichApproval(url, &entry, eoaCache)
 		results = append(results, entry)
 	}
 
@@ -879,6 +882,106 @@ func (c *AlchemyClient) getTokenMetadata(rpcURL, tokenAddress string) (string, s
 		symbolResult = ""
 	}
 	return nameResult, symbolResult
+}
+
+// ethGetCode returns the contract bytecode at an address via eth_getCode. An
+// empty result ("0x" / "0x0") means the address is an externally-owned account
+// (EOA) — a strong scam signal when it is an approval spender.
+func (c *AlchemyClient) ethGetCode(rpcURL, addr string) (string, error) {
+	rpcRequest := alchemyRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "eth_getCode",
+		Params:  []interface{}{addr, "latest"},
+	}
+
+	jsonData, err := json.Marshal(rpcRequest)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest("POST", rpcURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var rpcResp genericRPCResponse
+	if err := json.Unmarshal(body, &rpcResp); err != nil {
+		return "", err
+	}
+	if rpcResp.Error != nil {
+		return "", fmt.Errorf("eth_getCode error: %s", rpcResp.Error.Message)
+	}
+
+	var hexResult string
+	if err := json.Unmarshal(rpcResp.Result, &hexResult); err != nil {
+		return "", err
+	}
+	return hexResult, nil
+}
+
+// isEmptyCode reports whether an eth_getCode result indicates an EOA (no code).
+func isEmptyCode(code string) bool {
+	c := strings.TrimSpace(strings.ToLower(code))
+	return c == "" || c == "0x" || c == "0x0"
+}
+
+// enrichApproval fills the security fields on an ApprovalEntry: known-spender
+// label, blocklist hit, EOA probe, and the resulting risk level. The eoaCache
+// memoizes eth_getCode per spender within a single GetApprovalEvents call so the
+// same spender (common across multiple token approvals) is probed at most once.
+// Known spenders and blocklist hits skip the eth_getCode RPC entirely.
+func (c *AlchemyClient) enrichApproval(rpcURL string, entry *ApprovalEntry, eoaCache map[string]bool) {
+	known, isKnown := LookupSpender(entry.Network, entry.Spender)
+	malicious := IsMaliciousSpender(entry.Spender)
+
+	isEOA := false
+	switch {
+	case isKnown:
+		entry.SpenderName = known.Name
+		entry.SpenderType = "known:" + known.Category
+	case malicious:
+		// Blocklist hit is already terminal (red); no need to probe code, but
+		// label it a contract by default.
+		entry.SpenderType = "contract"
+	default:
+		// Unknown spender → probe code once (memoized) to detect an EOA.
+		sp := strings.ToLower(entry.Spender)
+		if cached, ok := eoaCache[sp]; ok {
+			isEOA = cached
+		} else {
+			code, err := c.ethGetCode(rpcURL, entry.Spender)
+			// On error, conservatively treat as a contract (don't false-flag red).
+			isEOA = err == nil && isEmptyCode(code)
+			eoaCache[sp] = isEOA
+		}
+		if isEOA {
+			entry.SpenderType = "eoa"
+		} else {
+			entry.SpenderType = "contract"
+		}
+	}
+
+	entry.IsEOA = isEOA
+	entry.IsMalicious = malicious
+	entry.RiskLevel = ClassifyApprovalRisk(RiskInput{
+		IsUnlimited:  entry.IsUnlimited,
+		SpenderKnown: isKnown,
+		IsEOA:        isEOA,
+		IsMalicious:  malicious,
+	})
 }
 
 // ethCallUint256 makes an eth_call and parses the result as a uint256

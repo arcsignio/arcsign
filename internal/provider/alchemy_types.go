@@ -172,6 +172,14 @@ type ApprovalEntry struct {
 	Network      string `json:"network"`      // Internal Network ID
 	NetworkLabel string `json:"networkLabel"` // Human-readable network name
 	OwnerAddress string `json:"ownerAddress"` // The wallet address that granted approval
+
+	// Security enrichment (Token Approvals risk view). Filled offline from the
+	// curated spender registry + embedded blocklist + an eth_getCode EOA probe.
+	SpenderName string    `json:"spenderName"` // Protocol name if a known spender, else ""
+	SpenderType string    `json:"spenderType"` // "known:<category>" / "contract" / "eoa"
+	IsEOA       bool      `json:"isEOA"`       // Spender has no code (externally-owned account)
+	IsMalicious bool      `json:"isMalicious"` // Spender is on the embedded blocklist
+	RiskLevel   RiskLevel `json:"riskLevel"`   // "red" / "yellow" / "green"
 }
 
 // GetTokenApprovalsInput represents the input for GetTokenApprovals FFI function
