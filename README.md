@@ -133,40 +133,48 @@ the chain.
         ┌──────────────┬──────┴───────┬───────────────────┐
         ▼              ▼              ▼                   ▼
    Alchemy WDP    NodeReal WDP    Glacier WDP     DefiLlama (price enrich)
-   5 EVM chains   BSC (BEP-20)    Avalanche       no key — fills USD values
-   key (degraded  key (native     no key          for whatever the providers
-   without one)   BNB w/o key)    (anon tier)     left at 0
+   5 EVM chains   BSC             Avalanche       no key — fills USD values
+   key unlocks    key unlocks     no key          for whatever the providers
+   full data      full data       (anon tier)     left at 0
+        └──────┬───────┘
+               ▼
+   shared no-key degraded path (degraded.go) — native + common tokens
+   via public RPC + Multicall3.  ONE implementation, used by both.
 ```
 
 | Chain(s) | Provider | API key | Without a key |
 |---|---|---|---|
-| Ethereum · Polygon · Arbitrum · Optimism · Base | **Alchemy** | required for full data | **degraded path**: native coin + curated common tokens (incl. staking receipts) via public RPC + Multicall3; NFTs / history need the key |
-| BSC | **NodeReal** | required for BEP-20 token list | native BNB still shows via public BSC RPC |
+| Ethereum · Polygon · Arbitrum · Optimism · Base | **Alchemy** | required for full data | **degraded path** (see below) |
+| BSC | **NodeReal** | required for full BEP-20 discovery | **same degraded path** — native BNB + common BEP-20s (USDC/USDT/WBNB/ankrBNB) |
 | Avalanche | **Glacier** (Avalanche Data API) | none (anonymous tier) | full token/NFT data |
 | *all of the above* | **DefiLlama** | none | fills USD prices the providers returned as 0 |
 
-**Progressive API keys (no-key path).** A brand-new user with **no Alchemy key**
-still sees basic assets. The degraded path (`internal/provider/degraded.go`)
-queries, over public RPCs only:
+**Progressive API keys (no-key path).** A brand-new user with **no API key** on
+any EVM provider still sees basic assets. There is **one unified degraded
+implementation** (`internal/provider/degraded.go`) — every EVM provider wrapper
+that lacks its key delegates to the *same* helper, so the no-key behaviour is
+identical across the Alchemy chains **and** BSC. It queries, over public RPCs
+only:
 
 - the **native coin** balance (`eth_getBalance`), and
 - a **curated common-token whitelist** (`common_tokens.go`) — stablecoins,
   wrapped coins, the chain's own token, major DeFi tokens, and **liquid-staking
   receipts** (stETH / ankrETH / eETH / ankrBNB) — batched into **one
-  `eth_call` per chain via Multicall3** (`multicall.go`), with RPC fallback.
+  `eth_call` per chain via Multicall3** (`multicall.go`, same contract address
+  on every chain), with RPC fallback.
 
 USD values are filled by **DefiLlama** (no key). Full token *discovery*, NFTs
-and transaction history require an Alchemy key — surfaced in-app as a soft
+and transaction history require the provider's key — surfaced in-app as a soft
 "add a key to unlock more", not an error. There is **no hard-coded API key** in
 the repo; provider keys live only in the per-USB encrypted provider config.
 
 ### No-key vs. with-key, at a glance
 
-| Capability | No key | + Alchemy key |
+| Capability | No key | + provider key |
 |---|---|---|
 | Native balances (ETH/MATIC/BNB/AVAX/…) | ✅ | ✅ |
-| Common tokens (USDC/USDT/DAI/WETH/…) | ✅ (whitelist) | ✅ (full discovery) |
-| Liquid-staking receipts (stETH/eETH/…) | ✅ | ✅ |
+| Common tokens (USDC/USDT/DAI/WETH/…) — incl. BSC | ✅ (whitelist) | ✅ (full discovery) |
+| Liquid-staking receipts (stETH/eETH/ankrBNB/…) | ✅ | ✅ |
 | USD prices (DefiLlama) | ✅ | ✅ |
 | Arbitrary / long-tail token discovery | ❌ | ✅ |
 | NFT gallery | Avalanche only | ✅ all EVM chains |

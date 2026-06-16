@@ -167,31 +167,38 @@ per-endpoint `switch` blocks.
    (5 EVM)        (BSC)           (Avalanche)       (USD for all, no key)
         │              │              │
    has key?        has key?      anon tier
-   ├ yes → full   ├ yes → BEP-20  └ full token/NFT data
-   └ no  → §4.1   └ no  → native BNB only (public BSC RPC)
-        degraded
+   ├ yes → full   ├ yes → full    └ full token/NFT data
+   └ no ──┬─ no ─┘  BEP-20 disc.
+          ▼
+   degradedTokenBalances (§4.1) — ONE shared no-key path
 ```
 
 ### Provider / key matrix
 
 | Chain(s) | Provider | Key | Notes |
 |---|---|---|---|
-| Ethereum · Polygon · Arbitrum · Optimism · Base | Alchemy | required for full data | without a key → degraded path (§4.1) |
-| BSC | NodeReal (`nr_getTokenHoldings` / `nr_getNFTHoldings`) | required for BEP-20 list | native BNB via public `bsc-dataseed` RPC without a key |
+| Ethereum · Polygon · Arbitrum · Optimism · Base | Alchemy | required for full data | without a key → unified degraded path (§4.1) |
+| BSC | NodeReal (`nr_getTokenHoldings` / `nr_getNFTHoldings`) | required for full BEP-20 discovery | without a key → **same** unified degraded path (native BNB + common BEP-20s) |
 | Avalanche | Glacier (Avalanche Data API) | none (anonymous) | full token + NFT data, no key |
 | *all of the above* | DefiLlama | none | fills USD prices |
 
 There is **no hard-coded shared key** in the repo. Provider keys live only in
 the per-USB encrypted provider config.
 
-### 4.1 Progressive API keys — the no-key (degraded) path
+### 4.1 Progressive API keys — the unified no-key (degraded) path
 
-Goal: a brand-new user with **no Alchemy key** still sees basic assets, instead
-of five blank chains. Getting a key unlocks *more* (full token discovery, NFTs,
-history) rather than being a prerequisite to seeing *anything*.
+Goal: a brand-new user with **no API key** on any EVM provider still sees basic
+assets, instead of blank chains. Getting a key unlocks *more* (full token
+discovery, NFTs, history) rather than being a prerequisite to seeing *anything*.
 
-Without a key, for each Alchemy chain the degraded path
-(`internal/provider/degraded.go`) queries **public RPCs only**:
+This is **one implementation, not one-per-provider**: `degradedTokenBalances`
+(`internal/provider/degraded.go`) is the single no-key entry point. Any EVM
+wrapper that lacks its key delegates to it — `alchemyWDP` (5 chains) and
+`nodeRealWDP` (BSC) call the *same* helper, so no-key behaviour is identical
+across all of them. (BSC resolves through `registryChainFor`'s
+`bnb-mainnet → "bsc"` mapping so it reaches the public BSC RPCs.)
+
+For each `(address, network)` the degraded path queries **public RPCs only**:
 
 1. **Native coin balance** — `GetNativeBalance` (`bsctrace_client.go`, the
    chain-agnostic generalization of the old `GetNativeBNB`) via
@@ -209,7 +216,8 @@ Why a whitelist and not full discovery: there is **no free indexer** that can
 enumerate "which tokens does this address hold" for Ethereum/Polygon/Arbitrum/
 Optimism/Base. Glacier covers that for Avalanche only. So the common-token
 whitelist is the practical upper bound for the no-key path. NFTs and transaction
-history likewise need the Alchemy key.
+history likewise need the provider's key (Alchemy for the 5 EVM chains, NodeReal
+for BSC).
 
 The frontend (`WalletDetail.tsx`) renders the difference: a soft blue banner —
 "basic assets shown; add an Alchemy key to unlock full token / NFT / history" —
