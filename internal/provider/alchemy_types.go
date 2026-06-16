@@ -155,6 +155,9 @@ type GetNFTsOutput struct {
 	TotalCount   int             `json:"totalCount"`
 	AddressCount int             `json:"addressCount"`
 	NetworkCount int             `json:"networkCount"`
+	// Providers that could not be queried (e.g. missing API key), so the UI can
+	// distinguish "no NFTs" from "not fetched". Mirrors GetTokenBalancesOutput.
+	UnavailableProviders []ProviderUnavailable `json:"unavailableProviders,omitempty"`
 }
 
 // ================================================================================
