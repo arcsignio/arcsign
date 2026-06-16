@@ -27,6 +27,7 @@ import SwapTransaction from "@/components/SwapTransaction";
 import StakingTransaction from "@/components/StakingTransaction";
 import { getChainIconUrl, getChainFallbackIcon, isChainSupported, isChainEnabled } from "@/utils/chainIcons";
 import { aggregateTokens, type AggregatedToken } from "@/utils/aggregateTokens";
+import { ChainAllocationTreemap, buildChainAllocation } from "@/components/ChainAllocationTreemap";
 import { isWalletLocked } from "@/utils/walletLock";
 import ReceiveAddressModal from "@/components/ReceiveAddressModal";
 import { SessionsManagerModal } from "@/components/WalletConnect/SessionsManagerModal";
@@ -2284,6 +2285,13 @@ export function WalletDetail({
               <div style={{ fontSize: "0.75rem", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>
                 {t('walletDetail.byChain', 'By chain')}
               </div>
+              {/* Allocation treemap — proportion of this asset across chains.
+                  Driven by selectedToken.sources, so new chains draw themselves. */}
+              {selectedToken.isMultiChain && (
+                <div style={{ marginBottom: "1rem" }}>
+                  <ChainAllocationTreemap slices={buildChainAllocation(selectedToken.sources)} />
+                </div>
+              )}
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 {selectedToken.sources
                   .slice()
