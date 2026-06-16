@@ -442,6 +442,10 @@ func GetTokenBalances(params *C.char) (result *C.char) {
 		allTokens = append(allTokens, tokens...)
 	}
 
+	// Step 4.5: Fill in USD prices for tokens whose provider didn't return one
+	// (BSC/NodeReal, native BNB, etc) using DefiLlama (free, no key).
+	provider.EnrichPricesWithDefiLlama(allTokens)
+
 	// Step 5: Aggregate results
 	var totalUSD float64
 	networkSet := make(map[string]bool)
