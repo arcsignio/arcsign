@@ -30,7 +30,6 @@
     "@walletconnect/types": "^2.23.2",
     "@walletconnect/utils": "^2.23.2",
     "bip39": "^3.1.0",
-    "ethers": "^6.16.0",
     "i18next": "^25.7.4",
     "i18next-browser-languagedetector": "^8.2.0",
     "qrcode.react": "^4.2.0",
