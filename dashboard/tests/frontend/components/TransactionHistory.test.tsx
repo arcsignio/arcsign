@@ -29,9 +29,15 @@ vi.mock('@/utils/tokenWhitelist', () => ({
   batchCheckTokens: vi.fn(),
 }));
 
+// Mock useHasProviderKey hook
+vi.mock('@/hooks/useHasProviderKey', () => ({
+  useHasProviderKey: vi.fn(),
+}));
+
 import tauriApi from '@/services/tauri-api';
 import { useTransactionLabels } from '@/hooks/useTransactionLabels';
 import { batchCheckTokens } from '@/utils/tokenWhitelist';
+import { useHasProviderKey } from '@/hooks/useHasProviderKey';
 
 // Import the component AFTER mocks
 import { TransactionHistory } from '@/components/TransactionHistory';
@@ -83,6 +89,12 @@ describe('TransactionHistory', () => {
       getLabelForTx: vi.fn().mockReturnValue(undefined),
     });
     (batchCheckTokens as any).mockResolvedValue(new Map());
+    // Default: key present, not loading
+    (useHasProviderKey as any).mockReturnValue({
+      hasAlchemyKey: true,
+      hasNodeRealKey: true,
+      isLoading: false,
+    });
   });
 
   it('renders title and back button', () => {
@@ -109,8 +121,8 @@ describe('TransactionHistory', () => {
   it('shows empty state when no transfers', async () => {
     render(<TransactionHistory {...defaultProps} />);
     await waitFor(() => {
-      // Component shows "No Transactions Found" as empty state
-      expect(screen.getByText('No Transactions Found')).toBeInTheDocument();
+      // After i18n: t() returns the key itself in test env
+      expect(screen.getByText('transactionHistory.emptyTitle')).toBeInTheDocument();
     });
   });
 
@@ -129,5 +141,69 @@ describe('TransactionHistory', () => {
       // Should show the transfer value with asset
       expect(screen.getByText(/1.5000/)).toBeInTheDocument();
     });
+  });
+});
+
+describe('TransactionHistory empty state', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (tauriApi.getAssetTransfers as any).mockResolvedValue({ transfers: [] });
+    (useTransactionLabels as any).mockReturnValue({
+      labels: [],
+      labelsMap: new Map(),
+      isLoading: false,
+      error: null,
+      loadLabels: vi.fn(),
+      setLabel: vi.fn().mockResolvedValue(true),
+      deleteLabel: vi.fn().mockResolvedValue(true),
+      getLabelForTx: vi.fn().mockReturnValue(undefined),
+    });
+    (batchCheckTokens as any).mockResolvedValue(new Map());
+  });
+
+  it('shows need-key prompt when no Alchemy key and empty', async () => {
+    (useHasProviderKey as any).mockReturnValue({
+      hasAlchemyKey: false,
+      hasNodeRealKey: false,
+      isLoading: false,
+    });
+    render(<TransactionHistory {...defaultProps} />);
+    expect(
+      await screen.findByText('transactionHistory.needKeyTitle')
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('transactionHistory.emptyTitle')
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows normal empty state when key present and empty', async () => {
+    (useHasProviderKey as any).mockReturnValue({
+      hasAlchemyKey: true,
+      hasNodeRealKey: true,
+      isLoading: false,
+    });
+    render(<TransactionHistory {...defaultProps} />);
+    expect(
+      await screen.findByText('transactionHistory.emptyTitle')
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('transactionHistory.needKeyTitle')
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not flash empty/need-key text while key status is loading', async () => {
+    (useHasProviderKey as any).mockReturnValue({
+      hasAlchemyKey: false,
+      hasNodeRealKey: false,
+      isLoading: true,
+    });
+    render(<TransactionHistory {...defaultProps} />);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(
+      screen.queryByText('transactionHistory.needKeyTitle')
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('transactionHistory.emptyTitle')
+    ).not.toBeInTheDocument();
   });
 });

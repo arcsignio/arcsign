@@ -15,6 +15,7 @@ import {
   type TokenCheckResult,
 } from "@/utils/tokenWhitelist";
 import { useTransactionLabels } from "@/hooks/useTransactionLabels";
+import { useHasProviderKey } from "@/hooks/useHasProviderKey";
 import { TransactionLabelModal } from "./TransactionLabelModal";
 
 interface TransactionHistoryProps {
@@ -109,6 +110,9 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   const [tokenWarnings, setTokenWarnings] = useState<Map<string, TokenCheckResult>>(new Map());
   const [showUnverifiedTokens, setShowUnverifiedTokens] = useState(false);
   const [unverifiedTokenCount, setUnverifiedTokenCount] = useState(0);
+
+  // Provider key status (for empty-state messaging)
+  const { hasAlchemyKey, isLoading: isKeyLoading } = useHasProviderKey(usbPath, sessionToken);
 
   // Transaction labels
   const { getLabelForTx, setLabel, deleteLabel, loadLabels } = useTransactionLabels(usbPath, sessionToken);
@@ -337,8 +341,17 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
       {!error && transfers.length === 0 && !isLoading && (
         <div className="empty-state">
           <div className="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
-          <h3>No Transactions Found</h3>
-          <p>This address has no transaction history on supported EVM chains.</p>
+          {isKeyLoading ? null : !hasAlchemyKey ? (
+            <>
+              <h3>{t("transactionHistory.needKeyTitle")}</h3>
+              <p>{t("transactionHistory.needKeyDescription")}</p>
+            </>
+          ) : (
+            <>
+              <h3>{t("transactionHistory.emptyTitle")}</h3>
+              <p>{t("transactionHistory.emptyDescription")}</p>
+            </>
+          )}
         </div>
       )}
 
