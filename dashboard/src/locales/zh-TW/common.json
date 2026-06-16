@@ -1202,6 +1202,13 @@
     "unlimited": "無限制"
   },
   "tokenApprovals": {
+    "risk": {
+      "red": "高風險",
+      "yellow": "注意",
+      "green": "低風險"
+    },
+    "eoaSpender": "錢包地址（非合約）",
+    "maliciousWarning": "此 spender 在已知惡意名單中，建議立即撤銷。",
     "loading": "掃描代幣授權中...",
     "loadError": "載入授權失敗",
     "retry": "重試",

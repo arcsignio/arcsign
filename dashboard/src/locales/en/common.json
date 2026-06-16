@@ -1202,6 +1202,13 @@
     "unlimited": "Unlimited"
   },
   "tokenApprovals": {
+    "risk": {
+      "red": "High risk",
+      "yellow": "Caution",
+      "green": "Low risk"
+    },
+    "eoaSpender": "wallet address (not a contract)",
+    "maliciousWarning": "This spender is on a known malicious list — revoke immediately.",
     "loading": "Scanning for token approvals...",
     "loadError": "Failed to load approvals",
     "retry": "Retry",

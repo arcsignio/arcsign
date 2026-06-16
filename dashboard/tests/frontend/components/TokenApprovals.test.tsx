@@ -449,4 +449,61 @@ describe('TokenApprovals', () => {
       expect(screen.getByText(/Unsupported network/)).toBeInTheDocument();
     });
   });
+
+  // ── Risk enrichment ───────────────────────────────────────────────────────
+  it('shows the protocol name for a known spender', () => {
+    setupMocks({
+      approvals: [{
+        ...mockApprovals[0],
+        spenderName: 'Uniswap: Universal Router',
+        spenderType: 'known:dex',
+        riskLevel: 'yellow',
+      }],
+    });
+    render(<TokenApprovals {...defaultProps} />);
+    expect(screen.getByText('Uniswap: Universal Router')).toBeInTheDocument();
+  });
+
+  it('falls back to a truncated address for an unknown spender', () => {
+    setupMocks({
+      approvals: [{
+        ...mockApprovals[0],
+        spender: '0x000000000000000000000000000000000000beef',
+        spenderName: '',
+        riskLevel: 'red',
+      }],
+    });
+    render(<TokenApprovals {...defaultProps} />);
+    expect(screen.getByText('0x0000...beef')).toBeInTheDocument();
+  });
+
+  it('renders a risk badge per approval', () => {
+    setupMocks({
+      approvals: [{ ...mockApprovals[0], riskLevel: 'red' }],
+    });
+    render(<TokenApprovals {...defaultProps} />);
+    expect(screen.getByText('tokenApprovals.risk.red')).toBeInTheDocument();
+  });
+
+  it('shows a strong warning for a malicious spender', () => {
+    setupMocks({
+      approvals: [{ ...mockApprovals[0], isMalicious: true, riskLevel: 'red' }],
+    });
+    render(<TokenApprovals {...defaultProps} />);
+    expect(screen.getByText('tokenApprovals.maliciousWarning')).toBeInTheDocument();
+  });
+
+  it('sorts approvals most-dangerous-first (red before green)', () => {
+    setupMocks({
+      approvals: [
+        { ...mockApprovals[0], tokenSymbol: 'GREENTOK', riskLevel: 'green' },
+        { ...mockApprovals[1], tokenSymbol: 'REDTOK', riskLevel: 'red' },
+      ],
+    });
+    render(<TokenApprovals {...defaultProps} />);
+    const red = screen.getByText('REDTOK');
+    const green = screen.getByText('GREENTOK');
+    // Red must appear before green in document order.
+    expect(red.compareDocumentPosition(green) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

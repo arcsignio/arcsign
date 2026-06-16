@@ -41,6 +41,17 @@ function truncateAddress(addr: string): string {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
+// Traffic-light colors for the risk badge / row accent.
+const RISK_COLORS: Record<string, string> = {
+  red: "#ef4444",
+  yellow: "#f59e0b",
+  green: "#10b981",
+};
+
+function riskColor(level?: string): string {
+  return RISK_COLORS[level ?? "yellow"] ?? "#f59e0b";
+}
+
 function formatAllowance(allowance: string, isUnlimited: boolean, symbol: string): string {
   if (isUnlimited) return "Unlimited";
   // For very large numbers, show in scientific notation
@@ -115,10 +126,16 @@ export function TokenApprovals({
     return Array.from(nets.entries());
   }, [approvals]);
 
-  // Filtered approvals
+  // Filtered + risk-sorted approvals (most dangerous first: red → yellow → green).
   const filteredApprovals = useMemo(() => {
-    if (filterNetwork === "all") return approvals;
-    return approvals.filter((a) => a.network === filterNetwork);
+    const base =
+      filterNetwork === "all"
+        ? approvals
+        : approvals.filter((a) => a.network === filterNetwork);
+    const rank: Record<string, number> = { red: 0, yellow: 1, green: 2 };
+    return [...base].sort(
+      (a, b) => (rank[a.riskLevel ?? "yellow"] ?? 1) - (rank[b.riskLevel ?? "yellow"] ?? 1)
+    );
   }, [approvals, filterNetwork]);
 
   // Toggle selection
@@ -647,10 +664,70 @@ export function TokenApprovals({
                   </span>
                 </div>
 
-                {/* Spender */}
-                <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
-                  {t("tokenApprovals.spender")}: {truncateAddress(approval.spender)}
+                {/* Spender + risk badge */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    fontSize: "0.75rem",
+                    color: "#94a3b8",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span>{t("tokenApprovals.spender")}:</span>
+                  {approval.spenderName ? (
+                    <span style={{ color: "#e2e8f0", fontWeight: 600 }}>
+                      {approval.spenderName}
+                    </span>
+                  ) : (
+                    <span>{truncateAddress(approval.spender)}</span>
+                  )}
+                  {/* Risk badge */}
+                  {approval.riskLevel && (
+                    <span
+                      style={{
+                        fontSize: "0.625rem",
+                        fontWeight: 700,
+                        color: riskColor(approval.riskLevel),
+                        background: `${riskColor(approval.riskLevel)}1a`,
+                        padding: "0.1rem 0.4rem",
+                        borderRadius: "4px",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {t(`tokenApprovals.risk.${approval.riskLevel}`)}
+                    </span>
+                  )}
+                  {/* Unknown / EOA hint when not a known protocol */}
+                  {!approval.spenderName && approval.isEOA && (
+                    <span style={{ fontSize: "0.625rem", color: "#ef4444" }}>
+                      {t("tokenApprovals.eoaSpender")}
+                    </span>
+                  )}
                 </div>
+
+                {/* Malicious spender — strong warning */}
+                {approval.isMalicious && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      marginTop: "0.35rem",
+                      padding: "0.35rem 0.5rem",
+                      background: "rgba(239, 68, 68, 0.12)",
+                      border: "1px solid rgba(239, 68, 68, 0.4)",
+                      borderRadius: "6px",
+                      fontSize: "0.7rem",
+                      color: "#ef4444",
+                      fontWeight: 600,
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    <span>{t("tokenApprovals.maliciousWarning")}</span>
+                  </div>
+                )}
 
                 {/* Allowance */}
                 <div
