@@ -425,15 +425,19 @@ func GetTokenBalances(params *C.char) (result *C.char) {
 
 	// Step 4: Dispatch polymorphically — one call per provider bucket.
 	var allTokens []provider.SimplifiedTokenBalance
+	var unavailable []provider.ProviderUnavailable
 	for providerType, addrs := range buckets {
 		wdp, err := provider.GetWalletDataProvider(providerType, providerStore)
 		if err != nil || wdp == nil {
-			// nil = provider unavailable (e.g. Alchemy without key) — skip.
+			// nil = provider unavailable (almost always a missing API key) —
+			// record it so the UI can prompt the user instead of showing blank.
+			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "missing_key"})
 			continue
 		}
 		tokens, err := wdp.GetTokenBalances(addrs)
 		if err != nil {
 			fmt.Printf("%s GetTokenBalances error: %v\n", providerType, err)
+			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "query_failed"})
 		}
 		allTokens = append(allTokens, tokens...)
 	}
@@ -447,10 +451,11 @@ func GetTokenBalances(params *C.char) (result *C.char) {
 	}
 
 	output := provider.GetTokenBalancesOutput{
-		Tokens:       allTokens,
-		TotalUSD:     totalUSD,
-		AddressCount: totalAddressCount,
-		NetworkCount: len(networkSet),
+		Tokens:               allTokens,
+		TotalUSD:             totalUSD,
+		AddressCount:         totalAddressCount,
+		NetworkCount:         len(networkSet),
+		UnavailableProviders: unavailable,
 	}
 
 	response := NewSuccessResponse(output)

@@ -19,11 +19,19 @@ export interface TokenBalance {
   error?: string;
 }
 
+export interface ProviderUnavailable {
+  provider: string; // "alchemy" / "nodereal"
+  reason: string; // "missing_key" / "query_failed"
+}
+
 export interface TokenBalancesResponse {
   tokens: TokenBalance[];
   totalUsd: number;
   addressCount: number;
   networkCount: number;
+  /** Providers that could not be queried (missing key / failure), so the UI
+   *  can distinguish "no balance" from "not fetched". */
+  unavailableProviders?: ProviderUnavailable[];
 }
 
 export interface GetTokenBalancesParams {

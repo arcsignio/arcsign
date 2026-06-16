@@ -533,6 +533,56 @@ func (c *BSCTraceClient) GetTokenHoldingsBSC(address string) ([]SimplifiedTokenB
 	return allTokens, nil
 }
 
+// GetNativeBNB fetches the native BNB balance via a public BSC RPC endpoint
+// (eth_getBalance). This needs NO NodeReal key, so BNB stays visible even when
+// the NodeReal enhanced API (token holdings) is unavailable. Returns nil when
+// the balance is zero. rpcEndpoint is injected so it stays testable.
+func GetNativeBNB(rpcEndpoint, address string) (*SimplifiedTokenBalance, error) {
+	reqBody, _ := json.Marshal(jsonRPCRequest{
+		JSONRPC: "2.0",
+		Method:  "eth_getBalance",
+		Params:  []interface{}{address, "latest"},
+		ID:      1,
+	})
+	resp, err := (&http.Client{Timeout: 15 * time.Second}).Post(rpcEndpoint, "application/json", bytes.NewReader(reqBody))
+	if err != nil {
+		return nil, fmt.Errorf("BNB native: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var rpcResp jsonRPCResponse
+	if err := json.NewDecoder(resp.Body).Decode(&rpcResp); err != nil {
+		return nil, fmt.Errorf("BNB native decode: %w", err)
+	}
+	if rpcResp.Error != nil {
+		return nil, fmt.Errorf("BNB native rpc error: %s", rpcResp.Error.Message)
+	}
+
+	var hexBalance string
+	if err := json.Unmarshal(rpcResp.Result, &hexBalance); err != nil {
+		return nil, fmt.Errorf("BNB native result: %w", err)
+	}
+	raw := parseHexToInt(hexBalance)
+	if raw == 0 {
+		return nil, nil // no BNB — omit
+	}
+
+	hexStr := hexBalance // keep raw hex for RawBalance
+	return &SimplifiedTokenBalance{
+		Address:      address,
+		Network:      NetworkBnbMainnet,
+		NetworkLabel: NetworkLabels[NetworkBnbMainnet],
+		TokenAddress: "", // native
+		TokenSymbol:  "BNB",
+		TokenName:    "BNB",
+		Balance:      formatTokenBalance(hexStr, 18),
+		RawBalance:   hexStr,
+		Decimals:     18,
+		USDValue:     0, // no pricing source for BSC native (known gap)
+		PriceUSD:     0,
+	}, nil
+}
+
 // ================================================================================
 // nr_getNFTHoldings + nr_getNFTInventory — BSC NFT Query
 // Docs: https://docs.nodereal.io/reference/nr_getnftholdings

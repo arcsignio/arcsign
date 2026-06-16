@@ -63,11 +63,15 @@ func toAlchemyAddresses(addrs []AddressWithNetworks) []AlchemyAddressWithNetwork
 
 type nodeRealWDP struct {
 	client *BSCTraceClient
+	hasKey bool   // whether a NodeReal key is configured (token holdings need it)
+	bnbRPC string // public BSC RPC for native BNB (no key needed)
 }
 
-// NewNodeRealWDP wraps a BSCTraceClient as a WalletDataProvider.
-func NewNodeRealWDP(apiKey string) WalletDataProvider {
-	return &nodeRealWDP{client: NewBSCTraceClient(apiKey)}
+// NewNodeRealWDP wraps a BSCTraceClient as a WalletDataProvider. apiKey may be
+// empty: native BNB is still queried via a public RPC, only the NodeReal
+// enhanced token-holdings list requires the key.
+func NewNodeRealWDP(apiKey, bnbRPC string) WalletDataProvider {
+	return &nodeRealWDP{client: NewBSCTraceClient(apiKey), hasKey: apiKey != "", bnbRPC: bnbRPC}
 }
 
 func (w *nodeRealWDP) Name() string { return ProviderNodeReal }
@@ -75,11 +79,20 @@ func (w *nodeRealWDP) Name() string { return ProviderNodeReal }
 func (w *nodeRealWDP) GetTokenBalances(addrs []AddressWithNetworks) ([]SimplifiedTokenBalance, error) {
 	var all []SimplifiedTokenBalance
 	for _, a := range addrs {
-		tokens, err := w.client.GetTokenHoldingsBSC(a.Address)
-		if err != nil {
-			return all, err
+		// Native BNB via public RPC — works without a NodeReal key.
+		if w.bnbRPC != "" {
+			if native, err := GetNativeBNB(w.bnbRPC, a.Address); err == nil && native != nil {
+				all = append(all, *native)
+			}
 		}
-		all = append(all, tokens...)
+		// BEP-20 token holdings need the NodeReal enhanced API (key required).
+		if w.hasKey {
+			tokens, err := w.client.GetTokenHoldingsBSC(a.Address)
+			if err != nil {
+				return all, err
+			}
+			all = append(all, tokens...)
+		}
 	}
 	return all, nil
 }

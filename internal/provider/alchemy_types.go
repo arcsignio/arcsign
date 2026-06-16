@@ -205,8 +205,17 @@ type GetTokenBalancesInput struct {
 
 // GetTokenBalancesOutput represents the output
 type GetTokenBalancesOutput struct {
-	Tokens     []SimplifiedTokenBalance `json:"tokens"`
-	TotalUSD   float64                  `json:"totalUsd"`
-	AddressCount int                    `json:"addressCount"`
-	NetworkCount int                    `json:"networkCount"`
+	Tokens       []SimplifiedTokenBalance `json:"tokens"`
+	TotalUSD     float64                  `json:"totalUsd"`
+	AddressCount int                      `json:"addressCount"`
+	NetworkCount int                      `json:"networkCount"`
+	// Providers that could not be queried, so the UI can distinguish "no
+	// balance" from "not fetched" (e.g. missing API key, query failure).
+	UnavailableProviders []ProviderUnavailable `json:"unavailableProviders,omitempty"`
+}
+
+// ProviderUnavailable explains why a provider's chains have no data.
+type ProviderUnavailable struct {
+	Provider string `json:"provider"` // "alchemy" / "nodereal"
+	Reason   string `json:"reason"`   // "missing_key" / "query_failed"
 }

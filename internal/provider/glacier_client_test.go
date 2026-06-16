@@ -18,6 +18,7 @@ func newTestGlacier(t *testing.T, handler http.HandlerFunc) (*GlacierClient, fun
 
 func TestGlacierGetTokenHoldings(t *testing.T) {
 	const body = `{
+		"nativeTokenBalance": {"name":"Avalanche","symbol":"AVAX","decimals":18,"balance":"3000000000000000000","price":{"value":6.5,"currencyCode":"usd"},"balanceValue":{"value":19.5,"currencyCode":"usd"}},
 		"erc20TokenBalances": [
 			{"address":"0xAAA","name":"Token A","symbol":"TKA","decimals":18,"balance":"1000000000000000000","price":{"value":2.5,"currencyCode":"usd"},"balanceValue":{"value":2.5,"currencyCode":"usd"}},
 			{"address":"0xBBB","name":"Token B","symbol":"TKB","decimals":6,"balance":"5000000"}
@@ -36,30 +37,36 @@ func TestGlacierGetTokenHoldings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetTokenHoldingsAVAX: %v", err)
 	}
-	if len(tokens) != 2 {
-		t.Fatalf("expected 2 tokens, got %d", len(tokens))
+	// native AVAX (index 0) + 2 ERC-20.
+	if len(tokens) != 3 {
+		t.Fatalf("expected 3 tokens (native + 2 erc20), got %d", len(tokens))
 	}
-	if tokens[0].TokenSymbol != "TKA" || tokens[0].Balance != "1" {
-		t.Errorf("token 0 wrong: symbol=%q balance=%q", tokens[0].TokenSymbol, tokens[0].Balance)
+	// Native AVAX must be present with an empty contract address and its price.
+	native := tokens[0]
+	if native.TokenSymbol != "AVAX" || native.TokenAddress != "" {
+		t.Errorf("expected native AVAX at index 0, got symbol=%q addr=%q", native.TokenSymbol, native.TokenAddress)
+	}
+	if native.Balance != "3" || native.USDValue != 19.5 {
+		t.Errorf("native AVAX wrong: balance=%q usd=%v", native.Balance, native.USDValue)
+	}
+	tka := tokens[1]
+	if tka.TokenSymbol != "TKA" || tka.Balance != "1" {
+		t.Errorf("token TKA wrong: symbol=%q balance=%q", tka.TokenSymbol, tka.Balance)
 	}
 	// Critical: network must be tagged for the frontend to map it correctly.
-	if tokens[0].Network != NetworkAvalancheMainnet {
-		t.Errorf("expected network %q, got %q", NetworkAvalancheMainnet, tokens[0].Network)
+	if tka.Network != NetworkAvalancheMainnet || tka.NetworkLabel != "Avalanche" {
+		t.Errorf("network tag wrong: %q / %q", tka.Network, tka.NetworkLabel)
 	}
-	if tokens[0].NetworkLabel != "Avalanche" {
-		t.Errorf("expected label Avalanche, got %q", tokens[0].NetworkLabel)
+	if tokens[2].Decimals != 6 || tokens[2].Balance != "5" {
+		t.Errorf("token TKB wrong: decimals=%d balance=%q", tokens[2].Decimals, tokens[2].Balance)
 	}
-	if tokens[1].Decimals != 6 || tokens[1].Balance != "5" {
-		t.Errorf("token 1 wrong: decimals=%d balance=%q", tokens[1].Decimals, tokens[1].Balance)
-	}
-	// Glacier supplies pricing — it must flow into USDValue/PriceUSD so
-	// Avalanche tokens count toward the wallet's total USD value.
-	if tokens[0].PriceUSD != 2.5 || tokens[0].USDValue != 2.5 {
-		t.Errorf("token 0 pricing not surfaced: priceUSD=%v usdValue=%v", tokens[0].PriceUSD, tokens[0].USDValue)
+	// Glacier supplies pricing — it must flow into USDValue/PriceUSD.
+	if tka.PriceUSD != 2.5 || tka.USDValue != 2.5 {
+		t.Errorf("TKA pricing not surfaced: priceUSD=%v usdValue=%v", tka.PriceUSD, tka.USDValue)
 	}
 	// Token without price stays at 0 (no panic on nil price).
-	if tokens[1].PriceUSD != 0 || tokens[1].USDValue != 0 {
-		t.Errorf("token 1 should have zero pricing, got priceUSD=%v usdValue=%v", tokens[1].PriceUSD, tokens[1].USDValue)
+	if tokens[2].PriceUSD != 0 || tokens[2].USDValue != 0 {
+		t.Errorf("TKB should have zero pricing, got priceUSD=%v usdValue=%v", tokens[2].PriceUSD, tokens[2].USDValue)
 	}
 }
 

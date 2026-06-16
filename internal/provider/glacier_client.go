@@ -93,6 +93,9 @@ func (c *GlacierClient) get(path string, query url.Values, out interface{}) erro
 type glacierErc20Response struct {
 	NextPageToken      string              `json:"nextPageToken"`
 	Erc20TokenBalances []glacierErc20Token `json:"erc20TokenBalances"`
+	// The listErc20 response also carries the native AVAX balance, so we surface
+	// it as a native SimplifiedTokenBalance (otherwise native AVAX never appears).
+	NativeTokenBalance *glacierErc20Token `json:"nativeTokenBalance"`
 }
 
 type glacierErc20Token struct {
@@ -134,34 +137,17 @@ func (c *GlacierClient) GetTokenHoldingsAVAX(address string) ([]SimplifiedTokenB
 			return nil, err
 		}
 
+		// Native AVAX is only present on the first page; emit it once (TokenAddress
+		// stays empty so the frontend treats it as native).
+		if page == 0 && resp.NativeTokenBalance != nil && resp.NativeTokenBalance.Balance != "" && resp.NativeTokenBalance.Balance != "0" {
+			n := resp.NativeTokenBalance
+			n.Address = "" // native: no contract address
+			all = append(all, c.toSimplified(address, networkLabel, n))
+		}
+
 		for _, t := range resp.Erc20TokenBalances {
-			decimals := t.Decimals
-			if decimals == 0 {
-				decimals = 18
-			}
-			// Glacier supplies pricing directly (unlike NodeReal); use it so
-			// Avalanche tokens contribute to the wallet's total USD value.
-			var priceUSD, usdValue float64
-			if t.Price != nil {
-				priceUSD = t.Price.Value
-			}
-			if t.BalanceValue != nil {
-				usdValue = t.BalanceValue.Value
-			}
-			all = append(all, SimplifiedTokenBalance{
-				Address:      address,
-				Network:      NetworkAvalancheMainnet,
-				NetworkLabel: networkLabel,
-				TokenAddress: t.Address,
-				TokenSymbol:  t.Symbol,
-				TokenName:    t.Name,
-				TokenLogo:    t.LogoURI,
-				Balance:      formatTokenBalance(t.Balance, decimals),
-				RawBalance:   t.Balance,
-				Decimals:     decimals,
-				USDValue:     usdValue,
-				PriceUSD:     priceUSD,
-			})
+			tok := t
+			all = append(all, c.toSimplified(address, networkLabel, &tok))
 		}
 
 		if resp.NextPageToken == "" {
@@ -171,6 +157,36 @@ func (c *GlacierClient) GetTokenHoldingsAVAX(address string) ([]SimplifiedTokenB
 	}
 
 	return all, nil
+}
+
+// toSimplified converts a Glacier token (native or ERC-20) to the shared format.
+// Glacier supplies pricing directly (unlike NodeReal), so USD value flows through.
+func (c *GlacierClient) toSimplified(address, networkLabel string, t *glacierErc20Token) SimplifiedTokenBalance {
+	decimals := t.Decimals
+	if decimals == 0 {
+		decimals = 18
+	}
+	var priceUSD, usdValue float64
+	if t.Price != nil {
+		priceUSD = t.Price.Value
+	}
+	if t.BalanceValue != nil {
+		usdValue = t.BalanceValue.Value
+	}
+	return SimplifiedTokenBalance{
+		Address:      address,
+		Network:      NetworkAvalancheMainnet,
+		NetworkLabel: networkLabel,
+		TokenAddress: t.Address,
+		TokenSymbol:  t.Symbol,
+		TokenName:    t.Name,
+		TokenLogo:    t.LogoURI,
+		Balance:      formatTokenBalance(t.Balance, decimals),
+		RawBalance:   t.Balance,
+		Decimals:     decimals,
+		USDValue:     usdValue,
+		PriceUSD:     priceUSD,
+	}
 }
 
 // ================================================================================

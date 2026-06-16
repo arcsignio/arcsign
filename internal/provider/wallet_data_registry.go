@@ -1,5 +1,17 @@
 package provider
 
+import "github.com/arcsignio/arcsign/internal/rpc"
+
+// bscPublicRPC returns a public BSC RPC endpoint (no key) for native BNB
+// queries, or "" if unavailable.
+func bscPublicRPC() string {
+	endpoint, err := rpc.DefaultRegistry.GetRPCEndpoint("bsc")
+	if err != nil {
+		return ""
+	}
+	return endpoint
+}
+
 // Registry mapping a provider key to a WalletDataProvider factory. The factory
 // receives the config store so each provider resolves its own API key (Alchemy
 // requires one, NodeReal requires one, Glacier's is optional). This is the
@@ -21,11 +33,10 @@ var walletDataFactories = map[string]wdpFactory{
 		return NewAlchemyWDP(key), nil
 	},
 	ProviderNodeReal: func(store *ProviderConfigStore) (WalletDataProvider, error) {
+		// Always available: even without a key we can return native BNB via a
+		// public RPC. The key only unlocks the BEP-20 token-holdings list.
 		key := LoadProviderAPIKey(store, ProviderNodeReal)
-		if key == "" {
-			return nil, nil
-		}
-		return NewNodeRealWDP(key), nil
+		return NewNodeRealWDP(key, bscPublicRPC()), nil
 	},
 	ProviderGlacier: func(store *ProviderConfigStore) (WalletDataProvider, error) {
 		// Glacier has an anonymous tier — an empty key is fine.

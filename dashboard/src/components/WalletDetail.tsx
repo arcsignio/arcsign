@@ -9,7 +9,7 @@ import { useAppPassword } from "@/contexts/AppPasswordContext";
 import { useWalletSessionStore } from "@/stores/walletSessionStore";
 import { useWalletConnect } from "@/contexts/WalletConnectContext";
 import tauriApi, { type AppError } from "@/services/tauri-api";
-import type { TokenBalance, TokenBalancesResponse } from "@/types/tokens";
+import type { TokenBalance, TokenBalancesResponse, ProviderUnavailable } from "@/types/tokens";
 import type { Wallet } from "@/types/wallet";
 import type { Address } from "@/types/address";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -72,6 +72,8 @@ export function WalletDetail({
   const walletConnect = useWalletConnect();
   const [tokens, setTokens] = useState<TokenBalance[]>([]);
   const [totalUsd, setTotalUsd] = useState<number>(0);
+  // Providers (chains) that couldn't be fetched — e.g. no Alchemy/NodeReal key.
+  const [unavailableProviders, setUnavailableProviders] = useState<ProviderUnavailable[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -268,6 +270,7 @@ export function WalletDetail({
 
       setTokens(response.tokens);
       setTotalUsd(response.totalUsd);
+      setUnavailableProviders(response.unavailableProviders || []);
       setShowPasswordPrompt(false);
 
       // Set wallet context for WalletConnect signing operations
@@ -1964,6 +1967,32 @@ export function WalletDetail({
       {/* Token List */}
       {activeTab === "crypto" && (
         <div style={{ padding: "0 1.5rem 1.5rem" }}>
+          {/* Some chains couldn't be fetched (missing API key) — tell the user
+              instead of silently showing nothing for those chains. */}
+          {unavailableProviders.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.75rem 1rem",
+                marginBottom: "1rem",
+                background: "#fffbeb",
+                border: "1px solid #fde68a",
+                borderRadius: "10px",
+                fontSize: "0.8125rem",
+                color: "#92400e",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span>
+                {unavailableProviders.some((p) => p.provider === "alchemy") &&
+                  t('walletDetail.alchemyKeyNeeded', 'Some chains (Ethereum, Polygon, Arbitrum, Optimism, Base) need an Alchemy API key. Add one in provider settings to see their tokens.')}
+                {unavailableProviders.some((p) => p.provider === "nodereal") &&
+                  ' ' + t('walletDetail.noderealKeyNeeded', 'BSC token list needs a NodeReal API key (native BNB still shows).')}
+              </span>
+            </div>
+          )}
           {isLoading ? (
             <div style={{ textAlign: "center", padding: "3rem" }}>
               <LoadingSpinner />
