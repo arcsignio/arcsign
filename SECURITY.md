@@ -145,3 +145,25 @@ official ArcSign binary — the bug may not exist in the official source.
 
 If either check fails, you may be running a malicious fork —
 **that itself is worth reporting** (separately from any other bug).
+
+## Dependency vulnerability scanning
+
+This project continuously scans its dependencies for known
+vulnerabilities:
+
+- **Go code** is scanned in CI with
+  [`govulncheck`](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck).
+  The CI check runs in **report-only** mode (it surfaces findings but does
+  not block the build), so maintainers triage results without breaking
+  unrelated work.
+- **npm dependencies** are monitored by **GitHub Dependabot**, which opens
+  alerts and pull requests for vulnerable packages.
+
+To reproduce the scans locally:
+
+```bash
+go install golang.org/x/vuln/cmd/govulncheck@latest
+govulncheck ./...
+(cd src/chainadapter && govulncheck ./...)
+cd dashboard && npm audit --omit=dev
+```
