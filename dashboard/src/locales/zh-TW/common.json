@@ -1212,7 +1212,9 @@
     "days": "天",
     "walletQuota": "錢包配額",
     "viewOnExplorer": "在區塊鏈瀏覽器查看",
-    "unlimited": "無限制"
+    "unlimited": "無限制",
+    "needAlchemyKey": "以太坊、Polygon、Arbitrum、Optimism、Base 的 NFT 需要免費的 Alchemy API key。",
+    "needNodeRealKey": "BNB Chain 的 NFT 需要 NodeReal API key。"
   },
   "transactionHistory": {
     "emptyTitle": "沒有交易紀錄",

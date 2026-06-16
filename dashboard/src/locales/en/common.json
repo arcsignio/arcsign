@@ -1212,7 +1212,9 @@
     "days": "days",
     "walletQuota": "Wallet Quota",
     "viewOnExplorer": "View on Explorer",
-    "unlimited": "Unlimited"
+    "unlimited": "Unlimited",
+    "needAlchemyKey": "Ethereum, Polygon, Arbitrum, Optimism and Base NFTs need a free Alchemy API key.",
+    "needNodeRealKey": "BNB Chain NFTs need a NodeReal API key."
   },
   "transactionHistory": {
     "emptyTitle": "No Transactions Found",
