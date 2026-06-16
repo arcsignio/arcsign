@@ -158,6 +158,50 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
 
   return (
     <div className="provider-settings">
+      {/* Capabilities comparison: free vs key-gated */}
+      <div
+        style={{
+          marginBottom: "1.5rem",
+          padding: "1rem",
+          background: "#f0fdfa",
+          border: "1px solid #99f6e4",
+          borderRadius: "10px",
+        }}
+      >
+        <div style={{ fontWeight: 700, color: "#0f766e", marginBottom: "0.25rem" }}>
+          {t("provider.capabilities.title")}
+        </div>
+        <div style={{ fontSize: "0.8125rem", color: "#0d9488", marginBottom: "0.75rem" }}>
+          {t("provider.capabilities.subtitle")}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          <div>
+            <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#15803d" }}>
+              ✅ {t("provider.capabilities.freeHeading")}
+            </div>
+            <div style={{ fontSize: "0.8125rem", color: "#334155" }}>
+              {t("provider.capabilities.free")}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#0369a1" }}>
+              🔑 {t("provider.capabilities.alchemyHeading")}
+            </div>
+            <div style={{ fontSize: "0.8125rem", color: "#334155" }}>
+              {t("provider.capabilities.alchemy")}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#0369a1" }}>
+              🔑 {t("provider.capabilities.noderealHeading")}
+            </div>
+            <div style={{ fontSize: "0.8125rem", color: "#334155" }}>
+              {t("provider.capabilities.nodereal")}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="header">
         <h2>{t('provider.title')}</h2>
         <button
