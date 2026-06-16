@@ -166,7 +166,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
           return { chain: chain.name, transfers: transfersWithNetwork, error: null };
         } catch (err: unknown) {
-          const errorMessage = err instanceof Error ? err.message : "Unknown error";
+          const errorMessage = (err as { message?: string })?.message || "Unknown error";
           console.warn(`⚠️ [TransactionHistory] ${chain.name} failed:`, errorMessage);
           errorCount++;
           stats[chain.name] = -1; // -1 indicates error
@@ -197,7 +197,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
       // Only show error if ALL chains failed
       if (errorCount === EVM_CHAINS.length) {
-        setError("Failed to load transaction history from all chains. Please check your network connection.");
+        const firstBackendError = results.find(r => r.error)?.error;
+        setError(firstBackendError || "Failed to load transaction history from all chains. Please check your network connection.");
       }
 
       setIsLoading(false);

@@ -142,6 +142,20 @@ describe('TransactionHistory', () => {
       expect(screen.getByText(/1.5000/)).toBeInTheDocument();
     });
   });
+
+  it('surfaces the backend actionable error message (plain object, not Error instance)', async () => {
+    // Simulate all chains rejecting with a plain object (not Error instance)
+    // This is what tauri-api parseError throws
+    (tauriApi.getAssetTransfers as any).mockRejectedValue({
+      code: 'INVALID_INPUT',
+      message: 'Alchemy API key not configured',
+    });
+
+    render(<TransactionHistory {...defaultProps} />);
+    expect(
+      await screen.findByText(/Alchemy API key not configured/)
+    ).toBeInTheDocument();
+  });
 });
 
 describe('TransactionHistory empty state', () => {
