@@ -439,6 +439,12 @@ func GetTokenBalances(params *C.char) (result *C.char) {
 			fmt.Printf("%s GetTokenBalances error: %v\n", providerType, err)
 			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "query_failed"})
 		}
+		// A provider running without its key still returns basic balances; report
+		// a soft "degraded" hint so the UI can offer to unlock full data, rather
+		// than implying the chain is broken.
+		if d, ok := wdp.(provider.DegradedProvider); ok && d.IsDegraded() {
+			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "degraded"})
+		}
 		allTokens = append(allTokens, tokens...)
 	}
 

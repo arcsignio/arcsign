@@ -21,7 +21,7 @@ export interface TokenBalance {
 
 export interface ProviderUnavailable {
   provider: string; // "alchemy" / "nodereal"
-  reason: string; // "missing_key" / "query_failed"
+  reason: string; // "missing_key" / "query_failed" / "degraded"
 }
 
 export interface TokenBalancesResponse {

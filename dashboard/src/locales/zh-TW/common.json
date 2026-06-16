@@ -468,6 +468,9 @@
     "oneinchChains": "支援鏈：Ethereum、Polygon、Arbitrum、Optimism、Base、BSC"
   },
   "walletDetail": {
+    "degradedNotice": "已顯示基礎資產（原生幣 + 常見代幣）。在 Provider 設定填入 Alchemy API key，即可解鎖完整代幣探索、NFT 與交易紀錄。",
+    "alchemyKeyNeeded": "部分鏈（以太坊、Polygon、Arbitrum、Optimism、Base）需要 Alchemy API key。請在 Provider 設定中新增以查看其代幣。",
+    "noderealKeyNeeded": "BSC 代幣清單需要 NodeReal API key（原生 BNB 仍會顯示）。",
     "backToWallets": "返回錢包",
     "unlockWallet": "解鎖您的錢包",
     "unlockDescription": "輸入您的密碼以查看代幣餘額和管理資產",

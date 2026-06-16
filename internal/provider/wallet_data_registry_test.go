@@ -27,15 +27,19 @@ func TestGetWalletDataProvider_GlacierAvailableWithoutKey(t *testing.T) {
 	}
 }
 
-func TestGetWalletDataProvider_AlchemyNilWithoutKey(t *testing.T) {
-	// Alchemy requires a user key; with no store/key it must return nil (skip),
-	// NOT error — this preserves the "no key => skip Alchemy chains" semantics.
+func TestGetWalletDataProvider_AlchemyDegradedWithoutKey(t *testing.T) {
+	// Progressive-key: without a key Alchemy is STILL available, serving a
+	// degraded path (native + common-token balances via public RPCs). It must
+	// not be nil, and must report IsDegraded() so the UI can prompt for a key.
 	wdp, err := GetWalletDataProvider(ProviderAlchemy, nil)
 	if err != nil {
 		t.Fatalf("alchemy factory should not error without key, got %v", err)
 	}
-	if wdp != nil {
-		t.Error("Alchemy without a key should return nil (skip), not a usable provider")
+	if wdp == nil {
+		t.Fatal("Alchemy without a key should be available (degraded), not nil")
+	}
+	if d, ok := wdp.(DegradedProvider); !ok || !d.IsDegraded() {
+		t.Error("no-key Alchemy should report IsDegraded() == true")
 	}
 }
 

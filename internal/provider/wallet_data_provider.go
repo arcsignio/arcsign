@@ -32,6 +32,16 @@ type WalletDataProvider interface {
 	GetAssetTransfers(address, network string, maxCount int, pageKey string) ([]AssetTransfer, string, error)
 }
 
+// DegradedProvider is an optional capability a WalletDataProvider may implement
+// to report that it is running without its API key — it still returns basic
+// data (native + common-token balances) but full token discovery / NFTs /
+// history are unavailable until the user adds a key. The FFI layer uses this to
+// surface a soft "degraded" hint (not a hard "missing_key" error) to the UI.
+type DegradedProvider interface {
+	// IsDegraded reports whether the provider is in the no-key degraded mode.
+	IsDegraded() bool
+}
+
 // AddressWithNetworks is the provider-neutral batch input: one wallet address
 // and the networks to query it on. (Mirrors AlchemyAddressWithNetworks but
 // without leaking the Alchemy-specific type into the interface.)

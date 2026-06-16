@@ -25,12 +25,10 @@ type wdpFactory func(store *ProviderConfigStore) (WalletDataProvider, error)
 
 var walletDataFactories = map[string]wdpFactory{
 	ProviderAlchemy: func(store *ProviderConfigStore) (WalletDataProvider, error) {
-		key := LoadProviderAPIKey(store, ProviderAlchemy)
-		if key == "" {
-			// Alchemy needs a user key; without one its chains return nothing.
-			return nil, nil
-		}
-		return NewAlchemyWDP(key), nil
+		// Always available: without a key we serve a degraded path (native +
+		// common-token balances via public RPCs). The key unlocks full token
+		// discovery, NFTs and transaction history.
+		return NewAlchemyWDP(LoadProviderAPIKey(store, ProviderAlchemy)), nil
 	},
 	ProviderNodeReal: func(store *ProviderConfigStore) (WalletDataProvider, error) {
 		// Always available: even without a key we can return native BNB via a

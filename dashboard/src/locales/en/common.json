@@ -468,6 +468,9 @@
     "oneinchChains": "Supported chains: Ethereum, Polygon, Arbitrum, Optimism, Base, BSC"
   },
   "walletDetail": {
+    "degradedNotice": "Showing basic assets (native coins + common tokens). Add an Alchemy API key in provider settings to unlock full token discovery, NFTs and transaction history.",
+    "alchemyKeyNeeded": "Some chains (Ethereum, Polygon, Arbitrum, Optimism, Base) need an Alchemy API key. Add one in provider settings to see their tokens.",
+    "noderealKeyNeeded": "BSC token list needs a NodeReal API key (native BNB still shows).",
     "backToWallets": "Back to Wallets",
     "unlockWallet": "Unlock Your Wallet",
     "unlockDescription": "Enter your password to view token balances and manage assets",

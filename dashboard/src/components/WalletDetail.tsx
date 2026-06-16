@@ -1991,32 +1991,49 @@ export function WalletDetail({
       {/* Token List */}
       {activeTab === "crypto" && (
         <div style={{ padding: "0 1.5rem 1.5rem" }}>
-          {/* Some chains couldn't be fetched (missing API key) — tell the user
-              instead of silently showing nothing for those chains. */}
-          {unavailableProviders.length > 0 && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                padding: "0.75rem 1rem",
-                marginBottom: "1rem",
-                background: "#fffbeb",
-                border: "1px solid #fde68a",
-                borderRadius: "10px",
-                fontSize: "0.8125rem",
-                color: "#92400e",
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <span>
-                {unavailableProviders.some((p) => p.provider === "alchemy") &&
-                  t('walletDetail.alchemyKeyNeeded', 'Some chains (Ethereum, Polygon, Arbitrum, Optimism, Base) need an Alchemy API key. Add one in provider settings to see their tokens.')}
-                {unavailableProviders.some((p) => p.provider === "nodereal") &&
-                  ' ' + t('walletDetail.noderealKeyNeeded', 'BSC token list needs a NodeReal API key (native BNB still shows).')}
-              </span>
-            </div>
-          )}
+          {/* Provider status banner. With progressive-key support, a chain
+              without an API key still shows BASIC assets (native + common
+              tokens), reported as "degraded" — so we offer to unlock the full
+              data rather than implying the chain is broken. A hard "missing_key"
+              / "query_failed" stays an error. */}
+          {unavailableProviders.length > 0 && (() => {
+            const hasHardError = unavailableProviders.some(
+              (p) => p.reason === "missing_key" || p.reason === "query_failed"
+            );
+            const isDegradedOnly = !hasHardError;
+            return (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  padding: "0.75rem 1rem",
+                  marginBottom: "1rem",
+                  background: isDegradedOnly ? "#eff6ff" : "#fffbeb",
+                  border: `1px solid ${isDegradedOnly ? "#bfdbfe" : "#fde68a"}`,
+                  borderRadius: "10px",
+                  fontSize: "0.8125rem",
+                  color: isDegradedOnly ? "#1e40af" : "#92400e",
+                }}
+              >
+                {isDegradedOnly ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                )}
+                <span>
+                  {isDegradedOnly
+                    ? t('walletDetail.degradedNotice', 'Showing basic assets (native coins + common tokens). Add an Alchemy API key in provider settings to unlock full token discovery, NFTs and transaction history.')
+                    : (<>
+                        {unavailableProviders.some((p) => p.provider === "alchemy") &&
+                          t('walletDetail.alchemyKeyNeeded', 'Some chains (Ethereum, Polygon, Arbitrum, Optimism, Base) need an Alchemy API key. Add one in provider settings to see their tokens.')}
+                        {unavailableProviders.some((p) => p.provider === "nodereal") &&
+                          ' ' + t('walletDetail.noderealKeyNeeded', 'BSC token list needs a NodeReal API key (native BNB still shows).')}
+                      </>)}
+                </span>
+              </div>
+            );
+          })()}
           {isLoading ? (
             <div style={{ textAlign: "center", padding: "3rem" }}>
               <LoadingSpinner />

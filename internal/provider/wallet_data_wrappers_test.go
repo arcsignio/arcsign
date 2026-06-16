@@ -23,7 +23,7 @@ func TestAlchemyWDP_TokenBalances_SingleRequestForManyAddresses(t *testing.T) {
 
 	c := NewAlchemyClient("testkey")
 	c.baseURL = srv.URL
-	wdp := &alchemyWDP{client: c}
+	wdp := &alchemyWDP{client: c, hasKey: true}
 
 	addrs := []AddressWithNetworks{
 		{Address: "0xA", Networks: []string{"eth-mainnet"}},
@@ -50,7 +50,7 @@ func TestAlchemyWDP_EmptyAddrsNoRequest(t *testing.T) {
 
 	c := NewAlchemyClient("testkey")
 	c.baseURL = srv.URL
-	wdp := &alchemyWDP{client: c}
+	wdp := &alchemyWDP{client: c, hasKey: true}
 
 	if _, err := wdp.GetTokenBalances(nil); err != nil {
 		t.Fatalf("GetTokenBalances(nil): %v", err)

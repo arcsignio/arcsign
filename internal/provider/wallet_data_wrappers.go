@@ -11,20 +11,38 @@ package provider
 
 type alchemyWDP struct {
 	client *AlchemyClient
+	hasKey bool // whether an Alchemy key is configured (token discovery/NFT/history need it)
 }
 
-// NewAlchemyWDP wraps an AlchemyClient as a WalletDataProvider.
+// NewAlchemyWDP wraps an AlchemyClient as a WalletDataProvider. apiKey may be
+// empty: without a key we serve a degraded path (native + common-token balances
+// via public RPCs). Full token discovery, NFTs and transaction history still
+// require the key.
 func NewAlchemyWDP(apiKey string) WalletDataProvider {
-	return &alchemyWDP{client: NewAlchemyClient(apiKey)}
+	return &alchemyWDP{client: NewAlchemyClient(apiKey), hasKey: apiKey != ""}
 }
 
 func (w *alchemyWDP) Name() string { return ProviderAlchemy }
+
+// IsDegraded reports the no-key mode (basic balances only, no full discovery/NFT/history).
+func (w *alchemyWDP) IsDegraded() bool { return !w.hasKey }
 
 func (w *alchemyWDP) GetTokenBalances(addrs []AddressWithNetworks) ([]SimplifiedTokenBalance, error) {
 	if len(addrs) == 0 {
 		return nil, nil
 	}
-	// Alchemy queries ALL addresses in one request — do not loop.
+	// No key → degraded path: query native + curated common tokens per address ×
+	// network over public RPCs. USD values are filled later by DefiLlama.
+	if !w.hasKey {
+		var all []SimplifiedTokenBalance
+		for _, a := range addrs {
+			for _, net := range a.Networks {
+				all = append(all, degradedBalancesForNetwork(a.Address, net)...)
+			}
+		}
+		return all, nil
+	}
+	// With key: Alchemy queries ALL addresses in one request — do not loop.
 	resp, err := w.client.GetTokenBalancesByAddress(toAlchemyAddresses(addrs))
 	if err != nil {
 		return nil, err
@@ -36,6 +54,10 @@ func (w *alchemyWDP) GetNFTs(addrs []AddressWithNetworks) ([]SimplifiedNFT, erro
 	if len(addrs) == 0 {
 		return nil, nil
 	}
+	// NFT discovery needs the Alchemy key (no free indexer for these chains).
+	if !w.hasKey {
+		return nil, nil
+	}
 	resp, err := w.client.GetNFTsByAddress(toAlchemyAddresses(addrs))
 	if err != nil {
 		return nil, err
@@ -44,6 +66,10 @@ func (w *alchemyWDP) GetNFTs(addrs []AddressWithNetworks) ([]SimplifiedNFT, erro
 }
 
 func (w *alchemyWDP) GetAssetTransfers(address, network string, maxCount int, pageKey string) ([]AssetTransfer, string, error) {
+	// Transaction history needs the Alchemy key.
+	if !w.hasKey {
+		return nil, "", nil
+	}
 	return w.client.GetAssetTransfers(address, network, maxCount, pageKey)
 }
 
@@ -75,6 +101,9 @@ func NewNodeRealWDP(apiKey, bnbRPC string) WalletDataProvider {
 }
 
 func (w *nodeRealWDP) Name() string { return ProviderNodeReal }
+
+// IsDegraded reports the no-key mode (native BNB only, no BEP-20 holdings list).
+func (w *nodeRealWDP) IsDegraded() bool { return !w.hasKey }
 
 func (w *nodeRealWDP) GetTokenBalances(addrs []AddressWithNetworks) ([]SimplifiedTokenBalance, error) {
 	var all []SimplifiedTokenBalance

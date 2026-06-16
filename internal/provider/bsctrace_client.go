@@ -538,6 +538,15 @@ func (c *BSCTraceClient) GetTokenHoldingsBSC(address string) ([]SimplifiedTokenB
 // the NodeReal enhanced API (token holdings) is unavailable. Returns nil when
 // the balance is zero. rpcEndpoint is injected so it stays testable.
 func GetNativeBNB(rpcEndpoint, address string) (*SimplifiedTokenBalance, error) {
+	return GetNativeBalance(rpcEndpoint, address, NetworkBnbMainnet, "BNB")
+}
+
+// GetNativeBalance fetches a chain's native coin balance via a public RPC
+// endpoint (eth_getBalance) — no API key needed. Chain-agnostic: network/symbol
+// are parameterized so it works for ETH/BNB/MATIC/AVAX/... Returns nil when the
+// balance is zero (so empty chains don't add noise). USD value is left 0 and
+// filled later by DefiLlama.
+func GetNativeBalance(rpcEndpoint, address, network, symbol string) (*SimplifiedTokenBalance, error) {
 	reqBody, _ := json.Marshal(jsonRPCRequest{
 		JSONRPC: "2.0",
 		Method:  "eth_getBalance",
@@ -546,39 +555,37 @@ func GetNativeBNB(rpcEndpoint, address string) (*SimplifiedTokenBalance, error) 
 	})
 	resp, err := (&http.Client{Timeout: 15 * time.Second}).Post(rpcEndpoint, "application/json", bytes.NewReader(reqBody))
 	if err != nil {
-		return nil, fmt.Errorf("BNB native: %w", err)
+		return nil, fmt.Errorf("%s native: %w", symbol, err)
 	}
 	defer resp.Body.Close()
 
 	var rpcResp jsonRPCResponse
 	if err := json.NewDecoder(resp.Body).Decode(&rpcResp); err != nil {
-		return nil, fmt.Errorf("BNB native decode: %w", err)
+		return nil, fmt.Errorf("%s native decode: %w", symbol, err)
 	}
 	if rpcResp.Error != nil {
-		return nil, fmt.Errorf("BNB native rpc error: %s", rpcResp.Error.Message)
+		return nil, fmt.Errorf("%s native rpc error: %s", symbol, rpcResp.Error.Message)
 	}
 
 	var hexBalance string
 	if err := json.Unmarshal(rpcResp.Result, &hexBalance); err != nil {
-		return nil, fmt.Errorf("BNB native result: %w", err)
+		return nil, fmt.Errorf("%s native result: %w", symbol, err)
 	}
-	raw := parseHexToInt(hexBalance)
-	if raw == 0 {
-		return nil, nil // no BNB — omit
+	if parseHexToInt(hexBalance) == 0 {
+		return nil, nil // no balance — omit
 	}
 
-	hexStr := hexBalance // keep raw hex for RawBalance
 	return &SimplifiedTokenBalance{
 		Address:      address,
-		Network:      NetworkBnbMainnet,
-		NetworkLabel: NetworkLabels[NetworkBnbMainnet],
+		Network:      network,
+		NetworkLabel: NetworkLabels[network],
 		TokenAddress: "", // native
-		TokenSymbol:  "BNB",
-		TokenName:    "BNB",
-		Balance:      formatTokenBalance(hexStr, 18),
-		RawBalance:   hexStr,
+		TokenSymbol:  symbol,
+		TokenName:    symbol,
+		Balance:      formatTokenBalance(hexBalance, 18),
+		RawBalance:   hexBalance,
 		Decimals:     18,
-		USDValue:     0, // no pricing source for BSC native (known gap)
+		USDValue:     0, // filled by DefiLlama enrichment
 		PriceUSD:     0,
 	}, nil
 }
