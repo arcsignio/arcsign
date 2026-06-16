@@ -594,14 +594,24 @@ func GetNFTs(params *C.char) (result *C.char) {
 
 	// Dispatch polymorphically — one call per provider bucket.
 	var allNFTs []provider.SimplifiedNFT
+	var unavailable []provider.ProviderUnavailable
 	for providerType, addrs := range buckets {
 		wdp, err := provider.GetWalletDataProvider(providerType, providerStore)
 		if err != nil || wdp == nil {
+			// nil = provider unavailable (almost always a missing API key) —
+			// record it so the UI can prompt the user instead of showing blank.
+			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "missing_key"})
 			continue
 		}
 		nfts, err := wdp.GetNFTs(addrs)
 		if err != nil {
 			fmt.Printf("%s GetNFTs error: %v\n", providerType, err)
+			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "query_failed"})
+		}
+		// A keyless provider that still returns basic data reports "degraded";
+		// for NFTs there is no degraded path, but keep the shape consistent.
+		if d, ok := wdp.(provider.DegradedProvider); ok && d.IsDegraded() {
+			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "degraded"})
 		}
 		allNFTs = append(allNFTs, nfts...)
 	}
@@ -613,10 +623,11 @@ func GetNFTs(params *C.char) (result *C.char) {
 	}
 
 	output := provider.GetNFTsOutput{
-		NFTs:         allNFTs,
-		TotalCount:   len(allNFTs),
-		AddressCount: totalAddressCount,
-		NetworkCount: len(networkSet),
+		NFTs:                 allNFTs,
+		TotalCount:           len(allNFTs),
+		AddressCount:         totalAddressCount,
+		NetworkCount:         len(networkSet),
+		UnavailableProviders: unavailable,
 	}
 
 	nftResponse := NewSuccessResponse(output)
