@@ -13,6 +13,7 @@ import type { NFT } from "@/types/nft";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { getChainIconUrl, getChainFallbackIcon } from "@/utils/chainIcons";
 import { useMembership, type MembershipStatus } from "@/hooks/useMembership";
+import { useHasProviderKey } from "@/hooks/useHasProviderKey";
 import { ACTIVE_NETWORK } from "@/constants/contracts";
 
 // Sentinel slug for identifying membership NFTs
@@ -72,6 +73,9 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
 
   // Membership NFT via BSC direct query
   const { status: membershipStatus } = useMembership(bscAddress || null);
+
+  // Detect provider key presence to show actionable empty state
+  const { hasAlchemyKey } = useHasProviderKey(usbPath, sessionToken, password);
 
   const loadNFTs = useCallback(async () => {
     setIsLoading(true);
@@ -156,12 +160,25 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
             <polyline points="21 15 16 10 5 21"/>
           </svg>
         </div>
-        <p style={{ fontWeight: "600", color: "#1e293b", marginBottom: "0.5rem" }}>
-          {t("nftGallery.empty")}
-        </p>
-        <p style={{ fontSize: "0.875rem" }}>
-          {t("nftGallery.emptyDescription")}
-        </p>
+        {!hasAlchemyKey ? (
+          <>
+            <p style={{ fontWeight: "600", color: "#1e293b", marginBottom: "0.5rem" }}>
+              {t("nftGallery.needKeyTitle")}
+            </p>
+            <p style={{ fontSize: "0.875rem", maxWidth: "32rem", margin: "0 auto" }}>
+              {t("nftGallery.needKeyDescription")}
+            </p>
+          </>
+        ) : (
+          <>
+            <p style={{ fontWeight: "600", color: "#1e293b", marginBottom: "0.5rem" }}>
+              {t("nftGallery.empty")}
+            </p>
+            <p style={{ fontSize: "0.875rem" }}>
+              {t("nftGallery.emptyDescription")}
+            </p>
+          </>
+        )}
       </div>
     );
   }

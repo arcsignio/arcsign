@@ -31,8 +31,14 @@ vi.mock('@/constants/contracts', () => ({
   APPROVE_SELECTOR: '0x095ea7b3',
 }));
 
+// Mock useHasProviderKey hook
+vi.mock('@/hooks/useHasProviderKey', () => ({
+  useHasProviderKey: vi.fn(),
+}));
+
 import tauriApi from '@/services/tauri-api';
 import { useMembership } from '@/hooks/useMembership';
+import { useHasProviderKey } from '@/hooks/useHasProviderKey';
 
 import { NFTGallery } from '@/components/NFTGallery';
 
@@ -88,6 +94,11 @@ function setupDefaultMocks() {
     isPro: false,
     walletLimit: 1,
     refresh: vi.fn(),
+  });
+  (useHasProviderKey as any).mockReturnValue({
+    hasAlchemyKey: true,
+    hasNodeRealKey: true,
+    isLoading: false,
   });
 }
 
@@ -535,6 +546,28 @@ describe('NFTGallery', () => {
       // Should show #tokenId instead of name
       expect(screen.getAllByText('#1').length).toBeGreaterThanOrEqual(1);
     });
+    unmount();
+  });
+
+  // --- Need-key empty state ---
+
+  it('shows the need-key prompt when no Alchemy key and empty', async () => {
+    (useHasProviderKey as any).mockReturnValue({ hasAlchemyKey: false, hasNodeRealKey: false, isLoading: false });
+    const { unmount } = render(<NFTGallery {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText('nftGallery.needKeyTitle')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('nftGallery.empty')).not.toBeInTheDocument();
+    unmount();
+  });
+
+  it('shows the normal empty state when a key is present and empty', async () => {
+    (useHasProviderKey as any).mockReturnValue({ hasAlchemyKey: true, hasNodeRealKey: true, isLoading: false });
+    const { unmount } = render(<NFTGallery {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText('nftGallery.empty')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('nftGallery.needKeyTitle')).not.toBeInTheDocument();
     unmount();
   });
 });
