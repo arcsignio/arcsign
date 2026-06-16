@@ -465,7 +465,17 @@
     "noderealInfo": "Query token balances, estimate gas fees, broadcast transactions",
     "noderealChains": "Supported chains: BNB Smart Chain (BSC)",
     "oneinchInfo": "Token swap functionality, finds best exchange routes",
-    "oneinchChains": "Supported chains: Ethereum, Polygon, Arbitrum, Optimism, Base, BSC"
+    "oneinchChains": "Supported chains: Ethereum, Polygon, Arbitrum, Optimism, Base, BSC",
+    "capabilities": {
+      "title": "What works without a key",
+      "subtitle": "Core features work offline — a free API key just unlocks more discovery.",
+      "freeHeading": "Included without any key",
+      "free": "Signing & sending transactions, WalletConnect, Swap (KyberSwap / OpenOcean), USD prices, DeFi staking positions, cross-chain aggregation, approval risk scoring, basic assets (native coins + common tokens), and all Avalanche data (tokens, NFTs, history).",
+      "alchemyHeading": "Add a free Alchemy key to unlock",
+      "alchemy": "Full token discovery, NFT gallery and transaction history on Ethereum, Polygon, Arbitrum, Optimism and Base, plus Token Approvals scanning.",
+      "noderealHeading": "BSC needs a NodeReal key",
+      "nodereal": "Full BEP-20 token list on BNB Chain (native BNB shows without a key)."
+    }
   },
   "walletDetail": {
     "degradedNotice": "Showing basic assets (native coins + common tokens). Add an Alchemy API key in provider settings to unlock full token discovery, NFTs and transaction history.",
@@ -1181,6 +1191,9 @@
     "verified": "Verified Protocol"
   },
   "nftGallery": {
+    "needKeyTitle": "Connect an Alchemy key to see NFTs",
+    "needKeyDescription": "NFTs on Ethereum, Polygon, Arbitrum, Optimism and Base need a free Alchemy API key. Avalanche NFTs already show without one. Add a key in Provider settings.",
+    "needKeyAction": "Open Provider settings",
     "loading": "Loading NFTs...",
     "loadError": "Failed to load NFTs",
     "retry": "Retry",
@@ -1200,6 +1213,13 @@
     "walletQuota": "Wallet Quota",
     "viewOnExplorer": "View on Explorer",
     "unlimited": "Unlimited"
+  },
+  "transactionHistory": {
+    "emptyTitle": "No Transactions Found",
+    "emptyDescription": "This address has no transaction history on supported EVM chains.",
+    "needKeyTitle": "Connect an Alchemy key to see transaction history",
+    "needKeyDescription": "Transaction history on Ethereum, Polygon, Arbitrum, Optimism and Base needs a free Alchemy API key. Avalanche history already shows without one. Add a key in Provider settings.",
+    "needKeyAction": "Open Provider settings"
   },
   "tokenApprovals": {
     "risk": {

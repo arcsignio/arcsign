@@ -465,7 +465,17 @@
     "noderealInfo": "查詢代幣餘額、估算交易手續費、廣播交易",
     "noderealChains": "支援鏈：BNB Smart Chain (BSC)",
     "oneinchInfo": "代幣兌換（Swap）功能，尋找最佳兌換路徑",
-    "oneinchChains": "支援鏈：Ethereum、Polygon、Arbitrum、Optimism、Base、BSC"
+    "oneinchChains": "支援鏈：Ethereum、Polygon、Arbitrum、Optimism、Base、BSC",
+    "capabilities": {
+      "title": "沒填 key 也能用什麼",
+      "subtitle": "核心功能離線就能用——填免費 API key 只是解鎖更多探索。",
+      "freeHeading": "免 key 已包含",
+      "free": "簽章與發送交易、WalletConnect、Swap（KyberSwap / OpenOcean）、USD 價格、DeFi 質押倉位、跨鏈聚合、授權風險分級、基礎資產（原生幣 + 常見代幣），以及 Avalanche 全部資料（代幣、NFT、交易史）。",
+      "alchemyHeading": "填免費 Alchemy key 解鎖",
+      "alchemy": "以太坊、Polygon、Arbitrum、Optimism、Base 的完整代幣探索、NFT 圖庫、交易紀錄，以及 Token Approvals 掃描。",
+      "noderealHeading": "BSC 需要 NodeReal key",
+      "nodereal": "BNB Chain 的完整 BEP-20 代幣清單（原生 BNB 免 key 就能顯示）。"
+    }
   },
   "walletDetail": {
     "degradedNotice": "已顯示基礎資產（原生幣 + 常見代幣）。在 Provider 設定填入 Alchemy API key，即可解鎖完整代幣探索、NFT 與交易紀錄。",
@@ -1181,6 +1191,9 @@
     "verified": "已驗證協議"
   },
   "nftGallery": {
+    "needKeyTitle": "連接 Alchemy key 以查看 NFT",
+    "needKeyDescription": "以太坊、Polygon、Arbitrum、Optimism、Base 的 NFT 需要免費的 Alchemy API key；Avalanche 的 NFT 免 key 就能顯示。請在 Provider 設定中填入 key。",
+    "needKeyAction": "前往 Provider 設定",
     "loading": "載入 NFT 中...",
     "loadError": "載入 NFT 失敗",
     "retry": "重試",
@@ -1200,6 +1213,13 @@
     "walletQuota": "錢包配額",
     "viewOnExplorer": "在區塊鏈瀏覽器查看",
     "unlimited": "無限制"
+  },
+  "transactionHistory": {
+    "emptyTitle": "沒有交易紀錄",
+    "emptyDescription": "此地址在支援的 EVM 鏈上沒有交易紀錄。",
+    "needKeyTitle": "連接 Alchemy key 以查看交易紀錄",
+    "needKeyDescription": "以太坊、Polygon、Arbitrum、Optimism、Base 的交易紀錄需要免費的 Alchemy API key；Avalanche 的紀錄免 key 就能顯示。請在 Provider 設定中填入 key。",
+    "needKeyAction": "前往 Provider 設定"
   },
   "tokenApprovals": {
     "risk": {
