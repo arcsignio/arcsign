@@ -4,8 +4,9 @@ import "testing"
 
 func TestRegistryChainFor(t *testing.T) {
 	cases := map[string]string{
-		NetworkEthMainnet:      "ethereum",         // the one that needs explicit mapping
-		NetworkPolygonMainnet:  "polygon-mainnet",  // registry-aliased → pass through
+		NetworkEthMainnet:      "ethereum",        // explicit mapping
+		NetworkBnbMainnet:      "bsc",             // explicit mapping (registry has no "bnb-mainnet")
+		NetworkPolygonMainnet:  "polygon-mainnet", // registry-aliased → pass through
 		NetworkArbitrumMainnet: "arbitrum-mainnet",
 		NetworkOptimismMainnet: "optimism-mainnet",
 		NetworkBaseMainnet:     "base-mainnet",
@@ -13,6 +14,20 @@ func TestRegistryChainFor(t *testing.T) {
 	for net, want := range cases {
 		if got := registryChainFor(net); got != want {
 			t.Errorf("registryChainFor(%q) = %q, want %q", net, got, want)
+		}
+	}
+}
+
+// BSC must resolve to real RPC endpoints in the unified degraded path, and its
+// common-token set must include USDC (the gap that hid BSC USDC before).
+func TestBSCDegradedResolvable(t *testing.T) {
+	if got := registryChainFor(NetworkBnbMainnet); got != "bsc" {
+		t.Fatalf("BSC should map to a registry chain that has RPCs, got %q", got)
+	}
+	syms := symbolsOf(CommonTokensFor(NetworkBnbMainnet))
+	for _, want := range []string{"USDC", "USDT"} {
+		if !syms[want] {
+			t.Errorf("BSC common tokens must include %q for the no-key path", want)
 		}
 	}
 }
@@ -43,10 +58,10 @@ func TestAlchemyDegradedCapability(t *testing.T) {
 
 // NodeReal also exposes the degraded capability based on its key.
 func TestNodeRealDegradedCapability(t *testing.T) {
-	if d, ok := NewNodeRealWDP("", "").(DegradedProvider); !ok || !d.IsDegraded() {
+	if d, ok := NewNodeRealWDP("").(DegradedProvider); !ok || !d.IsDegraded() {
 		t.Error("no-key NodeReal should report IsDegraded() == true")
 	}
-	if d, ok := NewNodeRealWDP("k", "").(DegradedProvider); !ok || d.IsDegraded() {
+	if d, ok := NewNodeRealWDP("k").(DegradedProvider); !ok || d.IsDegraded() {
 		t.Error("keyed NodeReal should report IsDegraded() == false")
 	}
 }

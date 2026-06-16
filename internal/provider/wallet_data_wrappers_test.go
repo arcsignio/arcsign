@@ -87,35 +87,36 @@ func TestNodeRealWDP_TokenBalances_LoopsPerAddress(t *testing.T) {
 	}
 }
 
-// Without a NodeReal key, native BNB must still be returned via the public RPC.
-func TestNodeRealWDP_NativeBNB_NoKey(t *testing.T) {
+// Without a NodeReal key, BSC must take the UNIFIED degraded path (the same
+// helper the Alchemy chains use) — it must NOT hit the NodeReal enhanced API.
+// A failing NodeReal endpoint proves the no-key path never calls it.
+func TestNodeRealWDP_NoKey_UsesDegradedPath(t *testing.T) {
+	var noderealCalls int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// eth_getBalance → 2 BNB (2e18 wei = 0x1bc16d674ec80000).
-		w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":"0x1bc16d674ec80000"}`))
+		atomic.AddInt32(&noderealCalls, 1)
+		w.WriteHeader(http.StatusInternalServerError) // would fail if called
 	}))
 	defer srv.Close()
 
-	// No key → hasKey false; bnbRPC set → native still queried.
-	wdp := &nodeRealWDP{client: NewBSCTraceClient(""), hasKey: false, bnbRPC: srv.URL}
+	c := NewBSCTraceClient("") // no key
+	c.endpoint = srv.URL
+	wdp := &nodeRealWDP{client: c, hasKey: false}
 
-	out, err := wdp.GetTokenBalances([]AddressWithNetworks{{Address: "0xA"}})
-	if err != nil {
-		t.Fatalf("GetTokenBalances: %v", err)
+	// Must report degraded and must not error (degraded path is best-effort).
+	if !wdp.IsDegraded() {
+		t.Error("no-key NodeReal should report IsDegraded() == true")
 	}
-	if len(out) != 1 {
-		t.Fatalf("expected 1 native BNB row (no key, no token holdings), got %d", len(out))
+	if _, err := wdp.GetTokenBalances([]AddressWithNetworks{{Address: "0xA", Networks: []string{NetworkBnbMainnet}}}); err != nil {
+		t.Fatalf("no-key GetTokenBalances should not error, got %v", err)
 	}
-	n := out[0]
-	if n.TokenSymbol != "BNB" || n.TokenAddress != "" || n.Balance != "2" {
-		t.Errorf("native BNB wrong: %+v", n)
-	}
-	if n.Network != NetworkBnbMainnet {
-		t.Errorf("expected network %q, got %q", NetworkBnbMainnet, n.Network)
+	// The NodeReal enhanced endpoint must NOT have been called on the no-key path.
+	if got := atomic.LoadInt32(&noderealCalls); got != 0 {
+		t.Errorf("no-key path must not call the NodeReal API, got %d calls", got)
 	}
 }
 
 func TestNodeRealWDP_Name(t *testing.T) {
-	if NewNodeRealWDP("k", "").Name() != ProviderNodeReal {
+	if NewNodeRealWDP("k").Name() != ProviderNodeReal {
 		t.Error("NodeReal WDP name mismatch")
 	}
 }

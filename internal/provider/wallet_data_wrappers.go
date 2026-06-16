@@ -31,16 +31,10 @@ func (w *alchemyWDP) GetTokenBalances(addrs []AddressWithNetworks) ([]Simplified
 	if len(addrs) == 0 {
 		return nil, nil
 	}
-	// No key → degraded path: query native + curated common tokens per address ×
-	// network over public RPCs. USD values are filled later by DefiLlama.
+	// No key → unified degraded path (native + curated common tokens via public
+	// RPCs). Same helper every provider uses. USD filled later by DefiLlama.
 	if !w.hasKey {
-		var all []SimplifiedTokenBalance
-		for _, a := range addrs {
-			for _, net := range a.Networks {
-				all = append(all, degradedBalancesForNetwork(a.Address, net)...)
-			}
-		}
-		return all, nil
+		return degradedTokenBalances(addrs), nil
 	}
 	// With key: Alchemy queries ALL addresses in one request — do not loop.
 	resp, err := w.client.GetTokenBalancesByAddress(toAlchemyAddresses(addrs))
@@ -89,44 +83,49 @@ func toAlchemyAddresses(addrs []AddressWithNetworks) []AlchemyAddressWithNetwork
 
 type nodeRealWDP struct {
 	client *BSCTraceClient
-	hasKey bool   // whether a NodeReal key is configured (token holdings need it)
-	bnbRPC string // public BSC RPC for native BNB (no key needed)
+	hasKey bool // whether a NodeReal key is configured (full token holdings need it)
 }
 
 // NewNodeRealWDP wraps a BSCTraceClient as a WalletDataProvider. apiKey may be
-// empty: native BNB is still queried via a public RPC, only the NodeReal
-// enhanced token-holdings list requires the key.
-func NewNodeRealWDP(apiKey, bnbRPC string) WalletDataProvider {
-	return &nodeRealWDP{client: NewBSCTraceClient(apiKey), hasKey: apiKey != "", bnbRPC: bnbRPC}
+// empty: without a key BSC falls back to the unified degraded path (native BNB +
+// curated common BEP-20s via public RPC + Multicall3); the NodeReal enhanced API
+// (full token-holdings discovery + NFTs) requires the key.
+func NewNodeRealWDP(apiKey string) WalletDataProvider {
+	return &nodeRealWDP{client: NewBSCTraceClient(apiKey), hasKey: apiKey != ""}
 }
 
 func (w *nodeRealWDP) Name() string { return ProviderNodeReal }
 
-// IsDegraded reports the no-key mode (native BNB only, no BEP-20 holdings list).
+// IsDegraded reports the no-key mode (native + common tokens only, no full
+// BEP-20 holdings discovery).
 func (w *nodeRealWDP) IsDegraded() bool { return !w.hasKey }
 
 func (w *nodeRealWDP) GetTokenBalances(addrs []AddressWithNetworks) ([]SimplifiedTokenBalance, error) {
+	if len(addrs) == 0 {
+		return nil, nil
+	}
+	// No key → unified degraded path (same helper as the Alchemy chains): native
+	// BNB + curated common BEP-20s (USDC/USDT/WBNB/ankrBNB) via public RPC.
+	if !w.hasKey {
+		return degradedTokenBalances(addrs), nil
+	}
+	// With key: NodeReal enhanced full BEP-20 holdings discovery.
 	var all []SimplifiedTokenBalance
 	for _, a := range addrs {
-		// Native BNB via public RPC — works without a NodeReal key.
-		if w.bnbRPC != "" {
-			if native, err := GetNativeBNB(w.bnbRPC, a.Address); err == nil && native != nil {
-				all = append(all, *native)
-			}
+		tokens, err := w.client.GetTokenHoldingsBSC(a.Address)
+		if err != nil {
+			return all, err
 		}
-		// BEP-20 token holdings need the NodeReal enhanced API (key required).
-		if w.hasKey {
-			tokens, err := w.client.GetTokenHoldingsBSC(a.Address)
-			if err != nil {
-				return all, err
-			}
-			all = append(all, tokens...)
-		}
+		all = append(all, tokens...)
 	}
 	return all, nil
 }
 
 func (w *nodeRealWDP) GetNFTs(addrs []AddressWithNetworks) ([]SimplifiedNFT, error) {
+	// NFT discovery needs the NodeReal key (no free indexer for BSC).
+	if !w.hasKey {
+		return nil, nil
+	}
 	var all []SimplifiedNFT
 	for _, a := range addrs {
 		nfts, err := w.client.GetNFTHoldingsBSC(a.Address)
@@ -139,6 +138,10 @@ func (w *nodeRealWDP) GetNFTs(addrs []AddressWithNetworks) ([]SimplifiedNFT, err
 }
 
 func (w *nodeRealWDP) GetAssetTransfers(address, _ string, maxCount int, pageKey string) ([]AssetTransfer, string, error) {
+	// Transaction history needs the NodeReal key.
+	if !w.hasKey {
+		return nil, "", nil
+	}
 	// BSC network is fixed for NodeReal; the network arg is ignored.
 	return w.client.GetAssetTransfersBSC(address, maxCount, pageKey)
 }
