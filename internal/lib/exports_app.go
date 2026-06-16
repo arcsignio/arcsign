@@ -702,24 +702,18 @@ func GetTokenApprovals(params *C.char) (result *C.char) {
 	}
 	defer providerStore.Close()
 
-	providerConfig, err := providerStore.Get("global", "alchemy")
-	if err != nil {
-		response := NewErrorResponse(ErrStorageError, "Provider configuration not found")
+	// Resolve the Alchemy key the same tolerant way the assets path does
+	// (LoadProviderAPIKey checks the configured key aliases under "global" and
+	// returns "" rather than a hard error when nothing is configured). Token
+	// approvals require an Alchemy key — there is no key-free fallback for the
+	// eth_getLogs Approval-event scan — so a missing key is a clear, actionable
+	// message, not a scary STORAGE_ERROR.
+	alchemyAPIKey := provider.LoadProviderAPIKey(providerStore, provider.ProviderAlchemy)
+	if alchemyAPIKey == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Alchemy API key not configured. Add it in Provider settings to scan token approvals.")
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
-	if providerConfig == nil || providerConfig.APIKey == "" {
-		response := NewErrorResponse(ErrInvalidInput, "Alchemy provider not configured")
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-	if !providerConfig.Enabled {
-		response := NewErrorResponse(ErrInvalidInput, "Alchemy provider is disabled")
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	alchemyAPIKey := providerConfig.APIKey
 
 	// Verify wallet password
 	walletService := wallet.NewWalletService(input.USBPath)
