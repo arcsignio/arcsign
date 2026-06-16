@@ -570,4 +570,13 @@ describe('NFTGallery', () => {
     expect(screen.queryByText('nftGallery.needKeyTitle')).not.toBeInTheDocument();
     unmount();
   });
+
+  it('does not flash empty/need-key text while key status is loading', async () => {
+    (useHasProviderKey as any).mockReturnValue({ hasAlchemyKey: false, hasNodeRealKey: false, isLoading: true });
+    render(<NFTGallery {...defaultProps} />);
+    // 等 getNFTs 解析（空），確認載入中不顯示 needKey 也不顯示 empty 文案
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText(/nftGallery.needKeyTitle/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/nftGallery.empty$/)).not.toBeInTheDocument();
+  });
 });

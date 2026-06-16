@@ -75,7 +75,7 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
   const { status: membershipStatus } = useMembership(bscAddress || null);
 
   // Detect provider key presence to show actionable empty state
-  const { hasAlchemyKey } = useHasProviderKey(usbPath, sessionToken, password);
+  const { hasAlchemyKey, isLoading: isKeyLoading } = useHasProviderKey(usbPath, sessionToken, password);
 
   const loadNFTs = useCallback(async () => {
     setIsLoading(true);
@@ -160,7 +160,7 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
             <polyline points="21 15 16 10 5 21"/>
           </svg>
         </div>
-        {!hasAlchemyKey ? (
+        {isKeyLoading ? null : !hasAlchemyKey ? (
           <>
             <p style={{ fontWeight: "600", color: "#1e293b", marginBottom: "0.5rem" }}>
               {t("nftGallery.needKeyTitle")}
