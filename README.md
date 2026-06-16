@@ -55,23 +55,122 @@ Apache 2.0 licensed. Fork-friendly with a small trademark policy — see
 
 ## Architecture
 
+ArcSign is a desktop app whose private keys never leave the USB device.
+The UI is a Tauri (Rust) shell hosting a React frontend; all wallet logic
+— key derivation, signing, swap routing, on-chain reads — lives in a Go
+shared library loaded over a C FFI boundary. Nothing security-sensitive
+runs in JavaScript.
+
+### Layered overview
+
 ```
-┌──────────────────────┐
-│ Dashboard (Tauri v2) │  React + TypeScript
-└──────────┬───────────┘
-           │ Tauri commands (Rust)
-           ▼
-┌──────────────────────┐
-│ ffi/bindings.rs      │  libloading
-└──────────┬───────────┘
-           │ C FFI
-           ▼
-┌──────────────────────┐
-│ libarcsign.dylib /.so│  Go shared library
-│                      │  BIP39/44, signing,
-│                      │  swap routing
-└──────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  Dashboard  —  React 18 + TypeScript + Vite + Tailwind + Zustand      │
+│                                                                       │
+│  components/  hooks/  stores/ (dashboardStore · walletSessionStore ·  │
+│  sessionStore)                          services/tauri-api.ts (invoke)│
+└───────────────────────────────┬───────────────────────────────────────┘
+                                │  Tauri v2 `invoke` (capabilities model)
+                                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  Tauri shell (Rust)  —  src-tauri/src/commands/  (15 command files)   │
+│  wallet · transaction · swap · provider · membership · usb · auth ·   │
+│  security · walletconnect · websocket · app …                         │
+│                         ffi/bindings.rs  →  libloading                │
+└───────────────────────────────┬───────────────────────────────────────┘
+                                │  C FFI  (CString in / CString out, JSON)
+                                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  libarcsign.dylib / .so / .dll   —   Go shared library (CGO)          │
+│                                                                       │
+│  internal/lib/  FFI exports, split by domain:                         │
+│    exports_wallet · _transaction · _swap · _signing · _address ·      │
+│    _provider · _membership · _app · _dev                              │
+│                                                                       │
+│  internal/  core logic:  wallet (BIP39/44 HD) · crypto · security ·   │
+│             services · provider (on-chain reads)                      │
+│  src/chainadapter/  unified tx interface  (bitcoin/ · ethereum/)      │
+│  src/swap/  DEX aggregator  (kyberswap/ · oneinch/ · openocean/)      │
+└──────────────┬───────────────────────────────────┬────────────────────┘
+               │ signed tx broadcast               │ read on-chain data
+               ▼                                   ▼
+      8 chains: Bitcoin + 7 EVM             provider abstraction (below)
 ```
+
+### Data flow
+
+1. React calls `services/tauri-api.ts` → `invoke(...)` → a Rust command in
+   `src-tauri/src/commands/` → `ffi/bindings.rs` → a Go FFI export in
+   `internal/lib/`.
+2. The Go library does the real work: HD key derivation (BIP39/44), signing,
+   swap routing, and on-chain reads. Results return as JSON back up the same
+   path.
+3. `ChainAdapter` (`src/chainadapter/`) gives one interface over **Bitcoin + 7
+   EVM chains** (Ethereum, Polygon, Arbitrum, Optimism, Base, BSC, Avalanche).
+4. Zustand stores hold UI state; `analytics.ts` sends tier heartbeats to a
+   Cloudflare Worker.
+
+### Cross-chain swaps
+
+`src/swap/aggregator.go` queries KyberSwap, 1inch and OpenOcean **in parallel**
+(`GetBestRoute`) and picks the best quote. Adapters live under
+`src/swap/{kyberswap,oneinch,openocean}/`.
+
+### Provider data path (reading balances / tokens / NFTs / transfers)
+
+On-chain reads go through one **`WalletDataProvider` abstraction**
+(`internal/provider/`), not per-endpoint `switch` blocks. Adding a provider is a
+one-place change: implement the interface, add a wrapper, register it, and map
+the chain.
+
+```
+            GetTokenBalances / GetNFTs / GetAssetTransfers
+                              │
+                   ┌──────────┴──────────┐
+                   │ WalletDataProvider  │   interface (provider-agnostic
+                   │  (registry + chains)│   Simplified* return types)
+                   └──────────┬──────────┘
+        ┌──────────────┬──────┴───────┬───────────────────┐
+        ▼              ▼              ▼                   ▼
+   Alchemy WDP    NodeReal WDP    Glacier WDP     DefiLlama (price enrich)
+   5 EVM chains   BSC (BEP-20)    Avalanche       no key — fills USD values
+   key (degraded  key (native     no key          for whatever the providers
+   without one)   BNB w/o key)    (anon tier)     left at 0
+```
+
+| Chain(s) | Provider | API key | Without a key |
+|---|---|---|---|
+| Ethereum · Polygon · Arbitrum · Optimism · Base | **Alchemy** | required for full data | **degraded path**: native coin + curated common tokens (incl. staking receipts) via public RPC + Multicall3; NFTs / history need the key |
+| BSC | **NodeReal** | required for BEP-20 token list | native BNB still shows via public BSC RPC |
+| Avalanche | **Glacier** (Avalanche Data API) | none (anonymous tier) | full token/NFT data |
+| *all of the above* | **DefiLlama** | none | fills USD prices the providers returned as 0 |
+
+**Progressive API keys (no-key path).** A brand-new user with **no Alchemy key**
+still sees basic assets. The degraded path (`internal/provider/degraded.go`)
+queries, over public RPCs only:
+
+- the **native coin** balance (`eth_getBalance`), and
+- a **curated common-token whitelist** (`common_tokens.go`) — stablecoins,
+  wrapped coins, the chain's own token, major DeFi tokens, and **liquid-staking
+  receipts** (stETH / ankrETH / eETH / ankrBNB) — batched into **one
+  `eth_call` per chain via Multicall3** (`multicall.go`), with RPC fallback.
+
+USD values are filled by **DefiLlama** (no key). Full token *discovery*, NFTs
+and transaction history require an Alchemy key — surfaced in-app as a soft
+"add a key to unlock more", not an error. There is **no hard-coded API key** in
+the repo; provider keys live only in the per-USB encrypted provider config.
+
+### No-key vs. with-key, at a glance
+
+| Capability | No key | + Alchemy key |
+|---|---|---|
+| Native balances (ETH/MATIC/BNB/AVAX/…) | ✅ | ✅ |
+| Common tokens (USDC/USDT/DAI/WETH/…) | ✅ (whitelist) | ✅ (full discovery) |
+| Liquid-staking receipts (stETH/eETH/…) | ✅ | ✅ |
+| USD prices (DefiLlama) | ✅ | ✅ |
+| Arbitrary / long-tail token discovery | ❌ | ✅ |
+| NFT gallery | Avalanche only | ✅ all EVM chains |
+| Transaction history | ❌ | ✅ |
 
 For deeper detail see [`docs/architecture.md`](docs/architecture.md) and
 [`CLAUDE.md`](CLAUDE.md).
