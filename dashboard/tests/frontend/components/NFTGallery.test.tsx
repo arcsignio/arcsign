@@ -31,14 +31,8 @@ vi.mock('@/constants/contracts', () => ({
   APPROVE_SELECTOR: '0x095ea7b3',
 }));
 
-// Mock useHasProviderKey hook
-vi.mock('@/hooks/useHasProviderKey', () => ({
-  useHasProviderKey: vi.fn(),
-}));
-
 import tauriApi from '@/services/tauri-api';
 import { useMembership } from '@/hooks/useMembership';
-import { useHasProviderKey } from '@/hooks/useHasProviderKey';
 
 import { NFTGallery } from '@/components/NFTGallery';
 
@@ -94,11 +88,6 @@ function setupDefaultMocks() {
     isPro: false,
     walletLimit: 1,
     refresh: vi.fn(),
-  });
-  (useHasProviderKey as any).mockReturnValue({
-    hasAlchemyKey: true,
-    hasNodeRealKey: true,
-    isLoading: false,
   });
 }
 
