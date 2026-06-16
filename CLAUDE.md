@@ -108,10 +108,38 @@ go test -run TestSpecificName ./...       # Run single test
 2. Go library handles: wallet creation, key derivation (BIP39/44), signing,
    swap routing, provider queries
 3. `ChainAdapter` provides unified interface for multi-chain transactions
-   (Bitcoin + 6 EVM chains)
+   (Bitcoin + 7 EVM chains)
 4. Zustand stores (`dashboardStore`, `walletSessionStore`, `sessionStore`)
    manage UI state; `analytics.ts` sends heartbeats to Cloudflare Worker
    for tier tracking
+
+### Provider data path (read-on-chain: balances / tokens / NFTs / transfers)
+
+Reading on-chain data goes through a **unified `WalletDataProvider` abstraction**
+(`internal/provider/wallet_data_provider.go`), NOT per-endpoint `switch` blocks:
+
+- **Interface**: `GetTokenBalances` / `GetNFTs` (batch, multi-address) +
+  `GetAssetTransfers` (single address). All return the shared `Simplified*`
+  types — normalization is the provider's job, callers stay provider-agnostic.
+- **Wrappers** (`wallet_data_wrappers.go`): one per backend, adapting the
+  concrete clients (`alchemy_client.go` / `bsctrace_client.go` / `glacier_client.go`)
+  to the interface. Alchemy batches all addresses in one HTTP request;
+  NodeReal/Glacier loop internally.
+- **Registry** (`wallet_data_registry.go`): provider string → instance,
+  resolving each provider's API key from the per-USB encrypted provider config.
+- **Routing**: `chains.go` `GetProviderForNetwork(network)` maps a network to a
+  provider. The FFI layer (`exports_app.go` / `exports_address.go`) buckets
+  addresses by provider, then dispatches polymorphically. **Adding a provider =
+  register in one place** (interface + wrapper + registry + `chains.go` entry).
+- **Provider/key matrix**:
+  - Avalanche → **Glacier** (Avalanche Data API), **anonymous, no key needed**.
+  - Ethereum / Polygon / Arbitrum / Optimism / Base → **Alchemy** (key required;
+    without it those chains' tokens are skipped and reported via
+    `unavailableProviders`).
+  - BSC → **NodeReal** for BEP-20 token holdings (key required); **native BNB**
+    is fetched via a public BSC RPC (`bsc-dataseed`, no key).
+  - There is **no hard-coded shared key** in the repo — a leaked NodeReal key
+    was removed; provider keys live only in the per-USB encrypted config.
 
 ### FFI Call Discipline
 
@@ -167,21 +195,29 @@ integrity and reproduce the build from source (see
 - The `.arcsign` backup file is **already encrypted upon export** (AES-256).
   There is NO separate step to set a password. Export = encrypted file
   immediately.
-- Provider/Indexer setup requires an Alchemy API Key to read on-chain data
-  (free tier is sufficient).
+- Provider/Indexer keys are **optional per chain**: Avalanche works with **no
+  key** (Glacier anonymous tier); Ethereum/Polygon/Arbitrum/Optimism/Base need
+  an Alchemy key (free tier) for tokens/NFTs; BSC needs a NodeReal key for the
+  token list (native BNB works without one). Missing keys are surfaced to the
+  user, not silently empty. See the "Provider data path" section above.
 - ArcSign is a USB cold wallet — private keys never leave the device.
 - ArcSign **supports WalletConnect** — frequent traders can also use
   ArcSign to sign transactions securely from cold storage.
 - A **mobile app** is planned for the future (not yet released).
 - Key differentiator: `.arcsign` encrypted backup replaces paper seed phrases.
 - **Token Approvals management** — users can view and revoke ERC-20 approvals
-  across 6 EVM chains. Pro users get batch revoke. This is a security feature
+  across the EVM chains. Pro users get batch revoke. This is a security feature
   to prevent forgotten approvals from becoming attack vectors.
-- **BSC full support** — Token balances, NFTs, and Approvals all work on BSC
-  via NodeReal enhanced APIs (`nr_getTokenHoldings`, `nr_getNFTHoldings`).
-  Other chains use Alchemy.
-- **NFT Gallery** — cross-chain NFT display with ERC721/ERC1155 support
-  across 6 chains.
+- **7 EVM chains** — Ethereum, Polygon, Arbitrum, Optimism, Base (Alchemy),
+  BSC (NodeReal enhanced APIs `nr_getTokenHoldings`/`nr_getNFTHoldings`),
+  Avalanche (Glacier, no key). See the "Provider data path" section for the
+  per-chain provider/key matrix.
+- **Cross-chain asset aggregation** — the assets list merges native coins
+  (ETH/BNB/AVAX) and whitelisted ERC-20s (USDC/USDT) across chains into one row;
+  the token detail view shows the per-chain breakdown + each chain's contract.
+  Only CoinGecko-whitelisted contracts merge by symbol (keeps fake same-named
+  tokens apart). See `dashboard/src/utils/aggregateTokens.ts`.
+- **NFT Gallery** — cross-chain NFT display with ERC721/ERC1155 support.
 - **DeFi positions** — shows liquid staking positions (stETH, ankrETH,
   ankrBNB) with real-time APY.
 
