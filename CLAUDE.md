@@ -207,7 +207,16 @@ integrity and reproduce the build from source (see
 - Key differentiator: `.arcsign` encrypted backup replaces paper seed phrases.
 - **Token Approvals management** — users can view and revoke ERC-20 approvals
   across the EVM chains. Pro users get batch revoke. This is a security feature
-  to prevent forgotten approvals from becoming attack vectors.
+  to prevent forgotten approvals from becoming attack vectors. Each approval is
+  **risk-classified offline** (red/yellow/green): the backend labels the spender
+  from a curated registry (`internal/provider/spender_registry.go`), flags
+  blocklisted spenders (`malicious_spenders.go`, embedded MIT-only data — MEW
+  ethereum-lists + Revoke approval-exploit-list, see `data/NOTICE`; ScamSniffer's
+  GPL data is deliberately excluded), and probes unknown spenders with
+  `eth_getCode` to detect EOAs. Risk rules live in the pure function
+  `ClassifyApprovalRisk` (`approval_risk.go`). The frontend (`TokenApprovals.tsx`)
+  shows the protocol name, a traffic-light badge, a strong malicious warning, and
+  sorts most-dangerous-first.
 - **7 EVM chains** — Ethereum, Polygon, Arbitrum, Optimism, Base (Alchemy),
   BSC (NodeReal enhanced APIs `nr_getTokenHoldings`/`nr_getNFTHoldings`),
   Avalanche (Glacier, no key). See the "Provider data path" section for the
