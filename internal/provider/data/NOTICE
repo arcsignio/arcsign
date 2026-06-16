@@ -1,0 +1,51 @@
+ArcSign — Malicious Address Blocklist Attribution
+=================================================
+
+The file `malicious_spenders.txt` in this directory is a merged, de-duplicated,
+lowercased list of known malicious / phishing / exploited addresses, used by the
+Token Approvals security view to flag dangerous spenders.
+
+It is built ONLY from MIT-licensed sources (deliberately avoiding GPL-licensed
+datasets such as ScamSniffer, which cannot be vendored into this Apache-2.0
+repository). Each source below is MIT-licensed, permitting redistribution with
+attribution.
+
+Sources
+-------
+
+1. MyEtherWallet / ethereum-lists  (MIT)
+   https://github.com/MyEtherWallet/ethereum-lists
+   File: src/addresses/addresses-darklist.json
+   Content used: the `address` field of each entry (phishing / scam addresses).
+
+2. Revoke.cash / approval-exploit-list  (MIT)
+   https://github.com/RevokeCash/approval-exploit-list
+   Files: exploits/*.json (referenced by index.json)
+   Content used: the `address` field of each entry under `addresses`
+   (contracts involved in approval-exploit incidents).
+
+License
+-------
+
+Both sources are distributed under the MIT License. ArcSign redistributes only
+the factual address data (not any source code) and provides this attribution to
+satisfy the MIT redistribution requirement. The MIT License text is available at
+https://opensource.org/license/mit/ and in each upstream repository's LICENSE.
+
+Regeneration
+------------
+
+The list is embedded statically (go:embed) and ships with the app version; it is
+NOT fetched at runtime (offline / privacy-preserving by design). To refresh it:
+
+  1. Fetch MEW darklist:
+     https://raw.githubusercontent.com/MyEtherWallet/ethereum-lists/master/src/addresses/addresses-darklist.json
+     → take each entry's `address`.
+  2. Fetch Revoke index.json, then each exploits/<name>.json:
+     https://raw.githubusercontent.com/RevokeCash/approval-exploit-list/master/index.json
+     → take each `addresses[].address`.
+  3. Lowercase, trim, keep only valid 0x + 40-hex addresses, de-duplicate, sort.
+  4. Write one address per line into malicious_spenders.txt (keep the header
+     comment lines, which begin with '#').
+
+Generated: 2026-06-16 (this snapshot).
