@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { encodeFunctionData } from 'viem';
 import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
-import { erc20Abi, erc721Abi, MAX_UINT256 } from '@/services/clearsign/knownAbis';
+import { erc20Abi, erc721Abi, permit2Abi, MAX_UINT256, MAX_UINT160 } from '@/services/clearsign/knownAbis';
 import * as tokenLabel from '@/services/clearsign/tokenLabel';
 
 vi.mock('@/services/clearsign/tokenLabel', () => ({
@@ -48,5 +48,15 @@ describe('decodeCalldata', () => {
     const r = await decodeCalldata('eth-mainnet', SPENDER, '0x', '0xde0b6b3a7640000');
     expect(r.readable).toBe(true);
     expect(r.title.toLowerCase()).toContain('send');
+  });
+
+  it('decodes Permit2 approve with expiration and flags permit-approval', async () => {
+    const data = encodeFunctionData({ abi: permit2Abi, functionName: 'approve', args: [TOKEN, SPENDER, MAX_UINT160, 0] });
+    const r = await decodeCalldata('eth-mainnet', '0x000000000022D473030F116dDEE9F6B43aC78BA3', data, '0x0');
+    expect(r.readable).toBe(true);
+    expect(r.title.toLowerCase()).toContain('permit2');
+    expect(r.risks).toContain('permit-approval');
+    expect(r.risks).toContain('unlimited-approval'); // amount = MAX_UINT160
+    expect(r.params.some(p => p.label === 'Expiration' && p.value === 'Never')).toBe(true);
   });
 });

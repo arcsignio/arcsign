@@ -64,11 +64,12 @@ async function buildIntent(
     }
     case "approve": {
       if (args.length === 4) {
-        const [token, spender, amount] = args as [string, string, bigint, number];
+        const [token, spender, amount, expiration] = args as [string, string, bigint, number];
         const t = await resolveTokenLabel(network, token);
         if (amount >= MAX_UINT160) risks.push("permit-approval", "unlimited-approval");
         else risks.push("permit-approval");
         params.push({ label: "Spender", value: shortAddr(spender) });
+        params.push({ label: "Expiration", value: Number(expiration) === 0 ? "Never" : new Date(Number(expiration) * 1000).toISOString().slice(0, 10) });
         return { readable: true, title: `Permit2 approve ${t.symbol}`, params, risks, raw };
       }
       const [spender, amount] = args as [string, bigint];
