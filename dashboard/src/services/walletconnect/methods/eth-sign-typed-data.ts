@@ -16,6 +16,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { decodeTypedData } from '@/services/clearsign/decodeTypedData';
 import {
   type WCRequest,
   type WCResponse,
@@ -176,8 +177,18 @@ const signTypedDataHandler: RequestHandler = async (
   const dapp = getDappMetadata(session);
   const chainId = parseChainId(request.params.chainId);
 
-  // Format for display
-  const displayMessage = formatTypedDataForDisplay(typedData);
+  // Decode typed data for clear-signing display
+  const intent = decodeTypedData(typedData as any);
+  const summaryLine = intent.readable
+    ? `${intent.title}${intent.risks.length ? '  ⚠️ ' + intent.risks.join(', ') : ''}`
+    : '⚠️ Unreadable signature — verify the dApp is trusted';
+
+  // Build full display message: clear-signing summary first, then structured detail
+  const displayMessage = [
+    summaryLine,
+    '',
+    formatTypedDataForDisplay(typedData),
+  ].join('\n');
 
   // Request user approval with password
   console.log('[eth_signTypedData_v4] Requesting user approval...');
