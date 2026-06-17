@@ -1274,5 +1274,17 @@
     "text": "Refer ArcSign to friends — earn 10–20% commission on their swap fees forever.",
     "cta": "Set up your referral link →",
     "dismiss": "Dismiss"
+  },
+  "clearSign": {
+    "unreadableTitle": "Cannot read this transaction",
+    "unreadableHint": "We could not decode what this transaction does. Only continue if you trust the dApp.",
+    "showRaw": "Show raw data",
+    "hideRaw": "Hide raw data",
+    "riskUnlimited": "Unlimited approval",
+    "riskApproveAllNfts": "Approving ALL your NFTs",
+    "riskPermit": "Off-chain approval signature",
+    "securityHeading": "Security check",
+    "blacklistHit": "Target is on a blocklist",
+    "simulatedChanges": "Simulated balance changes"
   }
 }

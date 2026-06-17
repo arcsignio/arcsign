@@ -1274,5 +1274,17 @@
     "text": "推薦 ArcSign 給朋友，永久賺取他們的 swap 佣金 10-20%",
     "cta": "前往設定推薦連結 →",
     "dismiss": "關閉"
+  },
+  "clearSign": {
+    "unreadableTitle": "無法解讀此交易",
+    "unreadableHint": "我們無法解析這筆交易的內容。請確認 dApp 來源可信再繼續。",
+    "showRaw": "顯示原始資料",
+    "hideRaw": "隱藏原始資料",
+    "riskUnlimited": "無上限授權",
+    "riskApproveAllNfts": "授權你所有的 NFT",
+    "riskPermit": "離線授權簽名",
+    "securityHeading": "安全檢查",
+    "blacklistHit": "目標在黑名單中",
+    "simulatedChanges": "模擬餘額變化"
   }
 }
