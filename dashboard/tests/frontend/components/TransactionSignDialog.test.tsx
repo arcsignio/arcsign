@@ -164,6 +164,24 @@ describe('TransactionSignDialog — clear-signing integration', () => {
     expect(await screen.findByText('clearSign.securityHeading')).toBeInTheDocument();
   });
 
+  it('does not show a security report when the check fails (signing not blocked)', async () => {
+    mockCheckTransactionSecurity.mockRejectedValue(new Error('network timeout'));
+
+    render(
+      <TransactionSignDialog
+        transaction={makeTx()}
+        walletName="My Wallet"
+        onConfirm={noop}
+        onReject={noop}
+      />,
+    );
+
+    // Decoded intent title must appear — signing is NOT blocked
+    expect(await screen.findByText('Transfer 100 USDC')).toBeInTheDocument();
+    // Security section must NOT appear (advisory failure is silent)
+    expect(screen.queryByText('clearSign.securityHeading')).not.toBeInTheDocument();
+  });
+
   it('does not render ClearSignSummary when decodeCalldata rejects', async () => {
     mockDecodeCalldata.mockRejectedValue(new Error('network err'));
 

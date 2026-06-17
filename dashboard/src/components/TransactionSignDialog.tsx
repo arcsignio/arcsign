@@ -67,7 +67,7 @@ export function TransactionSignDialog({
 
   // Fetch txguard security report — advisory only, never blocks signing on failure
   useEffect(() => {
-    if (!transaction) { setSecurity(undefined); return; }
+    if (!transaction || !usbPath) { setSecurity(undefined); return; }
     let cancelled = false;
     checkTransactionSecurity({
       from: transaction.from,
