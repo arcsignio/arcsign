@@ -1515,7 +1515,7 @@ pub async fn check_transaction_security(
     data: Option<String>,
     usb_path: String,
     session_token: Option<String>,
-    app_password: Option<String>,
+    mut app_password: Option<String>,
     is_pro: bool,
 ) -> Result<serde_json::Value, String> {
     let start = Instant::now();
@@ -1529,7 +1529,7 @@ pub async fn check_transaction_security(
         "data": data.unwrap_or_default(),
         "usbPath": usb_path,
         "sessionToken": session_token.unwrap_or_default(),
-        "appPassword": app_password.unwrap_or_default(),
+        "appPassword": app_password.as_deref().unwrap_or_default(),
         "isPro": is_pro,
     });
 
@@ -1539,12 +1539,20 @@ pub async fn check_transaction_security(
             format!("Failed to serialize params: {}", e)
         })?;
 
+    // Zeroize password immediately after building params
+    if let Some(ref mut pw) = app_password {
+        pw.zeroize();
+    }
+
     let ffi_response = queue
         .check_transaction_security(params_json)
         .await
         .map_err(|e| {
             tracing::error!("FFI check_transaction_security failed: {}", e);
-            let msg = e.splitn(2, ": ").nth(1).unwrap_or(&e).to_string();
+            // Advisory check: returns the raw FFI message intentionally (not an
+            // AppError) — the caller treats any failure as "no security report"
+            // and still allows signing, so structured error codes aren't needed.
+            let msg = e.split_once(": ").map_or(e.clone(), |(_, v)| v.to_string());
             msg
         })?;
 
