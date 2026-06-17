@@ -747,6 +747,38 @@ export interface SecurityReport {
   riskLevel: string;  // safe, warning, danger
 }
 
+export interface CheckTransactionSecurityParams {
+  from: string;
+  to: string;
+  chainId: string;
+  value?: string;
+  data?: string;
+  usbPath: string;
+  sessionToken?: string;
+  appPassword?: string;
+  isPro: boolean;
+}
+
+export async function checkTransactionSecurity(
+  params: CheckTransactionSecurityParams,
+): Promise<SecurityReport> {
+  try {
+    return await invoke<SecurityReport>("check_transaction_security", {
+      from: params.from,
+      to: params.to,
+      chainId: params.chainId,
+      value: params.value ?? "",
+      data: params.data ?? "",
+      usbPath: params.usbPath,
+      sessionToken: params.sessionToken ?? "",
+      appPassword: params.appPassword ?? "",
+      isPro: params.isPro,
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
 /**
  * Build transaction response from Go backend
  * Note: Backend returns simplified format with just the essential fields
@@ -1739,6 +1771,7 @@ export const tauriApi = {
   enableScreenshotProtection,
   disableScreenshotProtection,
   clearSensitiveMemory,
+  checkTransactionSecurity,
 
   // WebSocket Pending Transactions (mint-page integration)
   getPendingTransaction,
