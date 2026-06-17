@@ -955,3 +955,87 @@ func EstimateFee(params *C.char) (result *C.char) {
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
+
+//export CheckTransactionSecurity
+// CheckTransactionSecurity runs the txguard risk engine (blacklist + simulation)
+// for a transaction WITHOUT building or signing it. Used by the WalletConnect and
+// mint-page signing paths to surface a SecurityReport before the user signs.
+// Reuses the same lazy global guard and provider-key loading as BuildTransaction.
+// Pro-gated inside guard.Check (Free → proRequired); never blocks signing.
+func CheckTransactionSecurity(params *C.char) (result *C.char) {
+	defer func() {
+		if r := recover(); r != nil {
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		ChainID      string `json:"chainId"`
+		From         string `json:"from"`
+		To           string `json:"to"`
+		Value        string `json:"value"`
+		Data         string `json:"data"`
+		USBPath      string `json:"usbPath"`
+		SessionToken string `json:"sessionToken"`
+		AppPassword  string `json:"appPassword"`
+		IsPro        bool   `json:"isPro"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&input.AppPassword)
+
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	// Load Alchemy key for simulation (same pattern as BuildTransaction).
+	// Missing key is fine — guard.Check degrades gracefully (blacklist still runs).
+	alchemyAPIKey := ""
+	if input.USBPath != "" && appPassword != "" {
+		configPath := input.USBPath + "/provider_config.enc"
+		store, err := provider.NewProviderConfigStore(configPath, appPassword)
+		if err == nil {
+			defer store.Close()
+			config, e := store.GetBestProvider("global")
+			if e != nil {
+				config, e = store.GetBestProvider("ethereum")
+			}
+			if e == nil && config != nil {
+				alchemyAPIKey = config.APIKey
+			}
+		}
+	}
+
+	guard := initTxGuard()
+	report := guard.Check(context.Background(), input.IsPro, input.To, input.ChainID, alchemyAPIKey, simulation.TxParams{
+		From:  input.From,
+		To:    input.To,
+		Value: input.Value,
+		Data:  input.Data,
+	})
+
+	response := NewSuccessResponse(report)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}

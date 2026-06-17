@@ -189,6 +189,7 @@ extern char* SignTransaction(char* params);
 extern char* BroadcastTransaction(char* params);
 extern char* QueryTransactionStatus(char* params);
 extern char* EstimateFee(char* params);
+extern char* CheckTransactionSecurity(char* params);
 extern char* CreateWallet(char* params);
 extern char* ImportWallet(char* params);
 extern char* UnlockWallet(char* params);
