@@ -1,0 +1,90 @@
+import { decodeFunctionData, formatUnits } from "viem";
+import type { DecodedIntent, ClearSignRisk, DecodedParam } from "./types";
+import { KNOWN_ABIS, MAX_UINT256, MAX_UINT160 } from "./knownAbis";
+import { resolveTokenLabel } from "./tokenLabel";
+
+function shortAddr(a: string): string {
+  return a && a.length > 12 ? `${a.slice(0, 6)}...${a.slice(-4)}` : a;
+}
+
+function unreadable(raw: string): DecodedIntent {
+  return { readable: false, title: "Unreadable transaction", params: [], risks: [], raw };
+}
+
+// Decode a transaction's calldata into a human-readable intent using ONLY the
+// curated local ABIs (viem, offline). Empty data + value → native send. Unknown
+// selectors → unreadable (caller shows a warning + raw hex). Never throws.
+export async function decodeCalldata(
+  network: string,
+  to: string,
+  data: string | undefined,
+  value: string | undefined,
+): Promise<DecodedIntent> {
+  const raw = data ?? "0x";
+
+  if ((!data || data === "0x") && value && value !== "0x0" && value !== "0") {
+    const eth = formatUnits(BigInt(value), 18);
+    return { readable: true, title: `Send ${eth} (native)`, params: [{ label: "To", value: shortAddr(to) }], risks: [], raw };
+  }
+  if (!data || data === "0x") return unreadable(raw);
+
+  for (const abi of KNOWN_ABIS) {
+    try {
+      const { functionName, args } = decodeFunctionData({ abi, data: data as `0x${string}` });
+      return await buildIntent(network, to, functionName, args as readonly unknown[], raw);
+    } catch {
+      // try the next ABI
+    }
+  }
+  return unreadable(raw);
+}
+
+async function buildIntent(
+  network: string,
+  to: string,
+  fn: string,
+  args: readonly unknown[],
+  raw: string,
+): Promise<DecodedIntent> {
+  const risks: ClearSignRisk[] = [];
+  const params: DecodedParam[] = [];
+
+  switch (fn) {
+    case "transfer": {
+      const [dst, amount] = args as [string, bigint];
+      const t = await resolveTokenLabel(network, to);
+      params.push({ label: "To", value: shortAddr(dst) });
+      return { readable: true, title: `Transfer ${formatUnits(amount, t.decimals)} ${t.symbol}`, params, risks, raw };
+    }
+    case "transferFrom": {
+      const [src, dst, amount] = args as [string, string, bigint];
+      const t = await resolveTokenLabel(network, to);
+      params.push({ label: "From", value: shortAddr(src) }, { label: "To", value: shortAddr(dst) });
+      return { readable: true, title: `Transfer ${formatUnits(amount, t.decimals)} ${t.symbol}`, params, risks, raw };
+    }
+    case "approve": {
+      if (args.length === 4) {
+        const [token, spender, amount] = args as [string, string, bigint, number];
+        const t = await resolveTokenLabel(network, token);
+        if (amount >= MAX_UINT160) risks.push("permit-approval", "unlimited-approval");
+        else risks.push("permit-approval");
+        params.push({ label: "Spender", value: shortAddr(spender) });
+        return { readable: true, title: `Permit2 approve ${t.symbol}`, params, risks, raw };
+      }
+      const [spender, amount] = args as [string, bigint];
+      const t = await resolveTokenLabel(network, to);
+      if (amount >= MAX_UINT256) risks.push("unlimited-approval");
+      params.push({ label: "Spender", value: shortAddr(spender) });
+      const amt = amount >= MAX_UINT256 ? "Unlimited" : `${formatUnits(amount, t.decimals)} ${t.symbol}`;
+      return { readable: true, title: `Approve ${amt}`, params, risks, raw };
+    }
+    case "setApprovalForAll": {
+      const [operator, approved] = args as [string, boolean];
+      if (approved) risks.push("approve-all-nfts");
+      params.push({ label: "Operator", value: shortAddr(operator) }, { label: "Approved", value: approved ? "Yes (ALL NFTs)" : "No (revoke)" });
+      return { readable: true, title: approved ? "Approve ALL NFTs" : "Revoke NFT approval", params, risks, raw };
+    }
+    default:
+      return unreadable(raw);
+  }
+}
