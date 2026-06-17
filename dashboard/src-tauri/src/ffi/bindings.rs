@@ -108,6 +108,9 @@ type GetNFTsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for GetTokenApprovals: char* GetTokenApprovals(char* params)
 type GetTokenApprovalsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+/// Function signature for CheckTransactionSecurity: char* CheckTransactionSecurity(char* params)
+type CheckTransactionSecurityFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 // Function signature for ListContacts: char* ListContacts(char* params)
 type ListContactsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 // Function signature for AddContact: char* AddContact(char* params)
@@ -269,6 +272,8 @@ pub struct WalletLibrary {
     get_nfts: Symbol<'static, GetNFTsFn>,
     // Token approvals query function symbols
     get_token_approvals: Symbol<'static, GetTokenApprovalsFn>,
+    // Transaction security check function symbol
+    check_transaction_security: Symbol<'static, CheckTransactionSecurityFn>,
     // Contact (Address Book) function symbols
     list_contacts: Symbol<'static, ListContactsFn>,
     add_contact: Symbol<'static, AddContactFn>,
@@ -494,6 +499,10 @@ impl WalletLibrary {
                 .get(b"GetTokenApprovals")
                 .map_err(|e| format!("GetTokenApprovals symbol not found: {}", e))?;
 
+            let check_transaction_security: Symbol<CheckTransactionSecurityFn> = lib
+                .get(b"CheckTransactionSecurity")
+                .map_err(|e| format!("CheckTransactionSecurity symbol not found: {}", e))?;
+
             let list_contacts: Symbol<ListContactsFn> = lib
                 .get(b"ListContacts")
                 .map_err(|e| format!("ListContacts symbol not found: {}", e))?;
@@ -656,6 +665,7 @@ impl WalletLibrary {
             let get_token_balances: Symbol<'static, GetTokenBalancesFn> = std::mem::transmute(get_token_balances);
             let get_nfts: Symbol<'static, GetNFTsFn> = std::mem::transmute(get_nfts);
             let get_token_approvals: Symbol<'static, GetTokenApprovalsFn> = std::mem::transmute(get_token_approvals);
+            let check_transaction_security: Symbol<'static, CheckTransactionSecurityFn> = std::mem::transmute(check_transaction_security);
             let list_contacts: Symbol<'static, ListContactsFn> = std::mem::transmute(list_contacts);
             let add_contact: Symbol<'static, AddContactFn> = std::mem::transmute(add_contact);
             let update_contact: Symbol<'static, UpdateContactFn> = std::mem::transmute(update_contact);
@@ -720,6 +730,7 @@ impl WalletLibrary {
                 get_token_balances,
                 get_nfts,
                 get_token_approvals,
+                check_transaction_security,
                 list_contacts,
                 add_contact,
                 update_contact,
@@ -1313,6 +1324,11 @@ impl WalletLibrary {
     /// ```
     pub fn get_token_approvals(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.get_token_approvals, params_json)
+    }
+
+    /// Run the txguard risk engine (blacklist + simulation) for a transaction.
+    pub fn check_transaction_security(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.check_transaction_security, params_json)
     }
 
     /// List all contacts from encrypted storage.

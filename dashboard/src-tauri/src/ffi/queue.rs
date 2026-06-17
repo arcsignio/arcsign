@@ -231,6 +231,11 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Run the txguard risk engine (blacklist + simulation) for a transaction
+    CheckTransactionSecurity {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
     /// List all contacts
     ListContacts {
         params_json: String,
@@ -602,6 +607,11 @@ impl WalletQueue {
                 }
                 WalletCommand::GetTokenApprovals { params_json, respond_to } => {
                     let result = library.get_token_approvals(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::CheckTransactionSecurity { params_json, respond_to } => {
+                    let result = library.check_transaction_security(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -1218,6 +1228,25 @@ impl WalletQueue {
         self.metrics.record_enqueue();
         self.sender
             .send(WalletCommand::GetTokenApprovals {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Run the txguard risk engine (blacklist + simulation) for a transaction.
+    pub async fn check_transaction_security(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::CheckTransactionSecurity {
                 params_json,
                 respond_to: sender,
             })
@@ -2101,6 +2130,11 @@ impl LazyWalletQueue {
     /// Get active ERC-20 token approvals for a wallet
     pub async fn get_token_approvals(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().get_token_approvals(params_json).await
+    }
+
+    /// Run the txguard risk engine (blacklist + simulation) for a transaction
+    pub async fn check_transaction_security(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().check_transaction_security(params_json).await
     }
 
     /// List all contacts

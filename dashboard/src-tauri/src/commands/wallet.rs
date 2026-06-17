@@ -1503,6 +1503,60 @@ pub async fn get_token_approvals(
     Ok(ffi_response)
 }
 
+/// Run the txguard risk engine (blacklist + simulation) for a transaction.
+/// Returns a risk assessment with threat level, flags, and simulation result.
+#[tauri::command]
+pub async fn check_transaction_security(
+    queue: State<'_, LazyWalletQueue>,
+    from: String,
+    to: String,
+    chain_id: String,
+    value: Option<String>,
+    data: Option<String>,
+    usb_path: String,
+    session_token: Option<String>,
+    app_password: Option<String>,
+    is_pro: bool,
+) -> Result<serde_json::Value, String> {
+    let start = Instant::now();
+    tracing::info!("check_transaction_security called from: {} to: {} chain: {}", from, to, chain_id);
+
+    let params = json!({
+        "from": from,
+        "to": to,
+        "chainId": chain_id,
+        "value": value.unwrap_or_default(),
+        "data": data.unwrap_or_default(),
+        "usbPath": usb_path,
+        "sessionToken": session_token.unwrap_or_default(),
+        "appPassword": app_password.unwrap_or_default(),
+        "isPro": is_pro,
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| {
+            tracing::error!("Failed to serialize params: {}", e);
+            format!("Failed to serialize params: {}", e)
+        })?;
+
+    let ffi_response = queue
+        .check_transaction_security(params_json)
+        .await
+        .map_err(|e| {
+            tracing::error!("FFI check_transaction_security failed: {}", e);
+            let msg = e.splitn(2, ": ").nth(1).unwrap_or(&e).to_string();
+            msg
+        })?;
+
+    tracing::info!(
+        "check_transaction_security completed for to={} (took {:?})",
+        to,
+        start.elapsed()
+    );
+
+    Ok(ffi_response)
+}
+
 #[tauri::command]
 pub async fn list_contacts(
     queue: State<'_, LazyWalletQueue>,
