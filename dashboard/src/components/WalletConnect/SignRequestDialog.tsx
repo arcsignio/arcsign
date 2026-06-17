@@ -14,6 +14,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SignatureRequestParams } from '@/services/walletconnect/request-handler';
+import { ClearSignSummary } from '@/components/ClearSignSummary';
 
 interface SignRequestDialogProps {
   isOpen: boolean;
@@ -226,6 +227,12 @@ export const SignRequestDialog: React.FC<SignRequestDialogProps> = ({
           >
             {showRaw ? request.rawMessage : request.message}
           </div>
+          {/* ClearSign structured summary (eth_sendTransaction only) */}
+          {request.intent && (
+            <div style={{ marginTop: '0.5rem' }}>
+              <ClearSignSummary intent={request.intent} security={request.security} />
+            </div>
+          )}
         </div>
 
         {/* Security Warning */}

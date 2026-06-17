@@ -88,6 +88,9 @@ export interface SignatureRequestParams {
   typedData?: EIP712TypedData;
   // For eth_sendTransaction
   transaction?: TransactionParams;
+  // ClearSign enrichment (optional — advisory, never blocks signing)
+  intent?: import('@/services/clearsign/types').DecodedIntent;
+  security?: import('@/services/tauri-api').SecurityReport;
 }
 
 export interface SignatureResult {

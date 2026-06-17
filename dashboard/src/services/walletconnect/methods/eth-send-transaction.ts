@@ -16,6 +16,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
 import { chainIdToNetwork } from '@/services/clearsign/chainIdToNetwork';
+import { checkTransactionSecurity } from '@/services/tauri-api';
 import {
   type WCRequest,
   type WCResponse,
@@ -125,6 +126,23 @@ const sendTransactionHandler: RequestHandler = async (
     `Data: ${displayData}`,
   ].join('\n');
 
+  // Fetch security report — advisory only, never blocks signing
+  let security;
+  try {
+    security = await checkTransactionSecurity({
+      from: tx.from,
+      to: tx.to || '',
+      chainId: String(chainId),
+      value: tx.value,
+      data: tx.data,
+      usbPath: context.usbPath,
+      sessionToken: context.sessionToken,
+      isPro: false, // WC context does not carry membership; default to free
+    });
+  } catch {
+    security = undefined;
+  }
+
   // Request user approval with password
   console.log('[eth_sendTransaction] Requesting user approval...');
   const approval = await context.requestSignature({
@@ -136,6 +154,8 @@ const sendTransactionHandler: RequestHandler = async (
     transaction: tx,
     message,
     rawMessage: JSON.stringify(tx, null, 2),
+    intent,
+    security,
   });
 
   if (!approval.approved || !approval.password) {
