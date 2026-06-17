@@ -18,6 +18,7 @@ import { generateNamespaces } from '@/services/walletconnect/session-manager';
 import type { SessionApprovalRequest, WalletConnectConfig } from '@/services/walletconnect/types';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppPassword } from './AppPasswordContext';
+import { useDashboardStore } from '@/stores/dashboardStore';
 import {
   handleRequest,
   type WCRequest,
@@ -140,6 +141,11 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
   const walletIdRef = useRef<string | null>(null);
   const walletAddressRef = useRef<string | null>(null);
   const usbPathRef = useRef<string | null>(null);
+
+  // Track Pro membership via ref to avoid stale closure in event handlers
+  const isPro = useDashboardStore((state) => state.membership.isPro);
+  const isProRef = useRef(isPro);
+  isProRef.current = isPro;
 
   // Keep refs in sync with state
   walletIdRef.current = walletId;
@@ -287,6 +293,7 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
       usbPath: currentUsbPath,
       passphrase: '', // BIP39 passphrase - empty by default
       sessionToken,
+      isPro: isProRef.current,
       requestSignature,
       getRpcUrl,
     };

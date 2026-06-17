@@ -137,7 +137,7 @@ const sendTransactionHandler: RequestHandler = async (
       data: tx.data,
       usbPath: context.usbPath,
       sessionToken: context.sessionToken,
-      isPro: false, // WC context does not carry membership; default to free
+      isPro: context.isPro,
     });
   } catch {
     security = undefined;

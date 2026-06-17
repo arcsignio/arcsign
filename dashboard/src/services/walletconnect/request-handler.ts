@@ -69,6 +69,8 @@ export interface HandlerContext {
   passphrase: string;
   // Session token for provider config decryption
   sessionToken: string;
+  // Whether the current user has Pro membership
+  isPro: boolean;
   // Function to show sign dialog and get user approval + password
   requestSignature: (params: SignatureRequestParams) => Promise<SignatureResult>;
   // Function to get RPC provider URL for a chain
