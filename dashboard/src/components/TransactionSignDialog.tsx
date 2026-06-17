@@ -13,20 +13,7 @@ import type { PendingTransactionInfo } from '@/services/tauri-api';
 import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
 import type { DecodedIntent } from '@/services/clearsign/types';
 import { ClearSignSummary } from '@/components/ClearSignSummary';
-
-// Map chain_id to Alchemy/internal network string for decodeCalldata
-function chainIdToNetwork(chainId: number): string {
-  switch (chainId) {
-    case 1:   return 'eth-mainnet';
-    case 137: return 'polygon-mainnet';
-    case 42161: return 'arb-mainnet';
-    case 10:  return 'opt-mainnet';
-    case 8453: return 'base-mainnet';
-    case 56:
-    case 97:  return 'bnb-mainnet';
-    default:  return 'eth-mainnet';
-  }
-}
+import { chainIdToNetwork } from '@/services/clearsign/chainIdToNetwork';
 
 // Re-export for backward compatibility
 export type PendingTransaction = PendingTransactionInfo;

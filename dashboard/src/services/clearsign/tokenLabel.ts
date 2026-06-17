@@ -17,6 +17,7 @@ const NETWORK_TO_CHAIN: Record<string, ChainKey> = {
   "opt-mainnet": "optimism",
   "base-mainnet": "base",
   "bnb-mainnet": "bsc",
+  "avalanche-mainnet": "avalanche",
 };
 
 function shortAddr(a: string): string {

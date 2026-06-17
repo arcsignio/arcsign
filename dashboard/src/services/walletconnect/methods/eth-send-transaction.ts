@@ -15,6 +15,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
+import { chainIdToNetwork } from '@/services/clearsign/chainIdToNetwork';
 import {
   type WCRequest,
   type WCResponse,
@@ -37,14 +38,6 @@ import {
   parseJsonResult,
 } from '../utils/validators';
 
-/** Map WalletConnect chainId to the internal network string used by decodeCalldata */
-function wcChainIdToNetwork(chainId: number): string {
-  const m: Record<number, string> = {
-    1: 'eth-mainnet', 137: 'polygon-mainnet', 42161: 'arb-mainnet',
-    10: 'opt-mainnet', 8453: 'base-mainnet', 56: 'bnb-mainnet', 97: 'bnb-mainnet',
-  };
-  return m[chainId] ?? 'eth-mainnet';
-}
 
 /**
  * Parse eth_sendTransaction parameters
@@ -120,7 +113,7 @@ const sendTransactionHandler: RequestHandler = async (
   const displayValue = formatWeiValue(tx.value, nativeSymbol);
   const displayTo = tx.to || '(Contract Creation)';
   const intent = await decodeCalldata(
-    wcChainIdToNetwork(chainId), tx.to || '', tx.data, tx.value,
+    chainIdToNetwork(chainId), tx.to || '', tx.data, tx.value,
   );
   const displayData = intent.readable
     ? `${intent.title}${intent.risks.length ? '  ⚠️ ' + intent.risks.join(', ') : ''}`
