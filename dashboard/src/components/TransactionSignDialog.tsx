@@ -9,11 +9,14 @@
 
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { PendingTransactionInfo } from '@/services/tauri-api';
+import type { PendingTransactionInfo, SecurityReport } from '@/services/tauri-api';
+import { checkTransactionSecurity } from '@/services/tauri-api';
 import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
 import type { DecodedIntent } from '@/services/clearsign/types';
 import { ClearSignSummary } from '@/components/ClearSignSummary';
 import { chainIdToNetwork } from '@/services/clearsign/chainIdToNetwork';
+import { useDashboardStore } from '@/stores/dashboardStore';
+import { useSessionStore } from '@/stores/sessionStore';
 
 // Re-export for backward compatibility
 export type PendingTransaction = PendingTransactionInfo;
@@ -36,6 +39,12 @@ export function TransactionSignDialog({
   const [error, setError] = useState<string | null>(null);
   const [usbConnected, setUsbConnected] = useState(false);
   const [intent, setIntent] = useState<DecodedIntent | null>(null);
+  const [security, setSecurity] = useState<SecurityReport | undefined>(undefined);
+
+  // Read usbPath, isPro, and sessionToken from Zustand stores
+  const usbPath = useDashboardStore((state) => state.usbPath) ?? '';
+  const isPro = useDashboardStore((state) => state.membership.isPro);
+  const sessionToken = useSessionStore((state) => state.token) ?? '';
 
   // Check USB connection on mount
   useEffect(() => {
@@ -55,6 +64,25 @@ export function TransactionSignDialog({
       .then(setIntent)
       .catch(() => setIntent(null));
   }, [transaction]);
+
+  // Fetch txguard security report — advisory only, never blocks signing on failure
+  useEffect(() => {
+    if (!transaction) { setSecurity(undefined); return; }
+    let cancelled = false;
+    checkTransactionSecurity({
+      from: transaction.from,
+      to: transaction.to,
+      chainId: String(transaction.chain_id),
+      value: transaction.value,
+      data: transaction.data,
+      usbPath,
+      sessionToken,
+      isPro,
+    })
+      .then((r) => { if (!cancelled) setSecurity(r); })
+      .catch(() => { if (!cancelled) setSecurity(undefined); }); // advisory — never block signing
+    return () => { cancelled = true; };
+  }, [transaction, usbPath, sessionToken, isPro]);
 
   const checkUsbConnection = async () => {
     try {
@@ -169,7 +197,7 @@ export function TransactionSignDialog({
           {/* Clear-signing summary */}
           {intent && (
             <div style={{ marginTop: '0.5rem' }}>
-              <ClearSignSummary intent={intent} />
+              <ClearSignSummary intent={intent} security={security} />
             </div>
           )}
 

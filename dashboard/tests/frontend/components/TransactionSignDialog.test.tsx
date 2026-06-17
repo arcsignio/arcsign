@@ -13,6 +13,35 @@ import type { PendingTransactionInfo } from '@/services/tauri-api';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 
+// Zustand store mocks — provide default values used by the security effect
+vi.mock('@/stores/dashboardStore', () => ({
+  useDashboardStore: (sel: (s: { usbPath: string | null; membership: { isPro: boolean } }) => unknown) =>
+    sel({ usbPath: '/dev/disk2', membership: { isPro: false } }),
+  useIsPro: () => false,
+}));
+
+vi.mock('@/stores/sessionStore', () => ({
+  useSessionStore: (sel: (s: { token: string | null }) => unknown) =>
+    sel({ token: 'test-session-token' }),
+}));
+
+// vi.hoisted ensures mockCheckTransactionSecurity is available before hoisting
+const { mockCheckTransactionSecurity } = vi.hoisted(() => ({
+  mockCheckTransactionSecurity: vi.fn(async () => ({
+    proRequired: false,
+    warnings: [],
+    riskLevel: 'safe',
+  })),
+}));
+
+vi.mock('@/services/tauri-api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/tauri-api')>();
+  return {
+    ...actual,
+    checkTransactionSecurity: mockCheckTransactionSecurity,
+  };
+});
+
 // vi.hoisted ensures the mock fn reference is available before vi.mock hoisting
 const { mockDecodeCalldata } = vi.hoisted(() => ({
   mockDecodeCalldata: vi.fn(async () => ({
@@ -65,6 +94,12 @@ describe('TransactionSignDialog — clear-signing integration', () => {
   beforeEach(() => {
     // mockReset: true in vitest.config clears implementations — restore defaults here
     mockDecodeCalldata.mockResolvedValue(DEFAULT_INTENT);
+    // Restore default safe security report (mockReset clears the hoisted implementation)
+    mockCheckTransactionSecurity.mockResolvedValue({
+      proRequired: false,
+      warnings: [],
+      riskLevel: 'safe',
+    });
   });
 
   it('renders nothing when transaction is null', () => {
@@ -107,6 +142,26 @@ describe('TransactionSignDialog — clear-signing integration', () => {
     // Shortened address 0xbbbb...bbbb
     // Use waitFor so the async effect settles cleanly inside act
     await waitFor(() => expect(screen.getByText(/0xbbbb/)).toBeInTheDocument());
+  });
+
+  it('shows the security report (blacklist) for the transaction', async () => {
+    mockCheckTransactionSecurity.mockResolvedValue({
+      proRequired: false,
+      warnings: [],
+      riskLevel: 'danger',
+      blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' },
+    });
+
+    render(
+      <TransactionSignDialog
+        transaction={makeTx()}
+        onConfirm={noop}
+        onReject={noop}
+      />,
+    );
+
+    // ClearSignSummary renders clearSign.securityHeading when security is present and !proRequired
+    expect(await screen.findByText('clearSign.securityHeading')).toBeInTheDocument();
   });
 
   it('does not render ClearSignSummary when decodeCalldata rejects', async () => {
