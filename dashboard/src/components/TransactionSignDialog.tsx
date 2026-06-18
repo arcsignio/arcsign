@@ -213,7 +213,7 @@ export function TransactionSignDialog({
           </div>
 
           {/* Clear-signing summary */}
-          {intent && (
+          {(intent || security) && (
             <div style={{ marginTop: '0.5rem' }}>
               <ClearSignSummary
                 intent={intent}

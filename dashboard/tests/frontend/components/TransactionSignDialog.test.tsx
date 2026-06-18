@@ -263,4 +263,21 @@ describe('TransactionSignDialog — risk friction', () => {
     signBtn.click();
     await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
   });
+
+  it('shows the ack checkbox even when intent fails to decode (danger + null intent)', async () => {
+    mockDecodeCalldata.mockRejectedValueOnce(new Error('cannot decode'));
+
+    const { container } = render(
+      <TransactionSignDialog transaction={tx} onConfirm={vi.fn()} onReject={vi.fn()} />,
+    );
+    const pw = container.querySelector('#sign-password') as HTMLInputElement;
+    fireEvent.change(pw, { target: { value: 'pw' } });
+
+    const checkbox = await screen.findByRole('checkbox');
+    const signBtn = screen.getByText('Sign Transaction').closest('button')!;
+    expect(signBtn).toBeDisabled();
+
+    checkbox.click();
+    await waitFor(() => expect(signBtn).not.toBeDisabled());
+  });
 });
