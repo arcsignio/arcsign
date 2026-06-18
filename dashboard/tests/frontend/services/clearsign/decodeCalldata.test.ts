@@ -129,6 +129,15 @@ describe('decodeCalldata — V2 swap', () => {
     // ETH-in: no "Amount in" row (amountIn is msg.value, omitted)
     expect(r.params.some(p => /amount in/i.test(p.label))).toBe(false);
   });
+
+  it('returns unreadable for a degenerate empty path (no tokens to show)', async () => {
+    const data = encodeFunctionData({
+      abi: uniV2RouterAbi, functionName: 'swapExactTokensForTokens',
+      args: [1n, 1n, [], RECIP, 9999999999n],  // empty path → no from/to token
+    });
+    const r = await decodeCalldata('eth-mainnet', ROUTER, data, '0x0');
+    expect(r.readable).toBe(false);  // honest: don't show a swap with a missing side
+  });
 });
 
 describe('decodeCalldata — V3 swap', () => {

@@ -34,6 +34,10 @@ interface SwapShape {
 // Shared swap presentation. Token names resolved locally (tokenLabel); unknown
 // tokens show their short address (real info, not a guess). Never throws.
 async function renderSwap(network: string, s: SwapShape, raw: string): Promise<DecodedIntent> {
+  // Honest partial-decode: if a degenerate decode left us without both tokens
+  // (e.g. an empty V2 path[]), show "unreadable" rather than a swap with a
+  // missing/garbage side. Keeps the honesty invariant explicit, not incidental.
+  if (!s.fromToken || !s.toToken) return unreadable(raw);
   const fromT = await resolveTokenLabel(network, s.fromToken);
   const toT = await resolveTokenLabel(network, s.toToken);
   const fromLabel = fromT.known ? fromT.symbol : shortAddr(s.fromToken);
