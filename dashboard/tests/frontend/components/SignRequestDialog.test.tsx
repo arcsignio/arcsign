@@ -214,4 +214,30 @@ describe('SignRequestDialog', () => {
     fireEvent.keyDown(pw, { key: 'Enter' });
     expect(onApprove).toHaveBeenCalledTimes(1);
   });
+
+  it('shows the ack checkbox when security is danger but intent is absent (no deadlock)', () => {
+    const request: SignatureRequestParams = {
+      ...baseRequest,
+      // intent omitted entirely — upstream failed to decode
+      security: {
+        proRequired: false,
+        warnings: [],
+        riskLevel: 'danger',
+        blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' },
+      },
+    };
+
+    const { container } = render(
+      <SignRequestDialog isOpen={true} request={request} onApprove={vi.fn()} onReject={vi.fn()} />,
+    );
+    const pw = container.querySelector('#wallet-password') as HTMLInputElement;
+    fireEvent.change(pw, { target: { value: 'pw' } });
+
+    expect(screen.getByRole('checkbox')).toBeInTheDocument();
+    const sendBtn = screen.getByText('walletConnect.send').closest('button')!;
+    expect(sendBtn).toBeDisabled();
+
+    screen.getByRole('checkbox').click();
+    expect(sendBtn).not.toBeDisabled();
+  });
 });

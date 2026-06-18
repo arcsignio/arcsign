@@ -246,10 +246,10 @@ export const SignRequestDialog: React.FC<SignRequestDialogProps> = ({
             {showRaw ? request.rawMessage : request.message}
           </div>
           {/* ClearSign structured summary (eth_sendTransaction only) */}
-          {request.intent && (
+          {(request.intent || request.security) && (
             <div style={{ marginTop: '0.5rem' }}>
               <ClearSignSummary
-                intent={request.intent}
+                intent={request.intent ?? null}
                 security={request.security}
                 acknowledged={acknowledged}
                 onAcknowledgeChange={setAcknowledged}
