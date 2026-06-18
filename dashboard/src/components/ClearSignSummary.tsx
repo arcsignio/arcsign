@@ -16,7 +16,7 @@ export function ClearSignSummary({
   acknowledged,
   onAcknowledgeChange,
 }: {
-  intent: DecodedIntent;
+  intent: DecodedIntent | null;
   security?: SecurityReport;
   acknowledged?: boolean;
   onAcknowledgeChange?: (checked: boolean) => void;
@@ -26,7 +26,7 @@ export function ClearSignSummary({
 
   return (
     <div>
-      {!intent.readable ? (
+      {intent && (!intent.readable ? (
         <div
           style={{
             padding: "0.75rem 1rem",
@@ -120,7 +120,7 @@ export function ClearSignSummary({
             </div>
           )}
         </div>
-      )}
+      ))}
 
       {/* Security report — Plan A: security not passed; Plan B (txguard) passes it in */}
       {security && !security.proRequired && (

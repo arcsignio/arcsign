@@ -70,4 +70,25 @@ describe('ClearSignSummary', () => {
     screen.getByRole('checkbox').click();
     expect(onChange).toHaveBeenCalledWith(true);
   });
+
+  it('renders the security section and checkbox when intent is null but report is high-risk', () => {
+    render(
+      <ClearSignSummary
+        intent={null}
+        security={{ proRequired: false, warnings: [], riskLevel: 'danger', blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' } }}
+        acknowledged={false}
+        onAcknowledgeChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('clearSign.securityHeading')).toBeInTheDocument();
+    expect(screen.getByText('clearSign.ackRisk')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox')).toBeInTheDocument();
+  });
+
+  it('does not crash and renders nothing intent-related when intent is null and no security', () => {
+    const { container } = render(<ClearSignSummary intent={null} />);
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    // outer wrapper renders but is empty — no intent card, no security block
+    expect(container.textContent).toBe('');
+  });
 });
