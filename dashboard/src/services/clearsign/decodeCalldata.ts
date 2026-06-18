@@ -11,6 +11,39 @@ function unreadable(raw: string): DecodedIntent {
   return { readable: false, title: "Unreadable transaction", params: [], risks: [], raw };
 }
 
+interface SwapShape {
+  fromToken: string;
+  toToken: string;
+  amountIn?: bigint;
+  minAmountOut: bigint;
+  recipient: string;
+  venue: string;
+}
+
+// Shared swap presentation. Token names resolved locally (tokenLabel); unknown
+// tokens show their short address (real info, not a guess). Never throws.
+async function renderSwap(network: string, s: SwapShape, raw: string): Promise<DecodedIntent> {
+  const fromT = await resolveTokenLabel(network, s.fromToken);
+  const toT = await resolveTokenLabel(network, s.toToken);
+  const fromLabel = fromT.known ? fromT.symbol : shortAddr(s.fromToken);
+  const toLabel = toT.known ? toT.symbol : shortAddr(s.toToken);
+
+  const params: DecodedParam[] = [];
+  if (s.amountIn !== undefined) {
+    params.push({ label: "Amount in", value: `${formatUnits(s.amountIn, fromT.decimals)} ${fromLabel}` });
+  }
+  params.push({ label: "Min received", value: `${formatUnits(s.minAmountOut, toT.decimals)} ${toLabel}` });
+  params.push({ label: "Recipient", value: shortAddr(s.recipient) });
+
+  return {
+    readable: true,
+    title: `Swap ${fromLabel} → ${toLabel} (${s.venue})`,
+    params,
+    risks: [],
+    raw,
+  };
+}
+
 // Decode a transaction's calldata into a human-readable intent using ONLY the
 // curated local ABIs (viem, offline). Empty data + value → native send. Unknown
 // selectors → unreadable (caller shows a warning + raw hex). Never throws.
@@ -84,6 +117,29 @@ async function buildIntent(
       if (approved) risks.push("approve-all-nfts");
       params.push({ label: "Operator", value: shortAddr(operator) }, { label: "Approved", value: approved ? "Yes (ALL NFTs)" : "No (revoke)" });
       return { readable: true, title: approved ? "Approve ALL NFTs" : "Revoke NFT approval", params, risks, raw };
+    }
+    case "swapExactTokensForTokens":
+    case "swapExactTokensForETH": {
+      const [amountIn, amountOutMin, path, recipient] = args as [bigint, bigint, string[], string, bigint];
+      return renderSwap(network, {
+        fromToken: path[0],
+        toToken: path[path.length - 1],
+        amountIn,
+        minAmountOut: amountOutMin,
+        recipient,
+        venue: "V2 Router",
+      }, raw);
+    }
+    case "swapExactETHForTokens": {
+      const [amountOutMin, path, recipient] = args as [bigint, string[], string, bigint];
+      return renderSwap(network, {
+        fromToken: path[0],
+        toToken: path[path.length - 1],
+        // ETH-in: amountIn is msg.value, not in calldata → omit
+        minAmountOut: amountOutMin,
+        recipient,
+        venue: "V2 Router",
+      }, raw);
     }
     default:
       return unreadable(raw);
