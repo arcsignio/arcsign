@@ -15,6 +15,7 @@ import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
 import type { DecodedIntent } from '@/services/clearsign/types';
 import { ClearSignSummary } from '@/components/ClearSignSummary';
 import { chainIdToNetwork } from '@/services/clearsign/chainIdToNetwork';
+import { isHighRiskSign } from '@/services/clearsign/riskGate';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { useSessionStore } from '@/stores/sessionStore';
 
@@ -40,6 +41,7 @@ export function TransactionSignDialog({
   const [usbConnected, setUsbConnected] = useState(false);
   const [intent, setIntent] = useState<DecodedIntent | null>(null);
   const [security, setSecurity] = useState<SecurityReport | undefined>(undefined);
+  const [acknowledged, setAcknowledged] = useState(false);
 
   // Read usbPath, isPro, and sessionToken from Zustand stores
   const usbPath = useDashboardStore((state) => state.usbPath) ?? '';
@@ -53,6 +55,7 @@ export function TransactionSignDialog({
       // Reset state
       setPassword('');
       setError(null);
+      setAcknowledged(false);
     }
   }, [transaction]);
 
@@ -84,6 +87,13 @@ export function TransactionSignDialog({
     return () => { cancelled = true; };
   }, [transaction, usbPath, sessionToken, isPro]);
 
+  // High-risk gate: a danger/blacklist report locks the Sign button behind an
+  // acknowledgment checkbox. The button stays red even after acknowledgment —
+  // the danger doesn't disappear once the box is ticked; reverting to teal would
+  // signal a false "all clear". Red + enabled = "you are knowingly signing a
+  // dangerous transaction".
+  const highRisk = isHighRiskSign(security);
+
   const checkUsbConnection = async () => {
     try {
       const devices = await invoke<Array<{ path: string }>>('detect_usb');
@@ -94,6 +104,14 @@ export function TransactionSignDialog({
   };
 
   const handleConfirm = async () => {
+    // Block signing of a high-risk transaction until the user acknowledges.
+    // This action-level guard (not just the button's disabled prop) keeps the
+    // gate enforced even if a future Enter-key/submit path is added — mirrors
+    // the WalletConnect SignRequestDialog guard.
+    if (highRisk && !acknowledged) {
+      return;
+    }
+
     if (!password) {
       setError('Please enter your password');
       return;
@@ -197,7 +215,12 @@ export function TransactionSignDialog({
           {/* Clear-signing summary */}
           {intent && (
             <div style={{ marginTop: '0.5rem' }}>
-              <ClearSignSummary intent={intent} security={security} />
+              <ClearSignSummary
+                intent={intent}
+                security={security}
+                acknowledged={acknowledged}
+                onAcknowledgeChange={setAcknowledged}
+              />
             </div>
           )}
 
@@ -269,8 +292,10 @@ export function TransactionSignDialog({
           </button>
           <button
             onClick={handleConfirm}
-            disabled={isLoading || !usbConnected || !password}
-            className="flex-1 px-4 py-3 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading || !usbConnected || !password || (highRisk && !acknowledged)}
+            className={`flex-1 px-4 py-3 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              highRisk ? 'bg-red-600 hover:bg-red-700' : 'bg-teal-600 hover:bg-teal-700'
+            }`}
           >
             {isLoading ? 'Signing...' : 'Sign Transaction'}
           </button>

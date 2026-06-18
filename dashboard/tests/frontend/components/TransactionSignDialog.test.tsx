@@ -5,7 +5,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { invoke } from '@tauri-apps/api/core';
 import { TransactionSignDialog } from '@/components/TransactionSignDialog';
 import type { PendingTransactionInfo } from '@/services/tauri-api';
 
@@ -198,5 +199,68 @@ describe('TransactionSignDialog — clear-signing integration', () => {
     // summary title must NOT appear — give React a tick to settle
     await new Promise((r) => setTimeout(r, 0));
     expect(screen.queryByText('Transfer 100 USDC')).not.toBeInTheDocument();
+  });
+});
+
+describe('TransactionSignDialog — risk friction', () => {
+  const tx: PendingTransactionInfo = {
+    request_id: 1,
+    from: '0xFrom',
+    to: '0xBadTarget',
+    value: '0x0',
+    data: '0xa9059cbb',
+    chain_id: 1,
+    description: 'External transaction',
+    broadcast: true,
+  } as PendingTransactionInfo;
+
+  beforeEach(() => {
+    mockDecodeCalldata.mockResolvedValue(DEFAULT_INTENT);
+    // detect_usb must report a connected device so the only remaining gate is the risk ack
+    vi.mocked(invoke).mockResolvedValue([{ path: '/dev/disk2' }]);
+    mockCheckTransactionSecurity.mockResolvedValue({
+      proRequired: false,
+      warnings: [],
+      riskLevel: 'danger',
+      blacklistMatch: { value: '0xBadTarget', source: 'OFAC', category: 'sanctioned' },
+    });
+  });
+
+  it('disables the sign button until the risk is acknowledged', async () => {
+    const { container } = render(
+      <TransactionSignDialog transaction={tx} onConfirm={vi.fn()} onReject={vi.fn()} />,
+    );
+    const pw = container.querySelector('#sign-password') as HTMLInputElement;
+    fireEvent.change(pw, { target: { value: 'pw' } });
+
+    const checkbox = await screen.findByRole('checkbox');
+    const signBtn = screen.getByText('Sign Transaction').closest('button')!;
+    expect(signBtn).toBeDisabled();
+
+    checkbox.click();
+    await waitFor(() => expect(signBtn).not.toBeDisabled());
+  });
+
+  it('handleConfirm refuses to sign a high-risk tx until acknowledged (action-level guard)', async () => {
+    const onConfirm = vi.fn().mockResolvedValue(undefined);
+    const { container } = render(
+      <TransactionSignDialog transaction={tx} onConfirm={onConfirm} onReject={vi.fn()} />,
+    );
+    const pw = container.querySelector('#sign-password') as HTMLInputElement;
+    fireEvent.change(pw, { target: { value: 'pw' } });
+
+    const checkbox = await screen.findByRole('checkbox');
+    const signBtn = screen.getByText('Sign Transaction').closest('button')!;
+
+    // Disabled button blocks the click; the action-level guard in handleConfirm
+    // is the backstop. Before acknowledgment the handler must not call onConfirm.
+    signBtn.click();
+    expect(onConfirm).not.toHaveBeenCalled();
+
+    // After acknowledgment, signing proceeds.
+    checkbox.click();
+    await waitFor(() => expect(signBtn).not.toBeDisabled());
+    signBtn.click();
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
   });
 });
