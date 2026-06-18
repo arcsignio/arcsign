@@ -176,6 +176,29 @@ async function buildIntent(
         venue: "V3 Router",
       }, raw);
     }
+    case "swap": {
+      // 1inch: args = [executor, desc, permit, data] — args[1] is the desc tuple.
+      // Kyber: args = [execution] — execution.desc is the tuple.
+      const a = args as readonly unknown[];
+      let desc: { srcToken: string; dstToken: string; dstReceiver: string; amount: bigint; minReturnAmount: bigint } | undefined;
+      let venue = "";
+      if (a.length === 4 && a[1] && typeof a[1] === "object" && "srcToken" in (a[1] as object)) {
+        desc = a[1] as typeof desc;
+        venue = "1inch";
+      } else if (a.length === 1 && a[0] && typeof a[0] === "object" && "desc" in (a[0] as object)) {
+        desc = (a[0] as { desc: typeof desc }).desc;
+        venue = "KyberSwap";
+      }
+      if (!desc) return unreadable(raw);  // unknown swap shape → honest unreadable
+      return renderSwap(network, {
+        fromToken: desc.srcToken,
+        toToken: desc.dstToken,
+        amountIn: desc.amount,
+        minAmountOut: desc.minReturnAmount,
+        recipient: desc.dstReceiver,
+        venue,
+      }, raw);
+    }
     default:
       return unreadable(raw);
   }

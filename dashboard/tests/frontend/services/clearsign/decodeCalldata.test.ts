@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { encodeFunctionData } from 'viem';
 import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
-import { erc20Abi, erc721Abi, permit2Abi, uniV2RouterAbi, uniV3RouterAbi, MAX_UINT256, MAX_UINT160 } from '@/services/clearsign/knownAbis';
+import { erc20Abi, erc721Abi, permit2Abi, uniV2RouterAbi, uniV3RouterAbi, oneInchRouterAbi, kyberRouterAbi, MAX_UINT256, MAX_UINT160 } from '@/services/clearsign/knownAbis';
 import * as tokenLabel from '@/services/clearsign/tokenLabel';
 
 vi.mock('@/services/clearsign/tokenLabel', () => ({
@@ -180,6 +180,48 @@ describe('decodeCalldata — V3 swap', () => {
       args: [{ path: badPath, recipient: RECIP, deadline: 9999999999n, amountIn: 1n, amountOutMinimum: 1n }],
     });
     const r = await decodeCalldata('eth-mainnet', ROUTER, data, '0x0');
+    expect(r.readable).toBe(false);
+  });
+});
+
+describe('decodeCalldata — aggregator swap (1inch / Kyber)', () => {
+  const SRC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+  const DST = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
+  const RECIP = '0x1111111254EEB25477B68fb85Ed929f73A960582';
+  const EXEC = '0x2222222222222222222222222222222222222222';
+
+  it('decodes 1inch swap desc into Swap src → dst with min return', async () => {
+    vi.mocked(tokenLabel.resolveTokenLabel)
+      .mockResolvedValueOnce({ symbol: 'USDC', decimals: 6, known: true })
+      .mockResolvedValueOnce({ symbol: 'USDT', decimals: 6, known: true });
+    const data = encodeFunctionData({
+      abi: oneInchRouterAbi, functionName: 'swap',
+      args: [EXEC, { srcToken: SRC, dstToken: DST, srcReceiver: EXEC, dstReceiver: RECIP, amount: 100_000_000n, minReturnAmount: 98_000_000n, flags: 0n }, '0x', '0x'],
+    });
+    const r = await decodeCalldata('eth-mainnet', EXEC, data, '0x0');
+    expect(r.readable).toBe(true);
+    expect(r.title).toContain('USDC');
+    expect(r.title).toContain('USDT');
+    expect(r.title).toContain('1inch');
+    expect(r.params.some(p => /min/i.test(p.label))).toBe(true);
+  });
+
+  it('decodes Kyber swap desc into Swap src → dst', async () => {
+    vi.mocked(tokenLabel.resolveTokenLabel)
+      .mockResolvedValueOnce({ symbol: 'USDC', decimals: 6, known: true })
+      .mockResolvedValueOnce({ symbol: 'USDT', decimals: 6, known: true });
+    const data = encodeFunctionData({
+      abi: kyberRouterAbi, functionName: 'swap',
+      args: [{ callTarget: EXEC, approveTarget: EXEC, targetData: '0x', desc: { srcToken: SRC, dstToken: DST, srcReceivers: [], srcAmounts: [], feeReceivers: [], feeAmounts: [], dstReceiver: RECIP, amount: 100_000_000n, minReturnAmount: 97_000_000n, flags: 0n, permit: '0x' }, clientData: '0x' }],
+    });
+    const r = await decodeCalldata('eth-mainnet', EXEC, data, '0x0');
+    expect(r.readable).toBe(true);
+    expect(r.title).toContain('USDC');
+    expect(r.title).toContain('KyberSwap');
+  });
+
+  it('returns unreadable when swap args do not match (garbage)', async () => {
+    const r = await decodeCalldata('eth-mainnet', EXEC, '0x12aa3caf0000', '0x0');
     expect(r.readable).toBe(false);
   });
 });
