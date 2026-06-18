@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { encodeFunctionData } from 'viem';
 import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
-import { erc20Abi, erc721Abi, permit2Abi, uniV2RouterAbi, MAX_UINT256, MAX_UINT160 } from '@/services/clearsign/knownAbis';
+import { erc20Abi, erc721Abi, permit2Abi, uniV2RouterAbi, uniV3RouterAbi, MAX_UINT256, MAX_UINT160 } from '@/services/clearsign/knownAbis';
 import * as tokenLabel from '@/services/clearsign/tokenLabel';
 
 vi.mock('@/services/clearsign/tokenLabel', () => ({
@@ -128,5 +128,58 @@ describe('decodeCalldata — V2 swap', () => {
     expect(recipRow!.value).not.toContain('9999'); // not the deadline
     // ETH-in: no "Amount in" row (amountIn is msg.value, omitted)
     expect(r.params.some(p => /amount in/i.test(p.label))).toBe(false);
+  });
+});
+
+describe('decodeCalldata — V3 swap', () => {
+  const A = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+  const B = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
+  const C = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+  const RECIP = '0x1111111254EEB25477B68fb85Ed929f73A960582';
+  const ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
+
+  // V3 packed path: address(20) + fee(3) + address(20) [+ fee(3)+address(20) per hop].
+  // even index = address (strip 0x), odd index = 3-byte fee hex e.g. '0001f4' (500).
+  const packPath = (...parts: string[]): `0x${string}` =>
+    ('0x' + parts.map((p, i) => (i % 2 === 0 ? p.slice(2) : p)).join('')) as `0x${string}`;
+
+  it('decodes exactInputSingle (single hop)', async () => {
+    vi.mocked(tokenLabel.resolveTokenLabel)
+      .mockResolvedValueOnce({ symbol: 'USDC', decimals: 6, known: true })
+      .mockResolvedValueOnce({ symbol: 'USDT', decimals: 6, known: true });
+    const data = encodeFunctionData({
+      abi: uniV3RouterAbi, functionName: 'exactInputSingle',
+      args: [{ tokenIn: A, tokenOut: B, fee: 500, recipient: RECIP, deadline: 9999999999n, amountIn: 100_000_000n, amountOutMinimum: 98_000_000n, sqrtPriceLimitX96: 0n }],
+    });
+    const r = await decodeCalldata('eth-mainnet', ROUTER, data, '0x0');
+    expect(r.readable).toBe(true);
+    expect(r.title).toContain('USDC');
+    expect(r.title).toContain('USDT');
+    expect(r.params.some(p => /min/i.test(p.label))).toBe(true);
+  });
+
+  it('decodes exactInput multi-hop — takes first and last token', async () => {
+    vi.mocked(tokenLabel.resolveTokenLabel)
+      .mockResolvedValueOnce({ symbol: 'USDC', decimals: 6, known: true })
+      .mockResolvedValueOnce({ symbol: 'WETH', decimals: 18, known: true });
+    const path = packPath(A, '0001f4', C, '0001f4', B);  // A → C → B
+    const data = encodeFunctionData({
+      abi: uniV3RouterAbi, functionName: 'exactInput',
+      args: [{ path, recipient: RECIP, deadline: 9999999999n, amountIn: 100_000_000n, amountOutMinimum: 1n }],
+    });
+    const r = await decodeCalldata('eth-mainnet', ROUTER, data, '0x0');
+    expect(r.readable).toBe(true);
+    expect(r.title).toContain('USDC');  // first token (A)
+    expect(r.title).toContain('WETH');  // last token (B)
+  });
+
+  it('returns unreadable when the packed path length is invalid', async () => {
+    const badPath = ('0x' + 'ab'.repeat(30)) as `0x${string}`;  // 30 bytes — not 20 + 23*n
+    const data = encodeFunctionData({
+      abi: uniV3RouterAbi, functionName: 'exactInput',
+      args: [{ path: badPath, recipient: RECIP, deadline: 9999999999n, amountIn: 1n, amountOutMinimum: 1n }],
+    });
+    const r = await decodeCalldata('eth-mainnet', ROUTER, data, '0x0');
+    expect(r.readable).toBe(false);
   });
 });

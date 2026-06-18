@@ -7,6 +7,17 @@ function shortAddr(a: string): string {
   return a && a.length > 12 ? `${a.slice(0, 6)}...${a.slice(-4)}` : a;
 }
 
+// V3 packed path: tokenIn(20) + fee(3) + tokenOut(20) [+ fee(3)+token(20) per hop].
+// Returns [firstToken, lastToken] or null if the byte length is not 20 + 23*n (n>=1).
+function decodePackedPath(path: string): [string, string] | null {
+  const hex = path.startsWith("0x") ? path.slice(2) : path;
+  const bytes = hex.length / 2;
+  if (!Number.isInteger(bytes) || bytes < 43 || (bytes - 20) % 23 !== 0) return null;
+  const first = "0x" + hex.slice(0, 40);
+  const last = "0x" + hex.slice(hex.length - 40);
+  return [first, last];
+}
+
 function unreadable(raw: string): DecodedIntent {
   return { readable: false, title: "Unreadable transaction", params: [], risks: [], raw };
 }
@@ -139,6 +150,30 @@ async function buildIntent(
         minAmountOut: amountOutMin,
         recipient,
         venue: "V2 Router",
+      }, raw);
+    }
+    case "exactInputSingle": {
+      const p = args[0] as { tokenIn: string; tokenOut: string; recipient: string; amountIn: bigint; amountOutMinimum: bigint };
+      return renderSwap(network, {
+        fromToken: p.tokenIn,
+        toToken: p.tokenOut,
+        amountIn: p.amountIn,
+        minAmountOut: p.amountOutMinimum,
+        recipient: p.recipient,
+        venue: "V3 Router",
+      }, raw);
+    }
+    case "exactInput": {
+      const p = args[0] as { path: string; recipient: string; amountIn: bigint; amountOutMinimum: bigint };
+      const ends = decodePackedPath(p.path);
+      if (!ends) return unreadable(raw);  // honest: malformed path → unreadable
+      return renderSwap(network, {
+        fromToken: ends[0],
+        toToken: ends[1],
+        amountIn: p.amountIn,
+        minAmountOut: p.amountOutMinimum,
+        recipient: p.recipient,
+        venue: "V3 Router",
       }, raw);
     }
     default:
