@@ -30,4 +30,44 @@ describe('ClearSignSummary', () => {
     expect(screen.getByText('clearSign.securityHeading')).toBeInTheDocument();
     expect(screen.getByText(/clearSign.blacklistHit/)).toBeInTheDocument();
   });
+
+  it('renders the acknowledgment checkbox when the report is high-risk', () => {
+    render(
+      <ClearSignSummary
+        intent={readable}
+        security={{ proRequired: false, warnings: [], riskLevel: 'danger', blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' } }}
+        acknowledged={false}
+        onAcknowledgeChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('clearSign.ackRisk')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox')).toBeInTheDocument();
+  });
+
+  it('does not render the acknowledgment checkbox when not high-risk', () => {
+    render(
+      <ClearSignSummary
+        intent={readable}
+        security={{ proRequired: false, warnings: [], riskLevel: 'safe' }}
+        acknowledged={false}
+        onAcknowledgeChange={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText('clearSign.ackRisk')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  });
+
+  it('calls onAcknowledgeChange(true) when the checkbox is ticked', async () => {
+    const onChange = vi.fn();
+    render(
+      <ClearSignSummary
+        intent={readable}
+        security={{ proRequired: false, warnings: [], riskLevel: 'danger', blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' } }}
+        acknowledged={false}
+        onAcknowledgeChange={onChange}
+      />,
+    );
+    screen.getByRole('checkbox').click();
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
 });

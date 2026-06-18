@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { DecodedIntent, ClearSignRisk } from "@/services/clearsign/types";
 import type { SecurityReport } from "@/services/tauri-api";
+import { isHighRiskSign } from "@/services/clearsign/riskGate";
 
 const RISK_KEY: Record<ClearSignRisk, string> = {
   "unlimited-approval": "clearSign.riskUnlimited",
@@ -12,9 +13,13 @@ const RISK_KEY: Record<ClearSignRisk, string> = {
 export function ClearSignSummary({
   intent,
   security,
+  acknowledged,
+  onAcknowledgeChange,
 }: {
   intent: DecodedIntent;
   security?: SecurityReport;
+  acknowledged?: boolean;
+  onAcknowledgeChange?: (checked: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [showRaw, setShowRaw] = useState(false);
@@ -164,6 +169,34 @@ export function ClearSignSummary({
             </div>
           ) : null}
         </div>
+      )}
+
+      {/* High-risk acknowledgment — friction gate, controlled by parent dialog */}
+      {isHighRiskSign(security) && (
+        <label
+          style={{
+            marginTop: "0.5rem",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "0.5rem",
+            padding: "0.75rem 1rem",
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            borderRadius: "10px",
+            fontSize: "0.8125rem",
+            fontWeight: 600,
+            color: "#b91c1c",
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={acknowledged ?? false}
+            onChange={(e) => onAcknowledgeChange?.(e.target.checked)}
+            style={{ marginTop: "0.15rem" }}
+          />
+          <span>{t("clearSign.ackRisk")}</span>
+        </label>
       )}
     </div>
   );

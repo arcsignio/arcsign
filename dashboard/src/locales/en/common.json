@@ -1285,6 +1285,7 @@
     "riskPermit": "Off-chain approval signature",
     "securityHeading": "Security check",
     "blacklistHit": "Target is on a blocklist",
-    "simulatedChanges": "Simulated balance changes"
+    "simulatedChanges": "Simulated balance changes",
+    "ackRisk": "I understand the risk and still want to sign"
   }
 }
