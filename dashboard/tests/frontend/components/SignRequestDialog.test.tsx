@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { SignRequestDialog } from '@/components/WalletConnect/SignRequestDialog';
 import type { SignatureRequestParams } from '@/services/walletconnect/request-handler';
 
@@ -102,5 +102,116 @@ describe('SignRequestDialog', () => {
       />
     );
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('disables the send button until the risk is acknowledged (danger report)', () => {
+    const request: SignatureRequestParams = {
+      ...baseRequest,
+      intent: { readable: true, title: 'Transfer 100 USDC', params: [], risks: [], raw: '0xa9059cbb' },
+      security: {
+        proRequired: false,
+        warnings: [],
+        riskLevel: 'danger',
+        blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' },
+      },
+    };
+
+    const { container } = render(
+      <SignRequestDialog isOpen={true} request={request} onApprove={vi.fn()} onReject={vi.fn()} />,
+    );
+
+    const pw = container.querySelector('#wallet-password') as HTMLInputElement;
+    fireEvent.change(pw, { target: { value: 'pw' } });
+
+    const sendBtn = screen.getByText('walletConnect.send').closest('button')!;
+    expect(sendBtn).toBeDisabled();
+
+    screen.getByRole('checkbox').click();
+    expect(sendBtn).not.toBeDisabled();
+  });
+
+  it('does not gate the send button when the report is safe', () => {
+    const request: SignatureRequestParams = {
+      ...baseRequest,
+      intent: { readable: true, title: 'Transfer 100 USDC', params: [], risks: [], raw: '0xa9059cbb' },
+      security: { proRequired: false, warnings: [], riskLevel: 'safe' },
+    };
+
+    const { container } = render(
+      <SignRequestDialog isOpen={true} request={request} onApprove={vi.fn()} onReject={vi.fn()} />,
+    );
+    const pw = container.querySelector('#wallet-password') as HTMLInputElement;
+    fireEvent.change(pw, { target: { value: 'pw' } });
+
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.getByText('walletConnect.send').closest('button')!).not.toBeDisabled();
+  });
+
+  it('resets acknowledgment when a new request arrives (no stale-ack leak across requests)', () => {
+    const danger = {
+      proRequired: false,
+      warnings: [],
+      riskLevel: 'danger',
+      blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' },
+    };
+    const reqA: SignatureRequestParams = {
+      ...baseRequest,
+      intent: { readable: true, title: 'Transfer A', params: [], risks: [], raw: '0xa9059cbb' },
+      security: danger,
+    };
+    const reqB: SignatureRequestParams = {
+      ...baseRequest,
+      intent: { readable: true, title: 'Transfer B', params: [], risks: [], raw: '0xa9059cbb' },
+      security: danger,
+    };
+
+    const { container, rerender } = render(
+      <SignRequestDialog isOpen={true} request={reqA} onApprove={vi.fn()} onReject={vi.fn()} />,
+    );
+
+    // acknowledge request A
+    const pwA = container.querySelector('#wallet-password') as HTMLInputElement;
+    fireEvent.change(pwA, { target: { value: 'pw' } });
+    screen.getByRole('checkbox').click();
+    expect(screen.getByText('walletConnect.send').closest('button')!).not.toBeDisabled();
+
+    // a new danger request B arrives at the SAME mounted instance
+    rerender(<SignRequestDialog isOpen={true} request={reqB} onApprove={vi.fn()} onReject={vi.fn()} />);
+
+    // gate must be re-locked: checkbox unticked, send button disabled again
+    const pwB = container.querySelector('#wallet-password') as HTMLInputElement;
+    fireEvent.change(pwB, { target: { value: 'pw' } });
+    expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByText('walletConnect.send').closest('button')!).toBeDisabled();
+  });
+
+  it('does not sign a high-risk tx via Enter key without acknowledgment', () => {
+    const onApprove = vi.fn();
+    const request: SignatureRequestParams = {
+      ...baseRequest,
+      intent: { readable: true, title: 'Transfer 100 USDC', params: [], risks: [], raw: '0xa9059cbb' },
+      security: {
+        proRequired: false,
+        warnings: [],
+        riskLevel: 'danger',
+        blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' },
+      },
+    };
+
+    const { container } = render(
+      <SignRequestDialog isOpen={true} request={request} onApprove={onApprove} onReject={vi.fn()} />,
+    );
+
+    const pw = container.querySelector('#wallet-password') as HTMLInputElement;
+    fireEvent.change(pw, { target: { value: 'pw' } });
+
+    // press Enter WITHOUT ticking the acknowledgment checkbox
+    fireEvent.keyDown(pw, { key: 'Enter' });
+    expect(onApprove).not.toHaveBeenCalled();
+
+    // after acknowledging, Enter signs
+    screen.getByRole('checkbox').click();
+    fireEvent.keyDown(pw, { key: 'Enter' });
+    expect(onApprove).toHaveBeenCalledTimes(1);
   });
 });

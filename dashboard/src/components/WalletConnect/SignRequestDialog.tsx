@@ -11,10 +11,11 @@
  * Security: Requires wallet password for each signature
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SignatureRequestParams } from '@/services/walletconnect/request-handler';
 import { ClearSignSummary } from '@/components/ClearSignSummary';
+import { isHighRiskSign } from '@/services/clearsign/riskGate';
 
 interface SignRequestDialogProps {
   isOpen: boolean;
@@ -34,10 +35,27 @@ export const SignRequestDialog: React.FC<SignRequestDialogProps> = ({
   const [showRaw, setShowRaw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [acknowledged, setAcknowledged] = useState(false);
+  useEffect(() => { setAcknowledged(false); }, [request]);
 
   if (!isOpen || !request) return null;
 
+  // High-risk gate: a danger/blacklist report locks signing behind an
+  // acknowledgment checkbox. Enforced at the action level (handleApprove),
+  // not just the button's disabled prop, so the Enter-key path cannot bypass it.
+  // The button stays red even after acknowledgment — the danger doesn't
+  // disappear once the box is ticked; reverting to orange/teal would signal a
+  // false "all clear".
+  const highRisk = isHighRiskSign(request.security);
+
   const handleApprove = async () => {
+    // Block signing of a high-risk transaction until the user acknowledges.
+    // This guard (not just the button's disabled prop) is what stops the
+    // Enter-key path from bypassing the friction gate.
+    if (highRisk && !acknowledged) {
+      return;
+    }
+
     if (!password.trim()) {
       setError(t('walletConnect.enterPassword'));
       return;
@@ -230,7 +248,12 @@ export const SignRequestDialog: React.FC<SignRequestDialogProps> = ({
           {/* ClearSign structured summary (eth_sendTransaction only) */}
           {request.intent && (
             <div style={{ marginTop: '0.5rem' }}>
-              <ClearSignSummary intent={request.intent} security={request.security} />
+              <ClearSignSummary
+                intent={request.intent}
+                security={request.security}
+                acknowledged={acknowledged}
+                onAcknowledgeChange={setAcknowledged}
+              />
             </div>
           )}
         </div>
@@ -290,9 +313,11 @@ export const SignRequestDialog: React.FC<SignRequestDialogProps> = ({
           </button>
           <button
             onClick={handleApprove}
-            disabled={loading || !password.trim()}
+            disabled={loading || !password.trim() || (highRisk && !acknowledged)}
             className={`px-6 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
-              isTransaction
+              highRisk
+                ? 'bg-red-600 hover:bg-red-700'
+                : isTransaction
                 ? 'bg-orange-600 hover:bg-orange-700'
                 : 'bg-teal-600 hover:bg-teal-700'
             }`}
