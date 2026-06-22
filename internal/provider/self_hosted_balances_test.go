@@ -26,3 +26,21 @@ func TestGetSelfHostedTokenBalancesSkipsUnknownNetwork(t *testing.T) {
 		t.Errorf("expected no balances for unresolvable network, got %v", got)
 	}
 }
+
+// TestGetSelfHostedTokenBalancesWithExtraEmpty verifies the extra-tokens variant
+// (which folds in per-address touched tokens / table B) handles the empty case
+// without hitting the network. The merge logic itself is covered by
+// merge_tokens_test.go.
+func TestGetSelfHostedTokenBalancesWithExtraEmpty(t *testing.T) {
+	if got := GetSelfHostedTokenBalancesWithExtra(nil, nil); len(got) != 0 {
+		t.Errorf("expected no balances for nil input, got %v", got)
+	}
+	// Unresolvable network with extra tokens must still be skipped, not panic.
+	got := GetSelfHostedTokenBalancesWithExtra(
+		[]AddressWithNetworks{{Address: "0xabc", Networks: []string{"nope"}}},
+		map[string][]TokenRef{"0xabc": {{Address: "0xT", Network: "nope", Symbol: "X", Decimals: 18}}},
+	)
+	if len(got) != 0 {
+		t.Errorf("expected no balances for unresolvable network, got %v", got)
+	}
+}

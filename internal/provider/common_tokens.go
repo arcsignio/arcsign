@@ -1,5 +1,7 @@
 package provider
 
+import "strings"
+
 // Common token whitelist used for the no-API-key (degraded) path: when the user
 // hasn't configured an Alchemy key, we can't discover which tokens they hold
 // (no free indexer for these chains), so we query a curated set of well-known
@@ -86,4 +88,33 @@ var commonTokensByNetwork = map[string][]CommonToken{
 // CommonTokensFor returns the curated token set for an internal network id.
 func CommonTokensFor(network string) []CommonToken {
 	return commonTokensByNetwork[NormalizeToInternalNetwork(network)]
+}
+
+// mergeTokensForNetwork returns the balance token list for one network: the
+// curated common set (table A) unioned with the user's touched tokens (table B)
+// for that same network. Touched tokens for other networks are filtered out, and
+// any touched token whose contract address already appears in the common set is
+// de-duplicated (common set wins). This is what lets a swap output / airdrop /
+// manually-imported token have its balance queried alongside the common tokens.
+func mergeTokensForNetwork(network string, extra []TokenRef) []CommonToken {
+	normalized := NormalizeToInternalNetwork(network)
+	out := append([]CommonToken(nil), CommonTokensFor(normalized)...)
+
+	seen := make(map[string]bool, len(out))
+	for _, t := range out {
+		seen[strings.ToLower(t.Address)] = true
+	}
+
+	for _, e := range extra {
+		if NormalizeToInternalNetwork(e.Network) != normalized {
+			continue
+		}
+		addr := strings.ToLower(e.Address)
+		if seen[addr] {
+			continue
+		}
+		seen[addr] = true
+		out = append(out, CommonToken{Symbol: e.Symbol, Address: addr, Decimals: e.Decimals})
+	}
+	return out
 }
