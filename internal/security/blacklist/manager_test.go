@@ -144,13 +144,16 @@ func TestIsDomainSafe(t *testing.T) {
 
 func TestStats(t *testing.T) {
 	m := NewManager(nil)
+	// NewManager loads an offline seed (OFAC + MEW/Revoke), so measure the
+	// baseline and assert on the delta from the two manual adds.
+	seedAddrs, _, _ := m.Stats()
 	m.AddAddress("0x1", "OFAC", "sanctioned")
 	m.AddAddress("0x2", "OFAC", "sanctioned")
 	m.AddDomain("evil.com", "MetaMask", "phishing")
 
 	addrCount, domCount, _ := m.Stats()
-	if addrCount != 2 {
-		t.Errorf("expected 2 addresses, got %d", addrCount)
+	if addrCount != seedAddrs+2 {
+		t.Errorf("expected %d addresses, got %d", seedAddrs+2, addrCount)
 	}
 	if domCount != 1 {
 		t.Errorf("expected 1 domain, got %d", domCount)
@@ -167,6 +170,9 @@ func TestUpdate_WithMockFetcher(t *testing.T) {
 		},
 	}
 	m := NewManager(mock)
+	// NewManager loads an offline seed; Update now merges online data into it,
+	// so assert on the delta (3 new online addresses) over the seed baseline.
+	seedAddrs, _, _ := m.Stats()
 
 	err := m.Update(context.Background())
 	if err != nil {
@@ -175,8 +181,8 @@ func TestUpdate_WithMockFetcher(t *testing.T) {
 
 	// Check addresses
 	addrCount, domCount, lastUpdated := m.Stats()
-	if addrCount != 3 { // 2 OFAC + 1 ScamSniffer
-		t.Errorf("expected 3 addresses, got %d", addrCount)
+	if addrCount != seedAddrs+3 { // seed + 2 OFAC + 1 ScamSniffer
+		t.Errorf("expected %d addresses, got %d", seedAddrs+3, addrCount)
 	}
 
 	// Check domains: phish1 + phish3 (phish2 whitelisted) + scam-domain = 3

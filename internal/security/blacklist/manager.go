@@ -1,5 +1,9 @@
 // Package blacklist provides a manager for known malicious addresses and phishing domains.
-// Data sources: OFAC sanctioned addresses, Scam Sniffer, MetaMask eth-phishing-detect.
+// An offline seed is embedded (go:embed) and loaded synchronously on construction —
+// OFAC sanctioned addresses (public domain) + the MIT MEW/Revoke list reused from the
+// provider package — so the check works on first sign and offline. The online Update
+// then MERGES a fuller list (Scam Sniffer, MetaMask eth-phishing-detect) on top without
+// overwriting the seed. See seed.go and data/NOTICE.
 package blacklist
 
 import (
@@ -50,7 +54,7 @@ func NewManager(fetcher Fetcher) *Manager {
 		fetcher = &httpFetcher{}
 	}
 	return &Manager{
-		addresses:   make(map[string]BlacklistEntry),
+		addresses:   seedEntries(), // offline seed loaded synchronously (OFAC + MEW/Revoke)
 		domains:     make(map[string]BlacklistEntry),
 		httpFetcher: fetcher,
 	}
@@ -118,32 +122,23 @@ func (m *Manager) Update(ctx context.Context) error {
 		}
 	}
 
-	// Merge into maps
 	now := time.Now()
-	newAddresses := make(map[string]BlacklistEntry, len(allAddresses))
+	m.mu.Lock()
+	// Merge online addresses into the existing map (seeded offline). Do NOT
+	// overwrite an existing entry — the embedded-ofac/embedded-mew seed source
+	// must survive; online sources only ADD new addresses.
 	for _, a := range allAddresses {
 		key := strings.ToLower(a.Address)
-		newAddresses[key] = BlacklistEntry{
-			Source:   a.Source,
-			Category: a.Category,
-			AddedAt:  now,
+		if _, exists := m.addresses[key]; !exists {
+			m.addresses[key] = BlacklistEntry{Source: a.Source, Category: a.Category, AddedAt: now}
 		}
 	}
-
-	newDomains := make(map[string]BlacklistEntry, len(allDomains))
 	for _, d := range allDomains {
 		key := strings.ToLower(d.Domain)
-		newDomains[key] = BlacklistEntry{
-			Source:   d.Source,
-			Category: d.Category,
-			AddedAt:  now,
+		if _, exists := m.domains[key]; !exists {
+			m.domains[key] = BlacklistEntry{Source: d.Source, Category: d.Category, AddedAt: now}
 		}
 	}
-
-	// Swap atomically
-	m.mu.Lock()
-	m.addresses = newAddresses
-	m.domains = newDomains
 	m.lastUpdated = now
 	m.mu.Unlock()
 
