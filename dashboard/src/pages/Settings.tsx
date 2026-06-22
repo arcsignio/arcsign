@@ -7,6 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getVersion } from '@tauri-apps/api/app';
 import { useDashboardStore } from '@/stores/dashboardStore';
+import { useSessionStore } from '@/stores/sessionStore';
+import { clearAbiCache } from '@/services/tauri-api';
 
 interface SettingsProps {
   onBack: () => void;
@@ -77,6 +79,27 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
   const isPro = useDashboardStore((s) => s.membership.isPro);
   const onlineDecodingEnabled = useDashboardStore((s) => s.onlineDecodingEnabled);
   const setOnlineDecodingEnabled = useDashboardStore((s) => s.setOnlineDecodingEnabled);
+  const usbPath = useDashboardStore((s) => s.usbPath);
+  const sessionToken = useSessionStore((state) => state.token);
+  const [abiCacheStatus, setAbiCacheStatus] = useState<'idle' | 'done' | 'failed'>('idle');
+  const [isClearingAbiCache, setIsClearingAbiCache] = useState(false);
+
+  const handleClearAbiCache = async () => {
+    if (!usbPath || !sessionToken || isClearingAbiCache) return;
+    setIsClearingAbiCache(true);
+    setAbiCacheStatus('idle');
+    try {
+      await clearAbiCache({ usbPath, sessionToken });
+      setAbiCacheStatus('done');
+    } catch (err) {
+      const message = (err as { message?: string })?.message;
+      console.error('Failed to clear ABI cache:', message ?? err);
+      setAbiCacheStatus('failed');
+    } finally {
+      setIsClearingAbiCache(false);
+      setTimeout(() => setAbiCacheStatus('idle'), 4000);
+    }
+  };
 
   useEffect(() => {
     getVersion().then(v => setAppVersion(v)).catch(() => setAppVersion('unknown'));
@@ -140,6 +163,26 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
             />
             <span className="toggle-slider" />
           </label>
+        </div>
+
+        <div className="toggle-item">
+          <div className="setting-content">
+            <h3 className="setting-title">{t('clearAbiCache.label')}</h3>
+            <p className="setting-description">{t('clearAbiCache.description')}</p>
+            {abiCacheStatus === 'done' && (
+              <p className="abi-cache-status abi-cache-status-done">{t('clearAbiCache.done')}</p>
+            )}
+            {abiCacheStatus === 'failed' && (
+              <p className="abi-cache-status abi-cache-status-failed">{t('clearAbiCache.failed')}</p>
+            )}
+          </div>
+          <button
+            className="clear-abi-button"
+            onClick={handleClearAbiCache}
+            disabled={!usbPath || !sessionToken || isClearingAbiCache}
+          >
+            {t('clearAbiCache.button')}
+          </button>
         </div>
       </div>
 
@@ -405,6 +448,45 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
 
         .toggle-switch input:checked + .toggle-slider::before {
           transform: translateX(20px);
+        }
+
+        .clear-abi-button {
+          flex-shrink: 0;
+          align-self: center;
+          padding: 8px 16px;
+          background: transparent;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          color: #0d9488;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
+        }
+
+        .clear-abi-button:hover:not(:disabled) {
+          border-color: #2dd4bf;
+          background: rgba(45, 212, 191, 0.05);
+        }
+
+        .clear-abi-button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .abi-cache-status {
+          margin: 8px 0 0;
+          font-size: 12px;
+          font-weight: 500;
+        }
+
+        .abi-cache-status-done {
+          color: #0d9488;
+        }
+
+        .abi-cache-status-failed {
+          color: #dc2626;
         }
 
         /* Backup Section */
