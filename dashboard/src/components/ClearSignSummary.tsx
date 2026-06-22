@@ -119,6 +119,12 @@ export function ClearSignSummary({
               ))}
             </div>
           )}
+          {intent.abiSource === "sourcify-partial" && (
+            <div style={{ marginTop: "0.4rem", fontSize: "0.7rem", color: "#92400e" }}>
+              <span aria-hidden="true">ℹ️ </span>
+              <span>{t("clearSign.abiUnverified")}</span>
+            </div>
+          )}
         </div>
       ))}
 

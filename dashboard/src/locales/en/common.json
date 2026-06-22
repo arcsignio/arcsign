@@ -1286,7 +1286,8 @@
     "securityHeading": "Security check",
     "blacklistHit": "Target is on a blocklist",
     "simulatedChanges": "Simulated balance changes",
-    "ackRisk": "I understand the risk and still want to sign"
+    "ackRisk": "I understand the risk and still want to sign",
+    "abiUnverified": "ABI from a not-fully-verified source"
   },
   "onlineDecoding": {
     "label": "Online transaction decoding",

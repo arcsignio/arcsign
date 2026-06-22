@@ -1286,7 +1286,8 @@
     "securityHeading": "安全檢查",
     "blacklistHit": "目標在黑名單中",
     "simulatedChanges": "模擬餘額變化",
-    "ackRisk": "我了解此交易有風險，仍要簽署"
+    "ackRisk": "我了解此交易有風險，仍要簽署",
+    "abiUnverified": "ABI 來自未完全驗證來源"
   },
   "onlineDecoding": {
     "label": "線上交易解碼",

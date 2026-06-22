@@ -46,6 +46,7 @@ export function TransactionSignDialog({
   // Read usbPath, isPro, and sessionToken from Zustand stores
   const usbPath = useDashboardStore((state) => state.usbPath) ?? '';
   const isPro = useDashboardStore((state) => state.membership.isPro);
+  const onlineDecodingEnabled = useDashboardStore((s) => s.onlineDecodingEnabled);
   const sessionToken = useSessionStore((state) => state.token) ?? '';
 
   // Check USB connection on mount
@@ -63,10 +64,10 @@ export function TransactionSignDialog({
   useEffect(() => {
     if (!transaction) { setIntent(null); return; }
     const network = chainIdToNetwork(transaction.chain_id);
-    decodeCalldata(network, transaction.to, transaction.data, transaction.value)
+    decodeCalldata(network, transaction.to, transaction.data, transaction.value, { onlineEnabled: onlineDecodingEnabled })
       .then(setIntent)
       .catch(() => setIntent(null));
-  }, [transaction]);
+  }, [transaction, onlineDecodingEnabled]);
 
   // Fetch txguard security report — advisory only, never blocks signing on failure
   useEffect(() => {

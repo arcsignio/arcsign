@@ -31,6 +31,7 @@ import {
   registerHandler,
 } from '../request-handler';
 import { isAddressLocked } from '@/utils/walletLock';
+import { useDashboardStore } from '@/stores/dashboardStore';
 import type { SessionTypes } from '@walletconnect/types';
 import {
   formatWeiValue,
@@ -113,8 +114,9 @@ const sendTransactionHandler: RequestHandler = async (
   // Format transaction for display
   const displayValue = formatWeiValue(tx.value, nativeSymbol);
   const displayTo = tx.to || '(Contract Creation)';
+  const onlineEnabled = useDashboardStore.getState().onlineDecodingEnabled;
   const intent = await decodeCalldata(
-    chainIdToNetwork(chainId), tx.to || '', tx.data, tx.value,
+    chainIdToNetwork(chainId), tx.to || '', tx.data, tx.value, { onlineEnabled },
   );
   const displayData = intent.readable
     ? `${intent.title}${intent.risks.length ? '  ⚠️ ' + intent.risks.join(', ') : ''}`

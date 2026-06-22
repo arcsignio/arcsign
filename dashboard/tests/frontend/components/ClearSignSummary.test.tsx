@@ -91,4 +91,16 @@ describe('ClearSignSummary', () => {
     // outer wrapper renders but is empty — no intent card, no security block
     expect(container.textContent).toBe('');
   });
+
+  it('shows the unverified-ABI note when abiSource is sourcify-partial', () => {
+    render(<ClearSignSummary intent={{ ...readable, abiSource: 'sourcify-partial' }} />);
+    expect(screen.getByText('clearSign.abiUnverified')).toBeInTheDocument();
+  });
+
+  it('does NOT show the unverified note for local or sourcify-full', () => {
+    const { rerender } = render(<ClearSignSummary intent={{ ...readable, abiSource: 'sourcify-full' }} />);
+    expect(screen.queryByText('clearSign.abiUnverified')).not.toBeInTheDocument();
+    rerender(<ClearSignSummary intent={{ ...readable, abiSource: 'local' }} />);
+    expect(screen.queryByText('clearSign.abiUnverified')).not.toBeInTheDocument();
+  });
 });
