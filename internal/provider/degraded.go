@@ -25,6 +25,7 @@ var internalToRegistryChain = map[string]string{
 	NetworkOptimismMainnet: "optimism-mainnet",
 	NetworkBaseMainnet:     "base-mainnet",
 	NetworkBnbMainnet:      "bsc",
+	NetworkAvalancheMainnet: "avalanche", // registry registers Avalanche under "avalanche"/"avax", not "avalanche-mainnet"
 }
 
 // registryChainFor resolves the rpc-registry chain key for an internal network
@@ -87,4 +88,14 @@ func degradedTokenBalances(addrs []AddressWithNetworks) []SimplifiedTokenBalance
 		}
 	}
 	return all
+}
+
+// GetSelfHostedTokenBalances is the PRIMARY (feature-dimension) balance entry
+// point: for every (address, network) it returns native + common-token balances
+// using only the public RPC pool + Multicall3 — no API key, all chains. This is
+// the same engine as the former no-key "degraded" path, promoted from a fallback
+// to the main balance route (see GetBalanceProviderForNetwork). USD prices are
+// filled separately by EnrichPricesWithDefiLlama at the FFI layer.
+func GetSelfHostedTokenBalances(addrs []AddressWithNetworks) []SimplifiedTokenBalance {
+	return degradedTokenBalances(addrs)
 }

@@ -73,6 +73,14 @@ var commonTokensByNetwork = map[string][]CommonToken{
 		// liquid staking receipt
 		{"ankrBNB", "0x52f24a5e03aee338da5fd9df68d2b6fae1178827", 18},
 	},
+	NetworkAvalancheMainnet: {
+		{"USDC", "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e", 6},  // native USDC
+		{"USDT", "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7", 6},  // native USDT
+		{"WAVAX", "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7", 18}, // wrapped AVAX
+		{"WETH.e", "0x49d5c2bdffac6ce2bfdb6640f4f80f226bc10bab", 18},
+		{"WBTC.e", "0x50b7545627a5162f82a992c33b87adc75187b218", 8},
+		{"DAI.e", "0xd586e7f844cea2f87f50152665bcbc2c279d8d70", 18},
+	},
 }
 
 // CommonTokensFor returns the curated token set for an internal network id.

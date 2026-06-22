@@ -1,6 +1,10 @@
 package provider
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/arcsignio/arcsign/internal/rpc"
+)
 
 func TestRegistryChainFor(t *testing.T) {
 	cases := map[string]string{
@@ -29,6 +33,44 @@ func TestBSCDegradedResolvable(t *testing.T) {
 		if !syms[want] {
 			t.Errorf("BSC common tokens must include %q for the no-key path", want)
 		}
+	}
+}
+
+// Avalanche must resolve to real RPC endpoints in the self-hosted balance path,
+// and its common-token set must include the major stablecoins. Avalanche was the
+// one chain missing degraded/self-hosted support (it previously only worked via
+// the keyless Glacier indexer, which doesn't go through the public-RPC path).
+func TestAvalancheDegradedResolvable(t *testing.T) {
+	got := registryChainFor(NetworkAvalancheMainnet)
+	endpoints, err := rpc.DefaultRegistry.GetAllRPCEndpoints(got)
+	if err != nil || len(endpoints) == 0 {
+		t.Fatalf("Avalanche should map to a registry chain with RPCs; registryChainFor=%q endpoints=%d err=%v", got, len(endpoints), err)
+	}
+	syms := symbolsOf(CommonTokensFor(NetworkAvalancheMainnet))
+	for _, want := range []string{"USDC", "USDT"} {
+		if !syms[want] {
+			t.Errorf("Avalanche common tokens must include %q for the self-hosted path", want)
+		}
+	}
+}
+
+// TestEveryMainnetChainHasSelfHostedSupport is the guard that the self-hosted
+// balance path covers ALL chains: each mainnet network must (1) resolve to an
+// rpc-registry chain that has endpoints, and (2) have a non-empty common-token
+// set. A new chain that forgets either mapping fails here — this is the
+// "register in one place" contract for the balance path.
+func TestEveryMainnetChainHasSelfHostedSupport(t *testing.T) {
+	for _, network := range AllMainnetNetworks() {
+		t.Run(network, func(t *testing.T) {
+			chainKey := registryChainFor(network)
+			endpoints, err := rpc.DefaultRegistry.GetAllRPCEndpoints(chainKey)
+			if err != nil || len(endpoints) == 0 {
+				t.Errorf("%s: no RPC endpoints (registryChainFor=%q, err=%v)", network, chainKey, err)
+			}
+			if len(CommonTokensFor(network)) == 0 {
+				t.Errorf("%s: no common tokens for self-hosted balance path", network)
+			}
+		})
 	}
 }
 

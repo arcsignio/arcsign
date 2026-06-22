@@ -348,23 +348,13 @@ func GetTokenBalances(params *C.char) (result *C.char) {
 	}
 	defer zeroString(&appPassword)
 
-	// Step 1: Load Alchemy API key from provider registry
-	// Note: Using provider registry system instead of app config for now
-	// Construct full path to provider_config.enc in USB root directory
-	providerConfigPath := filepath.Join(input.USBPath, "provider_config.enc")
-	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: providerConfigPath = %s", providerConfigPath))
+	// Step 1: (no provider config needed) — balances use the self-hosted public
+	// RPC + Multicall3 path, which requires no API key. We deliberately do NOT
+	// open provider_config.enc here: token balances must work for every chain
+	// even when the user has configured no provider keys at all. NFT / history
+	// (GetNFTs / GetAssetTransfers) still load provider keys, as those genuinely
+	// need a third-party indexer.
 	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Using session token auth: %v", input.SessionToken != ""))
-
-	providerStore, err := provider.NewProviderConfigStore(providerConfigPath, appPassword)
-	if err != nil {
-		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-	defer providerStore.Close()
-
-	// API keys are resolved per-provider inside the WalletDataProvider registry
-	// (Alchemy/NodeReal need a key, Glacier is anonymous). No key check here.
 
 	// Step 2: Verify wallet password before loading addresses
 	// Security: Must authenticate user before exposing wallet data
@@ -402,14 +392,20 @@ func GetTokenBalances(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Step 3: Separate addresses by provider (Alchemy vs NodeReal vs Glacier)
+	// Step 3: Collect every EVM address into the self-hosted balance input.
+	// Balances use FEATURE-DIMENSION routing: instead of bucketing by third-party
+	// provider (Alchemy/NodeReal/Glacier), ALL chains go through the self-hosted
+	// public-RPC + Multicall3 path (no API key). NFTs/history still bucket by
+	// provider — see GetNFTs / GetAssetTransfers, which keep GetProviderForNetwork.
 	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: includeTestnets = %v", input.IncludeTestnets))
 
-	// Step 3: Bucket each address by its provider. The Sepolia testnet special
-	// case is token-only and stays here in the bucketing stage.
-	buckets := bucketAddressesByProvider(walletObj.AddressBook.Addresses, input.IncludeTestnets)
-	totalAddressCount := countBucketedAddresses(buckets)
-	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: bucketed %d addresses across %d providers", totalAddressCount, len(buckets)))
+	entries := make([]provider.WalletAddressEntry, 0, len(walletObj.AddressBook.Addresses))
+	for _, a := range walletObj.AddressBook.Addresses {
+		entries = append(entries, provider.WalletAddressEntry{Address: a.Address, CoinName: a.CoinName})
+	}
+	balanceAddrs := provider.CollectBalanceAddresses(entries)
+	totalAddressCount := len(balanceAddrs)
+	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: collected %d EVM addresses for self-hosted balance path", totalAddressCount))
 
 	if totalAddressCount == 0 {
 		emptyOutput := provider.GetTokenBalancesOutput{
@@ -423,30 +419,10 @@ func GetTokenBalances(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Step 4: Dispatch polymorphically — one call per provider bucket.
-	var allTokens []provider.SimplifiedTokenBalance
+	// Step 4: Fetch balances via the self-hosted path (public RPC + Multicall3).
+	// One unified call — native coin + common tokens across all chains, no key.
 	var unavailable []provider.ProviderUnavailable
-	for providerType, addrs := range buckets {
-		wdp, err := provider.GetWalletDataProvider(providerType, providerStore)
-		if err != nil || wdp == nil {
-			// nil = provider unavailable (almost always a missing API key) —
-			// record it so the UI can prompt the user instead of showing blank.
-			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "missing_key"})
-			continue
-		}
-		tokens, err := wdp.GetTokenBalances(addrs)
-		if err != nil {
-			fmt.Printf("%s GetTokenBalances error: %v\n", providerType, err)
-			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "query_failed"})
-		}
-		// A provider running without its key still returns basic balances; report
-		// a soft "degraded" hint so the UI can offer to unlock full data, rather
-		// than implying the chain is broken.
-		if d, ok := wdp.(provider.DegradedProvider); ok && d.IsDegraded() {
-			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "degraded"})
-		}
-		allTokens = append(allTokens, tokens...)
-	}
+	allTokens := provider.GetSelfHostedTokenBalances(balanceAddrs)
 
 	// Step 4.5: Fill in USD prices for tokens whose provider didn't return one
 	// (BSC/NodeReal, native BNB, etc) using DefiLlama (free, no key).
