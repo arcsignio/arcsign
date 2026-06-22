@@ -1,0 +1,35 @@
+ArcSign — Blacklist Offline Seed Attribution
+============================================
+
+This directory ships an embedded (go:embed) offline seed for the transaction
+blacklist so the security check works on first sign and offline.
+
+ofac_sanctioned.txt
+-------------------
+US Treasury OFAC sanctioned digital-currency addresses (Ethereum). OFAC's
+sanctions data is published by the U.S. government and is in the public domain.
+Mirror used for convenience:
+  https://github.com/0xB10C/ofac-sanctioned-digital-currency-addresses
+  File: lists/sanctioned_addresses_ETH.json
+Only the factual address data is redistributed (lowercased, sorted, de-duped).
+
+MEW / Revoke (MIT) addresses
+----------------------------
+The seed ALSO includes the MIT-licensed MEW ethereum-lists + Revoke
+approval-exploit-list addresses, reused at runtime from
+internal/provider/data/malicious_spenders.txt (see that directory's NOTICE for
+full MIT attribution). They are NOT re-vendored here — the blacklist seed loads
+them from the provider package's already-embedded data.
+
+Deliberately NOT embedded
+-------------------------
+ScamSniffer's address/domain data is GPL-licensed and cannot be vendored into
+this Apache-2.0 repository. It is fetched at runtime (download-and-use, not
+re-distribution) by the online Update path, alongside MetaMask phishing data.
+
+Regeneration
+------------
+Refresh ofac_sanctioned.txt with:
+  curl -fsSL "https://raw.githubusercontent.com/0xB10C/ofac-sanctioned-digital-currency-addresses/lists/sanctioned_addresses_ETH.json" \
+    | jq -r '.[]' | tr 'A-Z' 'a-z' | grep -E '^0x[0-9a-f]{40}$' | sort -u
+The seed is embedded statically and ships with the app version (offline / privacy-preserving).
