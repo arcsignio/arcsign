@@ -156,6 +156,7 @@ extern char* UnlockApp(char* params);
 extern char* GetTokenBalances(char* params);
 extern char* GetNFTs(char* params);
 extern char* GetTokenApprovals(char* params);
+extern char* AddTouchedToken(char* params);
 extern char* CreateDevSession(char* params);
 extern char* DevSessionSign(char* params);
 extern char* GetDevSession(char* params);

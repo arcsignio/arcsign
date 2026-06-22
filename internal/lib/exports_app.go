@@ -419,10 +419,16 @@ func GetTokenBalances(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
+	// Step 3.5: Load the user's touched tokens (table B) from the USB so swap
+	// outputs / airdrops / manually-imported tokens are queried too. Best-effort:
+	// a missing or undecryptable store just means "no extra tokens" — it must
+	// NOT fail the balance query (table B is an enrichment, not a requirement).
+	extraByAddr := loadTouchedTokens(input.USBPath, appPassword, balanceAddrs)
+
 	// Step 4: Fetch balances via the self-hosted path (public RPC + Multicall3).
-	// One unified call — native coin + common tokens across all chains, no key.
+	// One unified call — native coin + common + touched tokens across all chains, no key.
 	var unavailable []provider.ProviderUnavailable
-	allTokens := provider.GetSelfHostedTokenBalances(balanceAddrs)
+	allTokens := provider.GetSelfHostedTokenBalancesWithExtra(balanceAddrs, extraByAddr)
 
 	// Step 4.5: Fill in USD prices for tokens whose provider didn't return one
 	// (BSC/NodeReal, native BNB, etc) using DefiLlama (free, no key).
@@ -781,4 +787,113 @@ func GetTokenApprovals(params *C.char) (result *C.char) {
 	approvalResponse := NewSuccessResponse(output)
 	approvalJsonBytes, _ := json.Marshal(approvalResponse)
 	return C.CString(string(approvalJsonBytes))
+}
+
+// touchedTokensFileName is the per-USB encrypted store for table B (tokens the
+// user has interacted with beyond the curated common list).
+const touchedTokensFileName = "touched_tokens.enc"
+
+// loadTouchedTokens reads the user's touched-token store (table B) and returns a
+// map of user-address -> tokens, restricted to the addresses we're querying.
+// Best-effort: a missing/undecryptable store yields nil (no extra tokens) and is
+// never fatal — balances must work even with no table B at all.
+func loadTouchedTokens(usbPath, appPassword string, addrs []provider.AddressWithNetworks) map[string][]provider.TokenRef {
+	storePath := filepath.Join(usbPath, touchedTokensFileName)
+	store, err := provider.NewTouchedTokenStore(storePath, appPassword)
+	if err != nil {
+		debugLog(fmt.Sprintf("[DEBUG] loadTouchedTokens: store unavailable (%v) — continuing with common tokens only", err))
+		return nil
+	}
+	defer store.Close()
+
+	out := make(map[string][]provider.TokenRef, len(addrs))
+	for _, a := range addrs {
+		if toks := store.TokensForAddress(a.Address); len(toks) > 0 {
+			out[a.Address] = toks
+		}
+	}
+	return out
+}
+
+//export AddTouchedToken
+// AddTouchedToken records that a wallet address has interacted with a token
+// (swap output, airdrop, or manual import), so future balance queries include
+// it. Writes to the per-USB encrypted touched-token store (table B).
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb",
+//   "sessionToken": "session-token",
+//   "appPassword": "app-level-password",
+//   "userAddress": "0x...",
+//   "token": { "address": "0x...", "network": "eth-mainnet", "symbol": "PEPE", "decimals": 18 }
+// }
+// Returns: {"success": true, "data": {"added": true}}
+func AddTouchedToken(params *C.char) (result *C.char) {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		USBPath      string             `json:"usbPath"`
+		SessionToken string             `json:"sessionToken"`
+		AppPassword  string             `json:"appPassword"`
+		UserAddress  string             `json:"userAddress"`
+		Token        provider.TokenRef  `json:"token"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&input.AppPassword)
+
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	if input.UserAddress == "" || input.Token.Address == "" || input.Token.Network == "" {
+		response := NewErrorResponse(ErrInvalidInput, "userAddress and token (address, network) are required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	storePath := filepath.Join(input.USBPath, touchedTokensFileName)
+	store, err := provider.NewTouchedTokenStore(storePath, appPassword)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer store.Close()
+
+	if err := store.AddToken(input.UserAddress, input.Token); err != nil {
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	response := NewSuccessResponse(map[string]bool{"added": true})
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
 }
