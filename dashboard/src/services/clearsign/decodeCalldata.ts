@@ -1,5 +1,7 @@
 import { decodeFunctionData, formatUnits } from "viem";
+import type { AbiFunction } from "viem";
 import type { DecodedIntent, ClearSignRisk, DecodedParam } from "./types";
+import { detectSwapFromAbi } from "./detectSwap";
 import { KNOWN_ABIS, MAX_UINT256, MAX_UINT160 } from "./knownAbis";
 import { resolveTokenLabel } from "./tokenLabel";
 import { networkToChainId } from "./chainIdToNetwork";
@@ -82,7 +84,10 @@ export async function decodeCalldata(
   for (const abi of KNOWN_ABIS) {
     try {
       const { functionName, args } = decodeFunctionData({ abi, data: data as `0x${string}` });
-      return await buildIntent(network, to, functionName, args as readonly unknown[], raw);
+      const matchedFn = (abi as readonly { type?: string; name?: string }[]).find(
+        (f) => f.type === "function" && f.name === functionName,
+      ) as AbiFunction | undefined;
+      return await buildIntent(network, to, functionName, args as readonly unknown[], raw, matchedFn);
     } catch {
       // try the next ABI
     }
@@ -98,7 +103,10 @@ export async function decodeCalldata(
       if (fetched) {
         try {
           const { functionName, args } = decodeFunctionData({ abi: fetched.abi, data: data as `0x${string}` });
-          const intent = await buildIntent(network, to, functionName, args as readonly unknown[], raw);
+          const matchedFn = (fetched.abi as readonly { type?: string; name?: string }[]).find(
+            (f) => f.type === "function" && f.name === functionName,
+          ) as AbiFunction | undefined;
+          const intent = await buildIntent(network, to, functionName, args as readonly unknown[], raw, matchedFn);
           if (intent.readable) {
             intent.abiSource = fetched.matchLevel === "partial" ? "sourcify-partial" : "sourcify-full";
           }
@@ -119,6 +127,7 @@ async function buildIntent(
   fn: string,
   args: readonly unknown[],
   raw: string,
+  fnAbi?: AbiFunction,
 ): Promise<DecodedIntent> {
   const risks: ClearSignRisk[] = [];
   const params: DecodedParam[] = [];
@@ -243,7 +252,14 @@ async function buildIntent(
         venue: "Aggregator",
       }, raw);
     }
-    default:
+    default: {
+      // Generic fallback: no fixed case. If we have the ABI fragment, try to detect
+      // a swap by parameter structure (conservative — null on any doubt).
+      if (fnAbi) {
+        const shape = detectSwapFromAbi(fn, fnAbi, args);
+        if (shape) return renderSwap(network, shape, raw);
+      }
       return unreadable(raw);
+    }
   }
 }

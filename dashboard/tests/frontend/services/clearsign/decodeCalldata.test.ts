@@ -340,3 +340,36 @@ describe('decodeCalldata — online ABI fallback (Sourcify)', () => {
     expect(r.abiSource === undefined || r.abiSource === 'local').toBe(true);
   });
 });
+
+describe('decodeCalldata — generic swap detection (fallback)', () => {
+  const TIN = '0x55d398326f99059fF775485246999027B3197955';
+  const TOUT = '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d';
+  const RECIP = '0x1111111254EEB25477B68fb85Ed929f73A960582';
+  const CONTRACT = '0x9999999999999999999999999999999999999999';
+
+  beforeEach(() => {
+    vi.mocked(tokenLabel.resolveTokenLabel).mockResolvedValue({ symbol: 'USDT', decimals: 18, known: true });
+  });
+
+  it('detects a structurally-swap fn from a fetched ABI → "Detected swap"', async () => {
+    const swapAbi = [{ type: 'function', name: 'mySwap', inputs: [
+      { name: 'tokenIn', type: 'address' }, { name: 'tokenOut', type: 'address' },
+      { name: 'amountIn', type: 'uint256' }, { name: 'minOut', type: 'uint256' }, { name: 'recipient', type: 'address' },
+    ], outputs: [], stateMutability: 'nonpayable' }] as const;
+    vi.spyOn(sourcify, 'fetchContractAbi').mockResolvedValue({ abi: swapAbi as never, matchLevel: 'full' });
+    const data = enc({ abi: swapAbi, functionName: 'mySwap', args: [TIN, TOUT, 100n, 98n, RECIP] });
+    const r = await decodeCalldata('eth-mainnet', CONTRACT, data, '0x0', { onlineEnabled: true });
+    expect(r.readable).toBe(true);
+    expect(r.title).toContain('Detected swap');
+  });
+
+  it('does NOT detect a non-swap fn (swapOwner) → unreadable', async () => {
+    const ownerAbi = [{ type: 'function', name: 'swapOwner', inputs: [
+      { name: 'prevOwner', type: 'address' }, { name: 'oldOwner', type: 'address' }, { name: 'newOwner', type: 'address' },
+    ], outputs: [], stateMutability: 'nonpayable' }] as const;
+    vi.spyOn(sourcify, 'fetchContractAbi').mockResolvedValue({ abi: ownerAbi as never, matchLevel: 'full' });
+    const data = enc({ abi: ownerAbi, functionName: 'swapOwner', args: [TIN, TOUT, RECIP] });
+    const r = await decodeCalldata('eth-mainnet', CONTRACT, data, '0x0', { onlineEnabled: true });
+    expect(r.readable).toBe(false);
+  });
+});
