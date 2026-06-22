@@ -161,3 +161,6 @@ outputs/
 quick-debug.sh
 test_provider_config.go
 .mcp.json
+
+# git worktrees (平行開發隔離工作區)
+.worktrees/
