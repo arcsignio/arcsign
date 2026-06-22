@@ -236,6 +236,21 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Get a cached contract ABI from the per-USB ABI cache
+    GetCachedAbi {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Store a contract ABI in the per-USB ABI cache
+    SetCachedAbi {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Clear the per-USB ABI cache
+    ClearAbiCache {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
     /// List all contacts
     ListContacts {
         params_json: String,
@@ -612,6 +627,21 @@ impl WalletQueue {
                 }
                 WalletCommand::CheckTransactionSecurity { params_json, respond_to } => {
                     let result = library.check_transaction_security(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::GetCachedAbi { params_json, respond_to } => {
+                    let result = library.get_cached_abi(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::SetCachedAbi { params_json, respond_to } => {
+                    let result = library.set_cached_abi(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::ClearAbiCache { params_json, respond_to } => {
+                    let result = library.clear_abi_cache(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -1247,6 +1277,63 @@ impl WalletQueue {
         self.metrics.record_enqueue();
         self.sender
             .send(WalletCommand::CheckTransactionSecurity {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Get a cached contract ABI from the per-USB ABI cache.
+    pub async fn get_cached_abi(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::GetCachedAbi {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Store a contract ABI in the per-USB ABI cache.
+    pub async fn set_cached_abi(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::SetCachedAbi {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Clear the per-USB ABI cache.
+    pub async fn clear_abi_cache(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::ClearAbiCache {
                 params_json,
                 respond_to: sender,
             })
@@ -2135,6 +2222,21 @@ impl LazyWalletQueue {
     /// Run the txguard risk engine (blacklist + simulation) for a transaction
     pub async fn check_transaction_security(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().check_transaction_security(params_json).await
+    }
+
+    /// Get a cached contract ABI from the per-USB ABI cache
+    pub async fn get_cached_abi(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().get_cached_abi(params_json).await
+    }
+
+    /// Store a contract ABI in the per-USB ABI cache
+    pub async fn set_cached_abi(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().set_cached_abi(params_json).await
+    }
+
+    /// Clear the per-USB ABI cache
+    pub async fn clear_abi_cache(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().clear_abi_cache(params_json).await
     }
 
     /// List all contacts

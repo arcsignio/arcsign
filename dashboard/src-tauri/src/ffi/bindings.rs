@@ -111,6 +111,13 @@ type GetTokenApprovalsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for CheckTransactionSecurity: char* CheckTransactionSecurity(char* params)
 type CheckTransactionSecurityFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+/// Function signature for GetCachedAbi: char* GetCachedAbi(char* params)
+type GetCachedAbiFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+/// Function signature for SetCachedAbi: char* SetCachedAbi(char* params)
+type SetCachedAbiFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+/// Function signature for ClearAbiCache: char* ClearAbiCache(char* params)
+type ClearAbiCacheFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 // Function signature for ListContacts: char* ListContacts(char* params)
 type ListContactsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 // Function signature for AddContact: char* AddContact(char* params)
@@ -274,6 +281,10 @@ pub struct WalletLibrary {
     get_token_approvals: Symbol<'static, GetTokenApprovalsFn>,
     // Transaction security check function symbol
     check_transaction_security: Symbol<'static, CheckTransactionSecurityFn>,
+    // ABI cache function symbols
+    get_cached_abi: Symbol<'static, GetCachedAbiFn>,
+    set_cached_abi: Symbol<'static, SetCachedAbiFn>,
+    clear_abi_cache: Symbol<'static, ClearAbiCacheFn>,
     // Contact (Address Book) function symbols
     list_contacts: Symbol<'static, ListContactsFn>,
     add_contact: Symbol<'static, AddContactFn>,
@@ -503,6 +514,16 @@ impl WalletLibrary {
                 .get(b"CheckTransactionSecurity")
                 .map_err(|e| format!("CheckTransactionSecurity symbol not found: {}", e))?;
 
+            let get_cached_abi: Symbol<GetCachedAbiFn> = lib
+                .get(b"GetCachedAbi")
+                .map_err(|e| format!("GetCachedAbi symbol not found: {}", e))?;
+            let set_cached_abi: Symbol<SetCachedAbiFn> = lib
+                .get(b"SetCachedAbi")
+                .map_err(|e| format!("SetCachedAbi symbol not found: {}", e))?;
+            let clear_abi_cache: Symbol<ClearAbiCacheFn> = lib
+                .get(b"ClearAbiCache")
+                .map_err(|e| format!("ClearAbiCache symbol not found: {}", e))?;
+
             let list_contacts: Symbol<ListContactsFn> = lib
                 .get(b"ListContacts")
                 .map_err(|e| format!("ListContacts symbol not found: {}", e))?;
@@ -666,6 +687,9 @@ impl WalletLibrary {
             let get_nfts: Symbol<'static, GetNFTsFn> = std::mem::transmute(get_nfts);
             let get_token_approvals: Symbol<'static, GetTokenApprovalsFn> = std::mem::transmute(get_token_approvals);
             let check_transaction_security: Symbol<'static, CheckTransactionSecurityFn> = std::mem::transmute(check_transaction_security);
+            let get_cached_abi: Symbol<'static, GetCachedAbiFn> = std::mem::transmute(get_cached_abi);
+            let set_cached_abi: Symbol<'static, SetCachedAbiFn> = std::mem::transmute(set_cached_abi);
+            let clear_abi_cache: Symbol<'static, ClearAbiCacheFn> = std::mem::transmute(clear_abi_cache);
             let list_contacts: Symbol<'static, ListContactsFn> = std::mem::transmute(list_contacts);
             let add_contact: Symbol<'static, AddContactFn> = std::mem::transmute(add_contact);
             let update_contact: Symbol<'static, UpdateContactFn> = std::mem::transmute(update_contact);
@@ -731,6 +755,9 @@ impl WalletLibrary {
                 get_nfts,
                 get_token_approvals,
                 check_transaction_security,
+                get_cached_abi,
+                set_cached_abi,
+                clear_abi_cache,
                 list_contacts,
                 add_contact,
                 update_contact,
@@ -1329,6 +1356,21 @@ impl WalletLibrary {
     /// Run the txguard risk engine (blacklist + simulation) for a transaction.
     pub fn check_transaction_security(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.check_transaction_security, params_json)
+    }
+
+    /// Get a cached contract ABI from the per-USB ABI cache.
+    pub fn get_cached_abi(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.get_cached_abi, params_json)
+    }
+
+    /// Store a contract ABI in the per-USB ABI cache.
+    pub fn set_cached_abi(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.set_cached_abi, params_json)
+    }
+
+    /// Clear the per-USB ABI cache.
+    pub fn clear_abi_cache(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.clear_abi_cache, params_json)
     }
 
     /// List all contacts from encrypted storage.

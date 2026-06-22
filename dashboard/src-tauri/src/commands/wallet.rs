@@ -1565,6 +1565,55 @@ pub async fn check_transaction_security(
     Ok(ffi_response)
 }
 
+/// Look up a verified contract ABI in the per-USB encrypted ABI cache.
+/// `params` is the pre-serialized JSON body expected by the Go FFI export
+/// (chainId, address, usbPath, sessionToken, appPassword).
+#[tauri::command]
+pub async fn get_cached_abi(
+    queue: State<'_, LazyWalletQueue>,
+    params: String,
+) -> Result<serde_json::Value, String> {
+    queue
+        .get_cached_abi(params)
+        .await
+        .map_err(|e| {
+            tracing::error!("FFI get_cached_abi failed: {}", e);
+            e.split_once(": ").map_or(e.clone(), |(_, v)| v.to_string())
+        })
+}
+
+/// Store a verified contract ABI into the per-USB encrypted ABI cache.
+/// `params` is the pre-serialized JSON body expected by the Go FFI export.
+#[tauri::command]
+pub async fn set_cached_abi(
+    queue: State<'_, LazyWalletQueue>,
+    params: String,
+) -> Result<serde_json::Value, String> {
+    queue
+        .set_cached_abi(params)
+        .await
+        .map_err(|e| {
+            tracing::error!("FFI set_cached_abi failed: {}", e);
+            e.split_once(": ").map_or(e.clone(), |(_, v)| v.to_string())
+        })
+}
+
+/// Clear the per-USB encrypted ABI cache.
+/// `params` is the pre-serialized JSON body expected by the Go FFI export.
+#[tauri::command]
+pub async fn clear_abi_cache(
+    queue: State<'_, LazyWalletQueue>,
+    params: String,
+) -> Result<serde_json::Value, String> {
+    queue
+        .clear_abi_cache(params)
+        .await
+        .map_err(|e| {
+            tracing::error!("FFI clear_abi_cache failed: {}", e);
+            e.split_once(": ").map_or(e.clone(), |(_, v)| v.to_string())
+        })
+}
+
 #[tauri::command]
 pub async fn list_contacts(
     queue: State<'_, LazyWalletQueue>,
