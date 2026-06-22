@@ -105,6 +105,16 @@ describe('fetchContractAbi — USB persistent cache', () => {
     const r = await fetchContractAbi(56, ADDR, USB);
     expect(r).not.toBeNull();
     expect(setSpy).toHaveBeenCalledOnce();
+    expect(setSpy).toHaveBeenCalledWith(expect.objectContaining({
+      chainId: 56,
+      address: ADDR,
+      matchLevel: 'full',
+      source: 'sourcify',
+      usbPath: USB.usbPath,
+      sessionToken: USB.sessionToken,
+      fetchedAt: expect.any(Number),
+      abi: expect.any(Array),
+    }));
   });
 
   it('USB read failure is graceful → falls through to online', async () => {

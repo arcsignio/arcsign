@@ -811,7 +811,7 @@ export async function setCachedAbi(p: {
   chainId: number;
   address: string;
   abi: unknown[];
-  matchLevel: string;
+  matchLevel: "full" | "partial";
   source: string;
   fetchedAt: number;
   usbPath: string;
@@ -824,6 +824,8 @@ export async function setCachedAbi(p: {
   }
 }
 
+// Unlike getCachedAbi/setCachedAbi (best-effort, swallow), clearAbiCache is a
+// user-initiated action — let errors propagate so the UI can report failure.
 export async function clearAbiCache(p: {
   usbPath: string;
   sessionToken: string;

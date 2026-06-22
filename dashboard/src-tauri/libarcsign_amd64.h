@@ -21,6 +21,12 @@ extern const char *_GoStringPtr(_GoString_ s);
 /* Start of preamble from import "C" comments.  */
 
 
+#line 7 "exports_abicache.go"
+
+#include <stdlib.h>
+
+#line 1 "cgo-generated-wrapper"
+
 #line 8 "exports_address.go"
 
 #include <stdlib.h>
@@ -141,6 +147,9 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
+extern char* GetCachedAbi(char* params);
+extern char* SetCachedAbi(char* params);
+extern char* ClearAbiCache(char* params);
 extern char* ListContacts(char* params);
 extern char* AddContact(char* params);
 extern char* UpdateContact(char* params);
