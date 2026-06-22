@@ -2,6 +2,8 @@ import { decodeFunctionData, formatUnits } from "viem";
 import type { DecodedIntent, ClearSignRisk, DecodedParam } from "./types";
 import { KNOWN_ABIS, MAX_UINT256, MAX_UINT160 } from "./knownAbis";
 import { resolveTokenLabel } from "./tokenLabel";
+import { networkToChainId } from "./chainIdToNetwork";
+import { fetchContractAbi } from "./sourcifyClient";
 
 function shortAddr(a: string): string {
   return a && a.length > 12 ? `${a.slice(0, 6)}...${a.slice(-4)}` : a;
@@ -67,6 +69,7 @@ export async function decodeCalldata(
   to: string,
   data: string | undefined,
   value: string | undefined,
+  options?: { onlineEnabled?: boolean },
 ): Promise<DecodedIntent> {
   const raw = data ?? "0x";
 
@@ -84,6 +87,29 @@ export async function decodeCalldata(
       // try the next ABI
     }
   }
+
+  // Online fallback: whitelist missed. If enabled, fetch the contract's verified
+  // ABI from Sourcify and try once more. Honesty boundary preserved: if the fetched
+  // ABI decodes to a fn buildIntent doesn't know, buildIntent returns unreadable.
+  if (options?.onlineEnabled && data && data !== "0x") {
+    const chainId = networkToChainId(network);
+    if (chainId !== undefined) {
+      const fetched = await fetchContractAbi(chainId, to);
+      if (fetched) {
+        try {
+          const { functionName, args } = decodeFunctionData({ abi: fetched.abi, data: data as `0x${string}` });
+          const intent = await buildIntent(network, to, functionName, args as readonly unknown[], raw);
+          if (intent.readable) {
+            intent.abiSource = fetched.matchLevel === "partial" ? "sourcify-partial" : "sourcify-full";
+          }
+          return intent;
+        } catch {
+          // fetched ABI didn't match this calldata → fall through to unreadable
+        }
+      }
+    }
+  }
+
   return unreadable(raw);
 }
 

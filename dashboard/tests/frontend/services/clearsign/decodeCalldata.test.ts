@@ -3,6 +3,8 @@ import { encodeFunctionData } from 'viem';
 import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
 import { erc20Abi, erc721Abi, permit2Abi, uniV2RouterAbi, uniV3RouterAbi, oneInchRouterAbi, kyberRouterAbi, aggregatorAbi, MAX_UINT256, MAX_UINT160 } from '@/services/clearsign/knownAbis';
 import * as tokenLabel from '@/services/clearsign/tokenLabel';
+import * as sourcify from '@/services/clearsign/sourcifyClient';
+import { encodeFunctionData as enc } from 'viem';
 
 vi.mock('@/services/clearsign/tokenLabel', () => ({
   resolveTokenLabel: vi.fn(),
@@ -285,5 +287,56 @@ describe('decodeCalldata — Aggregator swapExactIn (0xedad400c)', () => {
     const r = await decodeCalldata('bnb', ROUTER, data, '0x0');
     expect(r.readable).toBe(true);
     expect(r.title).toContain('0x55d3');  // shortened inputToken address
+  });
+});
+
+describe('decodeCalldata — online ABI fallback (Sourcify)', () => {
+  const ROUTER = '0x40A1Fe393A7F566F27dF6acE18e6773be844dAfc';
+  const A = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+  // a fn with NO buildIntent case (honesty boundary) and not in KNOWN_ABIS:
+  const opaqueAbi = [{ type: 'function', name: 'execute', inputs: [{ name: 'commands', type: 'bytes' }, { name: 'inputs', type: 'bytes[]' }], outputs: [], stateMutability: 'payable' }] as const;
+
+  beforeEach(() => {
+    vi.mocked(tokenLabel.resolveTokenLabel).mockResolvedValue({ symbol: 'USDC', decimals: 6, known: true });
+  });
+
+  it('does NOT call sourcify when the local whitelist matches', async () => {
+    const spy = vi.spyOn(sourcify, 'fetchContractAbi');
+    const data = enc({ abi: erc20Abi, functionName: 'transfer', args: [A, 1n] });
+    const r = await decodeCalldata('eth-mainnet', A, data, '0x0', { onlineEnabled: true });
+    expect(r.readable).toBe(true);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call sourcify when online decoding is disabled (default, no options)', async () => {
+    const spy = vi.spyOn(sourcify, 'fetchContractAbi');
+    const data = enc({ abi: opaqueAbi, functionName: 'execute', args: ['0x', []] });
+    const r = await decodeCalldata('eth-mainnet', ROUTER, data, '0x0'); // no options → off
+    expect(r.readable).toBe(false);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('consults sourcify when whitelist misses + online enabled (honesty boundary keeps it unreadable)', async () => {
+    const customAbi = [{ type: 'function', name: 'doSwap', inputs: [{ name: 'x', type: 'uint256' }], outputs: [], stateMutability: 'nonpayable' }] as const;
+    const spy = vi.spyOn(sourcify, 'fetchContractAbi').mockResolvedValue({ abi: customAbi as never, matchLevel: 'full' });
+    const data = enc({ abi: customAbi, functionName: 'doSwap', args: [1n] });
+    const r = await decodeCalldata('eth-mainnet', ROUTER, data, '0x0', { onlineEnabled: true });
+    expect(spy).toHaveBeenCalledOnce();
+    // doSwap has no buildIntent case → honesty boundary → unreadable
+    expect(r.readable).toBe(false);
+  });
+
+  it('returns unreadable when sourcify returns null (fetch failed/not verified)', async () => {
+    vi.spyOn(sourcify, 'fetchContractAbi').mockResolvedValue(null);
+    const data = enc({ abi: opaqueAbi, functionName: 'execute', args: ['0x', []] });
+    const r = await decodeCalldata('eth-mainnet', ROUTER, data, '0x0', { onlineEnabled: true });
+    expect(r.readable).toBe(false);
+  });
+
+  it('does not set an online abiSource on a local whitelist hit', async () => {
+    const data = enc({ abi: erc20Abi, functionName: 'transfer', args: [A, 1_000_000n] });
+    const r = await decodeCalldata('eth-mainnet', A, data, '0x0', { onlineEnabled: true });
+    expect(r.readable).toBe(true);
+    expect(r.abiSource === undefined || r.abiSource === 'local').toBe(true);
   });
 });

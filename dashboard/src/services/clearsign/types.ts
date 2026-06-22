@@ -15,4 +15,5 @@ export interface DecodedIntent {
   params: DecodedParam[];   // structured rows shown under the title
   risks: ClearSignRisk[];   // risk badges (unlimited approve, setApprovalForAll, permit)
   raw: string;              // the original hex / typed-data JSON, always kept
+  abiSource?: "local" | "sourcify-full" | "sourcify-partial";
 }
