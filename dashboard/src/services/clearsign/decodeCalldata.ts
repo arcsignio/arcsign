@@ -24,7 +24,7 @@ function unreadable(raw: string): DecodedIntent {
   return { readable: false, title: "Unreadable transaction", params: [], risks: [], raw };
 }
 
-interface SwapShape {
+export interface SwapShape {
   fromToken: string;
   toToken: string;
   amountIn?: bigint;
