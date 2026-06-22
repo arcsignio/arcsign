@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { chainIdToNetwork } from '@/services/clearsign/chainIdToNetwork';
+import { chainIdToNetwork, networkToChainId } from '@/services/clearsign/chainIdToNetwork';
 
 describe('chainIdToNetwork', () => {
   it('maps known numeric chainIds', () => {
@@ -34,5 +34,24 @@ describe('chainIdToNetwork', () => {
     expect(chainIdToNetwork(undefined)).toBe('eth-mainnet');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(chainIdToNetwork(null as any)).toBe('eth-mainnet');
+  });
+});
+
+describe('networkToChainId', () => {
+  it('maps internal network ids back to numeric chainIds', () => {
+    expect(networkToChainId('eth-mainnet')).toBe(1);
+    expect(networkToChainId('polygon-mainnet')).toBe(137);
+    expect(networkToChainId('arb-mainnet')).toBe(42161);
+    expect(networkToChainId('opt-mainnet')).toBe(10);
+    expect(networkToChainId('base-mainnet')).toBe(8453);
+    expect(networkToChainId('avalanche-mainnet')).toBe(43114);
+  });
+
+  it('maps bnb-mainnet to 56 (mainnet, not the 97 testnet)', () => {
+    expect(networkToChainId('bnb-mainnet')).toBe(56);
+  });
+
+  it('returns undefined for an unknown network', () => {
+    expect(networkToChainId('does-not-exist')).toBeUndefined();
   });
 });
