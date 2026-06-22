@@ -145,14 +145,20 @@ export function getNativeToken(network: string): NativeTokenMetadata | null {
   return NATIVE_TOKENS[network] || null;
 }
 
+// The 0xEeee…EEeE sentinel many DEXs/aggregators use to mean "native coin".
+const NATIVE_EEEE_SENTINEL = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+
 /**
- * Check if an address is a native token (zero address or empty)
+ * Check if an address is a native-coin sentinel: zero address, empty, or the
+ * common 0xEeee…EEeE placeholder (case-insensitive).
  */
 export function isNativeTokenAddress(address: string): boolean {
+  if (!address) return true;
+  const a = address.toLowerCase();
   return (
-    !address ||
-    address === "0x0000000000000000000000000000000000000000" ||
-    address === "0x0"
+    a === "0x0000000000000000000000000000000000000000" ||
+    a === "0x0" ||
+    a === NATIVE_EEEE_SENTINEL
   );
 }
 
@@ -179,7 +185,9 @@ export const NETWORK_LABEL_TO_KEY: Record<string, string> = {
   "polygon-mainnet": "polygon-mainnet",
   "matic-mainnet": "polygon-mainnet",
   "arbitrum-mainnet": "arbitrum-mainnet",
+  "arb-mainnet": "arbitrum-mainnet",
   "optimism-mainnet": "optimism-mainnet",
+  "opt-mainnet": "optimism-mainnet",
   "base-mainnet": "base-mainnet",
   "avalanche-mainnet": "avalanche-mainnet",
   "avax-mainnet": "avalanche-mainnet",

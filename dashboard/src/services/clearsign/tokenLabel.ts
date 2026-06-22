@@ -1,4 +1,5 @@
 import { findTokenByAddress, type ChainKey } from "@/services/tokenList";
+import { isNativeTokenAddress, getNativeToken, getNetworkKey } from "@/constants/nativeTokens";
 
 export interface TokenLabel {
   symbol: string;   // token symbol, or a shortened address if unknown
@@ -28,6 +29,17 @@ function shortAddr(a: string): string {
 // (public/token-lists/*.json). No external API — privacy preserving. Falls back
 // to a shortened address (known=false) when not found or on error.
 export async function resolveTokenLabel(network: string, address: string): Promise<TokenLabel> {
+  // Native-coin sentinel (zero address / 0xEeee…) → the chain's native symbol
+  // (e.g. a swap to BNB carries 0x0000…0000 as the "token", not an ERC-20).
+  // Resolved locally, never hits the token list. getNetworkKey maps the
+  // clearsign network id (bnb-mainnet) to the NATIVE_TOKENS key (bsc-mainnet).
+  if (isNativeTokenAddress(address)) {
+    const native = getNativeToken(getNetworkKey(network) ?? network);
+    if (native) {
+      return { symbol: native.symbol, decimals: native.decimals, known: true };
+    }
+  }
+
   const chain = (NETWORK_TO_CHAIN[network] ?? "ethereum") as ChainKey;
   try {
     // Note: findTokenByAddress(address, chain) — address is the first parameter

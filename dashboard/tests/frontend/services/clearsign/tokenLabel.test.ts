@@ -28,4 +28,33 @@ describe('resolveTokenLabel', () => {
     const r = await resolveTokenLabel('eth-mainnet', '0xabc');
     expect(r.known).toBe(false);
   });
+
+  it('resolves the zero-address sentinel to the chain native symbol (BNB on bnb-mainnet)', async () => {
+    const r = await resolveTokenLabel('bnb-mainnet', '0x0000000000000000000000000000000000000000');
+    expect(r.symbol).toBe('BNB');
+    expect(r.decimals).toBe(18);
+    expect(r.known).toBe(true);
+    // sentinel is resolved locally — never hits the token list
+    expect(tokenList.findTokenByAddress).not.toHaveBeenCalled();
+  });
+
+  it('resolves the 0xEeee… native sentinel to the chain native symbol (ETH on eth-mainnet)', async () => {
+    const r = await resolveTokenLabel('eth-mainnet', '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE');
+    expect(r.symbol).toBe('ETH');
+    expect(r.known).toBe(true);
+    expect(tokenList.findTokenByAddress).not.toHaveBeenCalled();
+  });
+
+  it('resolves the native sentinel on every clearsign network id (incl. short arb/opt forms)', async () => {
+    const cases: [string, string][] = [
+      ['eth-mainnet', 'ETH'], ['polygon-mainnet', 'MATIC'], ['arb-mainnet', 'ETH'],
+      ['opt-mainnet', 'ETH'], ['base-mainnet', 'ETH'], ['bnb-mainnet', 'BNB'],
+      ['avalanche-mainnet', 'AVAX'],
+    ];
+    for (const [net, sym] of cases) {
+      const r = await resolveTokenLabel(net, '0x0');
+      expect(r.symbol, `native symbol for ${net}`).toBe(sym);
+      expect(r.known).toBe(true);
+    }
+  });
 });
