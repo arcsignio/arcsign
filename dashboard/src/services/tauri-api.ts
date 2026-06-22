@@ -346,6 +346,42 @@ export async function getNFTs(
   }
 }
 
+/** A token the user has interacted with beyond the curated common list. */
+export interface AddTouchedTokenParams {
+  usbPath: string;
+  userAddress: string;
+  tokenAddress: string;
+  network: string;
+  symbol: string;
+  decimals: number;
+  sessionToken?: string;
+  appPassword?: string;
+}
+
+/**
+ * Record that a wallet address has interacted with a token (table B), so future
+ * balance queries include it. Used for swap outputs, airdrops, and manual import.
+ * The token list is persisted encrypted on the USB; balances stay live.
+ */
+export async function addTouchedToken(
+  params: AddTouchedTokenParams
+): Promise<{ added: boolean }> {
+  try {
+    return await invoke<{ added: boolean }>("add_touched_token", {
+      usbPath: params.usbPath,
+      userAddress: params.userAddress,
+      tokenAddress: params.tokenAddress,
+      network: params.network,
+      symbol: params.symbol,
+      decimals: params.decimals,
+      sessionToken: params.sessionToken,
+      appPassword: params.appPassword,
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
 export async function getTokenApprovals(
   params: GetTokenApprovalsParams
 ): Promise<TokenApprovalsResponse> {
@@ -1745,6 +1781,7 @@ export const tauriApi = {
   loadAddresses,
   getTokenBalances,
   getNFTs,
+  addTouchedToken,
   getTokenApprovals,
   validatePassphrase,
 
