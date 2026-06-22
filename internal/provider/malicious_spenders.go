@@ -42,3 +42,14 @@ func IsMaliciousSpender(addr string) bool {
 	_, ok := maliciousSet[a]
 	return ok
 }
+
+// AllMaliciousSpenders returns every address in the embedded blocklist (lowercase).
+// Used by the txguard blacklist seed to reuse this MIT-licensed offline data
+// without duplicating the file.
+func AllMaliciousSpenders() []string {
+	out := make([]string, 0, len(maliciousSet))
+	for a := range maliciousSet {
+		out = append(out, a)
+	}
+	return out
+}

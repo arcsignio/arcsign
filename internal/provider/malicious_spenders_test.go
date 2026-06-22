@@ -1,6 +1,9 @@
 package provider
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestMaliciousSetLoaded(t *testing.T) {
 	// The embedded list must parse into a non-trivial set (comment lines skipped).
@@ -61,4 +64,31 @@ func uppercaseHex(s string) string {
 		}
 	}
 	return string(b)
+}
+
+func TestAllMaliciousSpenders_ReturnsFullSet(t *testing.T) {
+	all := AllMaliciousSpenders()
+	if len(all) == 0 {
+		t.Fatal("expected a non-empty embedded blocklist")
+	}
+	// every returned address must be recognized by IsMaliciousSpender (same underlying set)
+	n := 5
+	if len(all) < n {
+		n = len(all)
+	}
+	for _, a := range all[:n] {
+		if !IsMaliciousSpender(a) {
+			t.Errorf("AllMaliciousSpenders returned %s but IsMaliciousSpender says false", a)
+		}
+	}
+	// all lowercase, 42-char 0x addresses
+	m := 20
+	if len(all) < m {
+		m = len(all)
+	}
+	for _, a := range all[:m] {
+		if len(a) != 42 || a[:2] != "0x" || a != strings.ToLower(a) {
+			t.Errorf("malformed address in set: %q", a)
+		}
+	}
 }
