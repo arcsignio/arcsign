@@ -75,6 +75,8 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
   const [appVersion, setAppVersion] = useState('...');
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const isPro = useDashboardStore((s) => s.membership.isPro);
+  const onlineDecodingEnabled = useDashboardStore((s) => s.onlineDecodingEnabled);
+  const setOnlineDecodingEnabled = useDashboardStore((s) => s.setOnlineDecodingEnabled);
 
   useEffect(() => {
     getVersion().then(v => setAppVersion(v)).catch(() => setAppVersion('unknown'));
@@ -119,6 +121,26 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
             <span className="setting-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
           </button>
         ))}
+      </div>
+
+      {/* Privacy / Clear-signing preferences */}
+      <div className="preferences-section">
+        <h2 className="preferences-section-title">{t('settings.advancedTitle', 'Advanced')}</h2>
+        <div className="toggle-item">
+          <div className="setting-content">
+            <h3 className="setting-title">{t('onlineDecoding.label')}</h3>
+            <p className="setting-description">{t('onlineDecoding.description')}</p>
+            <p className="toggle-privacy-note">{t('onlineDecoding.privacyNote')}</p>
+          </div>
+          <label className="toggle-switch">
+            <input
+              type="checkbox"
+              checked={onlineDecodingEnabled}
+              onChange={(e) => setOnlineDecodingEnabled(e.target.checked)}
+            />
+            <span className="toggle-slider" />
+          </label>
+        </div>
       </div>
 
       {/* Backup & Restore Section */}
@@ -306,6 +328,83 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
 
         .setting-item:hover .setting-arrow {
           color: #0d9488;
+        }
+
+        /* Preferences Section */
+        .preferences-section {
+          margin-top: 48px;
+          padding-top: 24px;
+          border-top: 1px solid #e5e7eb;
+        }
+
+        .preferences-section-title {
+          margin: 0 0 16px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .toggle-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 16px;
+          padding: 20px;
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+        }
+
+        .toggle-privacy-note {
+          margin: 8px 0 0;
+          font-size: 12px;
+          color: #9ca3af;
+          line-height: 1.5;
+        }
+
+        .toggle-switch {
+          position: relative;
+          display: inline-block;
+          width: 44px;
+          height: 24px;
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+
+        .toggle-switch input {
+          opacity: 0;
+          width: 0;
+          height: 0;
+        }
+
+        .toggle-slider {
+          position: absolute;
+          inset: 0;
+          cursor: pointer;
+          background: #d1d5db;
+          border-radius: 24px;
+          transition: background 0.2s;
+        }
+
+        .toggle-slider::before {
+          content: "";
+          position: absolute;
+          height: 18px;
+          width: 18px;
+          left: 3px;
+          top: 3px;
+          background: white;
+          border-radius: 50%;
+          transition: transform 0.2s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+          background: #2dd4bf;
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+          transform: translateX(20px);
         }
 
         /* Backup Section */

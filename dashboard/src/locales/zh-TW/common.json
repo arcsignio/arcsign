@@ -1287,5 +1287,10 @@
     "blacklistHit": "目標在黑名單中",
     "simulatedChanges": "模擬餘額變化",
     "ackRisk": "我了解此交易有風險，仍要簽署"
+  },
+  "onlineDecoding": {
+    "label": "線上交易解碼",
+    "description": "當交易用到 ArcSign 本地不認得的合約時，向 Sourcify（去中心化、開源的合約登錄庫）查詢該合約的 verified ABI，讓交易能以人類可讀的方式呈現。",
+    "privacyNote": "這只會送出合約地址與鏈 id 給 Sourcify——不會送出你的錢包地址、交易內容或身份。廣播交易本來就會把交易透露給你的 RPC。關閉此項則只用本地白名單。"
   }
 }

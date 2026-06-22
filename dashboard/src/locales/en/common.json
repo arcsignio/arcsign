@@ -1287,5 +1287,10 @@
     "blacklistHit": "Target is on a blocklist",
     "simulatedChanges": "Simulated balance changes",
     "ackRisk": "I understand the risk and still want to sign"
+  },
+  "onlineDecoding": {
+    "label": "Online transaction decoding",
+    "description": "When a transaction uses a contract ArcSign doesn't recognize locally, look up its verified ABI from Sourcify (a decentralized, open contract registry) so the transaction can be shown in human-readable form.",
+    "privacyNote": "This sends only the contract address and chain id to Sourcify — never your wallet address, the transaction data, or your identity. Broadcasting the transaction already reveals it to your RPC. Turn this off to use only the local whitelist."
   }
 }

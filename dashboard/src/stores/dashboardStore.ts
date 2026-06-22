@@ -65,6 +65,10 @@ interface DashboardState {
   /** Search query for address list */
   searchQuery: string;
 
+  // Clear-signing preferences
+  /** Whether online ABI fallback (Sourcify) is enabled for transaction decoding */
+  onlineDecodingEnabled: boolean;
+
   /** Loading states */
   isLoadingWallets: boolean;
   isLoadingAddresses: boolean;
@@ -100,6 +104,9 @@ interface DashboardState {
 
   /** Set search query */
   setSearchQuery: (query: string) => void;
+
+  /** Toggle online ABI fallback (Sourcify) for transaction decoding */
+  setOnlineDecodingEnabled: (v: boolean) => void;
 
   /** Set USB path */
   setUsbPath: (path: string | null) => void;
@@ -141,6 +148,7 @@ const initialState = {
   membership: initialMembership,
   filter: {},
   searchQuery: '',
+  onlineDecodingEnabled: true,
   isLoadingWallets: false,
   isLoadingAddresses: false,
   error: null,
@@ -187,6 +195,8 @@ export const useDashboardStore = create<DashboardState>()(
 
       setSearchQuery: (query) => set({ searchQuery: query }),
 
+      setOnlineDecodingEnabled: (v) => set({ onlineDecodingEnabled: v }),
+
       setUsbPath: (path) => set({ usbPath: path }),
 
       setLoadingWallets: (loading) => set({ isLoadingWallets: loading }),
@@ -218,6 +228,7 @@ export const useDashboardStore = create<DashboardState>()(
         filter: state.filter,
         searchQuery: state.searchQuery,
         usbPath: state.usbPath,
+        onlineDecodingEnabled: state.onlineDecodingEnabled,
         // Membership is now calculated from all wallets, no need to persist address selection
       }),
     }
@@ -330,3 +341,7 @@ export const useLockedWalletIds = () =>
 /** Check if a specific wallet is locked */
 export const useIsWalletLocked = (walletId: string) =>
   useDashboardStore((state) => state.membership.lockedWalletIds.includes(walletId));
+
+/** Whether online ABI fallback (Sourcify) is enabled for transaction decoding */
+export const useOnlineDecodingEnabled = () =>
+  useDashboardStore((state) => state.onlineDecodingEnabled);
