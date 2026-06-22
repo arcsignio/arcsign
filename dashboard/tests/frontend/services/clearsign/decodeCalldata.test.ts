@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { encodeFunctionData } from 'viem';
 import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
-import { erc20Abi, erc721Abi, permit2Abi, uniV2RouterAbi, uniV3RouterAbi, oneInchRouterAbi, kyberRouterAbi, MAX_UINT256, MAX_UINT160 } from '@/services/clearsign/knownAbis';
+import { erc20Abi, erc721Abi, permit2Abi, uniV2RouterAbi, uniV3RouterAbi, oneInchRouterAbi, kyberRouterAbi, aggregatorAbi, MAX_UINT256, MAX_UINT160 } from '@/services/clearsign/knownAbis';
 import * as tokenLabel from '@/services/clearsign/tokenLabel';
 
 vi.mock('@/services/clearsign/tokenLabel', () => ({
@@ -232,5 +232,58 @@ describe('decodeCalldata — aggregator swap (1inch / Kyber)', () => {
   it('returns unreadable when swap args do not match (garbage)', async () => {
     const r = await decodeCalldata('eth-mainnet', EXEC, '0x12aa3caf0000', '0x0');
     expect(r.readable).toBe(false);
+  });
+});
+
+describe('decodeCalldata — Aggregator swapExactIn (0xedad400c)', () => {
+  const IN = '0x55d398326f99059fF775485246999027B3197955';  // USDT (BSC)
+  const OUT = '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d'; // USDC (BSC)
+  const RECIP = '0x1111111254EEB25477B68fb85Ed929f73A960582';
+  const ROUTER = '0x40A1Fe393A7F566F27dF6acE18e6773be844dAfc';
+
+  // minimal valid routes (empty nested arrays) — routing detail is noise we ignore
+  const emptyRoutes: never[] = [];
+
+  it('decodes swapExactIn into Swap USDT → USDC with Min received, no Amount in', async () => {
+    vi.mocked(tokenLabel.resolveTokenLabel)
+      .mockResolvedValueOnce({ symbol: 'USDT', decimals: 18, known: true })
+      .mockResolvedValueOnce({ symbol: 'USDC', decimals: 18, known: true });
+    const data = encodeFunctionData({
+      abi: aggregatorAbi, functionName: 'swapExactIn',
+      args: [
+        0n,
+        { inputToken: IN, outputToken: OUT, minOutputAmount: 50_000_000_000_000_000_000n, deadline: 9999999999n },
+        [],
+        emptyRoutes,
+        0n,
+        RECIP,
+      ],
+    });
+    const r = await decodeCalldata('bnb', ROUTER, data, '0x0');
+    expect(r.readable).toBe(true);
+    expect(r.title.toLowerCase()).toContain('swap');
+    expect(r.title).toContain('USDT');
+    expect(r.title).toContain('USDC');
+    expect(r.title).toContain('Aggregator');
+    // Min received present (minOutputAmount, in the OUT token)
+    expect(r.params.some(p => /min/i.test(p.label) && p.value.includes('USDC'))).toBe(true);
+    // No "Amount in" row — amountIn is spread across routesAmount[], omitted
+    expect(r.params.some(p => /amount in/i.test(p.label))).toBe(false);
+    // Recipient row present
+    expect(r.params.some(p => /recipient/i.test(p.label) && p.value.includes('0x1111'))).toBe(true);
+    expect(r.risks).toEqual([]);
+  });
+
+  it('shows token addresses when not in the local list (still readable)', async () => {
+    vi.mocked(tokenLabel.resolveTokenLabel)
+      .mockResolvedValueOnce({ symbol: IN, decimals: 18, known: false })
+      .mockResolvedValueOnce({ symbol: OUT, decimals: 18, known: false });
+    const data = encodeFunctionData({
+      abi: aggregatorAbi, functionName: 'swapExactIn',
+      args: [0n, { inputToken: IN, outputToken: OUT, minOutputAmount: 1n, deadline: 9999999999n }, [], [], 0n, RECIP],
+    });
+    const r = await decodeCalldata('bnb', ROUTER, data, '0x0');
+    expect(r.readable).toBe(true);
+    expect(r.title).toContain('0x55d3');  // shortened inputToken address
   });
 });

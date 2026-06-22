@@ -203,6 +203,20 @@ async function buildIntent(
         venue,
       }, raw);
     }
+    case "swapExactIn": {
+      // DEX Aggregator: args = [orderId, request, routesAmount, routes, feeConfig, recipient].
+      // request struct holds inputToken/outputToken/minOutputAmount; amountIn lives in
+      // routesAmount[] (no single value) so it's omitted from the rendered rows.
+      const req = args[1] as { inputToken: string; outputToken: string; minOutputAmount: bigint };
+      const recipient = args[5] as string;
+      return renderSwap(network, {
+        fromToken: req.inputToken,
+        toToken: req.outputToken,
+        minAmountOut: req.minOutputAmount,
+        recipient,
+        venue: "Aggregator",
+      }, raw);
+    }
     default:
       return unreadable(raw);
   }

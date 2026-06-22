@@ -73,8 +73,29 @@ export const kyberRouterAbi = [
   ], outputs: [{ name: "returnAmount", type: "uint256" }, { name: "gasUsed", type: "uint256" }], stateMutability: "payable" },
 ] as const satisfies Abi;
 
+// DEX Aggregator (Sourcify-verified `Aggregator.sol`, BSC) — swapExactIn(orderId, request, …).
+// Only the fields we read are typed; routes/feeConfig/orderId carry routing noise we ignore.
+// The `request` struct holds inputToken / outputToken / minOutputAmount; amountIn is spread
+// across routesAmount[] so we omit the "Amount in" row (like the V2 ETH-in variant).
+export const aggregatorAbi = [
+  { type: "function", name: "swapExactIn", inputs: [
+    { name: "orderId", type: "uint256" },
+    { name: "request", type: "tuple", components: [
+      { name: "inputToken", type: "address" }, { name: "outputToken", type: "address" },
+      { name: "minOutputAmount", type: "uint256" }, { name: "deadline", type: "uint256" },
+    ] },
+    { name: "routesAmount", type: "uint256[]" },
+    { name: "routes", type: "tuple[][]", components: [
+      { name: "mixAdapters", type: "uint256[]" }, { name: "assetTo", type: "address[]" },
+      { name: "rawData", type: "uint256[]" }, { name: "extraData", type: "bytes[]" },
+      { name: "fromToken", type: "address" },
+    ] },
+    { name: "feeConfig", type: "uint256" }, { name: "recipient", type: "address" },
+  ], outputs: [{ name: "outputAmtReceived", type: "uint256" }], stateMutability: "payable" },
+] as const satisfies Abi;
+
 // The set of ABIs decodeCalldata tries, in order. Add more here to widen coverage.
-export const KNOWN_ABIS: Abi[] = [erc20Abi, erc721Abi, permit2Abi, uniV2RouterAbi, uniV3RouterAbi, oneInchRouterAbi, kyberRouterAbi];
+export const KNOWN_ABIS: Abi[] = [erc20Abi, erc721Abi, permit2Abi, uniV2RouterAbi, uniV3RouterAbi, oneInchRouterAbi, kyberRouterAbi, aggregatorAbi];
 
 // uint256 max — an "unlimited" approval amount.
 export const MAX_UINT256 = (2n ** 256n) - 1n;
