@@ -71,7 +71,7 @@ export async function decodeCalldata(
   to: string,
   data: string | undefined,
   value: string | undefined,
-  options?: { onlineEnabled?: boolean },
+  options?: { onlineEnabled?: boolean; usb?: { usbPath: string; sessionToken: string } },
 ): Promise<DecodedIntent> {
   const raw = data ?? "0x";
 
@@ -99,7 +99,7 @@ export async function decodeCalldata(
   if (options?.onlineEnabled && data && data !== "0x") {
     const chainId = networkToChainId(network);
     if (chainId !== undefined) {
-      const fetched = await fetchContractAbi(chainId, to);
+      const fetched = await fetchContractAbi(chainId, to, options.usb);
       if (fetched) {
         try {
           const { functionName, args } = decodeFunctionData({ abi: fetched.abi, data: data as `0x${string}` });

@@ -116,7 +116,13 @@ const sendTransactionHandler: RequestHandler = async (
   const displayTo = tx.to || '(Contract Creation)';
   const onlineEnabled = useDashboardStore.getState().onlineDecodingEnabled;
   const intent = await decodeCalldata(
-    chainIdToNetwork(chainId), tx.to || '', tx.data, tx.value, { onlineEnabled },
+    chainIdToNetwork(chainId), tx.to || '', tx.data, tx.value, {
+      onlineEnabled,
+      // Opt into the per-USB ABI cache when the session has USB credentials.
+      usb: context.usbPath && context.sessionToken
+        ? { usbPath: context.usbPath, sessionToken: context.sessionToken }
+        : undefined,
+    },
   );
   const displayData = intent.readable
     ? `${intent.title}${intent.risks.length ? '  ⚠️ ' + intent.risks.join(', ') : ''}`

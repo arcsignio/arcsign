@@ -64,10 +64,14 @@ export function TransactionSignDialog({
   useEffect(() => {
     if (!transaction) { setIntent(null); return; }
     const network = chainIdToNetwork(transaction.chain_id);
-    decodeCalldata(network, transaction.to, transaction.data, transaction.value, { onlineEnabled: onlineDecodingEnabled })
+    decodeCalldata(network, transaction.to, transaction.data, transaction.value, {
+      onlineEnabled: onlineDecodingEnabled,
+      // Opt into the per-USB ABI cache only when we have an unlocked session.
+      usb: usbPath && sessionToken ? { usbPath, sessionToken } : undefined,
+    })
       .then(setIntent)
       .catch(() => setIntent(null));
-  }, [transaction, onlineDecodingEnabled]);
+  }, [transaction, onlineDecodingEnabled, usbPath, sessionToken]);
 
   // Fetch txguard security report — advisory only, never blocks signing on failure
   useEffect(() => {

@@ -1,4 +1,5 @@
 import type { Abi } from "viem";
+import { getCachedAbi, setCachedAbi } from "@/services/tauri-api";
 
 export interface AbiResult {
   abi: Abi;
@@ -21,10 +22,33 @@ export function _clearAbiCache(): void {
  * Fetch a contract's verified ABI from Sourcify (decentralized, no API key).
  * Returns { abi, matchLevel } or null (not verified / fetch failed / timeout).
  * Never throws. Caches both hits and misses in memory.
+ *
+ * Tiered lookup (memory → USB → online). The USB tier is OPT-IN: it is only
+ * consulted/written when the optional `usb` arg is supplied. With no `usb`, this
+ * makes ZERO FFI invoke calls and behaves exactly like the memory-only path.
  */
-export async function fetchContractAbi(chainId: number, address: string): Promise<AbiResult | null> {
+export async function fetchContractAbi(
+  chainId: number,
+  address: string,
+  usb?: { usbPath: string; sessionToken: string },
+): Promise<AbiResult | null> {
   const key = `${chainId}:${address.toLowerCase()}`;
   if (cache.has(key)) return cache.get(key) ?? null;
+
+  // Tier 2 (opt-in): per-USB encrypted ABI cache. A hit short-circuits the
+  // online fetch. Any failure falls through to online (never blocks signing).
+  if (usb) {
+    try {
+      const hit = await getCachedAbi({ chainId, address, ...usb });
+      if (hit) {
+        const result: AbiResult = { abi: hit.abi as Abi, matchLevel: hit.matchLevel };
+        cache.set(key, result);
+        return result;
+      }
+    } catch {
+      // USB unavailable → fall through to online (never block)
+    }
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -51,6 +75,25 @@ export async function fetchContractAbi(chainId: number, address: string): Promis
     }
     const result: AbiResult = { abi: abi as Abi, matchLevel };
     cache.set(key, result);
+    // Tier 2 write-back (opt-in): persist the freshly fetched ABI to the per-USB
+    // encrypted cache so later sessions skip the network. Best-effort — a write
+    // failure must not change what we return.
+    if (usb) {
+      try {
+        await setCachedAbi({
+          chainId,
+          address,
+          abi: result.abi as unknown[],
+          matchLevel: result.matchLevel,
+          source: "sourcify",
+          fetchedAt: Math.floor(Date.now() / 1000),
+          usbPath: usb.usbPath,
+          sessionToken: usb.sessionToken,
+        });
+      } catch {
+        /* best-effort */
+      }
+    }
     return result;
   } catch {
     // Any failure (timeout/AbortError, network error, JSON parse error) → null.

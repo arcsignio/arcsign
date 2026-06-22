@@ -779,6 +779,58 @@ export async function checkTransactionSecurity(
   }
 }
 
+// ── Verified-ABI USB cache (Sourcify tier-2: per-USB encrypted) ────────────────
+// Backed by the Go FFI ABI cache via the get_cached_abi/set_cached_abi/
+// clear_abi_cache Tauri commands (each takes a single `params: String`).
+export interface CachedAbiEntry {
+  abi: unknown[];
+  matchLevel: "full" | "partial";
+  source: string;
+  address: string;
+  chainId: number;
+  fetchedAt: number;
+}
+
+export async function getCachedAbi(p: {
+  chainId: number;
+  address: string;
+  usbPath: string;
+  sessionToken: string;
+}): Promise<CachedAbiEntry | null> {
+  try {
+    const r = await invoke<{ entry: CachedAbiEntry | null }>("get_cached_abi", {
+      params: JSON.stringify(p),
+    });
+    return r?.entry ?? null;
+  } catch {
+    return null; // graceful: USB cache unavailable → miss
+  }
+}
+
+export async function setCachedAbi(p: {
+  chainId: number;
+  address: string;
+  abi: unknown[];
+  matchLevel: string;
+  source: string;
+  fetchedAt: number;
+  usbPath: string;
+  sessionToken: string;
+}): Promise<void> {
+  try {
+    await invoke("set_cached_abi", { params: JSON.stringify(p) });
+  } catch {
+    /* graceful: persistence is best-effort */
+  }
+}
+
+export async function clearAbiCache(p: {
+  usbPath: string;
+  sessionToken: string;
+}): Promise<void> {
+  await invoke("clear_abi_cache", { params: JSON.stringify(p) });
+}
+
 /**
  * Build transaction response from Go backend
  * Note: Backend returns simplified format with just the essential fields

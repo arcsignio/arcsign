@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fetchContractAbi, _clearAbiCache } from '@/services/clearsign/sourcifyClient';
+import * as api from '@/services/tauri-api';
 
 const ADDR = '0x40A1Fe393A7F566F27dF6acE18e6773be844dAfc';
 
@@ -78,5 +79,48 @@ describe('fetchContractAbi', () => {
       json: async () => ({ status: 'full', files: [{ name: 'metadata.json', path: 'x', content: JSON.stringify({ output: { abi: [] } }) }] }),
     });
     expect(await fetchContractAbi(1, ADDR)).toBeNull();
+  });
+});
+
+describe('fetchContractAbi — USB persistent cache', () => {
+  const USB = { usbPath: '/dev/disk2', sessionToken: 'tok' };
+  beforeEach(() => { _clearAbiCache(); vi.restoreAllMocks(); });
+
+  it('returns a USB-cache hit without going online', async () => {
+    vi.spyOn(api, 'getCachedAbi').mockResolvedValue({ abi: [{ type: 'function', name: 'x', inputs: [], outputs: [] }], matchLevel: 'full', source: 'sourcify', address: ADDR, chainId: 56, fetchedAt: 1 });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch' as any);
+    const r = await fetchContractAbi(56, ADDR, USB);
+    expect(r).not.toBeNull();
+    expect(r!.matchLevel).toBe('full');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('on USB miss, fetches online and writes back to USB', async () => {
+    vi.spyOn(api, 'getCachedAbi').mockResolvedValue(null);
+    const setSpy = vi.spyOn(api, 'setCachedAbi').mockResolvedValue(undefined);
+    vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ status: 'full', files: [{ name: 'metadata.json', content: JSON.stringify({ output: { abi: [{ type: 'function', name: 'y', inputs: [], outputs: [] }] } }) }] }),
+    });
+    const r = await fetchContractAbi(56, ADDR, USB);
+    expect(r).not.toBeNull();
+    expect(setSpy).toHaveBeenCalledOnce();
+  });
+
+  it('USB read failure is graceful → falls through to online', async () => {
+    vi.spyOn(api, 'getCachedAbi').mockRejectedValue(new Error('usb gone'));
+    vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ status: 'full', files: [{ name: 'metadata.json', content: JSON.stringify({ output: { abi: [{ type: 'function', name: 'z', inputs: [], outputs: [] }] } }) }] }),
+    });
+    const r = await fetchContractAbi(56, ADDR, USB);
+    expect(r).not.toBeNull();
+  });
+
+  it('without USB params, behaves exactly like Plan 1 (no USB calls)', async () => {
+    const getSpy = vi.spyOn(api, 'getCachedAbi');
+    vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({ ok: false, status: 404, json: async () => ({}) });
+    await fetchContractAbi(56, ADDR);
+    expect(getSpy).not.toHaveBeenCalled();
   });
 });
