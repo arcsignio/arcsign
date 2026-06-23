@@ -113,6 +113,23 @@ go test -run TestSpecificName ./...       # Run single test
    manage UI state; `analytics.ts` sends heartbeats to Cloudflare Worker
    for tier tracking
 
+### Frontend/Backend Separation（前後端職責，鐵則）
+
+**影響資產安全的判斷、決策、閘一律在後端（Go）；前端只讀後端結論做呈現。** 純呈現用的
+解碼/格式化（如 clear-signing 的 calldata 解碼，viem 在前端解）可留前端——它是輔助資訊、
+非安全閘。
+
+- 危險判定（`SecurityReport.RequiresAcknowledge`）、黑名單檢查、簽章閘都在
+  `internal/security/txguard` + `SignTransaction`。`SignTransaction` 在動私鑰前強制跑黑名單
+  檢查，`RequiresAcknowledge && !acknowledgedRisk` 則拒簽（return error，私鑰不動）。
+- 前端的 checkbox / 按鈕 disabled（`useSignGate` + `SignGateAcknowledge`）是**知情同意 UX，
+  非安全保證**——真閘在後端，前端可繞過（改 JS / 直呼 FFI / 漏接的程式路徑）。`useSignGate`
+  不自己算危險，只讀 `security.requiresAcknowledge`（後端算的）。
+- 黑名單是**免費基礎檢查**（所有人，零成本、嵌入種子）；交易模擬是 Pro（需 Alchemy key）。
+  `proRequired` 只代表「模擬沒跑」，不代表報告無效——黑名單對所有人有效。
+- **新功能套用**：任何「會改變鏈上狀態 / 動資產」的操作，安全判斷與閘放後端，前端只接
+  `useSignGate` 呈現結論並把 `acknowledgedRisk` 帶回後端。
+
 ### Provider data path (read-on-chain: balances / tokens / NFTs / transfers)
 
 Reading on-chain data goes through a **unified `WalletDataProvider` abstraction**
