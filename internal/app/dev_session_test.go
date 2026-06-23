@@ -60,15 +60,15 @@ func TestDevSessionSignMessageIsEIP191(t *testing.T) {
 		t.Fatalf("expected 65-byte signature, got %d", len(sig))
 	}
 
-	// Normalize V (SecureSigner returns 0/1) for ecrecover.
-	recSig := append([]byte(nil), sig...)
-	if recSig[64] >= 27 {
-		recSig[64] -= 27
+	// The dev path signs via SecureSigner.Sign, which returns go-ethereum's
+	// raw v (0/1) without the +27 adjustment, so SigToPub can consume it as-is.
+	if sig[64] >= 27 {
+		t.Fatalf("dev SignMessage unexpectedly applied +27 to v: %d", sig[64])
 	}
 
 	// Must recover against the EIP-191 prefixed hash.
 	eip191 := security.EIP191Hash(message)
-	pub, err := ethcrypto.SigToPub(eip191, recSig)
+	pub, err := ethcrypto.SigToPub(eip191, sig)
 	if err != nil {
 		t.Fatalf("SigToPub against EIP-191 hash: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestDevSessionSignMessageIsEIP191(t *testing.T) {
 
 	// Must NOT be a signature over the raw (unprefixed) message.
 	rawHash := ethcrypto.Keccak256(message)
-	if pubRaw, err := ethcrypto.SigToPub(rawHash, recSig); err == nil {
+	if pubRaw, err := ethcrypto.SigToPub(rawHash, sig); err == nil {
 		if strings.EqualFold(ethcrypto.PubkeyToAddress(*pubRaw).Hex(), address) {
 			t.Error("signature recovers against raw message hash — EIP-191 prefix is missing")
 		}

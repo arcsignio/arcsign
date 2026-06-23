@@ -1,6 +1,6 @@
 // Package main - Message Signing FFI exports.
 // Extracted from exports.go for maintainability.
-// Contains: SignMessage, SignTypedData, signTypedDataV4 (helper)
+// Contains: SignMessage, SignTypedData; helpers: eip191Hash, hashTypedDataV4
 package main
 
 /*
