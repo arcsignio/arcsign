@@ -127,17 +127,43 @@ Reading on-chain data goes through a **unified `WalletDataProvider` abstraction*
   NodeReal/Glacier loop internally.
 - **Registry** (`wallet_data_registry.go`): provider string → instance,
   resolving each provider's API key from the per-USB encrypted provider config.
-- **Routing**: `chains.go` `GetProviderForNetwork(network)` maps a network to a
-  provider. The FFI layer (`exports_app.go` / `exports_address.go`) buckets
-  addresses by provider, then dispatches polymorphically. **Adding a provider =
-  register in one place** (interface + wrapper + registry + `chains.go` entry).
+- **Routing is FEATURE-DIMENSION, not chain-dimension.** Balances and NFTs/history
+  route differently:
+  - **Balances** → `chains.go` `GetBalanceProviderForNetwork(network)` returns
+    `ProviderSelfHosted` for **every** chain. The FFI layer (`exports_app.go`
+    `GetTokenBalances`) collects all EVM addresses via
+    `provider.CollectBalanceAddresses` and fetches through the self-hosted path
+    `GetSelfHostedTokenBalances(WithExtra)` — **public RPC pool + Multicall3 +
+    DefiLlama prices, no API key, all 7 chains**. No `provider_config.enc` is
+    opened for balances.
+  - **NFTs / transaction history** → still `GetProviderForNetwork(network)`
+    (chain-dimension), bucketed per provider in `GetNFTs` / `GetAssetTransfers`.
+    These genuinely need a third-party indexer (history/NFT enumeration require
+    full-chain indexing that public RPC can't do — `eth_call` vs `eth_getLogs`).
+- **Adding a chain** = `internal/rpc/registry.go` endpoints + `degraded.go`
+  `internalToRegistryChain` entry + `common_tokens.go` token set (balances), and
+  `chains.go` + a wrapper + registry (NFT/history). **Adding a token** =
+  one row in `common_tokens.go` (or the user imports it → table B).
+- **Self-hosted balance internals**:
+  - RPC pool (`internal/rpc/registry.go`): per-chain primary + backups, keyless
+    public endpoints, used keyless via `GetAllRPCEndpoints`. Dead endpoints get
+    demoted to backup — keep a working keyless primary (e.g. publicnode). Guarded
+    by `internal/rpc/registry_test.go`.
+  - Multicall3 (`multicall.go`): one batched `aggregate3` balanceOf per chain
+    (same address `0xcA11…CA11` on all chains), with per-endpoint fallback.
+  - Common tokens (`common_tokens.go`): curated keyless token set per chain
+    (table A). `mergeTokensForNetwork` unions it with the user's touched tokens.
+  - **Touched tokens / table B** (`touched_tokens.go`): per-USB encrypted store
+    (`touched_tokens.enc`, AES-256-GCM, same scheme as `ProviderConfigStore`) of
+    tokens the user has interacted with beyond the common set — written on swap
+    output and manual import (`AddTouchedToken` FFI export → `add_touched_token`
+    Tauri command → `AddTokenDialog` UI). Privacy: never leaves the device; there
+    is no central index of holdings.
 - **Provider/key matrix**:
-  - Avalanche → **Glacier** (Avalanche Data API), **anonymous, no key needed**.
-  - Ethereum / Polygon / Arbitrum / Optimism / Base → **Alchemy** (key required;
-    without it those chains' tokens are skipped and reported via
-    `unavailableProviders`).
-  - BSC → **NodeReal** for BEP-20 token holdings (key required); **native BNB**
-    is fetched via a public BSC RPC (`bsc-dataseed`, no key).
+  - **Balances (all 7 chains)** → self-hosted public RPC + Multicall3, **no key**.
+  - NFTs / history: Ethereum / Polygon / Arbitrum / Optimism / Base → **Alchemy**
+    (key required; reported via `unavailableProviders` if missing); BSC →
+    **NodeReal**; Avalanche → **Glacier** (anonymous, no key).
   - There is **no hard-coded shared key** in the repo — a leaked NodeReal key
     was removed; provider keys live only in the per-USB encrypted config.
 
@@ -195,11 +221,13 @@ integrity and reproduce the build from source (see
 - The `.arcsign` backup file is **already encrypted upon export** (AES-256).
   There is NO separate step to set a password. Export = encrypted file
   immediately.
-- Provider/Indexer keys are **optional per chain**: Avalanche works with **no
-  key** (Glacier anonymous tier); Ethereum/Polygon/Arbitrum/Optimism/Base need
-  an Alchemy key (free tier) for tokens/NFTs; BSC needs a NodeReal key for the
-  token list (native BNB works without one). Missing keys are surfaced to the
-  user, not silently empty. See the "Provider data path" section above.
+- **Token balances need NO key on any chain.** All 7 chains' native coin +
+  common-token (and user-imported) balances come from the self-hosted public RPC
+  + Multicall3 path (prices via DefiLlama). Provider/Indexer keys are only for
+  **NFTs and transaction history**: Ethereum/Polygon/Arbitrum/Optimism/Base need
+  an Alchemy key (free tier), BSC needs a NodeReal key, Avalanche uses Glacier
+  (no key). Missing keys for NFT/history are surfaced via `unavailableProviders`,
+  not silently empty. See the "Provider data path" section above.
 - ArcSign is a USB cold wallet — private keys never leave the device.
 - ArcSign **supports WalletConnect** — frequent traders can also use
   ArcSign to sign transactions securely from cold storage.
