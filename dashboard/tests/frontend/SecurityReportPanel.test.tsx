@@ -53,6 +53,22 @@ describe('SecurityReportPanel — blacklist is free, not Pro-gated', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('renders the internal source ID "embedded-ofac" as the user-facing "OFAC"', () => {
+    const embeddedOfac: SecurityReport = {
+      ...blacklistedDangerReport,
+      blacklistMatch: {
+        value: '0x8589427373D6D84E98730D7795D8f6f8731FDA16',
+        source: 'embedded-ofac', // the actual ID the backend seed emits
+        category: 'sanctioned',
+      },
+    };
+    render(<SecurityReportPanel security={embeddedOfac} isPro={false} />);
+
+    // User sees "OFAC", not the implementation-detail "embedded-ofac".
+    expect(screen.getByText(/on the OFAC blacklist \(sanctioned\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/embedded-ofac/)).not.toBeInTheDocument();
+  });
+
   it('shows a slim simulation upsell (not a scary "unchecked" message) when simulation is Pro-gated', () => {
     render(<SecurityReportPanel security={cleanFreeReport} isPro={false} />);
 

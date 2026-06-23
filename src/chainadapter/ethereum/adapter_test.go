@@ -172,6 +172,123 @@ func addressesEqual(a, b string) bool {
 	return strings.EqualFold(strings.TrimPrefix(a, "0x"), strings.TrimPrefix(b, "0x"))
 }
 
+// TestEthereumAdapter_Build_InvalidTokenAddressErrors guards against the
+// gas-estimation/builder divergence for a non-empty-but-INVALID token_address.
+//
+// Before the fix the two stages disagreed: the adapter's gas estimation treated
+// any non-empty token_address as ERC-20 (estimate to=token, value=0), while
+// builder.Build required isValidAddress() and SILENTLY fell back to a NATIVE
+// transfer (to=recipient, value=amount) for an invalid address. That is the same
+// "estimate one shape, build another" bug class — and worse, it would silently
+// send the NATIVE coin to the recipient when the user asked to send a token.
+//
+// The contract: a non-empty token_address that is not a valid address must be a
+// hard, non-retryable error — never a silent native transfer.
+func TestEthereumAdapter_Build_InvalidTokenAddressErrors(t *testing.T) {
+	ctx := context.Background()
+
+	mockRPC := newCapturingRPCClient()
+	mockRPC.SetResponse("eth_getTransactionCount", hexutil.EncodeUint64(5))
+	mockRPC.SetResponse("eth_estimateGas", hexutil.EncodeUint64(60000))
+	mockRPC.SetResponse("eth_gasPrice", hexutil.EncodeBig(big.NewInt(3e9)))
+
+	adapter, err := NewEthereumAdapter(mockRPC, nil, 56, nil)
+	if err != nil {
+		t.Fatalf("failed to create adapter: %v", err)
+	}
+
+	invalidTokenAddresses := []string{
+		"0xGARBAGE",                                   // non-hex
+		"0x55d398",                                    // too short
+		"55d398326f99059ff775485246999027b3197955",   // missing 0x prefix
+		"0x55d398326f99059ff775485246999027b3197955ff", // too long
+	}
+
+	for _, bad := range invalidTokenAddresses {
+		t.Run(bad, func(t *testing.T) {
+			req := &chainadapter.TransactionRequest{
+				From:     "0x2e26cbd533ac3e98d3b650c7f89406ebb6f2f634",
+				To:       "0x8589427373D6D84E98730D7795D8f6f8731FDA16",
+				Asset:    "USDT",
+				Amount:   big.NewInt(1e18),
+				FeeSpeed: chainadapter.FeeSpeedNormal,
+				ChainSpecific: map[string]interface{}{
+					"token_address": bad,
+				},
+			}
+
+			unsigned, err := adapter.Build(ctx, req)
+			if err == nil {
+				t.Fatalf("Build() with invalid token_address %q must error, got unsigned tx (would silently build a NATIVE transfer)", bad)
+			}
+			if unsigned != nil {
+				t.Errorf("Build() returned non-nil unsigned tx alongside error for %q", bad)
+			}
+		})
+	}
+}
+
+// TestEthereumAdapter_Build_NativeWithMemoGasEstimation locks the native /
+// contract-call branch of the rewritten gas-estimation block: a transfer with a
+// memo (no token_address) must estimate with to=recipient, value=amount, and the
+// memo as data — NOT the ERC-20 shape.
+func TestEthereumAdapter_Build_NativeWithMemoGasEstimation(t *testing.T) {
+	ctx := context.Background()
+
+	mockRPC := newCapturingRPCClient()
+	mockRPC.SetResponse("eth_getTransactionCount", hexutil.EncodeUint64(5))
+	mockRPC.SetResponse("eth_estimateGas", hexutil.EncodeUint64(50000))
+	mockRPC.SetResponse("eth_gasPrice", hexutil.EncodeBig(big.NewInt(3e9)))
+
+	adapter, err := NewEthereumAdapter(mockRPC, nil, 56, nil)
+	if err != nil {
+		t.Fatalf("failed to create adapter: %v", err)
+	}
+
+	const recipient = "0x8589427373D6D84E98730D7795D8f6f8731FDA16"
+	amount := big.NewInt(2e17) // 0.2 native coin
+	memoData := "0xdeadbeef"
+
+	req := &chainadapter.TransactionRequest{
+		From:     "0x2e26cbd533ac3e98d3b650c7f89406ebb6f2f634",
+		To:       recipient,
+		Asset:    "ETH",
+		Amount:   amount,
+		FeeSpeed: chainadapter.FeeSpeedNormal,
+		Memo:     memoData,
+	}
+
+	if _, err := adapter.Build(ctx, req); err != nil {
+		t.Fatalf("Build() failed for native+memo transfer: %v", err)
+	}
+
+	txObj := mockRPC.estimateGasTxObj(t)
+
+	// to must be the recipient (native transfer target), not a token contract.
+	if gotTo, _ := txObj["to"].(string); !addressesEqual(gotTo, recipient) {
+		t.Errorf("estimateGas to: got %q, want recipient %q", gotTo, recipient)
+	}
+
+	// value must be the native amount (EstimateGas omits zero values, so a
+	// non-zero amount must be present and equal to `amount`).
+	gotVal, present := txObj["value"].(string)
+	if !present {
+		t.Fatalf("estimateGas value: absent, want native amount %s", amount.String())
+	}
+	if got, ok := new(big.Int).SetString(strings.TrimPrefix(gotVal, "0x"), 16); !ok || got.Cmp(amount) != 0 {
+		t.Errorf("estimateGas value: got %q, want native amount %s (hex %s)", gotVal, amount.String(), hexutil.EncodeBig(amount))
+	}
+
+	// data must be the memo, not ERC-20 transfer calldata.
+	gotData, _ := txObj["data"].(string)
+	if strings.HasPrefix(gotData, "0xa9059cbb") {
+		t.Errorf("estimateGas data %q is ERC-20 transfer calldata, want the memo %q", gotData, memoData)
+	}
+	if !strings.EqualFold(gotData, memoData) {
+		t.Errorf("estimateGas data: got %q, want memo %q", gotData, memoData)
+	}
+}
+
 // TestEthereumAdapter_Build tests the Build() method
 func TestEthereumAdapter_Build(t *testing.T) {
 	ctx := context.Background()

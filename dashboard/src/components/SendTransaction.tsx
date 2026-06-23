@@ -194,7 +194,7 @@ export const SecurityReportPanel: React.FC<{
       {security.blacklistMatch && (
         <div className="security-alert security-alert-danger">
           <strong>Blacklisted Address</strong>
-          <p>Target address is on the {security.blacklistMatch.source} blacklist ({security.blacklistMatch.category}).</p>
+          <p>Target address is on the {formatBlacklistSource(security.blacklistMatch.source)} blacklist ({security.blacklistMatch.category}).</p>
           <p className="security-alert-address">{security.blacklistMatch.value}</p>
         </div>
       )}
@@ -259,6 +259,23 @@ export const SecurityReportPanel: React.FC<{
     </div>
   );
 };
+
+/**
+ * Map an internal blacklist source ID to a user-facing label. The backend seed
+ * uses implementation-detail IDs like "embedded-ofac" / "embedded-mew" (the
+ * "embedded-" prefix means it shipped in the offline seed); users should just
+ * see "OFAC" / "MEW". Pure presentation — falls back to the raw source.
+ */
+function formatBlacklistSource(source: string): string {
+  const map: Record<string, string> = {
+    'embedded-ofac': 'OFAC',
+    'embedded-mew': 'MEW',
+    'OFAC': 'OFAC',
+    'ScamSniffer': 'ScamSniffer',
+    'MetaMask': 'MetaMask',
+  };
+  return map[source] || source.replace(/^embedded-/, '').toUpperCase();
+}
 
 /** Format simulation amount from raw units to human-readable */
 function formatSimAmount(rawAmount: string, decimals: number): string {

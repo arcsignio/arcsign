@@ -206,6 +206,12 @@ export const NETWORK_LABEL_TO_KEY: Record<string, string> = {
  * Get network key from label (case-insensitive)
  */
 export function getNetworkKey(networkLabel: string): string | null {
+  // Guard against missing/empty input — callers may pass an optional field.
+  // (Without this, the .toLowerCase() below throws on undefined.)
+  if (!networkLabel) {
+    return null;
+  }
+
   // Try exact match first
   if (NETWORK_LABEL_TO_KEY[networkLabel]) {
     return NETWORK_LABEL_TO_KEY[networkLabel];

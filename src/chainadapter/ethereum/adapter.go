@@ -200,13 +200,13 @@ func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.Transacti
 		estimateVal = req.Amount
 	)
 
-	// ERC-20 token address is passed via ChainSpecific["token_address"] (same key
-	// builder.Build reads). When present, estimate against the token contract.
-	var tokenAddress string
-	if req.ChainSpecific != nil {
-		if ta, ok := req.ChainSpecific["token_address"].(string); ok && ta != "" {
-			tokenAddress = ta
-		}
+	// Resolve ERC-20 vs native via the SAME shared resolver builder.Build uses, so
+	// gas estimation and transaction construction can never disagree on the shape.
+	// A non-empty-but-invalid token_address is a hard error here too (not a silent
+	// native estimate). This is the single source of truth for the ERC-20 decision.
+	tokenAddress, err := resolveERC20TokenAddress(req)
+	if err != nil {
+		return nil, err
 	}
 
 	if tokenAddress != "" {

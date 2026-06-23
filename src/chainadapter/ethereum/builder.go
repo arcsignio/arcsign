@@ -70,20 +70,20 @@ func (tb *TransactionBuilder) Build(
 		return nil, err
 	}
 
-	// Determine if this is an ERC-20 transfer
-	// ERC-20 token address is passed via ChainSpecific["token_address"]
-	var tokenAddress string
-	if req.ChainSpecific != nil {
-		if ta, ok := req.ChainSpecific["token_address"].(string); ok && ta != "" {
-			tokenAddress = ta
-		}
+	// Determine if this is an ERC-20 transfer via the single shared resolver.
+	// A non-empty-but-invalid token_address is a hard error here (resolver), NOT
+	// a silent fall-through to a native transfer — that would send the native
+	// coin to the recipient when the user asked to send a token.
+	tokenAddress, err := resolveERC20TokenAddress(req)
+	if err != nil {
+		return nil, err
 	}
 
 	var toAddr common.Address
 	var data []byte
 	var value *big.Int
 
-	if tokenAddress != "" && tb.isValidAddress(tokenAddress) {
+	if tokenAddress != "" {
 		// ERC-20 transfer: to = token contract, data = transfer(recipient, amount), value = 0
 		toAddr = common.HexToAddress(tokenAddress)
 		recipientAddr := common.HexToAddress(req.To)
@@ -251,13 +251,14 @@ func (tb *TransactionBuilder) validateRequest(req *chainadapter.TransactionReque
 		)
 	}
 
-	// Validate Asset (allow ERC-20 tokens when token_address is provided)
-	isERC20 := false
-	if req.ChainSpecific != nil {
-		if ta, ok := req.ChainSpecific["token_address"].(string); ok && ta != "" {
-			isERC20 = true
-		}
+	// Validate Asset (allow ERC-20 tokens when token_address is provided). Use the
+	// shared resolver so a non-empty-but-invalid token_address is rejected here too
+	// (and so "is this ERC-20" is decided the same way as in Build / gas estimation).
+	tokenAddr, err := resolveERC20TokenAddress(req)
+	if err != nil {
+		return err
 	}
+	isERC20 := tokenAddr != ""
 
 	// For ERC-20, asset can be the token symbol; for native, must be ETH
 	if !isERC20 && req.Asset != "ETH" && req.Asset != "ethereum" && req.Asset != "" {
@@ -271,23 +272,50 @@ func (tb *TransactionBuilder) validateRequest(req *chainadapter.TransactionReque
 	return nil
 }
 
-// isValidAddress checks if an Ethereum address is valid.
-func (tb *TransactionBuilder) isValidAddress(addr string) bool {
-	// Check if address starts with 0x and has correct length
+// isValidEthereumAddress checks if a string is a valid Ethereum address
+// (0x-prefixed, 42 chars, valid hex). This is the single predicate every layer
+// must use to decide "is this an ERC-20 transfer" — gas estimation (adapter.Build),
+// transaction construction (builder.Build), and request validation must agree, or
+// they diverge (estimate one shape, build another).
+func isValidEthereumAddress(addr string) bool {
 	if !strings.HasPrefix(addr, "0x") {
 		return false
 	}
-
 	if len(addr) != 42 { // 0x + 40 hex characters
 		return false
 	}
+	return common.IsHexAddress(addr)
+}
 
-	// Check if it's a valid hex address
-	if !common.IsHexAddress(addr) {
-		return false
+// resolveERC20TokenAddress is the SINGLE source of truth for whether a request is
+// an ERC-20 transfer. It reads ChainSpecific["token_address"] and returns:
+//   - ("", nil)        → native transfer (no token_address)
+//   - (addr, nil)      → ERC-20 transfer to a valid token contract
+//   - ("", error)      → a non-empty token_address that is INVALID — a hard,
+//     non-retryable error. It must NEVER be silently downgraded to a native
+//     transfer: the user asked to send a token; quietly sending the native coin
+//     to the recipient instead would be an asset-safety failure.
+func resolveERC20TokenAddress(req *chainadapter.TransactionRequest) (string, error) {
+	if req.ChainSpecific == nil {
+		return "", nil
 	}
+	ta, ok := req.ChainSpecific["token_address"].(string)
+	if !ok || ta == "" {
+		return "", nil
+	}
+	if !isValidEthereumAddress(ta) {
+		return "", chainadapter.NewNonRetryableError(
+			chainadapter.ErrCodeInvalidAddress,
+			fmt.Sprintf("invalid token_address: %s", ta),
+			nil,
+		)
+	}
+	return ta, nil
+}
 
-	return true
+// isValidAddress checks if an Ethereum address is valid.
+func (tb *TransactionBuilder) isValidAddress(addr string) bool {
+	return isValidEthereumAddress(addr)
 }
 
 // ValidateChecksum validates EIP-55 checksummed address.
