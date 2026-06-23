@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"crypto/rand"
 	"testing"
+
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 // TestSecureZero verifies that SecureZero correctly clears memory
@@ -302,6 +304,113 @@ func TestSecureSignerZeroize(t *testing.T) {
 
 	if signer.IsValid() {
 		t.Error("Signer should be invalid after Zeroize")
+	}
+}
+
+// TestSecureSignerSignHashMatchesPlaintext verifies SignHash produces a
+// signature byte-identical to the plaintext ethcrypto.Sign path it replaces.
+// This guarantees the XOR-split protection changes only key handling, never
+// the signature semantics (EIP-191 / EIP-712 callers depend on this).
+func TestSecureSignerSignHashMatchesPlaintext(t *testing.T) {
+	privateKey := make([]byte, 32)
+	rand.Read(privateKey)
+
+	// Reference signature via the plaintext path.
+	refKeyBytes := make([]byte, 32)
+	copy(refKeyBytes, privateKey)
+	refKey, err := ethcrypto.ToECDSA(refKeyBytes)
+	if err != nil {
+		t.Fatalf("ToECDSA failed: %v", err)
+	}
+	address := ethcrypto.PubkeyToAddress(refKey.PublicKey).Hex()
+
+	hash := ethcrypto.Keccak256([]byte("\x19Ethereum Signed Message:\n5hello"))
+	want, err := ethcrypto.Sign(hash, refKey)
+	if err != nil {
+		t.Fatalf("plaintext Sign failed: %v", err)
+	}
+
+	// Signature via the SecureSigner (XOR-split) path.
+	signer, err := NewSecureSigner(privateKey, address, "ethereum")
+	if err != nil {
+		t.Fatalf("NewSecureSigner failed: %v", err)
+	}
+	defer signer.Zeroize()
+
+	got, err := signer.SignHash(hash, address)
+	if err != nil {
+		t.Fatalf("SignHash failed: %v", err)
+	}
+
+	if !bytes.Equal(got, want) {
+		t.Errorf("SignHash signature differs from plaintext path:\n got  %x\n want %x", got, want)
+	}
+}
+
+// TestSecureSignerSignHashAddressMismatch verifies SignHash rejects a request
+// for an address the signer does not control.
+func TestSecureSignerSignHashAddressMismatch(t *testing.T) {
+	privateKey := make([]byte, 32)
+	rand.Read(privateKey)
+
+	signer, err := NewSecureSigner(privateKey, "0xAAAA", "ethereum")
+	if err != nil {
+		t.Fatalf("NewSecureSigner failed: %v", err)
+	}
+	defer signer.Zeroize()
+
+	hash := ethcrypto.Keccak256([]byte("test"))
+	if _, err := signer.SignHash(hash, "0xBBBB"); err == nil {
+		t.Error("SignHash should reject mismatched address")
+	}
+}
+
+// TestSecureSignerSignHashNonEVM verifies SignHash refuses non-EVM chains,
+// since EIP-191 / EIP-712 hash signing is EVM-only.
+func TestSecureSignerSignHashNonEVM(t *testing.T) {
+	privateKey := make([]byte, 32)
+	rand.Read(privateKey)
+
+	signer, err := NewSecureSigner(privateKey, "0x1234", "bitcoin")
+	if err != nil {
+		t.Fatalf("NewSecureSigner failed: %v", err)
+	}
+	defer signer.Zeroize()
+
+	hash := ethcrypto.Keccak256([]byte("test"))
+	if _, err := signer.SignHash(hash, "0x1234"); err == nil {
+		t.Error("SignHash should reject non-EVM chains")
+	}
+}
+
+// TestEIP191Hash verifies EIP191Hash applies the personal_sign prefix
+// ("\x19Ethereum Signed Message:\n<len>") before keccak256, matching the
+// EIP-191 standard. A raw keccak of the message (no prefix) must NOT match.
+func TestEIP191Hash(t *testing.T) {
+	message := []byte("hello")
+
+	// Reference: the exact EIP-191 prefixed hash.
+	want := ethcrypto.Keccak256([]byte("\x19Ethereum Signed Message:\n5hello"))
+
+	got := EIP191Hash(message)
+
+	if !bytes.Equal(got, want) {
+		t.Errorf("EIP191Hash mismatch:\n got  %x\n want %x", got, want)
+	}
+
+	// Guard against regression to raw (unprefixed) signing.
+	rawHash := ethcrypto.Keccak256(message)
+	if bytes.Equal(got, rawHash) {
+		t.Error("EIP191Hash must NOT equal raw keccak of the message (missing EIP-191 prefix)")
+	}
+}
+
+// TestEIP191HashEmpty verifies the prefix length is 0 for an empty message.
+func TestEIP191HashEmpty(t *testing.T) {
+	want := ethcrypto.Keccak256([]byte("\x19Ethereum Signed Message:\n0"))
+	got := EIP191Hash([]byte{})
+	if !bytes.Equal(got, want) {
+		t.Errorf("EIP191Hash(empty) mismatch:\n got  %x\n want %x", got, want)
 	}
 }
 

@@ -338,8 +338,8 @@ func GetVersion() (result *C.char) {
 // GetDeviceMembershipStatusWithToken, CreateWalletSessionToken, ValidateWalletSessionToken,
 // RevokeWalletSessionToken) have been moved to exports_membership.go
 
-// Message signing functions (SignMessage, SignTypedData, signTypedDataV4)
-// have been moved to exports_signing.go
+// Message signing functions (SignMessage, SignTypedData) and their hash
+// helpers (eip191Hash, hashTypedDataV4) have been moved to exports_signing.go
 
 // main is required for buildmode=c-shared but should remain empty.
 // All functionality is exposed through //export functions.
