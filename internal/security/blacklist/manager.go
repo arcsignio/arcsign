@@ -22,9 +22,9 @@ type BlacklistEntry struct {
 
 // BlacklistMatch is returned when an address or domain matches a blacklist.
 type BlacklistMatch struct {
-	Value    string // the matched address or domain
-	Source   string // which blacklist source
-	Category string // type of threat
+	Value    string `json:"value"`    // the matched address or domain
+	Source   string `json:"source"`   // which blacklist source
+	Category string `json:"category"` // type of threat
 }
 
 // Warning represents a security warning for the frontend.

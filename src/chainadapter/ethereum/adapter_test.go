@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,6 +49,127 @@ func (m *MockRPCClient) Close() error {
 
 func (m *MockRPCClient) SetResponse(method string, response interface{}) {
 	m.responses[method] = response
+}
+
+// capturingRPCClient is a MockRPCClient that also records the params passed to
+// each method, so a test can assert what was sent to eth_estimateGas.
+type capturingRPCClient struct {
+	*MockRPCClient
+	capturedParams map[string]interface{} // method -> last params seen
+}
+
+func newCapturingRPCClient() *capturingRPCClient {
+	return &capturingRPCClient{
+		MockRPCClient:  NewMockRPCClient(),
+		capturedParams: make(map[string]interface{}),
+	}
+}
+
+func (c *capturingRPCClient) Call(ctx context.Context, method string, params interface{}) (json.RawMessage, error) {
+	c.capturedParams[method] = params
+	return c.MockRPCClient.Call(ctx, method, params)
+}
+
+// estimateGasTxObj returns the txObj map that EstimateGas built for eth_estimateGas.
+// EstimateGas calls client.Call(ctx, "eth_estimateGas", []interface{}{txObj}).
+func (c *capturingRPCClient) estimateGasTxObj(t *testing.T) map[string]interface{} {
+	t.Helper()
+	raw, ok := c.capturedParams["eth_estimateGas"]
+	if !ok {
+		t.Fatal("eth_estimateGas was never called")
+	}
+	arr, ok := raw.([]interface{})
+	if !ok || len(arr) == 0 {
+		t.Fatalf("eth_estimateGas params not a non-empty slice: %#v", raw)
+	}
+	txObj, ok := arr[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("eth_estimateGas txObj not a map: %#v", arr[0])
+	}
+	return txObj
+}
+
+// TestEthereumAdapter_Build_ERC20GasEstimation is a regression test for the bug
+// where a BEP-20/ERC-20 transfer's gas estimation was performed with native-transfer
+// parameters (to=recipient, value=amount, no calldata). On BSC that made the node
+// report "insufficient funds" for sending 1 native BNB and the whole build failed —
+// even though the actual transaction is a token transfer (value=0, to=token contract,
+// data=transfer(recipient, amount)). Gas estimation MUST mirror the ERC-20 branch.
+func TestEthereumAdapter_Build_ERC20GasEstimation(t *testing.T) {
+	ctx := context.Background()
+
+	mockRPC := newCapturingRPCClient()
+	mockRPC.SetResponse("eth_getTransactionCount", hexutil.EncodeUint64(5))
+	mockRPC.SetResponse("eth_estimateGas", hexutil.EncodeUint64(60000))
+	mockRPC.SetResponse("eth_gasPrice", hexutil.EncodeBig(big.NewInt(3e9))) // BSC legacy path
+
+	adapter, err := NewEthereumAdapter(mockRPC, nil, 56, nil) // BSC mainnet (legacy gas)
+	if err != nil {
+		t.Fatalf("failed to create adapter: %v", err)
+	}
+
+	const (
+		recipient    = "0x8589427373D6D84E98730D7795D8f6f8731FDA16" // logical "to"
+		tokenAddress = "0x55d398326f99059ff775485246999027b3197955" // BSC USDT contract
+	)
+	amount := big.NewInt(1e18) // 1 USDT (18 decimals on BSC)
+
+	req := &chainadapter.TransactionRequest{
+		From:     "0x2e26cbd533ac3e98d3b650c7f89406ebb6f2f634",
+		To:       recipient,
+		Asset:    "USDT",
+		Amount:   amount,
+		FeeSpeed: chainadapter.FeeSpeedNormal,
+		ChainSpecific: map[string]interface{}{
+			"token_address": tokenAddress,
+		},
+	}
+
+	unsigned, err := adapter.Build(ctx, req)
+	if err != nil {
+		t.Fatalf("Build() failed for ERC-20 transfer: %v", err)
+	}
+	if unsigned == nil {
+		t.Fatal("Build() returned nil unsigned transaction")
+	}
+
+	// The crux: gas estimation must have been done as a token transfer, not a
+	// native send of `amount`.
+	txObj := mockRPC.estimateGasTxObj(t)
+
+	// 1. `to` must be the token contract, not the recipient.
+	gotTo, _ := txObj["to"].(string)
+	if !addressesEqual(gotTo, tokenAddress) {
+		t.Errorf("estimateGas to: got %q, want token contract %q (recipient %q must NOT be the estimate target)",
+			gotTo, tokenAddress, recipient)
+	}
+
+	// 2. value must be 0/absent — an ERC-20 transfer sends no native coin. The
+	//    old bug set value=amount, which triggered the "insufficient funds" path.
+	if v, present := txObj["value"]; present {
+		if vs, _ := v.(string); vs != "" && vs != "0x0" && vs != "0x" {
+			t.Errorf("estimateGas value: got %q, want absent or zero (ERC-20 sends no native coin)", vs)
+		}
+	}
+
+	// 3. data must be the transfer(recipient,amount) calldata (selector 0xa9059cbb).
+	gotData, _ := txObj["data"].(string)
+	if gotData == "" {
+		t.Fatal("estimateGas data: empty, want ERC-20 transfer calldata")
+	}
+	if !strings.HasPrefix(gotData, "0xa9059cbb") {
+		t.Errorf("estimateGas data: got %q, want transfer() selector prefix 0xa9059cbb", gotData)
+	}
+	// The recipient address (last 20 bytes of the first 32-byte arg) must appear.
+	recipientNoPrefix := strings.ToLower(strings.TrimPrefix(recipient, "0x"))
+	if !strings.Contains(strings.ToLower(gotData), recipientNoPrefix) {
+		t.Errorf("estimateGas data %q does not encode recipient %q", gotData, recipient)
+	}
+}
+
+// addressesEqual compares two hex addresses case-insensitively.
+func addressesEqual(a, b string) bool {
+	return strings.EqualFold(strings.TrimPrefix(a, "0x"), strings.TrimPrefix(b, "0x"))
 }
 
 // TestEthereumAdapter_Build tests the Build() method

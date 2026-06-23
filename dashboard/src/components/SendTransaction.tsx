@@ -18,6 +18,7 @@ import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
 import { useSignGate } from "@/hooks/useSignGate";
 import { isWalletLocked } from "@/utils/walletLock";
 import { useIsPro } from "@/stores/dashboardStore";
+import { getNativeToken, getNetworkKey } from "@/constants/nativeTokens";
 import tauriApi, {
   type BuildTransactionResponse,
   type SignTransactionResponse,
@@ -164,44 +165,20 @@ function shortenAddress(address: string): string {
  * Pro users: full security report (blacklist check + simulation preview)
  * Free users: upgrade prompt with feature preview
  */
-const SecurityReportPanel: React.FC<{
+export const SecurityReportPanel: React.FC<{
   security: SecurityReport;
   isPro: boolean;
 }> = ({ security, isPro }) => {
-  if (!isPro || security.proRequired) {
-    // Free user: show upgrade prompt
-    return (
-      <div className="security-panel security-panel-free">
-        <div className="security-header">
-          <span className="security-icon">&#x1F6E1;</span>
-          <span className="security-title">Transaction Security</span>
-        </div>
-        <div className="security-free-content">
-          <p className="security-warning-text">This transaction has not been security checked.</p>
-          <div className="security-features">
-            <p className="security-features-title">Pro members get:</p>
-            <ul>
-              <li>Malicious address auto-detection</li>
-              <li>Transaction simulation preview</li>
-              <li>OFAC sanctions list check</li>
-            </ul>
-          </div>
-          <a
-            href="https://arcsign.io/mint"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="security-upgrade-btn"
-          >
-            Upgrade to Pro — 30 USDT/year
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  // Pro user: show full security report
+  // The blacklist check runs for EVERYONE (free, embedded seed) — its verdict is
+  // valid regardless of Pro status. `proRequired` now means ONLY "simulation
+  // didn't run", NOT "report invalid". So the danger/blacklist alert must render
+  // for free users too; only the simulation preview + upgrade CTA are gated on
+  // proRequired. (Backend computes the verdict — txguard.Check; the frontend only
+  // renders the conclusion. The old `if (!isPro) return upgrade-prompt` swallowed
+  // the whole panel, hiding a real OFAC hit behind "not security checked".)
   const isDanger = security.riskLevel === 'danger';
   const isWarning = security.riskLevel === 'warning';
+  const simulationGated = security.proRequired; // simulation didn't run (no key / free)
 
   return (
     <div className={`security-panel ${isDanger ? 'security-panel-danger' : isWarning ? 'security-panel-warning' : 'security-panel-safe'}`}>
@@ -254,9 +231,30 @@ const SecurityReportPanel: React.FC<{
         </div>
       )}
 
-      {/* No blacklist match = safe */}
+      {/* No blacklist match = address cleared the (free) blacklist check. */}
       {!security.blacklistMatch && !isDanger && !isWarning && (
         <p className="security-safe-text">Address is not on any known blacklist.</p>
+      )}
+
+      {/* Simulation upsell — only the SIMULATION is Pro-gated, not the blacklist.
+          A slim note (not a scary "not security checked") so free users know the
+          blacklist DID run; the deeper simulation preview is the Pro feature. */}
+      {simulationGated && (
+        <div className="security-sim-upsell">
+          <p className="security-sim-upsell-text">
+            Blacklist check complete. Transaction simulation preview is a Pro feature.
+          </p>
+          {!isPro && (
+            <a
+              href="https://arcsign.io/mint"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="security-upgrade-btn"
+            >
+              Upgrade to Pro — 30 USDT/year
+            </a>
+          )}
+        </div>
       )}
     </div>
   );
@@ -538,6 +536,15 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
   // Check if it's an ERC-20 token (has tokenAddress)
   const isERC20 = selectedToken && selectedToken.tokenAddress && selectedToken.tokenAddress !== "";
 
+  // Native coin symbol for this chain (BNB on BSC, ETH on Ethereum/L2s, MATIC on
+  // Polygon, AVAX on Avalanche). Gas is always paid in the native coin — never
+  // hardcode "ETH". Falls back to "ETH" only if the network is unrecognized.
+  const nativeSymbol = (() => {
+    if (!selectedToken) return "ETH";
+    const key = getNetworkKey(selectedToken.network) || getNetworkKey(selectedToken.networkLabel);
+    return (key && getNativeToken(key)?.symbol) || "ETH";
+  })();
+
   // Format balance display (truncate, no rounding)
   const formatBalance = (balance: string, _decimals?: number): string => {
     const num = parseFloat(balance);
@@ -773,7 +780,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
                         {speed.charAt(0).toUpperCase() + speed.slice(1)}
                       </span>
                       <span className="fee-estimate">
-                        {formatEth(feeWei)} ETH
+                        {formatEth(feeWei)} {nativeSymbol}
                       </span>
                       <span className="fee-time">
                         ~{estimatedMinutes} min
@@ -789,7 +796,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           {isERC20 && (
             <div className="erc20-notice">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              <span>This is an ERC-20 token. Gas fees will be paid in ETH.</span>
+              <span>This is an ERC-20 token. Gas fees will be paid in {nativeSymbol}.</span>
             </div>
           )}
 
@@ -839,7 +846,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
             <div className="review-row">
               <span className="review-label">Estimated Fee</span>
               <span className="review-value">
-                {formatEth(unsignedTx.fee)} ETH
+                {formatEth(unsignedTx.fee)} {nativeSymbol}
               </span>
             </div>
             {!isERC20 && (
@@ -1855,7 +1862,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
         .security-title {
           font-weight: 600;
-          color: #e2e8f0;
+          color: #1e293b;
           flex: 1;
         }
         .security-badge {
@@ -1867,16 +1874,16 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           letter-spacing: 0.5px;
         }
         .security-badge.safe {
-          background: rgba(13, 148, 136, 0.2);
-          color: #2dd4bf;
+          background: rgba(13, 148, 136, 0.18);
+          color: #0f766e;
         }
         .security-badge.warning {
-          background: rgba(245, 158, 11, 0.2);
-          color: #fbbf24;
+          background: rgba(245, 158, 11, 0.18);
+          color: #b45309;
         }
         .security-badge.danger {
-          background: rgba(220, 38, 38, 0.2);
-          color: #f87171;
+          background: rgba(220, 38, 38, 0.18);
+          color: #b91c1c;
         }
         .security-alert {
           padding: 12px;
@@ -1884,19 +1891,23 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           margin-bottom: 8px;
         }
         .security-alert-danger {
-          background: rgba(220, 38, 38, 0.12);
-          border: 1px solid rgba(220, 38, 38, 0.3);
-          color: #fca5a5;
+          background: rgba(220, 38, 38, 0.1);
+          border: 1px solid rgba(220, 38, 38, 0.45);
+          color: #b91c1c;
         }
         .security-alert-warning {
           background: rgba(245, 158, 11, 0.12);
-          border: 1px solid rgba(245, 158, 11, 0.3);
-          color: #fde68a;
+          border: 1px solid rgba(245, 158, 11, 0.45);
+          color: #b45309;
         }
         .security-alert strong {
           display: block;
           margin-bottom: 4px;
-          color: #f87171;
+          color: #dc2626;
+          font-weight: 700;
+        }
+        .security-alert-danger p {
+          color: #991b1b;
         }
         .security-alert p {
           font-size: 13px;
@@ -1905,7 +1916,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .security-alert-address {
           font-family: monospace;
           font-size: 12px;
-          opacity: 0.8;
+          opacity: 0.95;
           word-break: break-all;
         }
         .security-simulation {
@@ -1987,6 +1998,17 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
         .security-upgrade-btn:hover {
           opacity: 0.9;
+        }
+        .security-sim-upsell {
+          margin-top: 12px;
+          padding-top: 12px;
+          border-top: 1px solid rgba(148, 163, 184, 0.2);
+          text-align: center;
+        }
+        .security-sim-upsell-text {
+          font-size: 12px;
+          color: #94a3b8;
+          margin: 0 0 10px;
         }
       `}</style>
     </div>

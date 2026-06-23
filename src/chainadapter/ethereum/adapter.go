@@ -185,9 +185,44 @@ func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.Transacti
 		return nil, err
 	}
 
-	// Step 2: Estimate gas for the transaction
-	var data []byte
-	if req.Memo != "" {
+	// Step 2: Estimate gas for the transaction.
+	//
+	// Gas estimation MUST use the SAME shape the transaction will actually take
+	// (see builder.Build): for an ERC-20/BEP-20 transfer the on-chain call is
+	// `to = token contract`, `value = 0`, `data = transfer(recipient, amount)`.
+	// Estimating with native-transfer parameters (to=recipient, value=amount)
+	// makes the node check "can `from` send `amount` of the NATIVE coin?" — which
+	// on a token transfer is wrong and reports "insufficient funds" whenever the
+	// wallet's native balance is below `amount`, failing the whole build.
+	var (
+		data        []byte
+		estimateTo  = req.To
+		estimateVal = req.Amount
+	)
+
+	// ERC-20 token address is passed via ChainSpecific["token_address"] (same key
+	// builder.Build reads). When present, estimate against the token contract.
+	var tokenAddress string
+	if req.ChainSpecific != nil {
+		if ta, ok := req.ChainSpecific["token_address"].(string); ok && ta != "" {
+			tokenAddress = ta
+		}
+	}
+
+	if tokenAddress != "" {
+		transferData, encErr := encodeERC20Transfer(common.HexToAddress(req.To), req.Amount)
+		if encErr != nil {
+			return nil, chainadapter.NewNonRetryableError(
+				"ERR_ERC20_ENCODE",
+				fmt.Sprintf("failed to encode ERC-20 transfer for gas estimation: %v", encErr),
+				encErr,
+			)
+		}
+		data = transferData
+		estimateTo = tokenAddress      // call the token contract
+		estimateVal = big.NewInt(0)    // ERC-20 transfers send no native coin
+	} else if req.Memo != "" {
+		// Native transfer / contract call: data comes from the memo field.
 		// Check if memo is hex-encoded (contract call data)
 		if len(req.Memo) >= 2 && req.Memo[:2] == "0x" {
 			data = common.FromHex(req.Memo)
@@ -197,7 +232,7 @@ func (e *EthereumAdapter) Build(ctx context.Context, req *chainadapter.Transacti
 		}
 	}
 
-	gasLimit, err := e.rpcHelper.EstimateGas(ctx, req.From, req.To, req.Amount, data)
+	gasLimit, err := e.rpcHelper.EstimateGas(ctx, req.From, estimateTo, estimateVal, data)
 	if err != nil {
 		// Log the estimation error for debugging
 		fmt.Fprintf(os.Stderr, "[ETH Build] Gas estimation failed: %v\n", err)

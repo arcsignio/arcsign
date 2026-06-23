@@ -2,9 +2,44 @@ package blacklist
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 )
+
+// TestBlacklistMatch_JSONFieldNames guards the Go↔frontend data contract. The
+// frontend SecurityReport.blacklistMatch type reads lowercase {value, source,
+// category}. Without JSON tags Go marshals capitalized {Value, Source, Category},
+// so the UI rendered an empty "(  )" for source/category even though the backend
+// had the right values. This locks the wire field names to lowercase.
+func TestBlacklistMatch_JSONFieldNames(t *testing.T) {
+	m := &BlacklistMatch{
+		Value:    "0x8589427373d6d84e98730d7795d8f6f8731fda16",
+		Source:   "embedded-ofac",
+		Category: "sanctioned",
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+
+	for _, key := range []string{"value", "source", "category"} {
+		if _, ok := got[key]; !ok {
+			t.Errorf("expected lowercase JSON key %q, got keys %v (frontend reads lowercase)", key, got)
+		}
+	}
+	if got["source"] != "embedded-ofac" {
+		t.Errorf("source: got %v, want embedded-ofac", got["source"])
+	}
+	if got["category"] != "sanctioned" {
+		t.Errorf("category: got %v, want sanctioned", got["category"])
+	}
+}
 
 func TestCheckAddress_Empty(t *testing.T) {
 	m := NewManager(nil)
