@@ -116,8 +116,11 @@ func (r *Registry) initializeChains() {
 		ChainID:             1,
 		Name:                "Ethereum",
 		Symbol:              "ETH",
-		PrimaryRPC:          "https://eth.llamarpc.com",
-		BackupRPCs:          []string{"https://rpc.ankr.com/eth", "https://ethereum.publicnode.com"},
+		// publicnode is the working keyless endpoint (verified 2026-06); llamarpc
+		// started returning 521 and ankr now requires an API key, so they're demoted
+		// to backups (kept in case they recover).
+		PrimaryRPC:          "https://ethereum-rpc.publicnode.com",
+		BackupRPCs:          []string{"https://eth.llamarpc.com", "https://rpc.ankr.com/eth"},
 		AlchemyNetwork:      "eth-mainnet",
 		NativeTokenDecimals: 18,
 		BlockExplorerURL:    "https://etherscan.io",
@@ -155,8 +158,11 @@ func (r *Registry) initializeChains() {
 		ChainID:             137,
 		Name:                "Polygon",
 		Symbol:              "MATIC",
-		PrimaryRPC:          "https://polygon-rpc.com",
-		BackupRPCs:          []string{"https://rpc.ankr.com/polygon", "https://polygon-mainnet.public.blastapi.io"},
+		// publicnode is the working keyless endpoint (verified 2026-06); the
+		// previous primary/backups all started requiring API keys or shut down
+		// (polygon-rpc.com → tenant disabled, ankr → key required, blastapi → EOL).
+		PrimaryRPC:          "https://polygon-bor-rpc.publicnode.com",
+		BackupRPCs:          []string{"https://polygon-rpc.com", "https://rpc.ankr.com/polygon"},
 		AlchemyNetwork:      "polygon-mainnet",
 		NativeTokenDecimals: 18,
 		BlockExplorerURL:    "https://polygonscan.com",
