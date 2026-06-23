@@ -11,6 +11,13 @@ vi.mock('@/services/tauri-api', () => ({
     signTransaction: vi.fn(),
     broadcastTransaction: vi.fn(),
   },
+  // Named export used by useSignGate (security check) — default-safe report so
+  // the gate never blocks the existing happy-path flows.
+  checkTransactionSecurity: vi.fn(async () => ({
+    proRequired: false,
+    warnings: [],
+    riskLevel: 'safe',
+  })),
 }));
 
 vi.mock('@/stores/dashboardStore', () => ({
@@ -32,7 +39,7 @@ vi.mock('@/components/AddressBook', () => ({
   ),
 }));
 
-import tauriApi from '@/services/tauri-api';
+import tauriApi, { checkTransactionSecurity } from '@/services/tauri-api';
 import { useIsPro } from '@/stores/dashboardStore';
 import { isWalletLocked } from '@/utils/walletLock';
 
@@ -121,6 +128,13 @@ describe('SendTransaction', () => {
     (tauriApi.buildTransaction as any).mockImplementation(() => Promise.resolve(mockBuildResponse));
     (tauriApi.signTransaction as any).mockImplementation(() => Promise.resolve(mockSignResponse));
     (tauriApi.broadcastTransaction as any).mockImplementation(() => Promise.resolve(mockBroadcastResponse));
+    // mockReset: true clears the factory implementation — restore a default-safe
+    // security report so the useSignGate effect never blocks the happy-path flows.
+    (checkTransactionSecurity as any).mockImplementation(async () => ({
+      proRequired: false,
+      warnings: [],
+      riskLevel: 'safe',
+    }));
   });
 
   // ──────────────────────────────────────────────────────────────────────────

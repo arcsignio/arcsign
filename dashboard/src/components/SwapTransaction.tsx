@@ -15,6 +15,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
+import { useSignGate } from "@/hooks/useSignGate";
 import { isWalletLocked } from "@/utils/walletLock";
 import { useIsPro } from "@/stores/dashboardStore";
 import tauriApi, {
@@ -261,6 +263,25 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
   // Cache key is chain-specific only (not provider-specific)
   // Token list is unified per-chain, provider only affects quote/route/build
   const tokenCacheKey = chainId;
+
+  // Shared sign-gate: once the DEX router tx data is built we know the real
+  // on-chain target (router) + calldata. Runs the txguard security check,
+  // surfaces the backend's requiresAcknowledge conclusion, and holds the
+  // acknowledgment checkbox state. Null until the swap tx is assembled.
+  const gate = useSignGate(
+    swapTx && fromToken
+      ? {
+          from: fromToken.fromAddress,
+          to: swapTx.txData.to,
+          chainId,
+          value: swapTx.txData.value || "0",
+          data: swapTx.txData.data || "",
+          usbPath,
+          sessionToken,
+          isPro,
+        }
+      : null,
+  );
 
   // Fetch tokens from unified Token Registry (chain-specific, not provider-specific)
   // Token list is always fetched from OpenOcean as the registry source
@@ -668,6 +689,12 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 
   // Sign and broadcast swap
   const handleSignAndBroadcast = async () => {
+    // Action-level guard: refuse to sign a backend-flagged danger until the user
+    // ticks the acknowledgment checkbox (mirrors the button's disabled prop).
+    if (gate.requiresAcknowledge && !gate.acknowledged) {
+      return;
+    }
+
     // Check if wallet is locked due to membership limit
     if (isWalletLocked(walletId)) {
       setError(t('wallet.walletLocked', 'Wallet is locked due to membership limit. Please upgrade to unlock.'));
@@ -723,6 +750,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         unsignedTx: buildResult,
         usbPath,
         sessionToken,  // ✅ Session token for provider config
+        acknowledgedRisk: gate.acknowledged,  // user acknowledged a backend-flagged danger
       });
 
       setStep("broadcasting");
@@ -1448,10 +1476,18 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
             />
           </div>
 
+          {/* High-risk acknowledgment — friction gate for backend-flagged dangers */}
+          <SignGateAcknowledge
+            requiresAcknowledge={gate.requiresAcknowledge}
+            acknowledged={gate.acknowledged}
+            onChange={gate.setAcknowledged}
+          />
+
           <button
             className="primary-button"
             onClick={handleSignAndBroadcast}
-            disabled={isLoading || !walletPassword}
+            disabled={isLoading || !walletPassword || (gate.requiresAcknowledge && !gate.acknowledged)}
+            style={gate.requiresAcknowledge ? { background: "#dc2626", boxShadow: "none" } : undefined}
           >
             {isLoading ? t('swap.processing') : t('swap.confirmSwap')}
           </button>

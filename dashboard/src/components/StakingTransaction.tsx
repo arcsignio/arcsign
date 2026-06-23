@@ -15,6 +15,9 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import tauriApi, { type AppError, type BuildTransactionResponse } from "@/services/tauri-api";
+import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
+import { useSignGate } from "@/hooks/useSignGate";
+import { useIsPro } from "@/stores/dashboardStore";
 import type { SendableToken } from "./SendTransaction";
 import type { StakingStep, StakableAsset, StakingProvider } from "@/types/defi";
 import {
@@ -110,6 +113,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
 }) => {
   void _walletHasPassphrase;
   const { t } = useTranslation();
+  const isPro = useIsPro();
 
   // Selected staking option (combines asset + provider)
   const [selectedOption, setSelectedOption] = useState<StakingOption | null>(null);
@@ -192,6 +196,28 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
     if (!selectedOption) return "0";
     return getAssetBalance(selectedOption.asset);
   }, [selectedOption, availableTokens]);
+
+  // Shared sign-gate: the staking tx target is the provider's verified contract
+  // and the calldata is the deposit() encoding — both are deterministic from the
+  // selected option + amount, so we can pre-compute them for the security check.
+  // Runs the txguard check, surfaces the backend's requiresAcknowledge conclusion,
+  // and holds the acknowledgment checkbox state.
+  const gateParams = useMemo(() => {
+    if (!selectedOption || !selectedAssetAddress || !amount) return null;
+    const amountSmallest = toSmallestUnit(amount, selectedOption.asset.decimals);
+    const encoder = getCallDataEncoder(selectedOption.provider.id);
+    return {
+      from: selectedAssetAddress,
+      to: selectedOption.provider.contractAddress,
+      chainId: selectedOption.asset.chainId,
+      value: amountSmallest,
+      data: encoder(amountSmallest),
+      usbPath,
+      sessionToken,
+      isPro,
+    };
+  }, [selectedOption, selectedAssetAddress, amount, usbPath, sessionToken, isPro]);
+  const gate = useSignGate(gateParams);
 
   // Calculate estimated output (1:1 for most liquid staking)
   useEffect(() => {
@@ -302,6 +328,12 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
 
   // Execute staking transaction
   const handleExecuteStaking = async () => {
+    // Action-level guard: refuse to sign a backend-flagged danger until the user
+    // ticks the acknowledgment checkbox (mirrors the button's disabled prop).
+    if (gate.requiresAcknowledge && !gate.acknowledged) {
+      return;
+    }
+
     if (!selectedOption || !walletPassword) {
       setError(t('staking.missingPassword'));
       return;
@@ -342,6 +374,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         unsignedTx: buildResult,
         usbPath,
         sessionToken,  // ✅ Session token for provider config
+        acknowledgedRisk: gate.acknowledged,  // user acknowledged a backend-flagged danger
       });
 
       console.log("Transaction signed");
@@ -673,6 +706,13 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         </div>
       )}
 
+      {/* High-risk acknowledgment — friction gate for backend-flagged dangers */}
+      <SignGateAcknowledge
+        requiresAcknowledge={gate.requiresAcknowledge}
+        acknowledged={gate.acknowledged}
+        onChange={gate.setAcknowledged}
+      />
+
       <div className="flex gap-3">
         <button
           onClick={() => {
@@ -685,8 +725,10 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         </button>
         <button
           onClick={handleExecuteStaking}
-          disabled={!walletPassword || isLoading}
-          className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!walletPassword || isLoading || (gate.requiresAcknowledge && !gate.acknowledged)}
+          className={`flex-1 py-3 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed ${
+            gate.requiresAcknowledge ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
+          }`}
         >
           {t('staking.confirmAndStake')}
         </button>

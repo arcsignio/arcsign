@@ -14,6 +14,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { AddressBook } from "@/components/AddressBook";
+import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
+import { useSignGate } from "@/hooks/useSignGate";
 import { isWalletLocked } from "@/utils/walletLock";
 import { useIsPro } from "@/stores/dashboardStore";
 import tauriApi, {
@@ -313,6 +315,25 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
   // Get chainId for backend API
   const chainId = selectedToken ? networkToChainId(selectedToken.network) : "";
 
+  // Shared sign-gate: once the unsigned tx is built we know the real on-chain
+  // target (token contract for ERC-20, recipient for native). Runs the txguard
+  // security check, surfaces the backend's requiresAcknowledge conclusion, and
+  // holds the acknowledgment checkbox state. Null until the tx is assembled.
+  const gate = useSignGate(
+    unsignedTx && selectedToken
+      ? {
+          from: unsignedTx.from,
+          to: unsignedTx.to,
+          chainId,
+          value: unsignedTx.amount,
+          data: "",
+          usbPath,
+          sessionToken,
+          isPro,
+        }
+      : null,
+  );
+
   // Validate Ethereum address
   const isValidAddress = (address: string): boolean => {
     return /^0x[a-fA-F0-9]{40}$/.test(address);
@@ -416,6 +437,12 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
   // Step 2: Sign transaction with wallet password
   const handleSignTransaction = async () => {
+    // Action-level guard: refuse to sign a backend-flagged danger until the user
+    // ticks the acknowledgment checkbox (mirrors the button's disabled prop).
+    if (gate.requiresAcknowledge && !gate.acknowledged) {
+      return;
+    }
+
     // Check if wallet is locked due to membership limit
     if (isWalletLocked(walletId)) {
       setError("Wallet is locked due to membership limit. Please upgrade to unlock.");
@@ -446,6 +473,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         unsignedTx: unsignedTx,  // Pass the full BuildTransactionResponse
         usbPath,
         sessionToken,  // ✅ Session token for provider config access
+        acknowledgedRisk: gate.acknowledged,  // user acknowledged a backend-flagged danger
       });
       setSignedTx(result);
 
@@ -873,6 +901,13 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
             </div>
           )}
 
+          {/* High-risk acknowledgment — friction gate for backend-flagged dangers */}
+          <SignGateAcknowledge
+            requiresAcknowledge={gate.requiresAcknowledge}
+            acknowledged={gate.acknowledged}
+            onChange={gate.setAcknowledged}
+          />
+
           <div className="password-actions">
             <button className="secondary-button" onClick={() => setStep("review")}>
               Back
@@ -880,7 +915,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
             <button
               className="primary-button"
               onClick={handleSignTransaction}
-              disabled={!walletPassword || isLoading}
+              disabled={!walletPassword || isLoading || (gate.requiresAcknowledge && !gate.acknowledged)}
+              style={gate.requiresAcknowledge ? { background: "#dc2626", boxShadow: "none" } : undefined}
             >
               Sign & Send
             </button>

@@ -9,13 +9,12 @@
 
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { PendingTransactionInfo, SecurityReport } from '@/services/tauri-api';
-import { checkTransactionSecurity } from '@/services/tauri-api';
+import type { PendingTransactionInfo } from '@/services/tauri-api';
 import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
 import type { DecodedIntent } from '@/services/clearsign/types';
 import { ClearSignSummary } from '@/components/ClearSignSummary';
 import { chainIdToNetwork } from '@/services/clearsign/chainIdToNetwork';
-import { isHighRiskSign } from '@/services/clearsign/riskGate';
+import { useSignGate } from '@/hooks/useSignGate';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { useSessionStore } from '@/stores/sessionStore';
 
@@ -25,7 +24,7 @@ export type PendingTransaction = PendingTransactionInfo;
 interface TransactionSignDialogProps {
   transaction: PendingTransactionInfo | null;
   walletName?: string;
-  onConfirm: (requestId: number, password: string) => Promise<void>;
+  onConfirm: (requestId: number, password: string, acknowledgedRisk?: boolean) => Promise<void>;
   onReject: (requestId: number) => Promise<void> | void;
 }
 
@@ -40,8 +39,6 @@ export function TransactionSignDialog({
   const [error, setError] = useState<string | null>(null);
   const [usbConnected, setUsbConnected] = useState(false);
   const [intent, setIntent] = useState<DecodedIntent | null>(null);
-  const [security, setSecurity] = useState<SecurityReport | undefined>(undefined);
-  const [acknowledged, setAcknowledged] = useState(false);
 
   // Read usbPath, isPro, and sessionToken from Zustand stores
   const usbPath = useDashboardStore((state) => state.usbPath) ?? '';
@@ -49,14 +46,35 @@ export function TransactionSignDialog({
   const onlineDecodingEnabled = useDashboardStore((s) => s.onlineDecodingEnabled);
   const sessionToken = useSessionStore((state) => state.token) ?? '';
 
+  // Shared sign-gate: runs the txguard security check, surfaces the backend's
+  // requiresAcknowledge conclusion, and holds the acknowledgment checkbox state.
+  // Replaces the previous bespoke security state + checkTransactionSecurity effect
+  // + acknowledged state in this dialog. Re-locks automatically on a new tx.
+  const gate = useSignGate(
+    transaction && usbPath
+      ? {
+          from: transaction.from,
+          to: transaction.to,
+          chainId: String(transaction.chain_id),
+          value: transaction.value,
+          data: transaction.data,
+          usbPath,
+          sessionToken,
+          isPro,
+        }
+      : null,
+  );
+  const security = gate.security;
+  const acknowledged = gate.acknowledged;
+  const setAcknowledged = gate.setAcknowledged;
+
   // Check USB connection on mount
   useEffect(() => {
     if (transaction) {
       checkUsbConnection();
-      // Reset state
+      // Reset state (acknowledgment reset is handled by useSignGate on tx change)
       setPassword('');
       setError(null);
-      setAcknowledged(false);
     }
   }, [transaction]);
 
@@ -73,31 +91,12 @@ export function TransactionSignDialog({
       .catch(() => setIntent(null));
   }, [transaction, onlineDecodingEnabled, usbPath, sessionToken]);
 
-  // Fetch txguard security report — advisory only, never blocks signing on failure
-  useEffect(() => {
-    if (!transaction || !usbPath) { setSecurity(undefined); return; }
-    let cancelled = false;
-    checkTransactionSecurity({
-      from: transaction.from,
-      to: transaction.to,
-      chainId: String(transaction.chain_id),
-      value: transaction.value,
-      data: transaction.data,
-      usbPath,
-      sessionToken,
-      isPro,
-    })
-      .then((r) => { if (!cancelled) setSecurity(r); })
-      .catch(() => { if (!cancelled) setSecurity(undefined); }); // advisory — never block signing
-    return () => { cancelled = true; };
-  }, [transaction, usbPath, sessionToken, isPro]);
-
   // High-risk gate: a danger/blacklist report locks the Sign button behind an
   // acknowledgment checkbox. The button stays red even after acknowledgment —
   // the danger doesn't disappear once the box is ticked; reverting to teal would
   // signal a false "all clear". Red + enabled = "you are knowingly signing a
-  // dangerous transaction".
-  const highRisk = isHighRiskSign(security);
+  // dangerous transaction". Conclusion comes from the shared gate (backend).
+  const highRisk = gate.requiresAcknowledge;
 
   const checkUsbConnection = async () => {
     try {
@@ -131,7 +130,9 @@ export function TransactionSignDialog({
     setError(null);
 
     try {
-      await onConfirm(transaction!.request_id, password);
+      // Thread the acknowledgment through so the parent's signTransaction call can
+      // pass acknowledgedRisk to the backend (which gates blacklisted targets).
+      await onConfirm(transaction!.request_id, password, acknowledged);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to sign transaction');
       setIsLoading(false);

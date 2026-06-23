@@ -85,6 +85,11 @@ pub struct SignTransactionInput {
     /// App password (DEPRECATED)
     #[serde(default)]
     pub app_password: Option<String>,
+    /// Knowing-consent flag — set when the user acknowledged a blacklist risk.
+    /// Forwarded to the Go backend gate, which refuses to sign a blacklisted
+    /// target unless this is true. (camelCase: acknowledgedRisk)
+    #[serde(default)]
+    pub acknowledged_risk: bool,
 }
 
 /// Input for broadcasting a signed transaction
@@ -297,6 +302,7 @@ pub async fn sign_transaction(
         "usbPath": input.usb_path,
         "sessionToken": input.session_token,
         "appPassword": input.app_password,
+        "acknowledgedRisk": input.acknowledged_risk,  // → Go backend blacklist gate
     });
 
     let params_json = serde_json::to_string(&params)

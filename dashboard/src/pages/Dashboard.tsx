@@ -233,7 +233,7 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
   };
 
   // Handle transaction confirmation
-  const handleTransactionConfirm = useCallback(async (requestId: number, password: string) => {
+  const handleTransactionConfirm = useCallback(async (requestId: number, password: string, acknowledgedRisk?: boolean) => {
     if (!usbPath || !pendingTransaction) return;
 
     setIsSigningTransaction(true);
@@ -294,6 +294,7 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
         unsignedTx,
         usbPath,
         sessionToken,
+        acknowledgedRisk: acknowledgedRisk || false,  // user acknowledged a backend-flagged danger
       });
 
       let txHash: string | undefined;
