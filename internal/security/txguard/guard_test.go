@@ -17,14 +17,15 @@ func TestCheck_FreeUser(t *testing.T) {
 	report := guard.Check(context.Background(), false, "0xevil", "ethereum", "test-key", simulation.TxParams{})
 
 	if !report.ProRequired {
-		t.Error("expected proRequired=true for free user")
+		t.Error("expected proRequired=true for free user (simulation gated)")
 	}
-	// Free user should NOT get blacklist results (no checks performed)
-	if report.BlacklistMatch != nil {
-		t.Error("expected no blacklist check for free user")
+	// New semantics: blacklist is free and runs for everyone, so a Free user
+	// targeting a blacklisted address still gets the match + danger risk.
+	if report.BlacklistMatch == nil {
+		t.Error("expected blacklist check to run for free user (blacklist is free)")
 	}
-	if report.RiskLevel != RiskSafe {
-		t.Error("expected safe risk level for free user (no checks performed)")
+	if report.RiskLevel != RiskDanger {
+		t.Errorf("expected danger risk level for free user on blacklisted addr, got %s", report.RiskLevel)
 	}
 }
 
@@ -146,5 +147,46 @@ func TestCheck_ProUser_WithSimulationResult(t *testing.T) {
 	}
 	if report.RiskLevel != RiskSafe {
 		t.Errorf("expected safe, got %s", report.RiskLevel)
+	}
+}
+
+func newGuardWithBlacklistedAddr(addr string) *Guard {
+	blMgr := blacklist.NewManager(nil)
+	blMgr.AddAddress(addr, "OFAC", "sanctioned")
+	return NewGuard(blMgr, nil)
+}
+
+func TestCheck_FreeUserStillGetsBlacklist(t *testing.T) {
+	addr := "0x000000000000000000000000000000000000dead"
+	g := newGuardWithBlacklistedAddr(addr)
+	r := g.Check(context.Background(), false, addr, "ethereum", "", simulation.TxParams{To: addr})
+	if r.BlacklistMatch == nil {
+		t.Fatal("Free user must still get the blacklist match (blacklist is free)")
+	}
+	if !r.RequiresAcknowledge {
+		t.Error("a blacklist hit must set RequiresAcknowledge")
+	}
+	if r.RiskLevel != RiskDanger {
+		t.Errorf("expected danger, got %s", r.RiskLevel)
+	}
+}
+
+func TestCheck_SafeAddrNoAcknowledge(t *testing.T) {
+	g := NewGuard(blacklist.NewManager(nil), nil)
+	r := g.Check(context.Background(), false, "0x1111111111111111111111111111111111111111", "ethereum", "", simulation.TxParams{})
+	if r.RequiresAcknowledge {
+		t.Error("a non-blacklisted address must NOT require acknowledge")
+	}
+}
+
+func TestCheck_ProRequiredMeansSimulationSkipped(t *testing.T) {
+	addr := "0x000000000000000000000000000000000000dead"
+	g := newGuardWithBlacklistedAddr(addr)
+	r := g.Check(context.Background(), false, addr, "ethereum", "", simulation.TxParams{To: addr})
+	if !r.ProRequired {
+		t.Error("Free user → ProRequired true (simulation gated)")
+	}
+	if r.BlacklistMatch == nil {
+		t.Error("ProRequired must NOT suppress the blacklist result")
 	}
 }
