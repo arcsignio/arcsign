@@ -101,7 +101,10 @@ func ExampleSubscribeTransactionStatus() {
 	fmt.Println("}")
 	fmt.Println()
 	fmt.Println("for status := range statusChan {")
-	fmt.Println("    fmt.Printf(\"狀態: %s, 確認數: %d\\n\", status.Status, status.Confirmations)")
+	// Assigned to a variable first so `go vet` does not mistake the %s/%d
+	// inside this printed code snippet for Println format directives.
+	statusPrintLine := "    fmt.Printf(\"狀態: %s, 確認數: %d\\n\", status.Status, status.Confirmations)"
+	fmt.Println(statusPrintLine)
 	fmt.Println("    ")
 	fmt.Println("    if status.Status == chainadapter.TxStatusFinalized {")
 	fmt.Println("        break")
