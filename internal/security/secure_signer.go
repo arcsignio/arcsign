@@ -118,6 +118,44 @@ func (s *SecureSigner) Sign(payload []byte, address string) ([]byte, error) {
 	return signature, err
 }
 
+// SignHash signs an arbitrary 32-byte hash with the EVM ECDSA scheme,
+// reconstructing the key only for the crypto operation and zeroing it after.
+//
+// Unlike Sign (which dispatches per chain for transaction payloads), SignHash
+// is EVM-only: it is the shared signing primitive for EIP-191 personal_sign
+// and EIP-712 typed-data, both of which compute their own hash and then need a
+// raw secp256k1 signature over it. The returned signature is byte-identical to
+// ethcrypto.Sign(hash, key), including the raw v value of 0/1 (callers that
+// need Ethereum's 27/28 must add 27 themselves, exactly as the plaintext path
+// did).
+//
+// Parameters:
+//   - hash: 32-byte digest to sign (EIP-191 or EIP-712 hash)
+//   - address: address verification (must match signer's address)
+//
+// Security Note: Key exposure window is ~1-5ms (only during the crypto op).
+func (s *SecureSigner) SignHash(hash []byte, address string) ([]byte, error) {
+	if s.address != address {
+		return nil, fmt.Errorf("address mismatch: signer controls %s, requested %s",
+			s.address, address)
+	}
+
+	if !s.isEVMChain() {
+		return nil, fmt.Errorf("SignHash only supports EVM chains, got %s", s.chainID)
+	}
+
+	// Reconstruct key into secure buffer.
+	privateKey := s.shares.Reconstruct()
+	if privateKey == nil {
+		return nil, fmt.Errorf("failed to reconstruct private key")
+	}
+
+	// CRITICAL: Ensure key is zeroed no matter what happens.
+	defer SecureZero(privateKey)
+
+	return s.signEVM(privateKey, hash)
+}
+
 // signBitcoin performs ECDSA secp256k1 signing for Bitcoin.
 func (s *SecureSigner) signBitcoin(privateKey []byte, payload []byte) ([]byte, error) {
 	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privateKey)

@@ -12,7 +12,7 @@ libarcsign.*
 
 # Project binary
 arcsign
-lib
+/lib
 bin/
 
 # Test binary, built with `go test -c`

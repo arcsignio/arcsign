@@ -344,20 +344,3 @@ func (tb *TransactionBuilder) createHumanReadable(
 		tb.chainID.Int64(),
 	)
 }
-
-// SignTransaction signs an Ethereum transaction with a private key.
-// This is a helper function for testing; production should use external signers.
-func (tb *TransactionBuilder) SignTransaction(tx *types.Transaction, privateKeyHex string) (*types.Transaction, error) {
-	privateKey, err := crypto.HexToECDSA(privateKeyHex)
-	if err != nil {
-		return nil, fmt.Errorf("invalid private key: %w", err)
-	}
-
-	signer := types.LatestSignerForChainID(tb.chainID)
-	signedTx, err := types.SignTx(tx, signer, privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign transaction: %w", err)
-	}
-
-	return signedTx, nil
-}

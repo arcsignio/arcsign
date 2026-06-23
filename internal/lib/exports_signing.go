@@ -8,13 +8,13 @@ package main
 */
 import "C"
 import (
-	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
 	"runtime/debug"
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/arcsignio/arcsign/internal/security"
@@ -181,40 +181,33 @@ func SignMessage(params *C.char) (result *C.char) {
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
-	defer security.SecureZero(privateKeyBytes)
-
-	// Convert to ECDSA private key
-	privateKey, err := ethcrypto.ToECDSA(privateKeyBytes)
+	// Step 4b: Create SecureSigner with XOR-split key storage.
+	// SECURITY: privateKeyBytes is split into 3 XOR shares and zeroed here;
+	// the key is only reconstructed momentarily inside SignHash (~1-5ms).
+	// This matches SignTransaction so all signing paths share one protection.
+	// chainID is "ethereum": EIP-191 signatures are a raw secp256k1 sig over a
+	// hash and are identical across the EVM family.
+	secureSigner, err := security.NewSecureSigner(privateKeyBytes, input.Address, "ethereum")
 	if err != nil {
+		security.SecureZero(privateKeyBytes)
 		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
+	defer secureSigner.Zeroize()
 
-	// Step 5: Prepare message bytes
-	var messageBytes []byte
-	if strings.HasPrefix(input.Message, "0x") || strings.HasPrefix(input.Message, "0X") {
-		// Hex-encoded message - strip the 0x prefix before decoding
-		hexStr := strings.TrimPrefix(strings.TrimPrefix(input.Message, "0x"), "0X")
-		messageBytes, err = hexToBytes(hexStr)
-		if err != nil {
-			response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
-			jsonBytes, _ := json.Marshal(response)
-			return C.CString(string(jsonBytes))
-		}
-	} else {
-		// Plain text message
-		messageBytes = []byte(input.Message)
+	// Step 5+6: Build the EIP-191 hash (message decode + prefix + keccak).
+	messageHashBytes, err := eip191Hash(input.Message)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
 	}
+	messageHash := common.BytesToHash(messageHashBytes)
 
-	// Step 6: Create EIP-191 hash
-	// Format: "\x19Ethereum Signed Message:\n" + len(message) + message
-	prefix := fmt.Sprintf("\x19Ethereum Signed Message:\n%d", len(messageBytes))
-	prefixedMessage := append([]byte(prefix), messageBytes...)
-	messageHash := ethcrypto.Keccak256Hash(prefixedMessage)
-
-	// Step 7: Sign the hash
-	signature, err := ethcrypto.Sign(messageHash.Bytes(), privateKey)
+	// Step 7: Sign the hash via SecureSigner (XOR-split, key reconstructed
+	// only during the crypto op). Byte-identical to the former plaintext path.
+	signature, err := secureSigner.SignHash(messageHashBytes, input.Address)
 	if err != nil {
 		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
 		jsonBytes, _ := json.Marshal(response)
@@ -387,21 +380,37 @@ func SignTypedData(params *C.char) (result *C.char) {
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
-	defer security.SecureZero(privateKeyBytes)
+	// Create SecureSigner with XOR-split key storage (zeroes privateKeyBytes).
+	// SECURITY: the key is only reconstructed momentarily inside SignHash,
+	// matching SignTransaction / SignMessage. chainID is "ethereum" because an
+	// EIP-712 signature is a raw secp256k1 sig over a hash, identical across EVM.
+	secureSigner, err := security.NewSecureSigner(privateKeyBytes, input.Address, "ethereum")
+	if err != nil {
+		security.SecureZero(privateKeyBytes)
+		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer secureSigner.Zeroize()
 
-	privateKey, err := ethcrypto.ToECDSA(privateKeyBytes)
+	// Step 5: Hash EIP-712 typed data, then sign via SecureSigner.
+	hash, err := hashTypedDataV4(typedData)
 	if err != nil {
 		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
-	// Step 5: Sign EIP-712 typed data using go-ethereum's signer
-	signature, err := signTypedDataV4(privateKey, typedData)
+	signature, err := secureSigner.SignHash(hash.Bytes(), input.Address)
 	if err != nil {
 		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
+	}
+
+	// Adjust v value for Ethereum compatibility (go-ethereum returns 0/1).
+	if signature[64] < 27 {
+		signature[64] += 27
 	}
 
 	// Step 6: Return result
@@ -415,33 +424,44 @@ func SignTypedData(params *C.char) (result *C.char) {
 	return C.CString(string(jsonBytes))
 }
 
-// signTypedDataV4 signs EIP-712 typed data using go-ethereum's apitypes
-func signTypedDataV4(privateKey *ecdsa.PrivateKey, typedData apitypes.TypedData) ([]byte, error) {
+// eip191Hash builds the EIP-191 personal_sign hash for a message.
+// The message is hex-decoded when 0x-prefixed, otherwise treated as UTF-8 text,
+// then prefixed with "\x19Ethereum Signed Message:\n<len>" and keccak256'd.
+// Kept as a pure (non-cgo, no-wallet) helper so the signing path is testable.
+func eip191Hash(message string) ([]byte, error) {
+	var messageBytes []byte
+	if strings.HasPrefix(message, "0x") || strings.HasPrefix(message, "0X") {
+		hexStr := strings.TrimPrefix(strings.TrimPrefix(message, "0x"), "0X")
+		decoded, err := hexToBytes(hexStr)
+		if err != nil {
+			return nil, err
+		}
+		messageBytes = decoded
+	} else {
+		messageBytes = []byte(message)
+	}
+
+	prefix := fmt.Sprintf("\x19Ethereum Signed Message:\n%d", len(messageBytes))
+	prefixedMessage := append([]byte(prefix), messageBytes...)
+	return ethcrypto.Keccak256(prefixedMessage), nil
+}
+
+// hashTypedDataV4 computes the EIP-712 signing hash for typed data using
+// go-ethereum's apitypes. Signing is done separately via SecureSigner so the
+// private key never leaves XOR-split storage in plaintext form.
+func hashTypedDataV4(typedData apitypes.TypedData) (common.Hash, error) {
 	// Hash the typed data
 	domainSeparator, err := typedData.HashStruct("EIP712Domain", typedData.Domain.Map())
 	if err != nil {
-		return nil, fmt.Errorf("failed to hash domain: %w", err)
+		return common.Hash{}, fmt.Errorf("failed to hash domain: %w", err)
 	}
 
 	typedDataHash, err := typedData.HashStruct(typedData.PrimaryType, typedData.Message)
 	if err != nil {
-		return nil, fmt.Errorf("failed to hash message: %w", err)
+		return common.Hash{}, fmt.Errorf("failed to hash message: %w", err)
 	}
 
 	// Create the final hash: keccak256("\x19\x01" || domainSeparator || typedDataHash)
 	rawData := []byte(fmt.Sprintf("\x19\x01%s%s", string(domainSeparator), string(typedDataHash)))
-	hash := ethcrypto.Keccak256Hash(rawData)
-
-	// Sign the hash
-	signature, err := ethcrypto.Sign(hash.Bytes(), privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign: %w", err)
-	}
-
-	// Adjust v value for Ethereum (add 27)
-	if signature[64] < 27 {
-		signature[64] += 27
-	}
-
-	return signature, nil
+	return ethcrypto.Keccak256Hash(rawData), nil
 }
