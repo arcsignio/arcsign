@@ -73,6 +73,7 @@ describe('SignRequestDialog', () => {
         proRequired: false,
         warnings: [],
         riskLevel: 'danger',
+        requiresAcknowledge: true,
         blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' },
       },
     };
@@ -112,6 +113,7 @@ describe('SignRequestDialog', () => {
         proRequired: false,
         warnings: [],
         riskLevel: 'danger',
+        requiresAcknowledge: true,
         blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' },
       },
     };
@@ -152,6 +154,7 @@ describe('SignRequestDialog', () => {
       proRequired: false,
       warnings: [],
       riskLevel: 'danger',
+      requiresAcknowledge: true,
       blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' },
     };
     const reqA: SignatureRequestParams = {
@@ -194,6 +197,7 @@ describe('SignRequestDialog', () => {
         proRequired: false,
         warnings: [],
         riskLevel: 'danger',
+        requiresAcknowledge: true,
         blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' },
       },
     };
@@ -223,6 +227,7 @@ describe('SignRequestDialog', () => {
         proRequired: false,
         warnings: [],
         riskLevel: 'danger',
+        requiresAcknowledge: true,
         blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' },
       },
     };

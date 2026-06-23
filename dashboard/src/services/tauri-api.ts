@@ -745,6 +745,7 @@ export interface SecurityReport {
     message: string;
   }>;
   riskLevel: string;  // safe, warning, danger
+  requiresAcknowledge?: boolean;
 }
 
 export interface CheckTransactionSecurityParams {
@@ -860,6 +861,7 @@ export interface SignTransactionParams {
   usbPath: string;
   sessionToken?: string;    // ✅ Session token for provider config access
   appPassword?: string;     // DEPRECATED: For backward compatibility
+  acknowledgedRisk?: boolean;  // User acknowledged a backend-flagged danger (blacklisted target)
 }
 
 // SignTransactionResponse matches Go FFI output format
@@ -991,6 +993,7 @@ export async function signTransaction(
         usbPath: params.usbPath,
         sessionToken: params.sessionToken,  // ✅ Use session token
         appPassword: params.appPassword,    // DEPRECATED: Fallback
+        acknowledgedRisk: params.acknowledgedRisk || false,  // User acknowledged backend-flagged danger
       },
     });
     console.log("✍️ [tauri-api] signTransaction response:", {

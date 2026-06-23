@@ -26,7 +26,7 @@ describe('ClearSignSummary', () => {
   });
 
   it('renders the security section when a security report is passed', () => {
-    render(<ClearSignSummary intent={readable} security={{ proRequired: false, warnings: [], riskLevel: 'danger', blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' } }} />);
+    render(<ClearSignSummary intent={readable} security={{ proRequired: false, warnings: [], riskLevel: 'danger', requiresAcknowledge: true, blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' } }} />);
     expect(screen.getByText('clearSign.securityHeading')).toBeInTheDocument();
     expect(screen.getByText(/clearSign.blacklistHit/)).toBeInTheDocument();
   });
@@ -35,7 +35,7 @@ describe('ClearSignSummary', () => {
     render(
       <ClearSignSummary
         intent={readable}
-        security={{ proRequired: false, warnings: [], riskLevel: 'danger', blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' } }}
+        security={{ proRequired: false, warnings: [], riskLevel: 'danger', requiresAcknowledge: true, blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' } }}
         acknowledged={false}
         onAcknowledgeChange={vi.fn()}
       />,
@@ -62,7 +62,7 @@ describe('ClearSignSummary', () => {
     render(
       <ClearSignSummary
         intent={readable}
-        security={{ proRequired: false, warnings: [], riskLevel: 'danger', blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' } }}
+        security={{ proRequired: false, warnings: [], riskLevel: 'danger', requiresAcknowledge: true, blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' } }}
         acknowledged={false}
         onAcknowledgeChange={onChange}
       />,
@@ -75,7 +75,7 @@ describe('ClearSignSummary', () => {
     render(
       <ClearSignSummary
         intent={null}
-        security={{ proRequired: false, warnings: [], riskLevel: 'danger', blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' } }}
+        security={{ proRequired: false, warnings: [], riskLevel: 'danger', requiresAcknowledge: true, blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' } }}
         acknowledged={false}
         onAcknowledgeChange={vi.fn()}
       />,

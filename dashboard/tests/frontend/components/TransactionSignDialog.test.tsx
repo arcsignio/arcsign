@@ -150,6 +150,7 @@ describe('TransactionSignDialog — clear-signing integration', () => {
       proRequired: false,
       warnings: [],
       riskLevel: 'danger',
+      requiresAcknowledge: true,
       blacklistMatch: { value: '0xbad', source: 'OFAC', category: 'sanctioned' },
     });
 
@@ -222,6 +223,7 @@ describe('TransactionSignDialog — risk friction', () => {
       proRequired: false,
       warnings: [],
       riskLevel: 'danger',
+      requiresAcknowledge: true,
       blacklistMatch: { value: '0xBadTarget', source: 'OFAC', category: 'sanctioned' },
     });
   });

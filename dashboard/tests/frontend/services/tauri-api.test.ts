@@ -884,6 +884,7 @@ describe('tauri-api service', () => {
           usbPath: '/dev/sda1',
           sessionToken: 'tok',
           appPassword: undefined,
+          acknowledgedRisk: false,
         },
       });
       expect(result).toEqual(mockResp);
