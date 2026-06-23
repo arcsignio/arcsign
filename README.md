@@ -14,7 +14,7 @@
 [![DCO](https://img.shields.io/badge/Commits-DCO-blue.svg)](CONTRIBUTING.md)
 [![Maintainer](https://img.shields.io/badge/maintained%20by-%40Jason--chen--taiwan-0d9488.svg)](https://github.com/Jason-chen-taiwan)
 
-ArcSign is an open-source desktop cold wallet for Bitcoin and 6 EVM chains.
+ArcSign is an open-source desktop cold wallet for Bitcoin and 7 EVM chains.
 Private keys are generated and stored only on a USB device. The `.arcsign`
 encrypted backup file replaces paper seed phrases — it's AES-256 encrypted
 at export, so a stolen backup file isn't a stolen wallet.
@@ -39,14 +39,17 @@ Apache 2.0 licensed. Fork-friendly with a small trademark policy — see
 
 ## Features
 
-- **Multi-chain HD wallet** — Bitcoin + 6 EVM chains
-  (Ethereum, BSC, Polygon, Arbitrum, Optimism, Base).
+- **Multi-chain HD wallet** — Bitcoin + 7 EVM chains
+  (Ethereum, BSC, Polygon, Arbitrum, Optimism, Base, Avalanche).
+- **Key-free balances on every chain** — native coins + common/imported tokens
+  are read over public RPC + Multicall3 (no API key, no third-party indexer),
+  with USD prices from DefiLlama.
 - **USB cold storage** — private keys live on the USB, never on the host.
 - **`.arcsign` encrypted backup** — AES-256 at export. No paper seed phrases.
 - **DEX swap aggregator** — OpenOcean + KyberSwap parallel quotes,
   picks the best route automatically.
 - **Token approvals manager** — view and revoke ERC-20 approvals across
-  6 chains. Pro users get batch revoke.
+  the EVM chains. Pro users get batch revoke.
 - **NFT gallery** — cross-chain ERC-721 / ERC-1155 display.
 - **DeFi positions** — liquid staking (stETH, ankrETH, ankrBNB) with
   real-time APY.
