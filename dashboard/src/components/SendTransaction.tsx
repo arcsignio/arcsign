@@ -267,6 +267,14 @@ export const SecurityReportPanel: React.FC<{
  * see "OFAC" / "MEW". Pure presentation — falls back to the raw source.
  */
 function formatBlacklistSource(source: string): string {
+  // Keep this map in sync with the backend's actual source values:
+  //   seed.go        → "embedded-ofac" / "embedded-mew"
+  //   manager.go     → "OFAC" / "ScamSniffer" / "MetaMask"
+  // Every currently-emitted source is mapped, so the fallback below never runs
+  // in practice. When a NEW backend source is added, ADD IT HERE — don't rely on
+  // the fallback. The fallback's blanket .toUpperCase() is a deliberate
+  // last-resort for an unmapped source (it would render e.g. "Chainalysis" as
+  // "CHAINALYSIS"): acceptable as a safety net, not as the intended path.
   const map: Record<string, string> = {
     'embedded-ofac': 'OFAC',
     'embedded-mew': 'MEW',

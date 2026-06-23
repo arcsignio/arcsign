@@ -74,6 +74,14 @@ func (tb *TransactionBuilder) Build(
 	// A non-empty-but-invalid token_address is a hard error here (resolver), NOT
 	// a silent fall-through to a native transfer — that would send the native
 	// coin to the recipient when the user asked to send a token.
+	//
+	// NOTE: validateRequest (above) ALSO calls resolveERC20TokenAddress. That
+	// repeat is INTENTIONAL, not dead code — keep BOTH. resolveERC20TokenAddress
+	// is a pure, idempotent function, so calling it twice is harmless, and Build
+	// must not assume validateRequest always runs first (it's the gate that makes
+	// the ERC-20-vs-native decision here, at the point of use). Removing either
+	// call to "de-duplicate" risks reintroducing the predicate divergence this
+	// resolver exists to prevent.
 	tokenAddress, err := resolveERC20TokenAddress(req)
 	if err != nil {
 		return nil, err
