@@ -306,8 +306,9 @@ func SignTransaction(params *C.char) (result *C.char) {
 		USBPath      string                 `json:"usbPath"`
 		ChainID      string                 `json:"chainId"`
 		UnsignedTx   map[string]interface{} `json:"unsignedTx"`
-		SessionToken string                 `json:"sessionToken"` // PREFERRED: Session token for session validation
-		AppPassword  string                 `json:"appPassword"`  // DEPRECATED: Backward compatibility
+		SessionToken     string                 `json:"sessionToken"` // PREFERRED: Session token for session validation
+		AppPassword      string                 `json:"appPassword"`  // DEPRECATED: Backward compatibility
+		AcknowledgedRisk bool                   `json:"acknowledgedRisk"`
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -347,6 +348,27 @@ func SignTransaction(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 	defer zeroString(&appPassword)
+
+	// Backend security gate — blacklist check before touching the private key.
+	// Architecturally unbypassable: any path reaching signing hits this. A
+	// blacklist hit (RequiresAcknowledge) without the acknowledgedRisk flag →
+	// refuse to sign (key never used). The frontend checkbox is UX; THIS is the
+	// real gate.
+	if toAddr, ok := input.UnsignedTx["to"].(string); ok && toAddr != "" {
+		// The blacklist is an in-memory lookup over the embedded seed (no network),
+		// but bound the check anyway so a future slow path can't hang signing. If
+		// the check can't run, RequiresAcknowledge is false → fail OPEN (consistent
+		// with "a check that fails to run never blocks signing").
+		gateCtx, gateCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		// isPro=true: the blacklist runs for everyone; alchemyKey="" skips simulation.
+		gateReport := initTxGuard().Check(gateCtx, true, toAddr, input.ChainID, "", simulation.TxParams{To: toAddr})
+		gateCancel()
+		if gateReport.RequiresAcknowledge && !input.AcknowledgedRisk {
+			response := NewErrorResponse(ErrBlacklisted, GetUserFriendlyMessage(ErrBlacklisted))
+			jsonBytes, _ := json.Marshal(response)
+			return C.CString(string(jsonBytes))
+		}
+	}
 
 	// Step 0b: Check if wallet is locked (before any expensive operations)
 	// Locked wallets cannot sign transactions - this enforces the wallet limit

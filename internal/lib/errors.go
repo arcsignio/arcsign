@@ -63,6 +63,9 @@ const (
 
 	// Rate limiting errors
 	ErrRateLimitExceeded ErrorCode = "RATE_LIMIT_EXCEEDED" // Too many failed attempts
+
+	// Security gate errors
+	ErrBlacklisted ErrorCode = "BLACKLISTED_TARGET" // signing blocked: target on blocklist, ack required
 )
 
 // FFIError represents a structured error response for FFI functions
@@ -172,6 +175,8 @@ func GetUserFriendlyMessage(code ErrorCode) string {
 		return "The bundle file appears to be corrupted."
 	case ErrRateLimitExceeded:
 		return "Too many failed attempts. Please wait a moment before trying again."
+	case ErrBlacklisted:
+		return "目標地址在黑名單中，需確認風險後才能簽署"
 	default:
 		return "An error occurred. Please try again."
 	}
