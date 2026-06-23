@@ -15,6 +15,16 @@ import (
 // EthereumSigner implements chainadapter.Signer for Ethereum using ECDSA secp256k1.
 //
 // This implementation supports EIP-155 (replay protection) and EIP-1559 (dynamic fees).
+//
+// SECURITY / SCOPE: This signer holds the private key in PLAINTEXT
+// (*ecdsa.PrivateKey) and is NOT used on any production signing path. Production
+// EVM signing injects internal/security.SecureSigner (XOR-split key storage) into
+// EthereumAdapter.Sign via the chainadapter.Signer interface. EthereumSigner
+// exists only as a self-contained chainadapter.Signer implementation for this
+// module's adapter/contract tests, because src/chainadapter is a separate Go
+// module and cannot import SecureSigner (the dependency direction is root →
+// src/chainadapter). Do NOT wire this into FFI exports or production code; use
+// SecureSigner there.
 type EthereumSigner struct {
 	privateKey *ecdsa.PrivateKey
 	address    string
