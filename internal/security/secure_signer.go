@@ -265,5 +265,18 @@ func (s *SecureSigner) IsValid() bool {
 	return s.shares != nil && s.shares.IsValid() && s.address != ""
 }
 
+// EIP191Hash computes the EIP-191 personal_sign hash of a message:
+// keccak256("\x19Ethereum Signed Message:\n" + len(message) + message).
+//
+// This is the digest that must be fed to a secp256k1 signer for personal_sign.
+// Signing the raw message WITHOUT this prefix produces a signature that does
+// not conform to EIP-191 and is rejected by wallets/dApps — callers must hash
+// here first, then sign the result (e.g. via SecureSigner.SignHash).
+func EIP191Hash(message []byte) []byte {
+	prefix := fmt.Sprintf("\x19Ethereum Signed Message:\n%d", len(message))
+	prefixed := append([]byte(prefix), message...)
+	return ethcrypto.Keccak256(prefixed)
+}
+
 // Ensure SecureSigner implements chainadapter.Signer interface
 var _ chainadapter.Signer = (*SecureSigner)(nil)

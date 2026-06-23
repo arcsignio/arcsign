@@ -383,6 +383,37 @@ func TestSecureSignerSignHashNonEVM(t *testing.T) {
 	}
 }
 
+// TestEIP191Hash verifies EIP191Hash applies the personal_sign prefix
+// ("\x19Ethereum Signed Message:\n<len>") before keccak256, matching the
+// EIP-191 standard. A raw keccak of the message (no prefix) must NOT match.
+func TestEIP191Hash(t *testing.T) {
+	message := []byte("hello")
+
+	// Reference: the exact EIP-191 prefixed hash.
+	want := ethcrypto.Keccak256([]byte("\x19Ethereum Signed Message:\n5hello"))
+
+	got := EIP191Hash(message)
+
+	if !bytes.Equal(got, want) {
+		t.Errorf("EIP191Hash mismatch:\n got  %x\n want %x", got, want)
+	}
+
+	// Guard against regression to raw (unprefixed) signing.
+	rawHash := ethcrypto.Keccak256(message)
+	if bytes.Equal(got, rawHash) {
+		t.Error("EIP191Hash must NOT equal raw keccak of the message (missing EIP-191 prefix)")
+	}
+}
+
+// TestEIP191HashEmpty verifies the prefix length is 0 for an empty message.
+func TestEIP191HashEmpty(t *testing.T) {
+	want := ethcrypto.Keccak256([]byte("\x19Ethereum Signed Message:\n0"))
+	got := EIP191Hash([]byte{})
+	if !bytes.Equal(got, want) {
+		t.Errorf("EIP191Hash(empty) mismatch:\n got  %x\n want %x", got, want)
+	}
+}
+
 // BenchmarkSecureZero benchmarks secure zeroing performance
 func BenchmarkSecureZero(b *testing.B) {
 	data := make([]byte, 32)

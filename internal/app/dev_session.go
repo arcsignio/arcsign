@@ -353,8 +353,11 @@ func (dsm *DevSessionManager) SignMessage(token string, address string, message 
 		return nil, ErrDevSessionAddressNotFound
 	}
 
-	// Sign using SecureSigner (requires address for verification)
-	signature, err := signer.Sign(message, address)
+	// Apply the EIP-191 personal_sign prefix BEFORE signing. SecureSigner.Sign
+	// signs the payload as-is, so passing the raw message would (a) fail the
+	// 32-byte hash requirement and (b) not conform to personal_sign. Hash first.
+	hash := security.EIP191Hash(message)
+	signature, err := signer.Sign(hash, address)
 	if err != nil {
 		return nil, fmt.Errorf("signing failed: %w", err)
 	}

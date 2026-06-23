@@ -441,9 +441,7 @@ func eip191Hash(message string) ([]byte, error) {
 		messageBytes = []byte(message)
 	}
 
-	prefix := fmt.Sprintf("\x19Ethereum Signed Message:\n%d", len(messageBytes))
-	prefixedMessage := append([]byte(prefix), messageBytes...)
-	return ethcrypto.Keccak256(prefixedMessage), nil
+	return security.EIP191Hash(messageBytes), nil
 }
 
 // hashTypedDataV4 computes the EIP-712 signing hash for typed data using
