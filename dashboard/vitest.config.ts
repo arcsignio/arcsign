@@ -32,14 +32,20 @@ export default defineConfig({
         '**/*.d.ts',
         '**/index.ts',
       ],
-      // NOTE: coverage thresholds intentionally NOT enforced.
-      // The previous config had flat `lines/functions/branches/statements: 70`
-      // keys directly under `coverage`. Since vitest 2 those flat keys must live
-      // under `coverage.thresholds` — the flat form is silently ignored, so the
-      // 70% gate never actually enforced (real coverage is ~42%). Activating a
-      // real `thresholds` block here would start failing CI's PR-only coverage
-      // step. Raising coverage to a real, enforced threshold is a separate task
-      // (see backlog) — not part of the vitest/vite upgrade.
+      // Coverage thresholds — set as a REAL, ENFORCED floor slightly below the
+      // current actual coverage (stmts 41.6 / branch 38.3 / funcs 43.2 / lines
+      // 42.1, as of 2026-06-23). The point is a ratchet that catches regressions
+      // and untested new code, NOT a 70% target to chase by writing low-value UI
+      // tests. (vitest 2+ requires these under `coverage.thresholds` — the old
+      // flat `coverage.{lines,...}` form was silently ignored, so the previous
+      // 70% "gate" never actually enforced.) Raise these as real coverage grows;
+      // never set them above current actual, or CI's PR coverage step breaks.
+      thresholds: {
+        statements: 38,
+        branches: 35,
+        functions: 40,
+        lines: 38,
+      },
     },
 
 
