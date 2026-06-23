@@ -22,6 +22,52 @@ func TestAllMainnetNetworksHaveMappings(t *testing.T) {
 	}
 }
 
+// TestBalanceProviderIsSelfHostedForAllChains locks in the feature-dimension
+// routing: balance queries on EVERY mainnet chain go to the self-hosted public
+// RPC + Multicall3 path, NOT to the per-chain third-party provider (Alchemy /
+// NodeReal / Glacier). This is the core contract of the balance-multicall
+// refactor — balances are decentralized, while NFTs/history stay on their
+// third-party provider via GetProviderForNetwork.
+func TestBalanceProviderIsSelfHostedForAllChains(t *testing.T) {
+	for _, network := range AllMainnetNetworks() {
+		t.Run(network, func(t *testing.T) {
+			if got := GetBalanceProviderForNetwork(network); got != ProviderSelfHosted {
+				t.Errorf("GetBalanceProviderForNetwork(%q) = %q, want %q (balances must use self-hosted RPC+Multicall)", network, got, ProviderSelfHosted)
+			}
+		})
+	}
+}
+
+// TestBalanceProviderNormalizesAliases ensures provider-specific / alias network
+// ids still resolve to the self-hosted balance path.
+func TestBalanceProviderNormalizesAliases(t *testing.T) {
+	for _, alias := range []string{"arb-mainnet", "opt-mainnet"} {
+		if got := GetBalanceProviderForNetwork(alias); got != ProviderSelfHosted {
+			t.Errorf("GetBalanceProviderForNetwork(%q) = %q, want %q", alias, got, ProviderSelfHosted)
+		}
+	}
+}
+
+// TestNftRoutingUnchanged is a guard that the feature-dimension split does NOT
+// alter the existing chain-dimension routing used by NFTs / transaction history.
+// Balances move to self-hosted; everything else must stay on its provider.
+func TestNftRoutingUnchanged(t *testing.T) {
+	cases := map[string]string{
+		NetworkEthMainnet:       ProviderAlchemy,
+		NetworkPolygonMainnet:   ProviderAlchemy,
+		NetworkArbitrumMainnet:  ProviderAlchemy,
+		NetworkOptimismMainnet:  ProviderAlchemy,
+		NetworkBaseMainnet:      ProviderAlchemy,
+		NetworkBnbMainnet:       ProviderNodeReal,
+		NetworkAvalancheMainnet: ProviderGlacier,
+	}
+	for network, want := range cases {
+		if got := GetProviderForNetwork(network); got != want {
+			t.Errorf("GetProviderForNetwork(%q) = %q, want %q (NFT/history routing must be unchanged)", network, got, want)
+		}
+	}
+}
+
 // TestAvalancheRouting locks in the Avalanche -> Glacier wiring specifically.
 func TestAvalancheRouting(t *testing.T) {
 	if GetProviderForNetwork(NetworkAvalancheMainnet) != ProviderGlacier {

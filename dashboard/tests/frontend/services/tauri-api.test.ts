@@ -21,6 +21,7 @@ import {
   loadAddresses,
   getTokenBalances,
   getNFTs,
+  addTouchedToken,
   getAssetTransfers,
   buildTransaction,
   signTransaction,
@@ -373,6 +374,49 @@ describe('tauri-api service', () => {
         sessionToken: 'tok',
         appPassword: undefined,
       });
+    });
+  });
+
+  describe('addTouchedToken', () => {
+    it('calls invoke with "add_touched_token" and all token fields', async () => {
+      mockInvoke.mockImplementation(() => Promise.resolve({ added: true }));
+
+      const result = await addTouchedToken({
+        usbPath: '/dev/sda1',
+        userAddress: '0xUSER',
+        tokenAddress: '0xTOKEN',
+        network: 'eth-mainnet',
+        symbol: 'PEPE',
+        decimals: 18,
+        sessionToken: 'tok',
+      });
+
+      expect(result).toEqual({ added: true });
+      expect(mockInvoke).toHaveBeenCalledWith('add_touched_token', {
+        usbPath: '/dev/sda1',
+        userAddress: '0xUSER',
+        tokenAddress: '0xTOKEN',
+        network: 'eth-mainnet',
+        symbol: 'PEPE',
+        decimals: 18,
+        sessionToken: 'tok',
+        appPassword: undefined,
+      });
+    });
+
+    it('propagates a parsed error when invoke rejects', async () => {
+      mockInvoke.mockImplementation(() => Promise.reject(new Error('STORAGE_ERROR: disk full')));
+
+      await expect(
+        addTouchedToken({
+          usbPath: '/dev/sda1',
+          userAddress: '0xUSER',
+          tokenAddress: '0xTOKEN',
+          network: 'eth-mainnet',
+          symbol: 'PEPE',
+          decimals: 18,
+        })
+      ).rejects.toThrow();
     });
   });
 

@@ -25,6 +25,7 @@ var internalToRegistryChain = map[string]string{
 	NetworkOptimismMainnet: "optimism-mainnet",
 	NetworkBaseMainnet:     "base-mainnet",
 	NetworkBnbMainnet:      "bsc",
+	NetworkAvalancheMainnet: "avalanche", // registry registers Avalanche under "avalanche"/"avax", not "avalanche-mainnet"
 }
 
 // registryChainFor resolves the rpc-registry chain key for an internal network
@@ -36,10 +37,12 @@ func registryChainFor(network string) string {
 	return NormalizeToInternalNetwork(network)
 }
 
-// degradedBalancesForNetwork returns native + common-token balances for one
-// address on one network using only public RPCs (no API key). Tokens with zero
-// balance are omitted. Best-effort: any sub-query failure is skipped, not fatal.
-func degradedBalancesForNetwork(address, network string) []SimplifiedTokenBalance {
+// degradedBalancesForNetwork returns native + token balances for one address on
+// one network using only public RPCs (no API key). The token set is the curated
+// common list unioned with extra (the user's touched tokens / table B) for this
+// network. Tokens with zero balance are omitted. Best-effort: any sub-query
+// failure is skipped, not fatal.
+func degradedBalancesForNetwork(address, network string, extra []TokenRef) []SimplifiedTokenBalance {
 	chainKey := registryChainFor(network)
 
 	endpoints, err := rpc.DefaultRegistry.GetAllRPCEndpoints(chainKey)
@@ -64,8 +67,8 @@ func degradedBalancesForNetwork(address, network string) []SimplifiedTokenBalanc
 		}
 	}
 
-	// 2. Common ERC-20 tokens via Multicall3 (one batched eth_call, with RPC fallback).
-	if tokens := CommonTokensFor(network); len(tokens) > 0 {
+	// 2. Common + touched ERC-20 tokens via Multicall3 (one batched eth_call, with RPC fallback).
+	if tokens := mergeTokensForNetwork(network, extra); len(tokens) > 0 {
 		if bals, err := GetTokenBalancesMulticallFallback(endpoints, address, network, tokens); err == nil {
 			out = append(out, bals...)
 		}
@@ -83,7 +86,34 @@ func degradedTokenBalances(addrs []AddressWithNetworks) []SimplifiedTokenBalance
 	var all []SimplifiedTokenBalance
 	for _, a := range addrs {
 		for _, net := range a.Networks {
-			all = append(all, degradedBalancesForNetwork(a.Address, net)...)
+			all = append(all, degradedBalancesForNetwork(a.Address, net, nil)...)
+		}
+	}
+	return all
+}
+
+// GetSelfHostedTokenBalances is the PRIMARY (feature-dimension) balance entry
+// point: for every (address, network) it returns native + common-token balances
+// using only the public RPC pool + Multicall3 — no API key, all chains. This is
+// the same engine as the former no-key "degraded" path, promoted from a fallback
+// to the main balance route (see GetBalanceProviderForNetwork). USD prices are
+// filled separately by EnrichPricesWithDefiLlama at the FFI layer.
+func GetSelfHostedTokenBalances(addrs []AddressWithNetworks) []SimplifiedTokenBalance {
+	return degradedTokenBalances(addrs)
+}
+
+// GetSelfHostedTokenBalancesWithExtra is GetSelfHostedTokenBalances plus the
+// user's touched tokens (table B): extraByAddr maps a user address to the extra
+// tokens it has interacted with (swap outputs, airdrops, manual imports). For
+// each (address, network) the queried token set is the common list unioned with
+// that address's touched tokens for that network. Balances stay live (no cached
+// amounts) — only the token *list* comes from table B.
+func GetSelfHostedTokenBalancesWithExtra(addrs []AddressWithNetworks, extraByAddr map[string][]TokenRef) []SimplifiedTokenBalance {
+	var all []SimplifiedTokenBalance
+	for _, a := range addrs {
+		extra := extraByAddr[a.Address]
+		for _, net := range a.Networks {
+			all = append(all, degradedBalancesForNetwork(a.Address, net, extra)...)
 		}
 	}
 	return all

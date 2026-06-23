@@ -248,6 +248,7 @@ const sendTransactionHandler: RequestHandler = async (
         unsignedTx,
         usbPath: context.usbPath,
         sessionToken: context.sessionToken,
+        acknowledgedRisk: approval.acknowledged ?? false,
       }
     });
 

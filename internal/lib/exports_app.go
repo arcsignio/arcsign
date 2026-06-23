@@ -348,23 +348,13 @@ func GetTokenBalances(params *C.char) (result *C.char) {
 	}
 	defer zeroString(&appPassword)
 
-	// Step 1: Load Alchemy API key from provider registry
-	// Note: Using provider registry system instead of app config for now
-	// Construct full path to provider_config.enc in USB root directory
-	providerConfigPath := filepath.Join(input.USBPath, "provider_config.enc")
-	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: providerConfigPath = %s", providerConfigPath))
+	// Step 1: (no provider config needed) — balances use the self-hosted public
+	// RPC + Multicall3 path, which requires no API key. We deliberately do NOT
+	// open provider_config.enc here: token balances must work for every chain
+	// even when the user has configured no provider keys at all. NFT / history
+	// (GetNFTs / GetAssetTransfers) still load provider keys, as those genuinely
+	// need a third-party indexer.
 	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: Using session token auth: %v", input.SessionToken != ""))
-
-	providerStore, err := provider.NewProviderConfigStore(providerConfigPath, appPassword)
-	if err != nil {
-		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-	defer providerStore.Close()
-
-	// API keys are resolved per-provider inside the WalletDataProvider registry
-	// (Alchemy/NodeReal need a key, Glacier is anonymous). No key check here.
 
 	// Step 2: Verify wallet password before loading addresses
 	// Security: Must authenticate user before exposing wallet data
@@ -402,14 +392,20 @@ func GetTokenBalances(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Step 3: Separate addresses by provider (Alchemy vs NodeReal vs Glacier)
+	// Step 3: Collect every EVM address into the self-hosted balance input.
+	// Balances use FEATURE-DIMENSION routing: instead of bucketing by third-party
+	// provider (Alchemy/NodeReal/Glacier), ALL chains go through the self-hosted
+	// public-RPC + Multicall3 path (no API key). NFTs/history still bucket by
+	// provider — see GetNFTs / GetAssetTransfers, which keep GetProviderForNetwork.
 	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: includeTestnets = %v", input.IncludeTestnets))
 
-	// Step 3: Bucket each address by its provider. The Sepolia testnet special
-	// case is token-only and stays here in the bucketing stage.
-	buckets := bucketAddressesByProvider(walletObj.AddressBook.Addresses, input.IncludeTestnets)
-	totalAddressCount := countBucketedAddresses(buckets)
-	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: bucketed %d addresses across %d providers", totalAddressCount, len(buckets)))
+	entries := make([]provider.WalletAddressEntry, 0, len(walletObj.AddressBook.Addresses))
+	for _, a := range walletObj.AddressBook.Addresses {
+		entries = append(entries, provider.WalletAddressEntry{Address: a.Address, CoinName: a.CoinName})
+	}
+	balanceAddrs := provider.CollectBalanceAddresses(entries)
+	totalAddressCount := len(balanceAddrs)
+	debugLog(fmt.Sprintf("[DEBUG] GetTokenBalances: collected %d EVM addresses for self-hosted balance path", totalAddressCount))
 
 	if totalAddressCount == 0 {
 		emptyOutput := provider.GetTokenBalancesOutput{
@@ -423,30 +419,16 @@ func GetTokenBalances(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Step 4: Dispatch polymorphically — one call per provider bucket.
-	var allTokens []provider.SimplifiedTokenBalance
+	// Step 3.5: Load the user's touched tokens (table B) from the USB so swap
+	// outputs / airdrops / manually-imported tokens are queried too. Best-effort:
+	// a missing or undecryptable store just means "no extra tokens" — it must
+	// NOT fail the balance query (table B is an enrichment, not a requirement).
+	extraByAddr := loadTouchedTokens(input.USBPath, appPassword, balanceAddrs)
+
+	// Step 4: Fetch balances via the self-hosted path (public RPC + Multicall3).
+	// One unified call — native coin + common + touched tokens across all chains, no key.
 	var unavailable []provider.ProviderUnavailable
-	for providerType, addrs := range buckets {
-		wdp, err := provider.GetWalletDataProvider(providerType, providerStore)
-		if err != nil || wdp == nil {
-			// nil = provider unavailable (almost always a missing API key) —
-			// record it so the UI can prompt the user instead of showing blank.
-			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "missing_key"})
-			continue
-		}
-		tokens, err := wdp.GetTokenBalances(addrs)
-		if err != nil {
-			fmt.Printf("%s GetTokenBalances error: %v\n", providerType, err)
-			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "query_failed"})
-		}
-		// A provider running without its key still returns basic balances; report
-		// a soft "degraded" hint so the UI can offer to unlock full data, rather
-		// than implying the chain is broken.
-		if d, ok := wdp.(provider.DegradedProvider); ok && d.IsDegraded() {
-			unavailable = append(unavailable, provider.ProviderUnavailable{Provider: providerType, Reason: "degraded"})
-		}
-		allTokens = append(allTokens, tokens...)
-	}
+	allTokens := provider.GetSelfHostedTokenBalancesWithExtra(balanceAddrs, extraByAddr)
 
 	// Step 4.5: Fill in USD prices for tokens whose provider didn't return one
 	// (BSC/NodeReal, native BNB, etc) using DefiLlama (free, no key).
@@ -805,4 +787,113 @@ func GetTokenApprovals(params *C.char) (result *C.char) {
 	approvalResponse := NewSuccessResponse(output)
 	approvalJsonBytes, _ := json.Marshal(approvalResponse)
 	return C.CString(string(approvalJsonBytes))
+}
+
+// touchedTokensFileName is the per-USB encrypted store for table B (tokens the
+// user has interacted with beyond the curated common list).
+const touchedTokensFileName = "touched_tokens.enc"
+
+// loadTouchedTokens reads the user's touched-token store (table B) and returns a
+// map of user-address -> tokens, restricted to the addresses we're querying.
+// Best-effort: a missing/undecryptable store yields nil (no extra tokens) and is
+// never fatal — balances must work even with no table B at all.
+func loadTouchedTokens(usbPath, appPassword string, addrs []provider.AddressWithNetworks) map[string][]provider.TokenRef {
+	storePath := filepath.Join(usbPath, touchedTokensFileName)
+	store, err := provider.NewTouchedTokenStore(storePath, appPassword)
+	if err != nil {
+		debugLog(fmt.Sprintf("[DEBUG] loadTouchedTokens: store unavailable (%v) — continuing with common tokens only", err))
+		return nil
+	}
+	defer store.Close()
+
+	out := make(map[string][]provider.TokenRef, len(addrs))
+	for _, a := range addrs {
+		if toks := store.TokensForAddress(a.Address); len(toks) > 0 {
+			out[a.Address] = toks
+		}
+	}
+	return out
+}
+
+//export AddTouchedToken
+// AddTouchedToken records that a wallet address has interacted with a token
+// (swap output, airdrop, or manual import), so future balance queries include
+// it. Writes to the per-USB encrypted touched-token store (table B).
+//
+// Input JSON: {
+//   "usbPath": "/path/to/usb",
+//   "sessionToken": "session-token",
+//   "appPassword": "app-level-password",
+//   "userAddress": "0x...",
+//   "token": { "address": "0x...", "network": "eth-mainnet", "symbol": "PEPE", "decimals": 18 }
+// }
+// Returns: {"success": true, "data": {"added": true}}
+func AddTouchedToken(params *C.char) (result *C.char) {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		USBPath      string             `json:"usbPath"`
+		SessionToken string             `json:"sessionToken"`
+		AppPassword  string             `json:"appPassword"`
+		UserAddress  string             `json:"userAddress"`
+		Token        provider.TokenRef  `json:"token"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&input.AppPassword)
+
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	if input.UserAddress == "" || input.Token.Address == "" || input.Token.Network == "" {
+		response := NewErrorResponse(ErrInvalidInput, "userAddress and token (address, network) are required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	appPassword, err := validateSessionAndGetAppPassword(input.SessionToken, input.AppPassword, input.USBPath)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer zeroString(&appPassword)
+
+	storePath := filepath.Join(input.USBPath, touchedTokensFileName)
+	store, err := provider.NewTouchedTokenStore(storePath, appPassword)
+	if err != nil {
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	defer store.Close()
+
+	if err := store.AddToken(input.UserAddress, input.Token); err != nil {
+		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	response := NewSuccessResponse(map[string]bool{"added": true})
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
 }

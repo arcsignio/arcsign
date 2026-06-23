@@ -766,6 +766,28 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       setTxHash(broadcastResult.txHash);
       setStep("success");
       onSuccess?.(broadcastResult.txHash);
+
+      // Record the swap output token into table B so its balance is queried on
+      // the self-hosted path going forward. We already KNOW what we swapped into
+      // (it's the output token) — no scanning needed. Best-effort: a failure here
+      // must not affect the successful swap, so we only log.
+      const ownerAddr = fromToken?.fromAddress;
+      const outNetwork = toToken?.network;
+      if (ownerAddr && outNetwork && toToken?.address) {
+        tauriApi
+          .addTouchedToken({
+            usbPath,
+            userAddress: ownerAddr,
+            tokenAddress: toToken.address,
+            network: outNetwork,
+            symbol: toToken.symbol,
+            decimals: toToken.decimals,
+            sessionToken,
+          })
+          .catch((e) => {
+            console.warn("[Swap] failed to record output token into table B:", e);
+          });
+      }
     } catch (err) {
       const appErr = err as AppError;
       setError(appErr.message || t('swap.failedToExecuteSwap'));

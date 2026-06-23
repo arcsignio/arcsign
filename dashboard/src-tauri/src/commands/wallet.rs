@@ -1439,6 +1439,51 @@ pub async fn get_nfts(
     Ok(ffi_response)
 }
 
+/// Record that a wallet address has interacted with a token (table B), so future
+/// balance queries include it. Used for swap outputs, airdrops, and manual import.
+/// Balances stay live — only the token list is persisted (encrypted, on the USB).
+#[tauri::command]
+pub async fn add_touched_token(
+    queue: State<'_, LazyWalletQueue>,
+    usb_path: String,
+    user_address: String,
+    token_address: String,
+    network: String,
+    symbol: String,
+    decimals: i64,
+    session_token: Option<String>,
+    app_password: Option<String>,
+) -> Result<serde_json::Value, String> {
+    tracing::info!("add_touched_token called for address: {} on {}", user_address, network);
+
+    let params = json!({
+        "usbPath": usb_path,
+        "userAddress": user_address,
+        "token": {
+            "address": token_address,
+            "network": network,
+            "symbol": symbol,
+            "decimals": decimals,
+        },
+        "sessionToken": session_token.unwrap_or_default(),
+        "appPassword": app_password.unwrap_or_default(),
+    });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    let ffi_response = queue
+        .add_touched_token(params_json)
+        .await
+        .map_err(|e| {
+            tracing::error!("FFI add_touched_token call failed: {}", e);
+            let msg = e.splitn(2, ": ").nth(1).unwrap_or(&e).to_string();
+            AppError::with_details(ErrorCode::CliExecutionFailed, msg, e)
+        })?;
+
+    Ok(ffi_response)
+}
+
 /// Get active ERC-20 token approvals for a wallet's EVM addresses.
 ///
 /// Queries Approval events via eth_getLogs and verifies current allowance on-chain.

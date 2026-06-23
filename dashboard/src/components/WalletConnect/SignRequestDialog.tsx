@@ -20,7 +20,7 @@ import { isHighRiskSign } from '@/services/clearsign/riskGate';
 interface SignRequestDialogProps {
   isOpen: boolean;
   request: SignatureRequestParams | null;
-  onApprove: (password: string) => void;
+  onApprove: (password: string, acknowledged?: boolean) => void;
   onReject: () => void;
 }
 
@@ -64,7 +64,7 @@ export const SignRequestDialog: React.FC<SignRequestDialogProps> = ({
     setLoading(true);
     setError(null);
     try {
-      onApprove(password);
+      onApprove(password, acknowledged);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signing failed');
     } finally {

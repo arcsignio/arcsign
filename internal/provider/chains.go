@@ -46,6 +46,13 @@ const (
 	ProviderNodeReal = "nodereal"
 	ProviderBSCTrace = "bsctrace" // Alias for nodereal
 	ProviderGlacier  = "glacier"  // Avalanche Data API (anonymous, no API key)
+
+	// ProviderSelfHosted is the feature-dimension provider for BALANCE queries:
+	// public RPC pool + Multicall3 + DefiLlama prices, no API key, all chains.
+	// NFT / transaction-history queries still use the chain-dimension providers
+	// above (Alchemy / NodeReal / Glacier) via GetProviderForNetwork — only
+	// balances route here, via GetBalanceProviderForNetwork.
+	ProviderSelfHosted = "self-hosted"
 )
 
 // ================================================================================
@@ -154,6 +161,18 @@ func GetProviderForNetwork(network string) string {
 	}
 	// Default to Alchemy for unknown networks
 	return ProviderAlchemy
+}
+
+// GetBalanceProviderForNetwork returns the provider type for BALANCE queries on
+// a given network. Unlike GetProviderForNetwork (chain-dimension routing, used
+// by NFTs/history), balances are decentralized: every chain routes to the
+// self-hosted public-RPC + Multicall3 path, requiring no API key. The network
+// argument is accepted (and normalized) so callers stay symmetric with
+// GetProviderForNetwork and so this can become per-chain in the future if some
+// chain ever needs a different balance backend.
+func GetBalanceProviderForNetwork(network string) string {
+	_ = NormalizeToInternalNetwork(network)
+	return ProviderSelfHosted
 }
 
 // ================================================================================

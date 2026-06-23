@@ -1,5 +1,7 @@
 package provider
 
+import "strings"
+
 // Common token whitelist used for the no-API-key (degraded) path: when the user
 // hasn't configured an Alchemy key, we can't discover which tokens they hold
 // (no free indexer for these chains), so we query a curated set of well-known
@@ -73,9 +75,46 @@ var commonTokensByNetwork = map[string][]CommonToken{
 		// liquid staking receipt
 		{"ankrBNB", "0x52f24a5e03aee338da5fd9df68d2b6fae1178827", 18},
 	},
+	NetworkAvalancheMainnet: {
+		{"USDC", "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e", 6},  // native USDC
+		{"USDT", "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7", 6},  // native USDT
+		{"WAVAX", "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7", 18}, // wrapped AVAX
+		{"WETH.e", "0x49d5c2bdffac6ce2bfdb6640f4f80f226bc10bab", 18},
+		{"WBTC.e", "0x50b7545627a5162f82a992c33b87adc75187b218", 8},
+		{"DAI.e", "0xd586e7f844cea2f87f50152665bcbc2c279d8d70", 18},
+	},
 }
 
 // CommonTokensFor returns the curated token set for an internal network id.
 func CommonTokensFor(network string) []CommonToken {
 	return commonTokensByNetwork[NormalizeToInternalNetwork(network)]
+}
+
+// mergeTokensForNetwork returns the balance token list for one network: the
+// curated common set (table A) unioned with the user's touched tokens (table B)
+// for that same network. Touched tokens for other networks are filtered out, and
+// any touched token whose contract address already appears in the common set is
+// de-duplicated (common set wins). This is what lets a swap output / airdrop /
+// manually-imported token have its balance queried alongside the common tokens.
+func mergeTokensForNetwork(network string, extra []TokenRef) []CommonToken {
+	normalized := NormalizeToInternalNetwork(network)
+	out := append([]CommonToken(nil), CommonTokensFor(normalized)...)
+
+	seen := make(map[string]bool, len(out))
+	for _, t := range out {
+		seen[strings.ToLower(t.Address)] = true
+	}
+
+	for _, e := range extra {
+		if NormalizeToInternalNetwork(e.Network) != normalized {
+			continue
+		}
+		addr := strings.ToLower(e.Address)
+		if seen[addr] {
+			continue
+		}
+		seen[addr] = true
+		out = append(out, CommonToken{Symbol: e.Symbol, Address: addr, Decimals: e.Decimals})
+	}
+	return out
 }

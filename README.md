@@ -14,7 +14,7 @@
 [![DCO](https://img.shields.io/badge/Commits-DCO-blue.svg)](CONTRIBUTING.md)
 [![Maintainer](https://img.shields.io/badge/maintained%20by-%40Jason--chen--taiwan-0d9488.svg)](https://github.com/Jason-chen-taiwan)
 
-ArcSign is an open-source desktop cold wallet for Bitcoin and 6 EVM chains.
+ArcSign is an open-source desktop cold wallet for Bitcoin and 7 EVM chains.
 Private keys are generated and stored only on a USB device. The `.arcsign`
 encrypted backup file replaces paper seed phrases — it's AES-256 encrypted
 at export, so a stolen backup file isn't a stolen wallet.
@@ -39,14 +39,17 @@ Apache 2.0 licensed. Fork-friendly with a small trademark policy — see
 
 ## Features
 
-- **Multi-chain HD wallet** — Bitcoin + 6 EVM chains
-  (Ethereum, BSC, Polygon, Arbitrum, Optimism, Base).
+- **Multi-chain HD wallet** — Bitcoin + 7 EVM chains
+  (Ethereum, BSC, Polygon, Arbitrum, Optimism, Base, Avalanche).
+- **Key-free balances on every chain** — native coins + common/imported tokens
+  are read over public RPC + Multicall3 (no API key, no third-party indexer),
+  with USD prices from DefiLlama.
 - **USB cold storage** — private keys live on the USB, never on the host.
 - **`.arcsign` encrypted backup** — AES-256 at export. No paper seed phrases.
 - **DEX swap aggregator** — OpenOcean + KyberSwap parallel quotes,
   picks the best route automatically.
 - **Token approvals manager** — view and revoke ERC-20 approvals across
-  6 chains. Pro users get batch revoke.
+  the EVM chains. Pro users get batch revoke.
 - **NFT gallery** — cross-chain ERC-721 / ERC-1155 display.
 - **DeFi positions** — liquid staking (stETH, ankrETH, ankrBNB) with
   real-time APY.
@@ -123,60 +126,54 @@ On-chain reads go through one **`WalletDataProvider` abstraction**
 one-place change: implement the interface, add a wrapper, register it, and map
 the chain.
 
+Routing is **feature-dimension**: balances and NFTs/history take different paths.
+
 ```
-            GetTokenBalances / GetNFTs / GetAssetTransfers
-                              │
-                   ┌──────────┴──────────┐
-                   │ WalletDataProvider  │   interface (provider-agnostic
-                   │  (registry + chains)│   Simplified* return types)
-                   └──────────┬──────────┘
-        ┌──────────────┬──────┴───────┬───────────────────┐
-        ▼              ▼              ▼                   ▼
-   Alchemy WDP    NodeReal WDP    Glacier WDP     DefiLlama (price enrich)
-   5 EVM chains   BSC             Avalanche       no key — fills USD values
-   key unlocks    key unlocks     no key          for whatever the providers
-   full data      full data       (anon tier)     left at 0
-        └──────┬───────┘
-               ▼
-   shared no-key degraded path (degraded.go) — native + common tokens
-   via public RPC + Multicall3.  ONE implementation, used by both.
+   BALANCES (all 7 chains, NO key)        NFTs / TX HISTORY (need indexer)
+            │                                        │
+            ▼                                        ▼
+   self-hosted path                          WalletDataProvider
+   (degraded.go / multicall.go)              (registry + chains)
+   public RPC pool + Multicall3                 ┌────────┬────────┐
+   + common tokens + table B                    ▼        ▼        ▼
+            │                              Alchemy   NodeReal  Glacier
+            ▼                              5 EVM     BSC       Avalanche
+   DefiLlama price enrich (no key)         (key)     (key)     (no key)
 ```
 
-| Chain(s) | Provider | API key | Without a key |
-|---|---|---|---|
-| Ethereum · Polygon · Arbitrum · Optimism · Base | **Alchemy** | required for full data | **degraded path** (see below) |
-| BSC | **NodeReal** | required for full BEP-20 discovery | **same degraded path** — native BNB + common BEP-20s (USDC/USDT/WBNB/ankrBNB) |
-| Avalanche | **Glacier** (Avalanche Data API) | none (anonymous tier) | full token/NFT data |
-| *all of the above* | **DefiLlama** | none | fills USD prices the providers returned as 0 |
+**Balances — no key, every chain.** All 7 chains' native coin + common tokens
+(+ user-imported tokens) are read over **public RPC pool + Multicall3**
+(`degraded.go` / `multicall.go`, same Multicall3 address on every chain, with
+per-endpoint fallback), prices filled by **DefiLlama**. No API key, no
+`provider_config.enc` opened. The token set per chain is the curated whitelist
+(`common_tokens.go` — stablecoins, wrapped coins, major DeFi + liquid-staking
+receipts stETH/ankrETH/eETH/ankrBNB) unioned with the user's **touched tokens**
+(table B — swap outputs, manual imports; stored encrypted per-USB, never leaves
+the device).
 
-**Progressive API keys (no-key path).** A brand-new user with **no API key** on
-any EVM provider still sees basic assets. There is **one unified degraded
-implementation** (`internal/provider/degraded.go`) — every EVM provider wrapper
-that lacks its key delegates to the *same* helper, so the no-key behaviour is
-identical across the Alchemy chains **and** BSC. It queries, over public RPCs
-only:
+**NFTs / transaction history — need a third-party indexer.** These require
+full-chain indexing public RPC can't provide (`eth_getLogs` over all history /
+NFT enumeration), so they keep the per-chain provider:
 
-- the **native coin** balance (`eth_getBalance`), and
-- a **curated common-token whitelist** (`common_tokens.go`) — stablecoins,
-  wrapped coins, the chain's own token, major DeFi tokens, and **liquid-staking
-  receipts** (stETH / ankrETH / eETH / ankrBNB) — batched into **one
-  `eth_call` per chain via Multicall3** (`multicall.go`, same contract address
-  on every chain), with RPC fallback.
+| Chain(s) | NFT/history provider | API key |
+|---|---|---|
+| Ethereum · Polygon · Arbitrum · Optimism · Base | **Alchemy** | required (else surfaced via `unavailableProviders`) |
+| BSC | **NodeReal** | required |
+| Avalanche | **Glacier** (Avalanche Data API) | none (anonymous tier) |
 
-USD values are filled by **DefiLlama** (no key). Full token *discovery*, NFTs
-and transaction history require the provider's key — surfaced in-app as a soft
-"add a key to unlock more", not an error. There is **no hard-coded API key** in
-the repo; provider keys live only in the per-USB encrypted provider config.
+There is **no hard-coded API key** in the repo; provider keys live only in the
+per-USB encrypted provider config.
 
 ### No-key vs. with-key, at a glance
 
 | Capability | No key | + provider key |
 |---|---|---|
-| Native balances (ETH/MATIC/BNB/AVAX/…) | ✅ | ✅ |
-| Common tokens (USDC/USDT/DAI/WETH/…) — incl. BSC | ✅ (whitelist) | ✅ (full discovery) |
+| Native balances (ETH/MATIC/BNB/AVAX/…) — all 7 chains | ✅ | ✅ |
+| Common tokens (USDC/USDT/DAI/WETH/…) — incl. BSC | ✅ | ✅ |
 | Liquid-staking receipts (stETH/eETH/ankrBNB/…) | ✅ | ✅ |
+| User-imported / swap-output tokens (table B) | ✅ | ✅ |
 | USD prices (DefiLlama) | ✅ | ✅ |
-| Arbitrary / long-tail token discovery | ❌ | ✅ |
+| Automatic long-tail token *discovery* | ❌ (import manually) | ✅ |
 | NFT gallery | Avalanche only | ✅ all EVM chains |
 | Transaction history | ❌ | ✅ |
 

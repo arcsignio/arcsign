@@ -37,6 +37,7 @@ import { NFTGallery } from "@/components/NFTGallery";
 import { DefiPositions } from "@/components/DefiPositions";
 import { TokenApprovals } from "@/components/TokenApprovals";
 import { AddressBook } from "@/components/AddressBook";
+import { AddTokenDialog } from "@/components/AddTokenDialog";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
@@ -93,6 +94,7 @@ export function WalletDetail({
   const passwordRef = useRef<string>("");
   const [activeTab, setActiveTab] = useState<TabType>("crypto");
   const [showPercentage, setShowPercentage] = useState(true);
+  const [showAddToken, setShowAddToken] = useState(false);
 
   // Passphrase validation state (for wallets with BIP39 passphrase)
   const [showPassphrasePrompt, setShowPassphrasePrompt] = useState(false);
@@ -2049,6 +2051,24 @@ export function WalletDetail({
               </div>
             );
           })()}
+          {/* Import token: manually add a token (by contract) to table B so its
+              balance is queried on the self-hosted path even if it's not in the
+              common list — escape hatch for airdrops/old tokens scanning misses. */}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.75rem" }}>
+            <button
+              type="button"
+              onClick={() => setShowAddToken(true)}
+              style={{
+                display: "flex", alignItems: "center", gap: "0.375rem",
+                padding: "0.4rem 0.8rem", fontSize: "0.8125rem", fontWeight: 500,
+                color: "#0d9488", background: "transparent",
+                border: "1px solid #0d9488", borderRadius: "8px", cursor: "pointer",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              {t('walletDetail.importToken', 'Import token')}
+            </button>
+          </div>
           {isLoading ? (
             <div style={{ textAlign: "center", padding: "3rem" }}>
               <LoadingSpinner />
@@ -2281,6 +2301,24 @@ export function WalletDetail({
               })}
             </div>
           )}
+
+          {showAddToken && (() => {
+            const evmAddr = walletAddresses.find(
+              (a) => a.name === "Ethereum" || a.symbol === "ETH" || a.coin_type === 60
+            );
+            if (!evmAddr) return null;
+            return (
+              <AddTokenDialog
+                usbPath={usbPath}
+                userAddress={evmAddr.address}
+                network="eth-mainnet"
+                networkLabel="Ethereum"
+                sessionToken={getSessionToken() || undefined}
+                onAdded={() => { void handleRefreshBalances(); }}
+                onClose={() => setShowAddToken(false)}
+              />
+            );
+          })()}
         </div>
       )}
 

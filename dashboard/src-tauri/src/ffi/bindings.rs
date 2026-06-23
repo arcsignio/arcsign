@@ -105,6 +105,9 @@ type GetTokenBalancesFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for GetNFTs: char* GetNFTs(char* params)
 type GetNFTsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+/// Function signature for AddTouchedToken: char* AddTouchedToken(char* params)
+type AddTouchedTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 /// Function signature for GetTokenApprovals: char* GetTokenApprovals(char* params)
 type GetTokenApprovalsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
@@ -277,6 +280,8 @@ pub struct WalletLibrary {
     get_token_balances: Symbol<'static, GetTokenBalancesFn>,
     // NFT query function symbols
     get_nfts: Symbol<'static, GetNFTsFn>,
+    // Touched-token (table B) write function symbol
+    add_touched_token: Symbol<'static, AddTouchedTokenFn>,
     // Token approvals query function symbols
     get_token_approvals: Symbol<'static, GetTokenApprovalsFn>,
     // Transaction security check function symbol
@@ -506,6 +511,10 @@ impl WalletLibrary {
                 .get(b"GetNFTs")
                 .map_err(|e| format!("GetNFTs symbol not found: {}", e))?;
 
+            let add_touched_token: Symbol<AddTouchedTokenFn> = lib
+                .get(b"AddTouchedToken")
+                .map_err(|e| format!("AddTouchedToken symbol not found: {}", e))?;
+
             let get_token_approvals: Symbol<GetTokenApprovalsFn> = lib
                 .get(b"GetTokenApprovals")
                 .map_err(|e| format!("GetTokenApprovals symbol not found: {}", e))?;
@@ -685,6 +694,7 @@ impl WalletLibrary {
             let unlock_app: Symbol<'static, UnlockAppFn> = std::mem::transmute(unlock_app);
             let get_token_balances: Symbol<'static, GetTokenBalancesFn> = std::mem::transmute(get_token_balances);
             let get_nfts: Symbol<'static, GetNFTsFn> = std::mem::transmute(get_nfts);
+            let add_touched_token: Symbol<'static, AddTouchedTokenFn> = std::mem::transmute(add_touched_token);
             let get_token_approvals: Symbol<'static, GetTokenApprovalsFn> = std::mem::transmute(get_token_approvals);
             let check_transaction_security: Symbol<'static, CheckTransactionSecurityFn> = std::mem::transmute(check_transaction_security);
             let get_cached_abi: Symbol<'static, GetCachedAbiFn> = std::mem::transmute(get_cached_abi);
@@ -753,6 +763,7 @@ impl WalletLibrary {
                 unlock_app,
                 get_token_balances,
                 get_nfts,
+                add_touched_token,
                 get_token_approvals,
                 check_transaction_security,
                 get_cached_abi,
@@ -1336,6 +1347,11 @@ impl WalletLibrary {
     /// ```
     pub fn get_nfts(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.get_nfts, params_json)
+    }
+
+    /// Record that a wallet address has interacted with a token (table B).
+    pub fn add_touched_token(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.add_touched_token, params_json)
     }
 
     /// Get active ERC-20 token approvals for a wallet's EVM addresses.

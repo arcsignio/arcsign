@@ -98,6 +98,7 @@ export interface SignatureRequestParams {
 export interface SignatureResult {
   approved: boolean;
   password?: string; // Wallet password if approved
+  acknowledged?: boolean; // User acknowledged a high-risk (blacklist) target
 }
 
 export interface EIP712TypedData {

@@ -66,7 +66,7 @@ interface WalletConnectContextValue {
   disconnectAllSessions: () => Promise<void>;
 
   // Sign request actions (Phase 2)
-  approveSignRequest: (password: string) => void;
+  approveSignRequest: (password: string, acknowledged?: boolean) => void;
   rejectSignRequest: () => void;
 
   // Session recovery
@@ -551,10 +551,10 @@ export const WalletConnectProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   // Sign request actions (Phase 2)
-  const approveSignRequest = useCallback((password: string) => {
+  const approveSignRequest = useCallback((password: string, acknowledged?: boolean) => {
     console.log('[WC Context] User approved sign request');
     if (pendingSignRequestRef.current) {
-      pendingSignRequestRef.current.resolve({ approved: true, password });
+      pendingSignRequestRef.current.resolve({ approved: true, password, acknowledged: acknowledged ?? false });
       pendingSignRequestRef.current = null;
     }
     setShowSignDialog(false);

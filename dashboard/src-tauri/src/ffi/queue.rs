@@ -226,6 +226,11 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Record a touched token (table B) for a wallet address
+    AddTouchedToken {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
     /// Get active ERC-20 token approvals for a wallet
     GetTokenApprovals {
         params_json: String,
@@ -617,6 +622,11 @@ impl WalletQueue {
                 }
                 WalletCommand::GetNFTs { params_json, respond_to } => {
                     let result = library.get_nfts(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::AddTouchedToken { params_json, respond_to } => {
+                    let result = library.add_touched_token(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -1239,6 +1249,25 @@ impl WalletQueue {
         self.metrics.record_enqueue();
         self.sender
             .send(WalletCommand::GetNFTs {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Record a touched token (table B) for a wallet address.
+    pub async fn add_touched_token(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::AddTouchedToken {
                 params_json,
                 respond_to: sender,
             })
@@ -2212,6 +2241,11 @@ impl LazyWalletQueue {
     /// Get NFTs owned by a wallet
     pub async fn get_nfts(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().get_nfts(params_json).await
+    }
+
+    /// Record a touched token (table B) for a wallet address
+    pub async fn add_touched_token(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().add_touched_token(params_json).await
     }
 
     /// Get active ERC-20 token approvals for a wallet
