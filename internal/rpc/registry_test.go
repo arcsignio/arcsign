@@ -9,6 +9,14 @@ import (
 // must resolve to RPC endpoints — a chain here with no endpoints means balances
 // silently disappear for it (the failure mode we hit when Polygon's endpoints
 // all started requiring API keys / shut down).
+//
+// ⚠️ MANUAL SYNC: this list mirrors provider.AllMainnetNetworks() but is written
+// out by hand because the rpc package cannot import provider (import cycle). When
+// you add a chain, add its rpc-registry chain key here too. If you forget, THIS
+// test won't catch it — but provider.TestEveryMainnetChainHasSelfHostedSupport
+// will (it loops AllMainnetNetworks and resolves through to this registry), so
+// the gap is caught on the provider side, not here. Keeping both in sync keeps
+// the failure message local to the layer that's actually broken.
 var mainnetChains = []string{
 	"ethereum", "polygon", "arbitrum", "optimism", "base", "bsc", "avalanche",
 }

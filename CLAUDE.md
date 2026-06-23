@@ -167,6 +167,35 @@ Reading on-chain data goes through a **unified `WalletDataProvider` abstraction*
   - There is **no hard-coded shared key** in the repo — a leaked NodeReal key
     was removed; provider keys live only in the per-USB encrypted config.
 
+#### Adding a new EVM chain (checklist)
+
+Balances are data-driven across a few maps; NFT/history needs a provider. Minimum
+edits for a new chain (omitting any **balance** entry makes that chain's balances
+silently empty/partial):
+
+1. `internal/provider/chains.go` — add `NetworkXxx` const + entries in
+   `NetworkToProvider`, `NetworkLabels`, and `AllMainnetNetworks()`.
+2. `internal/rpc/registry.go` — `registerChain(...)` with a keyless `PrimaryRPC`
+   + `BackupRPCs`. **Also register an alias equal to the internal network id**
+   (e.g. `r.registerChain("xxx-mainnet", r.chains["xxx"])`) — this lets
+   `registryChainFor` resolve via pass-through and saves step 3.
+3. `internal/provider/degraded.go` — add to `internalToRegistryChain` **only if**
+   the registry has no alias matching the internal id (skip if step 2 added one).
+4. `internal/provider/common_tokens.go` — add a `commonTokensByNetwork` entry
+   (≥ the chain's stablecoins/wrapped native), or the chain shows native only.
+5. `internal/provider/networks.go` — add the wallet CoinName → internal id rows
+   in `ChainToInternalNetwork`, else `CollectBalanceAddresses` skips the address.
+6. **NFT/history (only if supported)** — `wallet_data_registry.go` factory +
+   provider client/wrapper (skip if reusing an existing provider).
+7. `internal/rpc/registry_test.go` — add the registry chain key to the hand-written
+   `mainnetChains` (manual: rpc package can't import provider).
+
+Auto-covered (no edits): `GetBalanceProviderForNetwork` (always self-hosted),
+Multicall3 (same address all chains), `mergeTokensForNetwork`/touched-tokens,
+DefiLlama prices. The cross-layer guard
+`provider.TestEveryMainnetChainHasSelfHostedSupport` loops `AllMainnetNetworks()`
+and fails CI if any of steps 1–4 are missed.
+
 ### FFI Call Discipline
 
 After any change to Go files under `internal/`, you **must** rebuild the
