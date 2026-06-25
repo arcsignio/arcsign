@@ -71,7 +71,7 @@ func deriveAndSign(ctx context.Context, p signParams, req signgate.SignRequest, 
 	if err != nil {
 		return nil, err
 	}
-	derivationPath, err := derivationPathFor(walletObj, p.Address)
+	derivationPath, err := derivationPathFor(walletObj, p.Address, true)
 	if err != nil {
 		return nil, err
 	}
@@ -125,13 +125,18 @@ func deriveAndSign(ctx context.Context, p signParams, req signgate.SignRequest, 
 }
 
 // derivationPathFor finds the address's derivation path in the wallet's
-// AddressBook (case-insensitive), matching the former per-export lookup.
-func derivationPathFor(walletObj *models.Wallet, address string) (string, error) {
+// AddressBook. caseInsensitive selects EqualFold (message/typed-data) vs exact
+// == (transaction) — preserving each signing path's existing lookup behavior.
+func derivationPathFor(walletObj *models.Wallet, address string, caseInsensitive bool) (string, error) {
 	if walletObj.AddressBook == nil {
 		return "", errAddressNotFound
 	}
 	for _, addr := range walletObj.AddressBook.Addresses {
-		if strings.EqualFold(addr.Address, address) {
+		match := addr.Address == address
+		if caseInsensitive {
+			match = strings.EqualFold(addr.Address, address)
+		}
+		if match {
 			return addr.DerivationPath, nil
 		}
 	}
