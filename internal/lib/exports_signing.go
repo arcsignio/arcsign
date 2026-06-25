@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"runtime/debug"
 	"strings"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -47,12 +46,6 @@ import (
 //   }
 // }
 func SignMessage(params *C.char) (result *C.char) {
-	start := time.Now()
-	defer func() {
-		elapsed := time.Since(start)
-		_ = elapsed
-	}()
-
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
@@ -323,10 +316,11 @@ func msgDecodedBytes(message string) []byte {
 }
 
 // mapSignError maps signgate.ErrBlocked to the blacklist error code; all other
-// errors fall through to the generic signing-failed code.
+// errors delegate to MapWalletError so wrong-password / wallet-not-found / etc.
+// surface their specific codes (consistent with SignTransaction).
 func mapSignError(err error) ErrorCode {
 	if errors.Is(err, signgate.ErrBlocked) {
 		return ErrBlacklisted
 	}
-	return ErrTransactionSignFailed
+	return MapWalletError(err)
 }

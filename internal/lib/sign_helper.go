@@ -92,6 +92,9 @@ func deriveAndSign(ctx context.Context, p signParams, req signgate.SignRequest, 
 
 	// NewSecureSigner splits privateKeyBytes into XOR shares and zeroes the
 	// input on success; on failure we zero it ourselves before returning.
+	// chainID is "ethereum": an EIP-191/EIP-712 (and tx) signature is a raw
+	// secp256k1 sig over a hash, identical across the EVM family — so all signing
+	// paths share one SecureSigner config. (Matches the former per-export code.)
 	secureSigner, err := security.NewSecureSigner(privateKeyBytes, p.Address, "ethereum")
 	if err != nil {
 		security.SecureZero(privateKeyBytes)
