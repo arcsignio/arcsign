@@ -3,6 +3,42 @@
 All notable changes to ArcSign. Format follows [Keep a Changelog](https://keepachangelog.com/),
 Semantic Versioning.
 
+## [v1.5.1] — 2026-06-25 — Unified Signing Security Gate
+
+### Security
+
+- **Every signing path now passes through one mandatory backend gate before a
+  private key is touched.** Previously, `eth_signTypedData` (EIP-712) and
+  `personal_sign` reached signing without any security check — the main attack
+  surface for phishing signatures (malicious `Permit` / `Permit2` /
+  `setApprovalForAll`). Transactions, EIP-712 typed data, and messages now all
+  route through the same architecturally-unbypassable gate.
+- **EIP-712 `verifyingContract` normalization defense.** A non-canonical
+  `verifyingContract` (e.g. a decimal number instead of a `0x` address — the
+  ScamSniffer/SlowMist bypass that affected 40+ wallets) is flagged as danger
+  instead of rendering blank.
+- **Blocklist screening of signature contents.** The `spender` / `operator` /
+  `verifyingContract` embedded in an EIP-712 request, and any `0x` address in a
+  `personal_sign` message, are screened against the embedded blocklist
+  (OFAC-sanctioned + known scam spenders). Free, offline, no API key.
+- Danger detected and not acknowledged → the backend refuses to sign; the
+  private key is never decrypted or touched.
+
+### Changed
+
+- Private-key derivation is consolidated into a single entry point
+  (`deriveAndSign`) whose first step is the security gate — no signing path can
+  reach key material without passing it.
+- `mapSignError` delegates to `MapWalletError`, restoring specific error codes
+  (e.g. wrong-password) for message/typed-data signing, consistent with
+  `SignTransaction`.
+
+### Fixed
+
+- Rust `SignMessageInput` / `SignTypedDataInput` were missing the
+  `acknowledged_risk` field, so the user's risk acknowledgement was silently
+  dropped before reaching the backend gate. Plumbed end-to-end.
+
 ## [v1.4.0] — 2026-05-14 — Open Source Launch
 
 ### Changed

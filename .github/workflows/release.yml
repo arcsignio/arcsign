@@ -384,32 +384,60 @@ jobs:
           echo "=== latest.json ==="
           cat release-assets/latest.json
 
+      - name: Build release notes (CHANGELOG section + downloads template)
+        run: |
+          TAG="${{ github.ref_name }}"
+          NOTES_FILE="release-notes.md"
+
+          # Extract this tag's section from CHANGELOG.md (between "## [v1.5.1]"
+          # and the next "## [" heading). Falls back gracefully if not found.
+          CHANGES="$(awk -v tag="$TAG" '
+            $0 ~ "^## \\[" tag "\\]" {grab=1; next}
+            grab && /^## \[/ {exit}
+            grab {print}
+          ' CHANGELOG.md)"
+
+          {
+            echo "## ArcSign ${TAG}"
+            echo
+            if [ -n "$CHANGES" ]; then
+              echo "### What's Changed"
+              echo "$CHANGES"
+            else
+              echo "_No CHANGELOG entry found for ${TAG}; see commit history._"
+              echo
+            fi
+            cat <<'TEMPLATE'
+### Downloads
+
+| Platform | File |
+|----------|------|
+| macOS (Apple Silicon) | `ArcSign-macOS-ARM64.dmg` |
+| Windows (x64) | `ArcSign-Windows-x64.msi` |
+| Linux (x64) | `ArcSign-Linux-x64.deb`, `.AppImage` |
+
+### Verification
+`SHA256SUMS` covers both the installer bundles and the Go
+shared library (`libarcsign.dylib` / `.so` / `.dll`). See
+[`docs/reproducible-builds.md`](https://github.com/arcsignio/arcsign/blob/master/docs/reproducible-builds.md)
+for how to rebuild from source and verify the hash matches.
+
+### Install (macOS / Linux)
+```bash
+bash <(curl -fsSL https://arcsign.io/install.sh)
+```
+TEMPLATE
+          } > "$NOTES_FILE"
+
+          echo "=== release notes ==="
+          cat "$NOTES_FILE"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           tag_name: ${{ github.ref_name }}
           name: ArcSign ${{ github.ref_name }}
-          body: |
-            ## ArcSign ${{ github.ref_name }}
-
-            ### Downloads
-
-            | Platform | File |
-            |----------|------|
-            | macOS (Apple Silicon) | `ArcSign-macOS-ARM64.dmg` |
-            | Windows (x64) | `ArcSign-Windows-x64.msi` |
-            | Linux (x64) | `ArcSign-Linux-x64.deb`, `.AppImage` |
-
-            ### Verification
-            `SHA256SUMS` covers both the installer bundles and the Go
-            shared library (`libarcsign.dylib` / `.so` / `.dll`). See
-            [`docs/reproducible-builds.md`](https://github.com/arcsignio/arcsign/blob/master/docs/reproducible-builds.md)
-            for how to rebuild from source and verify the hash matches.
-
-            ### Install (macOS / Linux)
-            ```bash
-            bash <(curl -fsSL https://arcsign.io/install.sh)
-            ```
+          body_path: release-notes.md
           files: |
             release-assets/*
           draft: false
