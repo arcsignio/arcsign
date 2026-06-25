@@ -38,12 +38,18 @@ type signParams struct {
 	Address    string
 }
 
-// deriveAndSign is the ONE place that decrypts a wallet and derives a private
-// key. It calls signgate.Authorize FIRST — no signing path can reach key
-// material without passing the gate. hashFn computes the kind-specific digest
-// (EIP-191 / EIP-712 / tx) and runs AFTER authorization. Returns the 65-byte
-// signature with v already adjusted (+27), or an error (signgate.ErrBlocked if
-// the gate refuses).
+// deriveAndSign is the single decrypt+derive+sign path for MESSAGE and
+// TYPED-DATA signing (SignMessage / SignTypedData). It calls signgate.Authorize
+// FIRST — no message/typed-data path can reach key material without passing the
+// gate. hashFn computes the kind-specific digest (EIP-191 / EIP-712) and runs
+// AFTER authorization. Returns the 65-byte signature with v already adjusted
+// (+27), or an error (signgate.ErrBlocked if the gate refuses).
+//
+// NOTE: this is NOT the only key-derivation site in the package. SignTransaction
+// (exports_transaction.go) keeps its own decrypt/derive flow (it signs via the
+// multi-step ChainAdapter, a different shape than a single SignHash), but it ALSO
+// calls signgate.Authorize before touching the key. The invariant is "every
+// signing path gates BEFORE deriving the key", not "one derivation entry point".
 func deriveAndSign(ctx context.Context, p signParams, req signgate.SignRequest, hashFn func() (common.Hash, error)) ([]byte, error) {
 	// 1) MANDATORY security gate — before any key material exists.
 	gateCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
