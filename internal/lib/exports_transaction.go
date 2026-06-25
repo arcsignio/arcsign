@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"runtime/debug"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/arcsignio/arcsign/internal/provider"
 	"github.com/arcsignio/arcsign/internal/security"
+	"github.com/arcsignio/arcsign/internal/security/signgate"
 	"github.com/arcsignio/arcsign/internal/security/simulation"
 	"github.com/arcsignio/arcsign/internal/services/bip39service"
 	chainadapterService "github.com/arcsignio/arcsign/internal/services/chainadapter"
@@ -349,21 +351,24 @@ func SignTransaction(params *C.char) (result *C.char) {
 	}
 	defer zeroString(&appPassword)
 
-	// Backend security gate — blacklist check before touching the private key.
-	// Architecturally unbypassable: any path reaching signing hits this. A
-	// blacklist hit (RequiresAcknowledge) without the acknowledgedRisk flag →
-	// refuse to sign (key never used). The frontend checkbox is UX; THIS is the
-	// real gate.
+	// Backend security gate — unified through signgate.Authorize so every signing
+	// path (SignTransaction / SignMessage / SignTypedData) shares ONE entry point.
+	// Architecturally unbypassable: any path reaching signing hits this. danger +
+	// !ack → refuse to sign (key never used). The frontend checkbox is UX; THIS is
+	// the real gate. signgate's KindTransaction branch runs exactly the same
+	// blacklist Check this used to call inline. fail-open if the check can't run.
 	if toAddr, ok := input.UnsignedTx["to"].(string); ok && toAddr != "" {
-		// The blacklist is an in-memory lookup over the embedded seed (no network),
-		// but bound the check anyway so a future slow path can't hang signing. If
-		// the check can't run, RequiresAcknowledge is false → fail OPEN (consistent
-		// with "a check that fails to run never blocks signing").
+		// Bound the check so a future slow path can't hang signing. If it can't run,
+		// Authorize returns nil → fail OPEN (a check that fails never blocks signing).
 		gateCtx, gateCancel := context.WithTimeout(context.Background(), 3*time.Second)
-		// isPro=true: the blacklist runs for everyone; alchemyKey="" skips simulation.
-		gateReport := initTxGuard().Check(gateCtx, true, toAddr, input.ChainID, "", simulation.TxParams{To: toAddr})
+		gateErr := signgate.Authorize(gateCtx, initTxGuard(), signgate.SignRequest{
+			Kind:             signgate.KindTransaction,
+			To:               toAddr,
+			ChainID:          input.ChainID,
+			AcknowledgedRisk: input.AcknowledgedRisk,
+		})
 		gateCancel()
-		if gateReport.RequiresAcknowledge && !input.AcknowledgedRisk {
+		if errors.Is(gateErr, signgate.ErrBlocked) {
 			response := NewErrorResponse(ErrBlacklisted, GetUserFriendlyMessage(ErrBlacklisted))
 			jsonBytes, _ := json.Marshal(response)
 			return C.CString(string(jsonBytes))

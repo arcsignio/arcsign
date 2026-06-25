@@ -14,6 +14,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { checkMessageSecurity } from '@/services/tauri-api';
 import {
   type WCRequest,
   type WCResponse,
@@ -116,6 +117,19 @@ const personalSignHandler: RequestHandler = async (
   const dapp = getDappMetadata(session);
   const chainId = parseChainId(request.params.chainId);
 
+  // Fetch security report — advisory only, never blocks signing. Mirrors the
+  // eth_sendTransaction / eth_signTypedData_v4 handlers: the backend (Go
+  // txguard / blacklist) computes requiresAcknowledge; the dialog renders it
+  // and gathers informed consent. We pass the SAME string handed to
+  // sign_message's `message` field (rawMessage — hex or plain text); the Go
+  // side decodes 0x via msgDecodedBytes, so both judge exactly what gets signed.
+  let security;
+  try {
+    security = await checkMessageSecurity(rawMessage);
+  } catch {
+    security = undefined;
+  }
+
   // Request user approval with password
   console.log('[personal_sign] Requesting user approval...');
   const approval = await context.requestSignature({
@@ -126,6 +140,7 @@ const personalSignHandler: RequestHandler = async (
     chainId,
     message,
     rawMessage,
+    security,
   });
 
   if (!approval.approved || !approval.password) {
@@ -159,6 +174,9 @@ const personalSignHandler: RequestHandler = async (
         usbPath: context.usbPath,
         address: context.address,
         message: rawMessage,
+        // Knowing-consent flag — forwarded to the Go backend gate, which
+        // refuses to sign a blacklisted/high-risk target unless this is true.
+        acknowledgedRisk: approval.acknowledged ?? false,
       }
     });
 

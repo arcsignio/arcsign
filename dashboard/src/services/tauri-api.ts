@@ -816,6 +816,40 @@ export async function checkTransactionSecurity(
   }
 }
 
+/**
+ * Run the txguard risk engine over an EIP-712 typed-data payload before signing.
+ * `typedData` is the EIP-712 JSON string. Returns the same SecurityReport
+ * envelope as checkTransactionSecurity (with requiresAcknowledge etc.).
+ */
+export async function checkTypedDataSecurity(
+  typedData: string,
+): Promise<SecurityReport> {
+  try {
+    return await invoke<SecurityReport>("check_typed_data_security", {
+      typedData,
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+/**
+ * Run the txguard risk engine over a personal-message payload before signing.
+ * `message` is the text or 0x-hex string. Returns the same SecurityReport
+ * envelope as checkTransactionSecurity (with requiresAcknowledge etc.).
+ */
+export async function checkMessageSecurity(
+  message: string,
+): Promise<SecurityReport> {
+  try {
+    return await invoke<SecurityReport>("check_message_security", {
+      message,
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
 // ── Verified-ABI USB cache (Sourcify tier-2: per-USB encrypted) ────────────────
 // Backed by the Go FFI ABI cache via the get_cached_abi/set_cached_abi/
 // clear_abi_cache Tauri commands (each takes a single `params: String`).

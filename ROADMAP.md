@@ -10,6 +10,14 @@ Last reviewed: 2026-05
 
 ## Recently Shipped
 
+- ✅ **Unified mandatory signing security gate** — every signing path
+  (transactions, EIP-712 typed data, `personal_sign`) is forced through one
+  backend gate before a private key is touched. Adds EIP-712 phishing
+  defenses: `verifyingContract` normalization check (blocks the numeric
+  address-bypass), plus blacklist screening of the spender / operator /
+  verifying contract embedded in a signature request. Closes the gap where
+  `eth_signTypedData` / `personal_sign` previously reached signing without a
+  security check.
 - ✅ **Rate limiter on all 7 sensitive FFI endpoints** — defends against
   brute force on session unlock and other high-value entry points.
 - ✅ **Swap aggregator** — parallel quote from OpenOcean + KyberSwap, picks

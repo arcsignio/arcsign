@@ -8,7 +8,9 @@ package main
 */
 import "C"
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"strings"
@@ -18,9 +20,7 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/arcsignio/arcsign/internal/security"
-	"github.com/arcsignio/arcsign/internal/services/bip39service"
-	"github.com/arcsignio/arcsign/internal/services/hdkey"
-	"github.com/arcsignio/arcsign/internal/services/wallet"
+	"github.com/arcsignio/arcsign/internal/security/signgate"
 )
 
 //export SignMessage
@@ -47,12 +47,6 @@ import (
 //   }
 // }
 func SignMessage(params *C.char) (result *C.char) {
-	start := time.Now()
-	defer func() {
-		elapsed := time.Since(start)
-		_ = elapsed
-	}()
-
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
@@ -69,12 +63,13 @@ func SignMessage(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 	var input struct {
-		WalletID   string `json:"walletId"`
-		Password   string `json:"password"`
-		Passphrase string `json:"passphrase"`
-		USBPath    string `json:"usbPath"`
-		Address    string `json:"address"`
-		Message    string `json:"message"`
+		WalletID         string `json:"walletId"`
+		Password         string `json:"password"`
+		Passphrase       string `json:"passphrase"`
+		USBPath          string `json:"usbPath"`
+		Address          string `json:"address"`
+		Message          string `json:"message"`
+		AcknowledgedRisk bool   `json:"acknowledgedRisk"`
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -103,124 +98,41 @@ func SignMessage(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Step 1: Decrypt wallet to get mnemonic
-	walletSvc := wallet.NewWalletService(input.USBPath)
-	mnemonic, err := walletSvc.RestoreWallet(input.WalletID, input.Password)
-	if err != nil {
-		code := MapWalletError(err)
-		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-	defer zeroString(&mnemonic)
-
-	// Step 2: Load wallet metadata to get AddressBook
-	walletObj, err := walletSvc.LoadWallet(input.WalletID)
-	if err != nil {
-		code := MapWalletError(err)
-		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	// Step 3: Find the address in AddressBook to get derivation path
-	if walletObj.AddressBook == nil {
-		response := NewErrorResponse(ErrStorageError, "Wallet has no AddressBook")
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	var derivationPath string
-	found := false
-	for _, addr := range walletObj.AddressBook.Addresses {
-		if strings.EqualFold(addr.Address, input.Address) {
-			derivationPath = addr.DerivationPath
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		response := NewErrorResponse(ErrInvalidInput, "Address not found in wallet")
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	// Step 4: Derive private key for the specific address
-	bip39Svc := bip39service.NewBIP39Service()
-	hdkeySvc := hdkey.NewHDKeyService()
-
-	// Mnemonic → Seed
-	seed, err := bip39Svc.MnemonicToSeed(mnemonic, input.Passphrase)
-	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	// Seed → Master Key
-	masterKey, err := hdkeySvc.NewMasterKey(seed)
-	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	// Master Key → Child Key (using derivation path)
-	childKey, err := hdkeySvc.DerivePath(masterKey, derivationPath)
-	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	// Child Key → Private Key (raw bytes)
-	privateKeyBytes, err := hdkeySvc.GetPrivateKey(childKey)
-	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-	// Step 4b: Create SecureSigner with XOR-split key storage.
-	// SECURITY: privateKeyBytes is split into 3 XOR shares and zeroed here;
-	// the key is only reconstructed momentarily inside SignHash (~1-5ms).
-	// This matches SignTransaction so all signing paths share one protection.
-	// chainID is "ethereum": EIP-191 signatures are a raw secp256k1 sig over a
-	// hash and are identical across the EVM family.
-	secureSigner, err := security.NewSecureSigner(privateKeyBytes, input.Address, "ethereum")
-	if err != nil {
-		security.SecureZero(privateKeyBytes)
-		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-	defer secureSigner.Zeroize()
-
-	// Step 5+6: Build the EIP-191 hash (message decode + prefix + keccak).
-	messageHashBytes, err := eip191Hash(input.Message)
+	// Build the EIP-191 hash (message decode + prefix + keccak) up front so the
+	// gate's hashFn can return it; identical to the former plaintext path.
+	msgHashBytes, err := eip191Hash(input.Message)
 	if err != nil {
 		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
-	messageHash := common.BytesToHash(messageHashBytes)
+	messageHash := common.BytesToHash(msgHashBytes)
 
-	// Step 7: Sign the hash via SecureSigner (XOR-split, key reconstructed
-	// only during the crypto op). Byte-identical to the former plaintext path.
-	signature, err := secureSigner.SignHash(messageHashBytes, input.Address)
+	// Sign through deriveAndSign — the single key-derivation entry point that
+	// runs signgate.Authorize FIRST, so this path passes the mandatory gate.
+	signature, err := deriveAndSign(context.Background(),
+		signParams{
+			WalletID:   input.WalletID,
+			Password:   input.Password,
+			Passphrase: input.Passphrase,
+			USBPath:    input.USBPath,
+			Address:    input.Address,
+		},
+		signgate.SignRequest{
+			Kind:             signgate.KindMessage,
+			Message:          msgDecodedBytes(input.Message),
+			AcknowledgedRisk: input.AcknowledgedRisk,
+		},
+		func() (common.Hash, error) { return messageHash, nil },
+	)
 	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
+		code := mapSignError(err)
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
-	// Adjust v value for Ethereum compatibility (add 27)
-	// go-ethereum returns v as 0 or 1, but Ethereum expects 27 or 28
-	if signature[64] < 27 {
-		signature[64] += 27
-	}
-
-	// Step 8: Return result
+	// Return result
 	output := map[string]interface{}{
 		"signature":   fmt.Sprintf("0x%x", signature),
 		"messageHash": messageHash.Hex(),
@@ -269,12 +181,13 @@ func SignTypedData(params *C.char) (result *C.char) {
 
 	// Parse input
 	var input struct {
-		WalletID   string `json:"walletId"`
-		Password   string `json:"password"`
-		Passphrase string `json:"passphrase"`
-		USBPath    string `json:"usbPath"`
-		Address    string `json:"address"`
-		TypedData  string `json:"typedData"`
+		WalletID         string `json:"walletId"`
+		Password         string `json:"password"`
+		Passphrase       string `json:"passphrase"`
+		USBPath          string `json:"usbPath"`
+		Address          string `json:"address"`
+		TypedData        string `json:"typedData"`
+		AcknowledgedRisk bool   `json:"acknowledgedRisk"`
 	}
 
 	paramsStr, err := safeGoString(params)
@@ -316,110 +229,121 @@ func SignTypedData(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Step 1: Decrypt wallet to get mnemonic
-	walletSvc := wallet.NewWalletService(input.USBPath)
-	mnemonic, err := walletSvc.RestoreWallet(input.WalletID, input.Password)
+	// Sign through deriveAndSign — the single key-derivation entry point that
+	// runs signgate.Authorize FIRST, so this path passes the mandatory gate.
+	// hashTypedDataV4 runs AFTER authorization, inside the gated helper.
+	signature, err := deriveAndSign(context.Background(),
+		signParams{
+			WalletID:   input.WalletID,
+			Password:   input.Password,
+			Passphrase: input.Passphrase,
+			USBPath:    input.USBPath,
+			Address:    input.Address,
+		},
+		signgate.SignRequest{
+			Kind:             signgate.KindTypedData,
+			TypedData:        &typedData,
+			AcknowledgedRisk: input.AcknowledgedRisk,
+		},
+		func() (common.Hash, error) { return hashTypedDataV4(typedData) },
+	)
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-	defer zeroString(&mnemonic)
-
-	// Step 2: Load wallet metadata to find derivation path
-	walletObj, err := walletSvc.LoadWallet(input.WalletID)
-	if err != nil {
-		response := NewErrorResponse(ErrStorageError, GetUserFriendlyMessage(ErrStorageError))
+		code := mapSignError(err)
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
 
-	// Step 3: Find derivation path for the address
-	var derivationPath string
-	for _, addr := range walletObj.AddressBook.Addresses {
-		if strings.EqualFold(addr.Address, input.Address) {
-			derivationPath = addr.DerivationPath
-			break
-		}
-	}
-	if derivationPath == "" {
-		response := NewErrorResponse(ErrTransactionSignFailed, "Address not found in wallet")
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	// Step 4: Derive private key
-	bip39Svc := bip39service.NewBIP39Service()
-	hdkeySvc := hdkey.NewHDKeyService()
-
-	seed, err := bip39Svc.MnemonicToSeed(mnemonic, input.Passphrase)
-	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-	defer security.SecureZero(seed)
-
-	masterKey, err := hdkeySvc.NewMasterKey(seed)
-	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	childKey, err := hdkeySvc.DerivePath(masterKey, derivationPath)
-	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	privateKeyBytes, err := hdkeySvc.GetPrivateKey(childKey)
-	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-	// Create SecureSigner with XOR-split key storage (zeroes privateKeyBytes).
-	// SECURITY: the key is only reconstructed momentarily inside SignHash,
-	// matching SignTransaction / SignMessage. chainID is "ethereum" because an
-	// EIP-712 signature is a raw secp256k1 sig over a hash, identical across EVM.
-	secureSigner, err := security.NewSecureSigner(privateKeyBytes, input.Address, "ethereum")
-	if err != nil {
-		security.SecureZero(privateKeyBytes)
-		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-	defer secureSigner.Zeroize()
-
-	// Step 5: Hash EIP-712 typed data, then sign via SecureSigner.
-	hash, err := hashTypedDataV4(typedData)
-	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	signature, err := secureSigner.SignHash(hash.Bytes(), input.Address)
-	if err != nil {
-		response := NewErrorResponse(ErrTransactionSignFailed, GetUserFriendlyMessage(ErrTransactionSignFailed))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	// Adjust v value for Ethereum compatibility (go-ethereum returns 0/1).
-	if signature[64] < 27 {
-		signature[64] += 27
-	}
-
-	// Step 6: Return result
+	// Return result
 	output := map[string]interface{}{
 		"signature": fmt.Sprintf("0x%x", signature),
 		"signedBy":  input.Address,
 	}
 
 	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export CheckTypedDataSecurity
+// CheckTypedDataSecurity returns the SecurityReport for an EIP-712 payload
+// WITHOUT signing — the frontend calls this to render risk before approval.
+// Offline + free (same engine as the mandatory pre-sign gate). Input JSON:
+// {"typedData":"{...}"}
+func CheckTypedDataSecurity(params *C.char) (result *C.char) {
+	defer func() {
+		if r := recover(); r != nil {
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		TypedData string `json:"typedData"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var typedData apitypes.TypedData
+	if err := json.Unmarshal([]byte(input.TypedData), &typedData); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	report := initTxGuard().CheckTypedData(ctx, &typedData)
+
+	response := NewSuccessResponse(report)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export CheckMessageSecurity
+// CheckMessageSecurity returns the SecurityReport for a personal_sign message
+// WITHOUT signing — the frontend calls this to render risk before approval.
+// Offline + free. The message is hex-decoded (0x-prefixed) the same way
+// SignMessage does, via msgDecodedBytes. Input JSON: {"message":"text or 0x-hex"}
+func CheckMessageSecurity(params *C.char) (result *C.char) {
+	defer func() {
+		if r := recover(); r != nil {
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	report := initTxGuard().CheckMessage(msgDecodedBytes(input.Message))
+
+	response := NewSuccessResponse(report)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
@@ -462,4 +386,25 @@ func hashTypedDataV4(typedData apitypes.TypedData) (common.Hash, error) {
 	// Create the final hash: keccak256("\x19\x01" || domainSeparator || typedDataHash)
 	rawData := []byte(fmt.Sprintf("\x19\x01%s%s", string(domainSeparator), string(typedDataHash)))
 	return ethcrypto.Keccak256Hash(rawData), nil
+}
+
+// msgDecodedBytes returns the raw message bytes (hex-decoded if 0x-prefixed)
+// for the signgate scan — mirrors eip191Hash's decode step.
+func msgDecodedBytes(message string) []byte {
+	if strings.HasPrefix(message, "0x") || strings.HasPrefix(message, "0X") {
+		if b, err := hexToBytes(strings.TrimPrefix(strings.TrimPrefix(message, "0x"), "0X")); err == nil {
+			return b
+		}
+	}
+	return []byte(message)
+}
+
+// mapSignError maps signgate.ErrBlocked to the blacklist error code; all other
+// errors delegate to MapWalletError so wrong-password / wallet-not-found / etc.
+// surface their specific codes (consistent with SignTransaction).
+func mapSignError(err error) ErrorCode {
+	if errors.Is(err, signgate.ErrBlocked) {
+		return ErrBlacklisted
+	}
+	return MapWalletError(err)
 }
