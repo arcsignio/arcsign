@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -144,6 +145,30 @@ func TestGetRouterAddress(t *testing.T) {
 	addr := GetRouterAddress(1)
 	if addr != "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5" {
 		t.Errorf("unexpected router address: %s", addr)
+	}
+}
+
+func TestDoRequest_SendsUserAgent(t *testing.T) {
+	var gotUA string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUA = r.Header.Get("User-Agent")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient()
+	c.baseURL = srv.URL
+
+	_, err := c.doRequest(context.Background(), http.MethodGet, srv.URL+"/ping", nil)
+	if err != nil {
+		t.Fatalf("doRequest error: %v", err)
+	}
+	if gotUA == "" || strings.Contains(gotUA, "Go-http-client") {
+		t.Fatalf("expected a browser-like User-Agent, got %q", gotUA)
+	}
+	if !strings.Contains(gotUA, "ArcSign") {
+		t.Fatalf("expected UA to identify ArcSign, got %q", gotUA)
 	}
 }
 
