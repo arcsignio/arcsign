@@ -120,7 +120,7 @@ type SwapQuote struct {
 	ValidUntil      int64     `json:"validUntil"`
 	NeedsApproval   bool      `json:"needsApproval"`
 	ApprovalAddress string    `json:"approvalAddress"`
-	RouteType       string    `json:"routeType"` // "best" | "standard"
+	RouteType       string    `json:"routeType"` // "best" | "standard" | "standard-fallback"
 	FeeRate         string    `json:"feeRate"`    // "0" | "0.1" (percentage)
 	FeeAmount       string    `json:"feeAmount"`  // Actual fee in input token units
 }
