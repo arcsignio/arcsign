@@ -73,12 +73,6 @@ func newTestGuardWithBlacklist(t *testing.T) *Guard {
 	return NewGuard(mgr, nil)
 }
 
-// blacklistedTestAddress returns an address known to be in the test blacklist.
-func blacklistedTestAddress(t *testing.T) string {
-	t.Helper()
-	return evilAddress
-}
-
 func TestCheckTypedData(t *testing.T) {
 	const verifying = "0x1111111254eeb25477b68fb85ed929f73a960582"
 	ctx := context.Background()
@@ -95,7 +89,7 @@ func TestCheckTypedData(t *testing.T) {
 	})
 
 	t.Run("blacklisted spender → danger + requires ack", func(t *testing.T) {
-		evil := blacklistedTestAddress(t) // an address known to be in the blacklist
+		evil := evilAddress // an address known to be in the blacklist
 		g := newTestGuardWithBlacklist(t)
 		td := tdWith("Permit", map[string]interface{}{"spender": evil}, verifying)
 		r := g.CheckTypedData(ctx, td)
@@ -110,6 +104,14 @@ func TestCheckTypedData(t *testing.T) {
 		r := g.CheckTypedData(ctx, td)
 		if r.RiskLevel != RiskSafe || r.RequiresAcknowledge {
 			t.Fatalf("want safe, got level=%s ack=%v", r.RiskLevel, r.RequiresAcknowledge)
+		}
+	})
+
+	t.Run("nil typed data → safe, no panic", func(t *testing.T) {
+		g := newTestGuard(t)
+		r := g.CheckTypedData(ctx, nil)
+		if r == nil || r.RiskLevel != RiskSafe || r.RequiresAcknowledge {
+			t.Fatalf("want safe non-nil report, got %+v", r)
 		}
 	})
 }
