@@ -407,26 +407,24 @@ jobs:
               echo "_No CHANGELOG entry found for ${TAG}; see commit history._"
               echo
             fi
-            cat <<'TEMPLATE'
-### Downloads
-
-| Platform | File |
-|----------|------|
-| macOS (Apple Silicon) | `ArcSign-macOS-ARM64.dmg` |
-| Windows (x64) | `ArcSign-Windows-x64.msi` |
-| Linux (x64) | `ArcSign-Linux-x64.deb`, `.AppImage` |
-
-### Verification
-`SHA256SUMS` covers both the installer bundles and the Go
-shared library (`libarcsign.dylib` / `.so` / `.dll`). See
-[`docs/reproducible-builds.md`](https://github.com/arcsignio/arcsign/blob/master/docs/reproducible-builds.md)
-for how to rebuild from source and verify the hash matches.
-
-### Install (macOS / Linux)
-```bash
-bash <(curl -fsSL https://arcsign.io/install.sh)
-```
-TEMPLATE
+            echo "### Downloads"
+            echo
+            echo "| Platform | File |"
+            echo "|----------|------|"
+            echo "| macOS (Apple Silicon) | \`ArcSign-macOS-ARM64.dmg\` |"
+            echo "| Windows (x64) | \`ArcSign-Windows-x64.msi\` |"
+            echo "| Linux (x64) | \`ArcSign-Linux-x64.deb\`, \`.AppImage\` |"
+            echo
+            echo "### Verification"
+            echo "\`SHA256SUMS\` covers both the installer bundles and the Go"
+            echo "shared library (\`libarcsign.dylib\` / \`.so\` / \`.dll\`). See"
+            echo "[\`docs/reproducible-builds.md\`](https://github.com/arcsignio/arcsign/blob/master/docs/reproducible-builds.md)"
+            echo "for how to rebuild from source and verify the hash matches."
+            echo
+            echo "### Install (macOS / Linux)"
+            echo '```bash'
+            echo "bash <(curl -fsSL https://arcsign.io/install.sh)"
+            echo '```'
           } > "$NOTES_FILE"
 
           echo "=== release notes ==="
