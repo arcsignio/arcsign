@@ -865,6 +865,11 @@ pub struct SignTypedDataInput {
     pub address: String,
     /// EIP-712 typed data (JSON string)
     pub typed_data: String,
+    /// Knowing-consent flag — set when the user acknowledged a blacklist/high-risk
+    /// target. Forwarded to the Go backend gate, which refuses to sign unless
+    /// this is true. (camelCase: acknowledgedRisk)
+    #[serde(default)]
+    pub acknowledged_risk: bool,
 }
 
 /// Sign EIP-712 typed data (eth_signTypedData_v4) for WalletConnect.
@@ -897,6 +902,7 @@ pub async fn sign_typed_data(
         "usbPath": input.usb_path,
         "address": input.address,
         "typedData": input.typed_data,
+        "acknowledgedRisk": input.acknowledged_risk,  // → Go backend blacklist/risk gate
     });
 
     let params_json = serde_json::to_string(&params)

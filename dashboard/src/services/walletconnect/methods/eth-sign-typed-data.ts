@@ -17,6 +17,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { decodeTypedData } from '@/services/clearsign/decodeTypedData';
+import { checkTypedDataSecurity } from '@/services/tauri-api';
 import {
   type WCRequest,
   type WCResponse,
@@ -190,6 +191,20 @@ const signTypedDataHandler: RequestHandler = async (
     formatTypedDataForDisplay(typedData),
   ].join('\n');
 
+  // EIP-712 JSON string — the canonical payload sent to the backend security
+  // check AND the sign command, so both judge exactly what gets signed.
+  const typedDataJson = JSON.stringify(typedData);
+
+  // Fetch security report — advisory only, never blocks signing. Mirrors the
+  // eth_sendTransaction handler: the backend (Go txguard) computes
+  // requiresAcknowledge; the dialog renders it and gathers informed consent.
+  let security;
+  try {
+    security = await checkTypedDataSecurity(typedDataJson);
+  } catch {
+    security = undefined;
+  }
+
   // Request user approval with password
   console.log('[eth_signTypedData_v4] Requesting user approval...');
   const approval = await context.requestSignature({
@@ -201,6 +216,7 @@ const signTypedDataHandler: RequestHandler = async (
     typedData,
     message: displayMessage,
     rawMessage: JSON.stringify(typedData, null, 2),
+    security,
   });
 
   if (!approval.approved || !approval.password) {
@@ -232,7 +248,10 @@ const signTypedDataHandler: RequestHandler = async (
         passphrase: context.passphrase,
         usbPath: context.usbPath,
         address: context.address,
-        typedData: JSON.stringify(typedData),
+        typedData: typedDataJson,
+        // Knowing-consent flag — forwarded to the Go backend gate, which
+        // refuses to sign a blacklisted/high-risk target unless this is true.
+        acknowledgedRisk: approval.acknowledged ?? false,
       }
     });
 
