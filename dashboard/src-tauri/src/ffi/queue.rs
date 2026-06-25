@@ -241,6 +241,16 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Run the txguard risk engine over an EIP-712 typed-data payload (pre-sign)
+    CheckTypedDataSecurity {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Run the txguard risk engine over a personal-message payload (pre-sign)
+    CheckMessageSecurity {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
     /// Get a cached contract ABI from the per-USB ABI cache
     GetCachedAbi {
         params_json: String,
@@ -637,6 +647,16 @@ impl WalletQueue {
                 }
                 WalletCommand::CheckTransactionSecurity { params_json, respond_to } => {
                     let result = library.check_transaction_security(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::CheckTypedDataSecurity { params_json, respond_to } => {
+                    let result = library.check_typed_data_security(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::CheckMessageSecurity { params_json, respond_to } => {
+                    let result = library.check_message_security(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -1306,6 +1326,44 @@ impl WalletQueue {
         self.metrics.record_enqueue();
         self.sender
             .send(WalletCommand::CheckTransactionSecurity {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Run the txguard risk engine over an EIP-712 typed-data payload (pre-sign).
+    pub async fn check_typed_data_security(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::CheckTypedDataSecurity {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Run the txguard risk engine over a personal-message payload (pre-sign).
+    pub async fn check_message_security(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::CheckMessageSecurity {
                 params_json,
                 respond_to: sender,
             })
@@ -2256,6 +2314,16 @@ impl LazyWalletQueue {
     /// Run the txguard risk engine (blacklist + simulation) for a transaction
     pub async fn check_transaction_security(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().check_transaction_security(params_json).await
+    }
+
+    /// Run the txguard risk engine over an EIP-712 typed-data payload (pre-sign)
+    pub async fn check_typed_data_security(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().check_typed_data_security(params_json).await
+    }
+
+    /// Run the txguard risk engine over a personal-message payload (pre-sign)
+    pub async fn check_message_security(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().check_message_security(params_json).await
     }
 
     /// Get a cached contract ABI from the per-USB ABI cache

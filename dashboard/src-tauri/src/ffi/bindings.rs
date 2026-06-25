@@ -114,6 +114,12 @@ type GetTokenApprovalsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for CheckTransactionSecurity: char* CheckTransactionSecurity(char* params)
 type CheckTransactionSecurityFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+/// Function signature for CheckTypedDataSecurity: char* CheckTypedDataSecurity(char* params)
+type CheckTypedDataSecurityFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for CheckMessageSecurity: char* CheckMessageSecurity(char* params)
+type CheckMessageSecurityFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 /// Function signature for GetCachedAbi: char* GetCachedAbi(char* params)
 type GetCachedAbiFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for SetCachedAbi: char* SetCachedAbi(char* params)
@@ -286,6 +292,10 @@ pub struct WalletLibrary {
     get_token_approvals: Symbol<'static, GetTokenApprovalsFn>,
     // Transaction security check function symbol
     check_transaction_security: Symbol<'static, CheckTransactionSecurityFn>,
+    // EIP-712 typed-data security check function symbol
+    check_typed_data_security: Symbol<'static, CheckTypedDataSecurityFn>,
+    // Personal-message security check function symbol
+    check_message_security: Symbol<'static, CheckMessageSecurityFn>,
     // ABI cache function symbols
     get_cached_abi: Symbol<'static, GetCachedAbiFn>,
     set_cached_abi: Symbol<'static, SetCachedAbiFn>,
@@ -523,6 +533,14 @@ impl WalletLibrary {
                 .get(b"CheckTransactionSecurity")
                 .map_err(|e| format!("CheckTransactionSecurity symbol not found: {}", e))?;
 
+            let check_typed_data_security: Symbol<CheckTypedDataSecurityFn> = lib
+                .get(b"CheckTypedDataSecurity")
+                .map_err(|e| format!("CheckTypedDataSecurity symbol not found: {}", e))?;
+
+            let check_message_security: Symbol<CheckMessageSecurityFn> = lib
+                .get(b"CheckMessageSecurity")
+                .map_err(|e| format!("CheckMessageSecurity symbol not found: {}", e))?;
+
             let get_cached_abi: Symbol<GetCachedAbiFn> = lib
                 .get(b"GetCachedAbi")
                 .map_err(|e| format!("GetCachedAbi symbol not found: {}", e))?;
@@ -697,6 +715,8 @@ impl WalletLibrary {
             let add_touched_token: Symbol<'static, AddTouchedTokenFn> = std::mem::transmute(add_touched_token);
             let get_token_approvals: Symbol<'static, GetTokenApprovalsFn> = std::mem::transmute(get_token_approvals);
             let check_transaction_security: Symbol<'static, CheckTransactionSecurityFn> = std::mem::transmute(check_transaction_security);
+            let check_typed_data_security: Symbol<'static, CheckTypedDataSecurityFn> = std::mem::transmute(check_typed_data_security);
+            let check_message_security: Symbol<'static, CheckMessageSecurityFn> = std::mem::transmute(check_message_security);
             let get_cached_abi: Symbol<'static, GetCachedAbiFn> = std::mem::transmute(get_cached_abi);
             let set_cached_abi: Symbol<'static, SetCachedAbiFn> = std::mem::transmute(set_cached_abi);
             let clear_abi_cache: Symbol<'static, ClearAbiCacheFn> = std::mem::transmute(clear_abi_cache);
@@ -766,6 +786,8 @@ impl WalletLibrary {
                 add_touched_token,
                 get_token_approvals,
                 check_transaction_security,
+                check_typed_data_security,
+                check_message_security,
                 get_cached_abi,
                 set_cached_abi,
                 clear_abi_cache,
@@ -1372,6 +1394,16 @@ impl WalletLibrary {
     /// Run the txguard risk engine (blacklist + simulation) for a transaction.
     pub fn check_transaction_security(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.check_transaction_security, params_json)
+    }
+
+    /// Run the txguard risk engine over an EIP-712 typed-data payload (pre-sign).
+    pub fn check_typed_data_security(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.check_typed_data_security, params_json)
+    }
+
+    /// Run the txguard risk engine over a personal-message payload (pre-sign).
+    pub fn check_message_security(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.check_message_security, params_json)
     }
 
     /// Get a cached contract ABI from the per-USB ABI cache.

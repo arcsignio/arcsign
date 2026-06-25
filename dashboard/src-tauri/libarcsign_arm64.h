@@ -188,6 +188,8 @@ extern char* ListProviderConfigs(char* params);
 extern char* DeleteProviderConfig(char* params);
 extern char* SignMessage(char* params);
 extern char* SignTypedData(char* params);
+extern char* CheckTypedDataSecurity(char* params);
+extern char* CheckMessageSecurity(char* params);
 extern char* GetSwapQuote(char* params);
 extern char* BuildSwapTransaction(char* params);
 extern char* GetSwapApproval(char* params);

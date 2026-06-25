@@ -1610,6 +1610,84 @@ pub async fn check_transaction_security(
     Ok(ffi_response)
 }
 
+/// Run the txguard risk engine over an EIP-712 typed-data payload before signing.
+/// `typed_data` is the EIP-712 JSON string; returns the same SecurityReport
+/// envelope as `check_transaction_security`.
+#[tauri::command]
+pub async fn check_typed_data_security(
+    queue: State<'_, LazyWalletQueue>,
+    typed_data: String,
+) -> Result<serde_json::Value, String> {
+    let start = Instant::now();
+    tracing::info!("check_typed_data_security called");
+
+    let params = json!({ "typedData": typed_data });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| {
+            tracing::error!("Failed to serialize params: {}", e);
+            format!("Failed to serialize params: {}", e)
+        })?;
+
+    let ffi_response = queue
+        .check_typed_data_security(params_json)
+        .await
+        .map_err(|e| {
+            tracing::error!("FFI check_typed_data_security failed: {}", e);
+            // Advisory check: returns the raw FFI message intentionally (not an
+            // AppError) — the caller treats any failure as "no security report"
+            // and still allows signing, so structured error codes aren't needed.
+            let msg = e.split_once(": ").map_or(e.clone(), |(_, v)| v.to_string());
+            msg
+        })?;
+
+    tracing::info!(
+        "check_typed_data_security completed (took {:?})",
+        start.elapsed()
+    );
+
+    Ok(ffi_response)
+}
+
+/// Run the txguard risk engine over a personal-message payload before signing.
+/// `message` is the text or 0x-hex string; returns the same SecurityReport
+/// envelope as `check_transaction_security`.
+#[tauri::command]
+pub async fn check_message_security(
+    queue: State<'_, LazyWalletQueue>,
+    message: String,
+) -> Result<serde_json::Value, String> {
+    let start = Instant::now();
+    tracing::info!("check_message_security called");
+
+    let params = json!({ "message": message });
+
+    let params_json = serde_json::to_string(&params)
+        .map_err(|e| {
+            tracing::error!("Failed to serialize params: {}", e);
+            format!("Failed to serialize params: {}", e)
+        })?;
+
+    let ffi_response = queue
+        .check_message_security(params_json)
+        .await
+        .map_err(|e| {
+            tracing::error!("FFI check_message_security failed: {}", e);
+            // Advisory check: returns the raw FFI message intentionally (not an
+            // AppError) — the caller treats any failure as "no security report"
+            // and still allows signing, so structured error codes aren't needed.
+            let msg = e.split_once(": ").map_or(e.clone(), |(_, v)| v.to_string());
+            msg
+        })?;
+
+    tracing::info!(
+        "check_message_security completed (took {:?})",
+        start.elapsed()
+    );
+
+    Ok(ffi_response)
+}
+
 /// Look up a verified contract ABI in the per-USB encrypted ABI cache.
 /// `params` is the pre-serialized JSON body expected by the Go FFI export
 /// (chainId, address, usbPath, sessionToken, appPassword).
