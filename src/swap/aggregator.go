@@ -173,20 +173,45 @@ func (a *Aggregator) GetQuote(ctx context.Context, params *QuoteParams) (*SwapQu
 		return a.getBestRouteQuote(ctx, params)
 	}
 
-	// Free user: OpenOcean only, with referrer fee
-	quote, err := a.getOpenOceanQuote(ctx, params)
-	if err != nil {
-		return nil, err
+	// Free user: OpenOcean (with referrer fee), fall back to KyberSwap on failure.
+	ooQuote, ooErr := a.getOpenOceanQuote(ctx, params)
+	if ooErr == nil {
+		ooQuote.RouteType = "standard"
+		if params.Fee != nil {
+			ooQuote.FeeRate = fmt.Sprintf("%.1f", params.Fee.FeeRate)
+			ooQuote.FeeAmount = a.calculateFeeAmount(ooQuote.FromAmount, params.Fee.FeeRate)
+		} else {
+			ooQuote.FeeRate = "0"
+			ooQuote.FeeAmount = "0"
+		}
+		return ooQuote, nil
 	}
-	quote.RouteType = "standard"
-	if params.Fee != nil {
-		quote.FeeRate = fmt.Sprintf("%.1f", params.Fee.FeeRate)
-		quote.FeeAmount = a.calculateFeeAmount(quote.FromAmount, params.Fee.FeeRate)
-	} else {
-		quote.FeeRate = "0"
-		quote.FeeAmount = "0"
+	return resolveFreeQuote(nil, ooErr, kyberswap.IsChainSupported(params.ChainID), func() (*SwapQuote, error) {
+		return a.getKyberSwapQuote(ctx, params)
+	})
+}
+
+// resolveFreeQuote decides the free-user quote: prefer the OpenOcean result;
+// on OpenOcean failure fall back to KyberSwap (which loses the OpenOcean-only
+// referrer fee — a quote with no fee beats no quote). ksSupported gates whether
+// the fallback is attempted; getKS is called lazily only when needed.
+func resolveFreeQuote(ooQuote *SwapQuote, ooErr error, ksSupported bool, getKS func() (*SwapQuote, error)) (*SwapQuote, error) {
+	if ooErr == nil && ooQuote != nil {
+		return ooQuote, nil
 	}
-	return quote, nil
+	if !ksSupported {
+		return nil, fmt.Errorf("openocean failed and kyberswap not available on this chain: %w", ooErr)
+	}
+	log.Printf("[DIAG swap] OpenOcean quote failed, falling back to KyberSwap: %v", ooErr)
+	ksQuote, ksErr := getKS()
+	if ksErr != nil {
+		return nil, fmt.Errorf("both providers failed: openocean: %w; kyberswap: %v", ooErr, ksErr)
+	}
+	ksQuote.Provider = ProviderKyberSwap
+	ksQuote.RouteType = "standard-fallback"
+	ksQuote.FeeRate = "0"
+	ksQuote.FeeAmount = "0"
+	return ksQuote, nil
 }
 
 // BuildSwapTransaction builds a complete swap transaction from the specified provider
