@@ -39,10 +39,12 @@ flowchart TB
     subgraph react["① Dashboard — React 18 / TypeScript (presentation only)"]
         direction TB
         comps["components · hooks (useSignGate)<br/>stores (Zustand)"]
+        assets["assets list<br/>aggregateTokens · treemap · DeFi · NFT"]
         tapi["services/tauri-api.ts (invoke)"]
         cs["clearsign (viem decode, advisory)"]
         wc["walletconnect handlers"]
         comps --- tapi
+        assets --- comps
         wc --- tapi
         cs -.-> comps
     end
@@ -67,10 +69,14 @@ flowchart TB
             security["security<br/>signgate · txguard · blacklist<br/>SecureSigner (XOR-split)"]
             provider["provider<br/>balances (no-key) · NFT/history<br/>· approvals risk"]
             app["app · session · membership<br/>· ratelimit · audit"]
+            rpcreg["rpc registry<br/>keyless endpoints + failover<br/>(shared management layer)"]
+            misc["contacts · txlabels · abicache<br/>· dev mode (-tags dev)"]
         end
         mods["src/chainadapter (tx: BTC + 7 EVM)<br/>src/swap (OpenOcean + KyberSwap)"]
         exp --> core
         exp --> mods
+        provider -->|"keyless RPC"| rpcreg
+        mods -->|"tx RPC + gas"| rpcreg
     end
 
     subgraph extworld["External — chains & data"]
@@ -91,9 +97,11 @@ flowchart TB
 
     crypto <-->|"atomic read/write"| usb
     wallet -.->|"mnemonic.enc"| usb
-    provider -->|"balances (no key)"| rpc
+    rpcreg -->|"public endpoints"| rpc
+    provider -->|"balances via pool + Multicall3"| rpc
     provider -->|"NFT/history (key)"| idx
     provider -->|"prices"| prices
+    provider -->|"flat balances + USD"| assets
     mods -->|"broadcast signed tx"| chains
     mods -->|"swap quotes"| dex
     rpc --> chains
@@ -595,6 +603,50 @@ flowchart TD
 
 Note the two RPC layers: `internal/rpc` (the keyless balance pool, above) and
 `src/chainadapter/rpc` (the transaction transport, with health-based failover).
+
+#### Assets list — frontend aggregation & presentation
+
+The backend returns a **flat list of (token × chain) balances**; turning that
+into the assets list the user sees is **presentation** and lives in the frontend
+(`dashboard/src/utils/aggregateTokens.ts`, consumed by `WalletDetail.tsx`). This
+is allowed in JS because it touches no keys and makes no security decision — it
+only groups, sums, and sorts.
+
+**Aggregation rules (`aggregateTokens`).** Each row is grouped by a key:
+
+| Token kind | Grouping | Why |
+|---|---|---|
+| Native coin (ETH/BNB/AVAX/…) | one row per symbol, **merged across chains** | the same asset on many chains is one holding |
+| ERC-20 on the **trusted whitelist** (USDC/USDT/…) | one row per symbol, merged across chains | genuinely the same token across chains |
+| ERC-20 **not** whitelisted | one row per **(canonical network, contract)** | keeps a fake same-named token (a scam "USDC") out of the real asset's row |
+
+Rows sum `usdValue` + `balance` across their sources, mark `isMultiChain`, and
+sort by total USD descending. The token-detail view expands a merged row into
+its per-chain sources (one row per **canonical** network, so a chain reported
+under two spellings — "BNB Chain"/"BSC" — collapses to one). Prices come from
+DefiLlama (filled in by the backend, §3.6 balance path). Other asset surfaces —
+`ChainAllocationTreemap` (per-chain allocation), `DefiPositions` (liquid-staking
+receipts), and the NFT gallery — render off the same backend reads.
+
+```mermaid
+flowchart LR
+    subgraph be["Go backend (no key for balances)"]
+        gb["GetTokenBalances<br/>self-hosted RPC + Multicall3"]
+        dl["DefiLlama price enrich"]
+        gb --> dl
+    end
+    dl -->|"flat (token × chain) list + USD"| fe
+    subgraph fe["React frontend (presentation only)"]
+        agg["aggregateTokens<br/>native + whitelisted ERC-20 → merge by symbol<br/>unknown ERC-20 → per (chain, contract)"]
+        agg --> list["assets list (sorted by USD)"]
+        agg --> detail["token detail<br/>per-chain breakdown"]
+        tree["ChainAllocationTreemap"]
+        defi["DefiPositions (stETH/ankr…)"]
+        nft["NFT gallery"]
+    end
+    dl -.->|"same reads"| tree & defi & nft
+    style fe fill:#1a2a3a,stroke:#2980b9
+```
 
 ### 3.7 RPC registry (`internal/rpc/`)
 
