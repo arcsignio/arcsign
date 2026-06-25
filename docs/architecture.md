@@ -22,6 +22,96 @@ flows end to end. Section 6 is a quick "where things live" map.
 
 ## 1. Layers
 
+### Whole-project overview
+
+One picture of the entire system: three layers (React → Rust → Go), the major
+subsystems in each, the main data flows, and the external world (USB, public
+RPC, indexers, dApps). Deep-dives for each subsystem are in §3; per-topic
+diagrams (signing, USB storage, read-on-chain) are inline there.
+
+```mermaid
+flowchart TB
+    subgraph ext_top["External — user-facing"]
+        dapp["dApp / mint page"]
+        user["User"]
+    end
+
+    subgraph react["① Dashboard — React 18 / TypeScript (presentation only)"]
+        direction TB
+        comps["components · hooks (useSignGate)<br/>stores (Zustand)"]
+        tapi["services/tauri-api.ts (invoke)"]
+        cs["clearsign (viem decode, advisory)"]
+        wc["walletconnect handlers"]
+        comps --- tapi
+        wc --- tapi
+        cs -.-> comps
+    end
+
+    subgraph rust["② Tauri shell — Rust (thin serialized bridge)"]
+        direction TB
+        cmds["commands/*.rs (15)"]
+        queue["ffi/queue.rs<br/>single serialized worker"]
+        bind["ffi/bindings.rs (libloading)"]
+        ws["websocket/ :9527<br/>(mint-page sign requests)"]
+        cmds --> queue --> bind
+        ws --> queue
+    end
+
+    subgraph go["③ libarcsign — Go shared library (all asset logic)"]
+        direction TB
+        exp["internal/lib · exports_*.go (//export surface)"]
+        subgraph core["internal/ core"]
+            direction LR
+            wallet["wallet · hdkey · bip39<br/>(BIP-39/44 HD)"]
+            crypto["crypto · storage · backup<br/>(Argon2id + AES-256-GCM)"]
+            security["security<br/>signgate · txguard · blacklist<br/>SecureSigner (XOR-split)"]
+            provider["provider<br/>balances (no-key) · NFT/history<br/>· approvals risk"]
+            app["app · session · membership<br/>· ratelimit · audit"]
+        end
+        mods["src/chainadapter (tx: BTC + 7 EVM)<br/>src/swap (OpenOcean + KyberSwap)"]
+        exp --> core
+        exp --> mods
+    end
+
+    subgraph extworld["External — chains & data"]
+        usb[("USB device<br/>encrypted .enc + wallet.json")]
+        rpc["keyless public RPC pool<br/>+ Multicall3"]
+        idx["indexers (Alchemy / NodeReal / Glacier)"]
+        chains["Bitcoin + 7 EVM chains"]
+        dex["OpenOcean / KyberSwap"]
+        prices["DefiLlama prices"]
+    end
+
+    user --> comps
+    dapp -->|"WalletConnect"| wc
+    dapp -->|"WS :9527"| ws
+
+    tapi -->|"Tauri invoke"| cmds
+    bind -->|"C FFI (CString/JSON, GoFree)"| exp
+
+    crypto <-->|"atomic read/write"| usb
+    wallet -.->|"mnemonic.enc"| usb
+    provider -->|"balances (no key)"| rpc
+    provider -->|"NFT/history (key)"| idx
+    provider -->|"prices"| prices
+    mods -->|"broadcast signed tx"| chains
+    mods -->|"swap quotes"| dex
+    rpc --> chains
+
+    style react fill:#1a2a3a,stroke:#2980b9
+    style rust fill:#2a2520,stroke:#b8772a
+    style go fill:#1a2a1a,stroke:#27ae60
+    style security fill:#3a1a1a,stroke:#c0392b,color:#fff
+    style usb fill:#3a1a1a,stroke:#c0392b,color:#fff
+```
+
+> **The throughline:** a UI action crosses three layers (React → Rust → Go) but
+> every asset-touching decision happens in Go. The Rust shell is a thin,
+> serialized bridge; React is presentation only. Private keys live encrypted on
+> the USB and are reconstructed for ~1–5 ms only, inside the Go security layer.
+
+The same layering as ASCII, for reference:
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  Dashboard — React 18 + TypeScript + Vite + Tailwind + Zustand            │
