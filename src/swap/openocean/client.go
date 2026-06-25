@@ -19,6 +19,10 @@ const (
 	// BaseURL for OpenOcean API v4
 	BaseURL = "https://open-api.openocean.finance/v4"
 
+	// userAgent mimics a browser so Cloudflare's bot management doesn't 403 the API
+	// (the default Go-http-client UA gets challenged). Identifies ArcSign too.
+	userAgent = "Mozilla/5.0 (compatible; ArcSign/1.5.1; +https://arcsign.io)"
+
 	// DefaultTimeout for HTTP requests
 	DefaultTimeout = 30 * time.Second
 
@@ -88,6 +92,7 @@ func (c *Client) doRequest(ctx context.Context, method, urlStr string) ([]byte, 
 	}
 
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

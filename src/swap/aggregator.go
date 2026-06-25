@@ -5,6 +5,7 @@ package swap
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/big"
 	"sync"
 
@@ -119,7 +120,7 @@ type SwapQuote struct {
 	ValidUntil      int64     `json:"validUntil"`
 	NeedsApproval   bool      `json:"needsApproval"`
 	ApprovalAddress string    `json:"approvalAddress"`
-	RouteType       string    `json:"routeType"` // "best" | "standard"
+	RouteType       string    `json:"routeType"` // "best" | "standard" | "standard-fallback"
 	FeeRate         string    `json:"feeRate"`    // "0" | "0.1" (percentage)
 	FeeAmount       string    `json:"feeAmount"`  // Actual fee in input token units
 }
@@ -172,20 +173,66 @@ func (a *Aggregator) GetQuote(ctx context.Context, params *QuoteParams) (*SwapQu
 		return a.getBestRouteQuote(ctx, params)
 	}
 
-	// Free user: OpenOcean only, with referrer fee
-	quote, err := a.getOpenOceanQuote(ctx, params)
-	if err != nil {
-		return nil, err
+	// Free user: OpenOcean (with referrer fee), fall back to KyberSwap on failure.
+	ooQuote, ooErr := a.getOpenOceanQuote(ctx, params)
+	if ooErr == nil {
+		ooQuote.RouteType = "standard"
+		if params.Fee != nil {
+			ooQuote.FeeRate = fmt.Sprintf("%.1f", params.Fee.FeeRate)
+			ooQuote.FeeAmount = a.calculateFeeAmount(ooQuote.FromAmount, params.Fee.FeeRate)
+		} else {
+			ooQuote.FeeRate = "0"
+			ooQuote.FeeAmount = "0"
+		}
+		return ooQuote, nil
 	}
-	quote.RouteType = "standard"
-	if params.Fee != nil {
-		quote.FeeRate = fmt.Sprintf("%.1f", params.Fee.FeeRate)
-		quote.FeeAmount = a.calculateFeeAmount(quote.FromAmount, params.Fee.FeeRate)
-	} else {
-		quote.FeeRate = "0"
-		quote.FeeAmount = "0"
+	return resolveFreeQuote(nil, ooErr, kyberswap.IsChainSupported(params.ChainID), func() (*SwapQuote, error) {
+		return a.getKyberSwapQuote(ctx, params)
+	})
+}
+
+// resolveFreeQuote decides the free-user quote: prefer the OpenOcean result;
+// on OpenOcean failure fall back to KyberSwap (which loses the OpenOcean-only
+// referrer fee — a quote with no fee beats no quote). ksSupported gates whether
+// the fallback is attempted; getKS is called lazily only when needed.
+func resolveFreeQuote(ooQuote *SwapQuote, ooErr error, ksSupported bool, getKS func() (*SwapQuote, error)) (*SwapQuote, error) {
+	if ooErr == nil && ooQuote != nil {
+		return ooQuote, nil
 	}
-	return quote, nil
+	if !ksSupported {
+		return nil, fmt.Errorf("openocean failed and kyberswap not available on this chain: %w", ooErr)
+	}
+	log.Printf("[DIAG swap] OpenOcean quote failed, falling back to KyberSwap: %v", ooErr)
+	ksQuote, ksErr := getKS()
+	if ksErr != nil {
+		return nil, fmt.Errorf("both providers failed: openocean: %w; kyberswap: %v", ooErr, ksErr)
+	}
+	ksQuote.Provider = ProviderKyberSwap
+	ksQuote.RouteType = "standard-fallback"
+	ksQuote.FeeRate = "0"
+	ksQuote.FeeAmount = "0"
+	return ksQuote, nil
+}
+
+// resolveFreeTx is the BuildSwapTransaction analog of resolveFreeQuote: prefer
+// the OpenOcean build; on failure fall back to KyberSwap (no referrer fee).
+func resolveFreeTx(ooTx *SwapTransaction, ooErr error, ksSupported bool, getKS func() (*SwapTransaction, error)) (*SwapTransaction, error) {
+	if ooErr == nil && ooTx != nil {
+		return ooTx, nil
+	}
+	if !ksSupported {
+		return nil, fmt.Errorf("openocean failed and kyberswap not available on this chain: %w", ooErr)
+	}
+	log.Printf("[DIAG swap] OpenOcean tx build failed, falling back to KyberSwap: %v", ooErr)
+	ksTx, ksErr := getKS()
+	if ksErr != nil {
+		return nil, fmt.Errorf("both providers failed: openocean: %w; kyberswap: %v", ooErr, ksErr)
+	}
+	ksTx.Quote.Provider = ProviderKyberSwap
+	ksTx.Quote.RouteType = "standard-fallback"
+	ksTx.Quote.FeeRate = "0"
+	ksTx.Quote.FeeAmount = "0"
+	return ksTx, nil
 }
 
 // BuildSwapTransaction builds a complete swap transaction from the specified provider
@@ -195,20 +242,22 @@ func (a *Aggregator) BuildSwapTransaction(ctx context.Context, params *QuotePara
 		return a.buildBestRouteTransaction(ctx, params)
 	}
 
-	// Free user: OpenOcean only, with referrer fee
-	tx, err := a.buildOpenOceanTransaction(ctx, params)
-	if err != nil {
-		return nil, err
+	// Free user: OpenOcean (with referrer fee), fall back to KyberSwap on failure.
+	ooTx, ooErr := a.buildOpenOceanTransaction(ctx, params)
+	if ooErr == nil {
+		ooTx.Quote.RouteType = "standard"
+		if params.Fee != nil {
+			ooTx.Quote.FeeRate = fmt.Sprintf("%.1f", params.Fee.FeeRate)
+			ooTx.Quote.FeeAmount = a.calculateFeeAmount(ooTx.Quote.FromAmount, params.Fee.FeeRate)
+		} else {
+			ooTx.Quote.FeeRate = "0"
+			ooTx.Quote.FeeAmount = "0"
+		}
+		return ooTx, nil
 	}
-	tx.Quote.RouteType = "standard"
-	if params.Fee != nil {
-		tx.Quote.FeeRate = fmt.Sprintf("%.1f", params.Fee.FeeRate)
-		tx.Quote.FeeAmount = a.calculateFeeAmount(tx.Quote.FromAmount, params.Fee.FeeRate)
-	} else {
-		tx.Quote.FeeRate = "0"
-		tx.Quote.FeeAmount = "0"
-	}
-	return tx, nil
+	return resolveFreeTx(nil, ooErr, kyberswap.IsChainSupported(params.ChainID), func() (*SwapTransaction, error) {
+		return a.buildKyberSwapTransaction(ctx, params)
+	})
 }
 
 // getBestRouteQuote queries both providers in parallel and returns the best quote
@@ -266,11 +315,25 @@ func (a *Aggregator) getBestRouteQuote(ctx context.Context, params *QuoteParams)
 	}
 
 	if best == nil {
-		// Both failed — return the first error
-		if ooResult.err != nil {
+		// Both providers failed (or neither supported the chain). Surface BOTH
+		// errors instead of discarding KyberSwap's — the previous code returned
+		// only ooResult.err, and when a chain was supported by neither provider
+		// both errs were nil, yielding a confusing nil-error/nil-quote return.
+		ooSupported := openocean.IsChainSupported(params.ChainID)
+		ksSupported := kyberswap.IsChainSupported(params.ChainID)
+		log.Printf("[DIAG swap] GetBestRoute no quote: chain=%d from=%s to=%s amount=%s | OpenOcean(supported=%v) err=%v | KyberSwap(supported=%v) err=%v",
+			params.ChainID, params.FromTokenAddress, params.ToTokenAddress, params.Amount,
+			ooSupported, ooResult.err, ksSupported, ksResult.err)
+		switch {
+		case ooResult.err != nil && ksResult.err != nil:
+			return nil, fmt.Errorf("both providers failed: openocean: %w; kyberswap: %v", ooResult.err, ksResult.err)
+		case ooResult.err != nil:
 			return nil, ooResult.err
+		case ksResult.err != nil:
+			return nil, ksResult.err
+		default:
+			return nil, fmt.Errorf("no quote available for chain %d (OpenOcean supported=%v, KyberSwap supported=%v)", params.ChainID, ooSupported, ksSupported)
 		}
-		return nil, ksResult.err
 	}
 
 	best.RouteType = "best"

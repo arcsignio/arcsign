@@ -19,6 +19,9 @@ const (
 	// BaseURL for KyberSwap Aggregator API
 	BaseURL = "https://aggregator-api.kyberswap.com"
 
+	// userAgent mimics a browser so Cloudflare's bot management doesn't 403 the API.
+	userAgent = "Mozilla/5.0 (compatible; ArcSign/1.5.1; +https://arcsign.io)"
+
 	// DefaultTimeout for HTTP requests
 	DefaultTimeout = 30 * time.Second
 
@@ -71,6 +74,7 @@ func (c *Client) doRequest(ctx context.Context, method, urlStr string, body []by
 	}
 
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", userAgent)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
