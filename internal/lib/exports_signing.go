@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"runtime/debug"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -260,6 +261,89 @@ func SignTypedData(params *C.char) (result *C.char) {
 	}
 
 	response := NewSuccessResponse(output)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export CheckTypedDataSecurity
+// CheckTypedDataSecurity returns the SecurityReport for an EIP-712 payload
+// WITHOUT signing — the frontend calls this to render risk before approval.
+// Offline + free (same engine as the mandatory pre-sign gate). Input JSON:
+// {"typedData":"{...}"}
+func CheckTypedDataSecurity(params *C.char) (result *C.char) {
+	defer func() {
+		if r := recover(); r != nil {
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		TypedData string `json:"typedData"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var typedData apitypes.TypedData
+	if err := json.Unmarshal([]byte(input.TypedData), &typedData); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	report := initTxGuard().CheckTypedData(ctx, &typedData)
+
+	response := NewSuccessResponse(report)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export CheckMessageSecurity
+// CheckMessageSecurity returns the SecurityReport for a personal_sign message
+// WITHOUT signing — the frontend calls this to render risk before approval.
+// Offline + free. The message is hex-decoded (0x-prefixed) the same way
+// SignMessage does, via msgDecodedBytes. Input JSON: {"message":"text or 0x-hex"}
+func CheckMessageSecurity(params *C.char) (result *C.char) {
+	defer func() {
+		if r := recover(); r != nil {
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	report := initTxGuard().CheckMessage(msgDecodedBytes(input.Message))
+
+	response := NewSuccessResponse(report)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))
 }
