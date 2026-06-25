@@ -64,51 +64,15 @@ func deriveAndSign(ctx context.Context, p signParams, req signgate.SignRequest, 
 		return nil, err
 	}
 
-	// 2) Decrypt + derive (mirrors the former per-export logic exactly).
-	walletSvc := wallet.NewWalletService(p.USBPath)
-	mnemonic, err := walletSvc.RestoreWallet(p.WalletID, p.Password)
+	// 2-3) Decrypt + derive + build XOR-split signer (shared helper).
+	// message/typed-data: chainID "ethereum" (EVM-identical raw sig over a hash),
+	// case-insensitive AddressBook lookup, no dev EVM verification.
+	secureSigner, err := deriveSecureSigner(p, deriveOpts{
+		SignerChainID:       "ethereum",
+		CaseInsensitiveAddr: true,
+		VerifyEVMAddress:    false,
+	})
 	if err != nil {
-		return nil, err
-	}
-	defer zeroString(&mnemonic)
-
-	walletObj, err := walletSvc.LoadWallet(p.WalletID)
-	if err != nil {
-		return nil, err
-	}
-	derivationPath, err := derivationPathFor(walletObj, p.Address, true)
-	if err != nil {
-		return nil, err
-	}
-
-	seed, err := bip39service.NewBIP39Service().MnemonicToSeed(mnemonic, p.Passphrase)
-	if err != nil {
-		return nil, err
-	}
-	defer security.SecureZero(seed)
-
-	hdkeySvc := hdkey.NewHDKeyService()
-	masterKey, err := hdkeySvc.NewMasterKey(seed)
-	if err != nil {
-		return nil, err
-	}
-	childKey, err := hdkeySvc.DerivePath(masterKey, derivationPath)
-	if err != nil {
-		return nil, err
-	}
-	privateKeyBytes, err := hdkeySvc.GetPrivateKey(childKey)
-	if err != nil {
-		return nil, err
-	}
-
-	// NewSecureSigner splits privateKeyBytes into XOR shares and zeroes the
-	// input on success; on failure we zero it ourselves before returning.
-	// chainID is "ethereum": an EIP-191/EIP-712 (and tx) signature is a raw
-	// secp256k1 sig over a hash, identical across the EVM family — so all signing
-	// paths share one SecureSigner config. (Matches the former per-export code.)
-	secureSigner, err := security.NewSecureSigner(privateKeyBytes, p.Address, "ethereum")
-	if err != nil {
-		security.SecureZero(privateKeyBytes)
 		return nil, err
 	}
 	defer secureSigner.Zeroize()
