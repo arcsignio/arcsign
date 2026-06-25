@@ -1,6 +1,64 @@
 package txguard
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ethereum/go-ethereum/signer/core/apitypes"
+)
+
+func tdWith(primaryType string, msg map[string]interface{}, verifying string) *apitypes.TypedData {
+	return &apitypes.TypedData{
+		PrimaryType: primaryType,
+		Domain:      apitypes.TypedDataDomain{VerifyingContract: verifying},
+		Message:     msg,
+	}
+}
+
+func TestExtractRiskyAddresses(t *testing.T) {
+	const spender = "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
+	const verifying = "0x1111111254eeb25477b68fb85ed929f73a960582"
+
+	t.Run("Permit spender + verifyingContract", func(t *testing.T) {
+		td := tdWith("Permit", map[string]interface{}{"spender": spender, "value": "1"}, verifying)
+		got := extractRiskyAddresses(td)
+		assertContains(t, got, verifying)
+		assertContains(t, got, spender)
+	})
+
+	t.Run("PermitSingle nested Permit2 details", func(t *testing.T) {
+		td := tdWith("PermitSingle", map[string]interface{}{
+			"spender": spender,
+			"details": map[string]interface{}{"token": verifying},
+		}, "")
+		got := extractRiskyAddresses(td)
+		assertContains(t, got, spender)
+	})
+
+	t.Run("setApprovalForAll operator", func(t *testing.T) {
+		td := tdWith("SetApprovalForAll", map[string]interface{}{"operator": spender}, "")
+		got := extractRiskyAddresses(td)
+		assertContains(t, got, spender)
+	})
+
+	t.Run("no risky fields → only verifyingContract", func(t *testing.T) {
+		td := tdWith("Mail", map[string]interface{}{"contents": "hello"}, verifying)
+		got := extractRiskyAddresses(td)
+		assertContains(t, got, verifying)
+		if len(got) != 1 {
+			t.Fatalf("want only verifyingContract, got %v", got)
+		}
+	})
+}
+
+func assertContains(t *testing.T, got []string, want string) {
+	t.Helper()
+	for _, g := range got {
+		if g == want {
+			return
+		}
+	}
+	t.Fatalf("expected %q in %v", want, got)
+}
 
 func TestIsCanonicalAddress(t *testing.T) {
 	cases := []struct {
