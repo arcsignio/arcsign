@@ -162,6 +162,49 @@ Serialize/DeserializeEncryptedData}`, `storage.AtomicWriteFile`,
 > creation). Export base64-wraps that blob; **import requires the original
 > wallet password** to decrypt and verify ownership.
 
+#### What lives on the USB, and how it's encrypted
+
+Everything sensitive on the USB is encrypted at rest; nothing is stored in plain
+text. All writes are atomic (temp → fsync → rename, `0600`) to survive a USB
+pull-out mid-write.
+
+```mermaid
+flowchart TD
+    subgraph usb["USB device — /Volumes/&lt;mount&gt;/"]
+        direction TB
+        subgraph wdir["&lt;walletUUID&gt;/"]
+            mn["mnemonic.enc<br/>Argon2id(pw) + AES-256-GCM"]
+            wj["wallet.json<br/>(public: name, AddressBook, paths)"]
+        end
+        pc["provider_config.enc<br/>(API keys: Alchemy/NodeReal)"]
+        tt["touched_tokens.enc<br/>(table B — swap outputs / imports)"]
+        ct["contacts.enc"]
+        tl["txlabels (encrypted)"]
+        ab["abi_cache.enc<br/>(clear-signing ABIs)"]
+        ac["app_config.enc<br/>(identity, memberships)"]
+    end
+
+    pw["wallet password"] -->|"Argon2id t=4,m=256MiB,p=4"| key["32-byte key"]
+    key -->|"AES-256-GCM"| mn
+    apppw["app password"] -->|"AES-256-GCM"| pc & ac
+    apppw --> tt & ct & tl & ab
+
+    mn -->|"base64 wrap (already encrypted)"| arc[".arcsign backup file<br/>(no new password)"]
+    mn2["all wallets"] -->|"+ outer crypto.Encrypt(password)"| bundle[".arcsign-bundle"]
+
+    note["Restore: import REQUIRES the original<br/>wallet password to decrypt + verify"]
+    arc -.-> note
+
+    style usb fill:#1a2a1a,stroke:#27ae60
+    style mn fill:#3a1a1a,stroke:#c0392b,color:#fff
+    style key fill:#3a1a1a,stroke:#c0392b,color:#fff
+```
+
+One scheme everywhere: **Argon2id(t=4, m=256 MiB, p=4) + AES-256-GCM**. The
+session provider-key uses a *different* scheme (HKDF + AES-GCM, no Argon2)
+because its secret is a high-entropy session token, not a low-entropy password —
+see §3.4.
+
 ### 3.3 Security layer — the signing gate & XOR-split key storage
 
 **Responsibility.** A mandatory pre-sign security gate plus ephemeral XOR-split
@@ -221,6 +264,88 @@ hash) **but still calls `signgate.Authorize` first**. So there are two
 key-derivation sites, but the invariant "every signing path gates before
 touching a key" holds across all three signing exports and both transports
 (WalletConnect + the localhost WebSocket).
+
+#### Signing security flow (gate before key derivation)
+
+Every signing path — `SignTransaction`, `SignMessage`, `SignTypedData`, from
+either WalletConnect or the localhost WebSocket — converges on the same gate
+before any private key is decrypted.
+
+```mermaid
+flowchart TD
+    subgraph entry["Entry points (all signing paths)"]
+        WC["WalletConnect handler<br/>eth_sendTransaction /<br/>eth_signTypedData_v4 / personal_sign"]
+        WS["localhost WS :9527<br/>(mint page)"]
+        UI["In-app SendTransaction /<br/>SwapTransaction / revoke"]
+    end
+    WC --> EXP
+    WS --> EXP
+    UI --> EXP
+    EXP["FFI export<br/>SignTransaction / SignMessage / SignTypedData<br/>(internal/lib)"]
+    EXP --> RL{"rate limit<br/>+ session valid?"}
+    RL -->|"fail"| REJ1["return error<br/>(key untouched)"]
+    RL -->|"ok"| GATE
+
+    subgraph gatebox["signgate.Authorize — the mandatory gate"]
+        GATE["assess by SignKind"]
+        GATE --> CHK["txguard:<br/>Check / CheckTypedData / CheckMessage"]
+        CHK --> BL["blacklist (free, embedded seed)<br/>+ EIP-712 verifyingContract normalization<br/>+ simulation (Pro only)"]
+        BL --> RA{"RequiresAcknowledge<br/>&& !acknowledgedRisk?"}
+    end
+    RA -->|"yes — danger, not acknowledged"| REJ2["ErrBlocked → ErrBlacklisted<br/>(key NEVER derived)"]
+    RA -->|"no / fail-open"| DERIVE
+
+    subgraph derivebox["deriveSecureSigner — one function, no hand-off"]
+        DERIVE["RestoreWallet (decrypt mnemonic)<br/>defer zeroString"]
+        DERIVE --> SEED["MnemonicToSeed → NewMasterKey<br/>→ DerivePath → GetPrivateKey<br/>defer SecureZero(seed)"]
+        SEED --> SPLIT["NewSecureSigner: XOR-split key into 3 shares<br/>(plaintext key zeroed immediately)"]
+    end
+    SPLIT --> SIGN["SecureSigner.SignHash / ChainAdapter.Sign<br/>key reconstructed ~1–5 ms, then zeroed"]
+    SIGN --> OUT["signature → up the FFI chain"]
+
+    style gatebox fill:#3a1a1a,stroke:#c0392b
+    style derivebox fill:#1a2a3a,stroke:#2980b9
+    style REJ2 fill:#c0392b,color:#fff
+```
+
+#### Security-layer modules (`internal/security/`)
+
+How the security submodules relate. `signgate` is the only entry point;
+`txguard` computes the risk verdict; `SecureSigner` holds the key.
+
+```mermaid
+flowchart LR
+    caller["internal/lib<br/>sign_helper.go /<br/>exports_transaction.go"]
+
+    subgraph sec["internal/security/"]
+        signgate["signgate.Authorize<br/>(single gate, fail-open)"]
+        subgraph guard["txguard.Guard"]
+            check["Check (tx)"]
+            ctd["CheckTypedData (EIP-712)"]
+            cmsg["CheckMessage (personal_sign)"]
+        end
+        blacklist["blacklist.Manager<br/>embedded OFAC + MEW/Revoke seed<br/>+ online merge"]
+        sim["simulation.Simulator<br/>(Alchemy, Pro only)"]
+        signer["SecureSigner<br/>SignHash / Sign"]
+        share["secret_share<br/>XOR-split 3 shares"]
+        mz["memzero<br/>SecureZero / SecureAlloc (mlock)"]
+    end
+
+    caller -->|"1. gate"| signgate
+    signgate --> guard
+    check --> blacklist
+    ctd --> blacklist
+    cmsg --> blacklist
+    check --> sim
+    guard -->|"RequiresAcknowledge<br/>(computed in backend)"| signgate
+    caller -->|"2. after gate passes"| signer
+    signer --> share
+    share --> mz
+    signer --> mz
+
+    style signgate fill:#3a1a1a,stroke:#c0392b,color:#fff
+    style signer fill:#1a2a3a,stroke:#2980b9,color:#fff
+```
 
 ### 3.4 Session, app state & rate limiting
 
@@ -331,6 +456,52 @@ EOA spender / unlimited-to-unknown; **yellow** = unlimited-to-known or
 limited-to-unknown; **green** = limited-to-known. Signals gathered offline:
 curated `spender_registry`, embedded MIT-only `malicious_spenders` blocklist,
 and an `eth_getCode` EOA probe for unknown spenders only (memoized).
+
+#### Read-on-chain routing (feature-dimension)
+
+The same wallet read splits by **feature**, not by chain: balances always take
+the keyless self-hosted path; NFTs and history need a third-party indexer.
+
+```mermaid
+flowchart TD
+    req["FFI read export<br/>GetTokenBalances / GetNFTs / GetAssetTransfers"]
+    req --> route{"which feature?"}
+
+    route -->|"balances<br/>(all 7 chains)"| selfhosted
+    route -->|"NFTs / tx history"| indexer
+
+    subgraph selfhosted["self-hosted path — NO key"]
+        direction TB
+        collect["CollectBalanceAddresses<br/>+ merge table A (common_tokens)<br/>∪ table B (touched_tokens.enc)"]
+        collect --> pool["internal/rpc registry<br/>keyless public RPC pool<br/>(primary + backups, failover)"]
+        pool --> mc["Multicall3 aggregate3 balanceOf<br/>(0xcA11…CA11, per-endpoint fallback)"]
+        mc --> price["DefiLlama price enrich<br/>(keyless)"]
+    end
+
+    subgraph indexer["indexer path — needs key (per chain)"]
+        direction TB
+        bucket["bucket addresses by provider"]
+        bucket --> alchemy["Alchemy<br/>ETH·Polygon·Arbitrum·Optimism·Base"]
+        bucket --> nodereal["NodeReal<br/>BSC"]
+        bucket --> glacier["Glacier<br/>Avalanche (anonymous)"]
+        keys["provider_config.enc<br/>(per-USB encrypted keys)"]
+        keys -.->|"decrypt key"| alchemy
+        keys -.->|"decrypt key"| nodereal
+        miss["missing key →<br/>unavailableProviders (UI prompts)"]
+        alchemy -. no key .-> miss
+        nodereal -. no key .-> miss
+    end
+
+    selfhosted --> out1["balances + USD → UI"]
+    indexer --> out2["NFTs / history → UI"]
+
+    style selfhosted fill:#1a2a1a,stroke:#27ae60
+    style indexer fill:#2a2a1a,stroke:#f39c12
+    style keys fill:#3a1a1a,stroke:#c0392b,color:#fff
+```
+
+Note the two RPC layers: `internal/rpc` (the keyless balance pool, above) and
+`src/chainadapter/rpc` (the transaction transport, with health-based failover).
 
 ### 3.7 RPC registry (`internal/rpc/`)
 
