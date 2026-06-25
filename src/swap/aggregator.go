@@ -214,6 +214,27 @@ func resolveFreeQuote(ooQuote *SwapQuote, ooErr error, ksSupported bool, getKS f
 	return ksQuote, nil
 }
 
+// resolveFreeTx is the BuildSwapTransaction analog of resolveFreeQuote: prefer
+// the OpenOcean build; on failure fall back to KyberSwap (no referrer fee).
+func resolveFreeTx(ooTx *SwapTransaction, ooErr error, ksSupported bool, getKS func() (*SwapTransaction, error)) (*SwapTransaction, error) {
+	if ooErr == nil && ooTx != nil {
+		return ooTx, nil
+	}
+	if !ksSupported {
+		return nil, fmt.Errorf("openocean failed and kyberswap not available on this chain: %w", ooErr)
+	}
+	log.Printf("[DIAG swap] OpenOcean tx build failed, falling back to KyberSwap: %v", ooErr)
+	ksTx, ksErr := getKS()
+	if ksErr != nil {
+		return nil, fmt.Errorf("both providers failed: openocean: %w; kyberswap: %v", ooErr, ksErr)
+	}
+	ksTx.Quote.Provider = ProviderKyberSwap
+	ksTx.Quote.RouteType = "standard-fallback"
+	ksTx.Quote.FeeRate = "0"
+	ksTx.Quote.FeeAmount = "0"
+	return ksTx, nil
+}
+
 // BuildSwapTransaction builds a complete swap transaction from the specified provider
 // Pro users get best route (parallel query), Free users get OpenOcean with fee
 func (a *Aggregator) BuildSwapTransaction(ctx context.Context, params *QuoteParams) (*SwapTransaction, error) {
@@ -221,20 +242,22 @@ func (a *Aggregator) BuildSwapTransaction(ctx context.Context, params *QuotePara
 		return a.buildBestRouteTransaction(ctx, params)
 	}
 
-	// Free user: OpenOcean only, with referrer fee
-	tx, err := a.buildOpenOceanTransaction(ctx, params)
-	if err != nil {
-		return nil, err
+	// Free user: OpenOcean (with referrer fee), fall back to KyberSwap on failure.
+	ooTx, ooErr := a.buildOpenOceanTransaction(ctx, params)
+	if ooErr == nil {
+		ooTx.Quote.RouteType = "standard"
+		if params.Fee != nil {
+			ooTx.Quote.FeeRate = fmt.Sprintf("%.1f", params.Fee.FeeRate)
+			ooTx.Quote.FeeAmount = a.calculateFeeAmount(ooTx.Quote.FromAmount, params.Fee.FeeRate)
+		} else {
+			ooTx.Quote.FeeRate = "0"
+			ooTx.Quote.FeeAmount = "0"
+		}
+		return ooTx, nil
 	}
-	tx.Quote.RouteType = "standard"
-	if params.Fee != nil {
-		tx.Quote.FeeRate = fmt.Sprintf("%.1f", params.Fee.FeeRate)
-		tx.Quote.FeeAmount = a.calculateFeeAmount(tx.Quote.FromAmount, params.Fee.FeeRate)
-	} else {
-		tx.Quote.FeeRate = "0"
-		tx.Quote.FeeAmount = "0"
-	}
-	return tx, nil
+	return resolveFreeTx(nil, ooErr, kyberswap.IsChainSupported(params.ChainID), func() (*SwapTransaction, error) {
+		return a.buildKyberSwapTransaction(ctx, params)
+	})
 }
 
 // getBestRouteQuote queries both providers in parallel and returns the best quote
