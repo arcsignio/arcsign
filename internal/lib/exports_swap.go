@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"os"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -202,6 +203,11 @@ func GetSwapQuote(params *C.char) (result *C.char) {
 	quote, err := aggregator.GetQuote(ctx, quoteParams)
 
 	if err != nil {
+		// DIAG: the user-facing SWAP_QUOTE_FAILED is generic; log the real
+		// underlying error (provider + status) to stderr so failures are
+		// diagnosable. debugLog is a no-op, so use stderr directly.
+		fmt.Fprintf(os.Stderr, "[DIAG swap] GetSwapQuote failed: provider=%s chain=%s from=%s to=%s amount=%s err=%v\n",
+			input.Provider, input.ChainID, input.FromTokenAddress, input.ToTokenAddress, input.Amount, err)
 		response := NewErrorResponse(ErrSwapQuoteFailed, GetUserFriendlyMessage(ErrSwapQuoteFailed))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))

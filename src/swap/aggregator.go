@@ -5,6 +5,7 @@ package swap
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/big"
 	"sync"
 
@@ -266,11 +267,25 @@ func (a *Aggregator) getBestRouteQuote(ctx context.Context, params *QuoteParams)
 	}
 
 	if best == nil {
-		// Both failed — return the first error
-		if ooResult.err != nil {
+		// Both providers failed (or neither supported the chain). Surface BOTH
+		// errors instead of discarding KyberSwap's — the previous code returned
+		// only ooResult.err, and when a chain was supported by neither provider
+		// both errs were nil, yielding a confusing nil-error/nil-quote return.
+		ooSupported := openocean.IsChainSupported(params.ChainID)
+		ksSupported := kyberswap.IsChainSupported(params.ChainID)
+		log.Printf("[DIAG swap] GetBestRoute no quote: chain=%d from=%s to=%s amount=%s | OpenOcean(supported=%v) err=%v | KyberSwap(supported=%v) err=%v",
+			params.ChainID, params.FromTokenAddress, params.ToTokenAddress, params.Amount,
+			ooSupported, ooResult.err, ksSupported, ksResult.err)
+		switch {
+		case ooResult.err != nil && ksResult.err != nil:
+			return nil, fmt.Errorf("both providers failed: openocean: %w; kyberswap: %v", ooResult.err, ksResult.err)
+		case ooResult.err != nil:
 			return nil, ooResult.err
+		case ksResult.err != nil:
+			return nil, ksResult.err
+		default:
+			return nil, fmt.Errorf("no quote available for chain %d (OpenOcean supported=%v, KyberSwap supported=%v)", params.ChainID, ooSupported, ksSupported)
 		}
-		return nil, ksResult.err
 	}
 
 	best.RouteType = "best"
