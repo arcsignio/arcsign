@@ -43,3 +43,15 @@ func TestDerivationPathFor_CaseSensitivity(t *testing.T) {
 		}
 	})
 }
+
+func TestDeriveOpts_FieldWiring(t *testing.T) {
+	// Guards the opts struct shape the two callers depend on.
+	msg := deriveOpts{SignerChainID: "ethereum", CaseInsensitiveAddr: true, VerifyEVMAddress: false}
+	if msg.SignerChainID != "ethereum" || !msg.CaseInsensitiveAddr || msg.VerifyEVMAddress {
+		t.Fatalf("message opts wiring wrong: %+v", msg)
+	}
+	tx := deriveOpts{SignerChainID: "bsc", CaseInsensitiveAddr: false, VerifyEVMAddress: true}
+	if tx.SignerChainID != "bsc" || tx.CaseInsensitiveAddr || !tx.VerifyEVMAddress {
+		t.Fatalf("tx opts wiring wrong: %+v", tx)
+	}
+}

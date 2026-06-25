@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/arcsignio/arcsign/internal/models"
 	"github.com/arcsignio/arcsign/internal/security"
@@ -27,6 +28,10 @@ import (
 // errAddressNotFound is returned when the signing address is not present in the
 // wallet's AddressBook. Callers map this to a user-facing FFI error code.
 var errAddressNotFound = errors.New("address not found in wallet")
+
+// errAddressMismatch is returned when the key derived for an EVM chain does not
+// produce the expected From address (dev-mode verification, transaction path).
+var errAddressMismatch = errors.New("key derivation address mismatch")
 
 // signParams carries the wallet-access inputs deriveAndSign needs, decoupled
 // from the per-export FFI input structs.
@@ -122,6 +127,99 @@ func deriveAndSign(ctx context.Context, p signParams, req signgate.SignRequest, 
 		signature[64] += 27
 	}
 	return signature, nil
+}
+
+// deriveOpts carries the per-path differences in the decrypt+derive flow so the
+// shared deriveSecureSigner stays one implementation.
+type deriveOpts struct {
+	// SignerChainID is passed to NewSecureSigner. Transactions pass the real
+	// chain ("bsc"/"bitcoin"/...); message & typed-data pass "ethereum".
+	SignerChainID string
+	// CaseInsensitiveAddr selects the AddressBook lookup: EqualFold (true,
+	// message/typed-data) vs exact == (false, transaction).
+	CaseInsensitiveAddr bool
+	// VerifyEVMAddress runs the dev-mode "derived address == From" check for
+	// EVM chains (transaction only).
+	VerifyEVMAddress bool
+}
+
+// deriveSecureSigner decrypts the wallet, derives the private key, and builds an
+// XOR-split SecureSigner — the shared "get a signer" prelude for ALL signing
+// paths. Per-path differences are carried in opts.
+//
+// SECURITY — why decrypt+derive+build-signer live in ONE function and are NOT
+// split into two layers: the plaintext private key (GetPrivateKey's output)
+// must exist for the shortest possible time. Keeping GetPrivateKey and
+// NewSecureSigner adjacent, in one function with no external hand-off and no
+// error path between them, means the plaintext key is consumed (XOR-split +
+// zeroed) by NewSecureSigner immediately. Splitting this into a derive() that
+// RETURNS raw key bytes would lengthen the plaintext key's lifetime and add a
+// copy/dump/forgot-to-zero window. Do NOT refactor this into two layers.
+//
+// Returns *SecureSigner; the CALLER must defer signer.Zeroize().
+func deriveSecureSigner(p signParams, opts deriveOpts) (*security.SecureSigner, error) {
+	walletSvc := wallet.NewWalletService(p.USBPath)
+	mnemonic, err := walletSvc.RestoreWallet(p.WalletID, p.Password)
+	if err != nil {
+		return nil, err
+	}
+	defer zeroString(&mnemonic)
+
+	walletObj, err := walletSvc.LoadWallet(p.WalletID)
+	if err != nil {
+		return nil, err
+	}
+	derivationPath, err := derivationPathFor(walletObj, p.Address, opts.CaseInsensitiveAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	seed, err := bip39service.NewBIP39Service().MnemonicToSeed(mnemonic, p.Passphrase)
+	if err != nil {
+		return nil, err
+	}
+	defer security.SecureZero(seed)
+
+	hdkeySvc := hdkey.NewHDKeyService()
+	masterKey, err := hdkeySvc.NewMasterKey(seed)
+	if err != nil {
+		return nil, err
+	}
+	childKey, err := hdkeySvc.DerivePath(masterKey, derivationPath)
+	if err != nil {
+		return nil, err
+	}
+	privateKeyBytes, err := hdkeySvc.GetPrivateKey(childKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// dev-mode EVM derived-address verification (transaction path only).
+	if opts.VerifyEVMAddress {
+		cid := opts.SignerChainID
+		if strings.HasPrefix(cid, "ethereum") || strings.HasPrefix(cid, "bsc") ||
+			strings.HasPrefix(cid, "polygon") || strings.HasPrefix(cid, "arbitrum") ||
+			strings.HasPrefix(cid, "optimism") || strings.HasPrefix(cid, "base") {
+			ethPrivKey, ethErr := ethcrypto.ToECDSA(privateKeyBytes)
+			if ethErr == nil {
+				derivedAddr := ethcrypto.PubkeyToAddress(ethPrivKey.PublicKey)
+				if !strings.EqualFold(derivedAddr.Hex(), p.Address) {
+					security.SecureZero(privateKeyBytes)
+					return nil, errAddressMismatch
+				}
+			}
+		}
+	}
+
+	// NewSecureSigner splits privateKeyBytes into XOR shares and zeroes the input
+	// on success; on failure we zero it ourselves. Adjacent to GetPrivateKey by
+	// design (see security note above) — no hand-off of the plaintext key.
+	secureSigner, err := security.NewSecureSigner(privateKeyBytes, p.Address, opts.SignerChainID)
+	if err != nil {
+		security.SecureZero(privateKeyBytes)
+		return nil, err
+	}
+	return secureSigner, nil
 }
 
 // derivationPathFor finds the address's derivation path in the wallet's
