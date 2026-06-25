@@ -480,11 +480,11 @@ func SignTransaction(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Step 8: Encode signature and serialized tx as base64 for JSON transport
+	// Step 4: Encode signature and serialized tx as base64 for JSON transport
 	signatureB64 := base64.StdEncoding.EncodeToString(signed.Signature)
 	serializedTxB64 := base64.StdEncoding.EncodeToString(signed.SerializedTx)
 
-	// Step 9: Return signed transaction (no sensitive data)
+	// Step 5: Return signed transaction (no sensitive data)
 	data := map[string]interface{}{
 		"txHash":        signed.TxHash,
 		"signature":     signatureB64,

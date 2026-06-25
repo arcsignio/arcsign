@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/arcsignio/arcsign/internal/models"
@@ -42,6 +43,19 @@ func TestDerivationPathFor_CaseSensitivity(t *testing.T) {
 			t.Fatalf("exact lookup failed: p=%q err=%v", p, err)
 		}
 	})
+}
+
+func TestMapSignTxDeriveError(t *testing.T) {
+	if got := mapSignTxDeriveError(errAddressMismatch); got != ErrEncryptionError {
+		t.Fatalf("errAddressMismatch → %v, want ErrEncryptionError", got)
+	}
+	if got := mapSignTxDeriveError(errAddressNotFound); got != ErrInvalidInput {
+		t.Fatalf("errAddressNotFound → %v, want ErrInvalidInput", got)
+	}
+	// wrapped sentinel still maps (errors.Is)
+	if got := mapSignTxDeriveError(fmt.Errorf("context: %w", errAddressMismatch)); got != ErrEncryptionError {
+		t.Fatalf("wrapped errAddressMismatch → %v, want ErrEncryptionError", got)
+	}
 }
 
 func TestDeriveOpts_FieldWiring(t *testing.T) {
