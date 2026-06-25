@@ -79,9 +79,9 @@ flowchart TB
         mods -->|"tx RPC + gas"| rpcreg
     end
 
-    subgraph extworld["External — chains & data"]
+    subgraph extworld["External — chains & data (third-party)"]
         usb[("USB device<br/>encrypted .enc + wallet.json")]
-        rpc["keyless public RPC pool<br/>+ Multicall3"]
+        rpc["public RPC endpoints (keyless)<br/>publicnode · binance dataseed · avax public"]
         idx["indexers (Alchemy / NodeReal / Glacier)"]
         chains["Bitcoin + 7 EVM chains"]
         dex["OpenOcean / KyberSwap"]
@@ -97,8 +97,8 @@ flowchart TB
 
     crypto <-->|"atomic read/write"| usb
     wallet -.->|"mnemonic.enc"| usb
-    rpcreg -->|"public endpoints"| rpc
-    provider -->|"balances via pool + Multicall3"| rpc
+    rpcreg -->|"resolves & calls (failover)"| rpc
+    provider -->|"balances: Multicall3 aggregate3<br/>over the pool"| rpc
     provider -->|"NFT/history (key)"| idx
     provider -->|"prices"| prices
     provider -->|"flat balances + USD"| assets
