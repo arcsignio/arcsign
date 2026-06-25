@@ -27,6 +27,13 @@ const (
 )
 
 // SignRequest is the discriminated union describing what is about to be signed.
+//
+// NOTE on missing payloads: if Kind is set but its payload field is nil/empty
+// (e.g. KindTypedData with a nil TypedData), assess returns a safe report and
+// Authorize ALLOWS the signature. This is deliberate fail-open: a missing
+// payload carries no blacklisted address to check, and the gate never blocks on
+// a check it cannot run (same posture as SignTransaction's existing gate). The
+// real, unbypassable refusal happens only on an affirmative danger signal.
 type SignRequest struct {
 	Kind             SignKind
 	ChainID          string
@@ -61,6 +68,8 @@ func assess(ctx context.Context, g *txguard.Guard, req SignRequest) *txguard.Sec
 	case KindMessage:
 		return g.CheckMessage(req.Message)
 	default:
+		// Unknown kind: fail-open (allow). Same deliberate posture as a nil
+		// payload — the gate only refuses on an affirmative danger signal.
 		return nil
 	}
 }
