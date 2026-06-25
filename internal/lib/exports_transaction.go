@@ -15,19 +15,13 @@ import (
 	"fmt"
 	"math/big"
 	"runtime/debug"
-	"strings"
 	"time"
 
 	"github.com/arcsignio/arcsign/internal/provider"
-	"github.com/arcsignio/arcsign/internal/security"
 	"github.com/arcsignio/arcsign/internal/security/signgate"
 	"github.com/arcsignio/arcsign/internal/security/simulation"
-	"github.com/arcsignio/arcsign/internal/services/bip39service"
 	chainadapterService "github.com/arcsignio/arcsign/internal/services/chainadapter"
-	"github.com/arcsignio/arcsign/internal/services/hdkey"
-	"github.com/arcsignio/arcsign/internal/services/wallet"
 	"github.com/arcsignio/arcsign/src/chainadapter"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 //export BuildTransaction
@@ -252,6 +246,19 @@ func BuildTransaction(params *C.char) (result *C.char) {
 	return C.CString(string(jsonBytes))
 }
 
+// mapSignTxDeriveError maps deriveSecureSigner's errors back to the FFI error
+// codes SignTransaction historically returned, preserving user-facing behavior.
+func mapSignTxDeriveError(err error) ErrorCode {
+	switch {
+	case errors.Is(err, errAddressMismatch):
+		return ErrEncryptionError // was "Key derivation address mismatch"
+	case errors.Is(err, errAddressNotFound):
+		return ErrInvalidInput // was "Address not found in wallet"
+	default:
+		return MapWalletError(err) // RestoreWallet/LoadWallet/derive → closest existing mapping
+	}
+}
+
 //export SignTransaction
 // SignTransaction signs an unsigned transaction using wallet password.
 // Feature: 006-chain-adapter - ChainAdapter Transaction FFI
@@ -389,27 +396,7 @@ func SignTransaction(params *C.char) (result *C.char) {
 	// This allows signing when the user hasn't logged in yet (fallback mode)
 	// The wallet limit is still enforced at the UI level in this case
 
-	// Step 1: Decrypt wallet to get mnemonic
-	walletSvc := wallet.NewWalletService(input.USBPath)
-	mnemonic, err := walletSvc.RestoreWallet(input.WalletID, input.Password)
-	if err != nil {
-		code := MapWalletError(err)
-		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-	defer zeroString(&mnemonic) // Critical: clear mnemonic after use
-
-	// Step 2: Load wallet metadata to get AddressBook
-	walletObj, err := walletSvc.LoadWallet(input.WalletID)
-	if err != nil {
-		code := MapWalletError(err)
-		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	// Step 3: Manually reconstruct UnsignedTransaction from map
+	// Step 1: Manually reconstruct UnsignedTransaction from map
 	// Note: *big.Int fields can't be directly unmarshalled from JSON strings
 	unsigned := chainadapter.UnsignedTransaction{}
 
@@ -459,100 +446,29 @@ func SignTransaction(params *C.char) (result *C.char) {
 		unsigned.ChainSpecific = chainSpecific
 	}
 
-	// Step 4: Find derivation path from AddressBook using "from" address
-	if walletObj.AddressBook == nil {
-		response := NewErrorResponse(ErrStorageError, "Wallet has no AddressBook")
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	var derivationPath string
-	found := false
-	for _, addr := range walletObj.AddressBook.Addresses {
-		if addr.Address == unsigned.From {
-			derivationPath = addr.DerivationPath
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		response := NewErrorResponse(ErrInvalidInput, "Address not found in wallet")
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	// Step 5: Derive private key from mnemonic + derivation path
-	bip39Svc := bip39service.NewBIP39Service()
-	hdkeySvc := hdkey.NewHDKeyService()
-
-	// Mnemonic → Seed (use provided passphrase, empty string if not used)
-	seed, err := bip39Svc.MnemonicToSeed(mnemonic, input.Passphrase)
+	// Step 2: Decrypt + derive + build XOR-split signer (shared with message/typed-data).
+	// Transaction-specific via deriveOpts: real chainID, exact AddressBook match,
+	// dev-mode EVM derived-address verification.
+	secureSigner, err := deriveSecureSigner(signParams{
+		WalletID:   input.WalletID,
+		Password:   input.Password,
+		Passphrase: input.Passphrase,
+		USBPath:    input.USBPath,
+		Address:    unsigned.From,
+	}, deriveOpts{
+		SignerChainID:       input.ChainID,
+		CaseInsensitiveAddr: false,
+		VerifyEVMAddress:    true,
+	})
 	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
+		code := mapSignTxDeriveError(err)
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
+	defer secureSigner.Zeroize()
 
-	// Seed → Master Key
-	masterKey, err := hdkeySvc.NewMasterKey(seed)
-	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	// Master Key → Child Key (using derivation path)
-	childKey, err := hdkeySvc.DerivePath(masterKey, derivationPath)
-	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-
-	// Child Key → Private Key (raw bytes)
-	// SECURITY: Use SecureAlloc to try mlock the memory
-	privateKeyBytes, err := hdkeySvc.GetPrivateKey(childKey)
-	if err != nil {
-		response := NewErrorResponse(ErrEncryptionError, GetUserFriendlyMessage(ErrEncryptionError))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-	// Note: privateKeyBytes will be zeroed by SecureSigner constructor
-
-	// Debug: Verify derived address matches expected address (only in dev mode)
-	// This verification is done BEFORE creating SecureSigner because SecureSigner zeros the key
-	if strings.HasPrefix(input.ChainID, "ethereum") || strings.HasPrefix(input.ChainID, "bsc") ||
-		strings.HasPrefix(input.ChainID, "polygon") || strings.HasPrefix(input.ChainID, "arbitrum") ||
-		strings.HasPrefix(input.ChainID, "optimism") || strings.HasPrefix(input.ChainID, "base") {
-		// Temporarily derive address for verification (will be zeroed with privateKeyBytes)
-		ethPrivKey, ethErr := ethcrypto.ToECDSA(privateKeyBytes)
-		if ethErr == nil {
-			derivedAddr := ethcrypto.PubkeyToAddress(ethPrivKey.PublicKey)
-			if !strings.EqualFold(derivedAddr.Hex(), unsigned.From) {
-				// Address mismatch - return error instead of logging sensitive data
-				response := NewErrorResponse(ErrEncryptionError, "Key derivation address mismatch")
-				jsonBytes, _ := json.Marshal(response)
-				return C.CString(string(jsonBytes))
-			}
-		}
-	}
-
-	// Step 6: Create SecureSigner with XOR-split key storage
-	// SECURITY IMPROVEMENT: Private key is split into 3 XOR shares immediately
-	// The original privateKeyBytes is zeroed by NewSecureSigner
-	// Key is only reconstructed momentarily during signing (~1-5ms exposure vs ~50-100ms before)
-	secureSigner, err := security.NewSecureSigner(privateKeyBytes, unsigned.From, input.ChainID)
-	if err != nil {
-		// If signer creation fails, manually zero the key
-		security.SecureZero(privateKeyBytes)
-		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
-		jsonBytes, _ := json.Marshal(response)
-		return C.CString(string(jsonBytes))
-	}
-	defer secureSigner.Zeroize() // Clear XOR shares from memory
-
-	// Step 7: Sign transaction using ChainAdapter with SecureSigner
+	// Step 3: Sign transaction using ChainAdapter with SecureSigner
 	// The SecureSigner implements chainadapter.Signer interface
 	// Key is only reconstructed during actual signing (~1-5ms exposure)
 	chainAdapterSvc := initChainAdapterService()
@@ -564,11 +480,11 @@ func SignTransaction(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Step 8: Encode signature and serialized tx as base64 for JSON transport
+	// Step 4: Encode signature and serialized tx as base64 for JSON transport
 	signatureB64 := base64.StdEncoding.EncodeToString(signed.Signature)
 	serializedTxB64 := base64.StdEncoding.EncodeToString(signed.SerializedTx)
 
-	// Step 9: Return signed transaction (no sensitive data)
+	// Step 5: Return signed transaction (no sensitive data)
 	data := map[string]interface{}{
 		"txHash":        signed.TxHash,
 		"signature":     signatureB64,
