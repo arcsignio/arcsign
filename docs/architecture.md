@@ -131,18 +131,21 @@ The same layering as ASCII, for reference:
 │  libarcsign.{dylib,so,dll} — Go shared library (CGO, c-shared)            │
 │    internal/lib/  exports_*.go (11 domain files, the //export surface)    │
 │    internal/      wallet · crypto · security · provider · rpc · app …      │
-│    src/chainadapter/  (separate module)   src/swap/  (separate module)     │
+│    src/chainadapter/  (separate module)   src/swap/  (in root module)      │
 └──────────────┬────────────────────────────────────────┬───────────────────┘
                │ signed tx broadcast                     │ read on-chain data
                ▼                                         ▼
         Bitcoin + 7 EVM chains                  provider abstraction (§3.6)
 ```
 
-**Module boundaries.** The repo is three Go modules:
-`github.com/arcsignio/arcsign` (root: `internal/`), `src/chainadapter`, and
-`src/swap`. The dependency direction is **root → chainadapter → (nothing back)**,
-which is why `chainadapter` defines its own minimal `Signer` interface and
-cannot import the root's `SecureSigner` (production injects it at the boundary).
+**Module boundaries.** The repo is **two** Go modules:
+`github.com/arcsignio/arcsign` (the root — `internal/` **and** `src/swap`) and
+`github.com/arcsignio/arcsign/src/chainadapter` (its own `go.mod`). The
+dependency direction is **root → chainadapter → (nothing back)**, which is why
+`chainadapter` defines its own minimal `Signer` interface and cannot import the
+root's `SecureSigner` (production injects it at the boundary). `src/swap` lives
+under `src/` but has **no** `go.mod` — it is part of the root module, alongside
+`internal/`.
 
 ### Why a Go shared library behind FFI
 
@@ -611,7 +614,7 @@ path tries each endpoint, first success wins).
 > `src/chainadapter/rpc` (chainadapter transport). `internalToRegistryChain` in
 > `degraded.go` bridges provider network ids → `internal/rpc` keys.
 
-### 3.8 Swap (`src/swap/` — separate module)
+### 3.8 Swap (`src/swap/` — part of the root module)
 
 **Responsibility.** DEX aggregation across OpenOcean + KyberSwap with tier-based
 routing.
@@ -858,8 +861,8 @@ internal/
   constants/      WalletLimit business rules
 
 src/
-  chainadapter/   (module) unified tx interface — ethereum/ · bitcoin/ · rpc/
-  swap/           (module) DEX aggregator — openocean/ · kyberswap/ · oneinch/
+  chainadapter/   (own go.mod) unified tx interface — ethereum/ · bitcoin/ · rpc/
+  swap/           (root module) DEX aggregator — openocean/ · kyberswap/ · oneinch/
 
 dashboard/
   src/            React — components/ · hooks/ · stores/ · services/{tauri-api,
