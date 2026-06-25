@@ -4,8 +4,10 @@ package txguard
 // guard.go; this file only adds typed-data utilities.
 
 import (
+	"context"
 	"regexp"
 
+	"github.com/arcsignio/arcsign/internal/security/blacklist"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 )
 
@@ -63,4 +65,44 @@ func extractRiskyAddresses(td *apitypes.TypedData) []string {
 	}
 	scan(td.Message)
 	return out
+}
+
+// CheckTypedData assesses an EIP-712 signing request. Runs for EVERYONE
+// (free, in-memory blacklist + offline normalization check — no key, no net).
+// RequiresAcknowledge is computed here (backend), never on the frontend.
+func (g *Guard) CheckTypedData(ctx context.Context, td *apitypes.TypedData) *SecurityReport {
+	report := &SecurityReport{
+		Warnings:  make([]blacklist.Warning, 0),
+		RiskLevel: RiskSafe,
+	}
+	if td == nil {
+		return report
+	}
+
+	if !isCanonicalAddress(td.Domain.VerifyingContract) {
+		report.RiskLevel = RiskDanger
+		report.Warnings = append(report.Warnings, blacklist.Warning{
+			Type:    "EIP712_MALFORMED_DOMAIN",
+			Source:  "EIP712",
+			Message: "domain.verifyingContract 非標準地址格式，可能是 UI 混淆攻擊",
+		})
+	}
+
+	if g.blacklistMgr != nil {
+		for _, addr := range extractRiskyAddresses(td) {
+			if match := g.blacklistMgr.CheckAddress(addr); match != nil {
+				report.BlacklistMatch = match
+				report.Warnings = append(report.Warnings, blacklist.Warning{
+					Type:    "BLACKLISTED_ADDRESS",
+					Source:  match.Source,
+					Message: "簽章內含黑名單地址 (" + match.Category + ")",
+				})
+				report.RiskLevel = RiskDanger
+				break
+			}
+		}
+	}
+
+	report.RequiresAcknowledge = report.BlacklistMatch != nil || report.RiskLevel == RiskDanger
+	return report
 }
