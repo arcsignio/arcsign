@@ -66,20 +66,23 @@ flowchart LR
             direction TB
             wallet["wallet · hdkey · bip39<br/>(BIP-39/44 HD)"]
             crypto["crypto · storage · backup<br/>(Argon2id + AES-256-GCM)"]
-            security["security<br/>signgate · txguard · blacklist<br/>SecureSigner (XOR-split)"]
+            seclgate["signing security gate<br/>signgate · txguard · blacklist · simulation"]
+            keyprot["key protection<br/>SecureSigner (XOR-split) · memzero"]
             provider["provider<br/>balances (no-key) · NFT/history<br/>· approvals risk"]
             app["app · session · membership<br/>· ratelimit · audit"]
             rpcreg["rpc registry<br/>keyless endpoints + failover<br/>(shared management layer)"]
             misc["contacts · txlabels · abicache<br/>· dev mode (-tags dev)"]
-            %% invisible chain stacks the modules into one tidy column,
-            %% so the box stays narrow (no left-side void).
-            wallet ~~~ crypto ~~~ security ~~~ provider ~~~ app ~~~ rpcreg ~~~ misc
         end
         mods["src/chainadapter (tx: BTC + 7 EVM)<br/>src/swap (OpenOcean + KyberSwap)"]
         exp --> core
         exp --> mods
         provider -->|"keyless RPC"| rpcreg
         mods -->|"tx RPC + gas"| rpcreg
+        %% signing flow: gate first, then derive key, protect it, then sign
+        exp -->|"sign request"| seclgate
+        seclgate -->|"pass → derive"| wallet
+        wallet -->|"private key"| keyprot
+        keyprot -->|"signed hash / sig"| mods
     end
 
     subgraph extworld["External — chains & data (third-party)"]
@@ -112,7 +115,8 @@ flowchart LR
     style react fill:#1a2a3a,stroke:#2980b9
     style rust fill:#2a2520,stroke:#b8772a
     style go fill:#1a2a1a,stroke:#27ae60
-    style security fill:#3a1a1a,stroke:#c0392b,color:#fff
+    style seclgate fill:#3a1a1a,stroke:#c0392b,color:#fff
+    style keyprot fill:#3a1a1a,stroke:#c0392b,color:#fff
     style usb fill:#3a1a1a,stroke:#c0392b,color:#fff
 ```
 
