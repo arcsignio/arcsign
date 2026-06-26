@@ -459,6 +459,128 @@ flowchart LR
     style signer fill:#1a2a3a,stroke:#2980b9,color:#fff
 ```
 
+#### WalletConnect transport (one of the entry points above)
+
+WalletConnect v2 is one of the signing **entry points** that converges on the
+gate above. Unlike the localhost WS (`:9527`, loopback plaintext), WalletConnect
+traffic leaves the machine: it rides the **public relay**
+`wss://relay.walletconnect.com`, but every payload is **end-to-end encrypted**
+(ChaCha20-Poly1305 AEAD) with a `symKey` that only the dApp and ArcSign share —
+the relay forwards ciphertext it can neither read nor tamper with (a modified
+ciphertext fails the AEAD auth tag and is dropped). The **entire WalletConnect
+protocol stack lives in the frontend** (`@walletconnect/sign-client` v2.23.x);
+Go and Rust have no WalletConnect dependency. Rust only encrypts the session
+blob at rest on the USB; Go only runs the gate + signs.
+
+**Key files.**
+- `dashboard/src/services/walletconnect/client.ts` — `SignClient` wrapper;
+  `relayUrl` defaults to `wss://relay.walletconnect.com` (`:35-39`);
+  `pair`/`approve`/`respond`/`disconnect`.
+- `dashboard/src/services/walletconnect/session-manager.ts` — CAIP-2/CAIP-10
+  namespace negotiation (7 EVM chains).
+- `dashboard/src/services/walletconnect/request-handler.ts` +
+  `methods/{eth-send-transaction,personal-sign,eth-sign-typed-data,wallet-switch-chain,wallet-add-chain}.ts`
+  — per-method handlers.
+- `dashboard/src/contexts/WalletConnectContext.tsx` — lifecycle, event wiring,
+  `requestSignature` orchestration, session recovery.
+- `dashboard/src/components/WalletConnect/{PairingModal,SessionApprovalDialog,SignRequestDialog}.tsx`
+  — UI (desktop has no camera → paste `wc:` URI, no QR scan).
+- `dashboard/src-tauri/src/commands/walletconnect.rs` — `save_wc_sessions` /
+  `load_wc_sessions`: AES-256-GCM + HMAC at rest, key via
+  `HKDF(session token)` (`:41-47`). Independent of the relay E2E layer.
+
+**Architecture (who talks to whom).** The relay is a dumb ciphertext courier;
+the `symKey` never reaches it.
+
+```mermaid
+flowchart LR
+    dapp["dApp (website)<br/>e.g. a DEX"]
+
+    subgraph relaybox["WalletConnect relay"]
+        relay["relay.walletconnect.com<br/>⚠️ forwards ciphertext only<br/>cannot read / tamper"]
+    end
+
+    subgraph app["ArcSign desktop app (Tauri)"]
+        subgraph fe["① Frontend — TypeScript"]
+            sdk["@walletconnect/sign-client v2<br/>(whole WC protocol stack)"]
+        end
+        subgraph rs["② Rust — src-tauri"]
+            store["session at rest on USB<br/>AES-256-GCM + HMAC"]
+        end
+        subgraph gov["③ Go — internal/"]
+            gate["signgate.Authorize → sign<br/>(the real gate + private key)"]
+        end
+        sdk -->|"Tauri invoke"| store
+        sdk -->|"FFI (after user approves)"| gate
+    end
+
+    dapp <-->|"wss:// ciphertext"| relay
+    relay <-->|"wss:// ciphertext"| sdk
+    dapp -. "shared symKey — E2E, never given to relay<br/>ChaCha20-Poly1305 AEAD" .- sdk
+
+    style relay fill:#3a2a1a,stroke:#d68910,color:#fff
+    style gate fill:#3a1a1a,stroke:#c0392b,color:#fff
+    style sdk fill:#1a2a3a,stroke:#2980b9,color:#fff
+```
+
+**Pairing flow (first connection — establishes the symKey + session).** The
+`symKey` is embedded in the `wc:` URI the user pastes in; it travels only
+dApp → user → SDK, never through the relay.
+
+```mermaid
+sequenceDiagram
+    participant D as dApp
+    participant U as You + ArcSign UI
+    participant R as Relay
+    participant USB as USB
+
+    D->>D: generate wc: URI<br/>(embeds symKey + topic)
+    D-->>U: you copy the URI (QR or text)
+    U->>U: paste URI — PairingModal.tsx:36-49<br/>(read clipboard, verify 'wc:' prefix)
+    U->>R: client.pair({ uri }) — client.ts:74-85<br/>SDK extracts symKey, subscribes to topic
+    D->>R: session_proposal (encrypted with symKey)
+    R-->>U: session_proposal (ciphertext)
+    U->>U: SessionApprovalDialog<br/>WalletConnectContext.tsx:344-348<br/>pick accounts / chains
+    U->>R: session_approve<br/>(X25519 ECDH → session key)
+    R-->>D: session established
+    U->>USB: save_wc_sessions (Rust)<br/>AES-256-GCM + HMAC at rest
+    Note over D,U: all later messages E2E-encrypted with the session key
+```
+
+**Signing flow (after pairing — every transaction).** The transport is
+tamper-proof by crypto; the real defenses against a *malicious-but-valid*
+request are clear-signing + the backend gate + the human.
+
+```mermaid
+sequenceDiagram
+    participant D as dApp
+    participant R as Relay
+    participant FE as ArcSign frontend
+    participant U as You
+    participant GO as Go backend
+
+    D->>R: eth_sendTransaction (ciphertext)
+    R->>FE: session_request event<br/>WalletConnectContext.tsx:351-354
+    FE->>GO: checkTransactionSecurity (advisory)<br/>eth-send-transaction.ts:137-152
+    GO-->>FE: risk report (blacklist + RequiresAcknowledge)
+    FE->>U: SignRequestDialog<br/>+ clear-signing decode + risk warning
+    U->>FE: enter password<br/>+ acknowledge if high-risk
+    FE->>GO: build → sign → broadcast<br/>:200-289 (password + acknowledgedRisk)
+    Note over GO: ⚠️ real gate here — re-checks blacklist<br/>before touching the private key (USB)
+    GO-->>FE: signed result
+    FE->>R: respond (ciphertext)
+    R->>D: result (ciphertext)
+```
+
+Three things to remember: **(1)** transport tampering is cryptographically
+impossible (AEAD + symKey — a tampered ciphertext fails the auth tag); **(2)**
+the frontend dialog is informed-consent UX, **the real gate is in Go**
+(it re-checks the blacklist before deriving the key, so a bypassed frontend
+still can't sign a blacklisted target); **(3)** transport encryption cannot stop
+a dApp from sending a *valid but malicious* transaction — only clear-signing +
+the backend security report + the human can, which is why the decode in step
+"SignRequestDialog" is load-bearing.
+
 ### 3.4 Session, app state & rate limiting
 
 **Responsibility.** App-level auth sessions (token + encrypted provider key,
