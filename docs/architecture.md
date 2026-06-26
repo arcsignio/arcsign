@@ -120,6 +120,10 @@ flowchart LR
     style usb fill:#3a1a1a,stroke:#c0392b,color:#fff
 ```
 
+> 🔍 **Hard to read at this size?** Download the
+> [high-resolution PNG](images/architecture-overview.png) (12006×3645) and zoom
+> in — GitHub's inline render is small for a diagram this wide.
+
 > **The throughline:** a UI action crosses three layers (React → Rust → Go) but
 > every asset-touching decision happens in Go. The Rust shell is a thin,
 > serialized bridge; React is presentation only. Private keys live encrypted on
