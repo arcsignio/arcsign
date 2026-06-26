@@ -30,7 +30,7 @@ RPC, indexers, dApps). Deep-dives for each subsystem are in §3; per-topic
 diagrams (signing, USB storage, read-on-chain) are inline there.
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph ext_top["External — user-facing"]
         dapp["dApp / mint page"]
         user["User"]
@@ -63,7 +63,7 @@ flowchart TB
         direction TB
         exp["internal/lib · exports_*.go (//export surface)"]
         subgraph core["internal/ core"]
-            direction LR
+            direction TB
             wallet["wallet · hdkey · bip39<br/>(BIP-39/44 HD)"]
             crypto["crypto · storage · backup<br/>(Argon2id + AES-256-GCM)"]
             security["security<br/>signgate · txguard · blacklist<br/>SecureSigner (XOR-split)"]
@@ -71,6 +71,9 @@ flowchart TB
             app["app · session · membership<br/>· ratelimit · audit"]
             rpcreg["rpc registry<br/>keyless endpoints + failover<br/>(shared management layer)"]
             misc["contacts · txlabels · abicache<br/>· dev mode (-tags dev)"]
+            %% invisible chain stacks the modules into one tidy column,
+            %% so the box stays narrow (no left-side void).
+            wallet ~~~ crypto ~~~ security ~~~ provider ~~~ app ~~~ rpcreg ~~~ misc
         end
         mods["src/chainadapter (tx: BTC + 7 EVM)<br/>src/swap (OpenOcean + KyberSwap)"]
         exp --> core
