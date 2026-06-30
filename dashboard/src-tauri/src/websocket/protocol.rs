@@ -53,6 +53,15 @@ pub enum WsMethod {
 
     /// Get block explorer API key from developer settings
     GetExplorerApiKey,
+
+    // =========================================
+    // Pairing Handshake
+    // =========================================
+
+    /// Request a pairing code (desktop app displays it; client then verifies).
+    RequestPairing,
+    /// Submit the pairing code the user read off the desktop app screen.
+    VerifyPairing,
 }
 
 /// WebSocket response to client
@@ -357,6 +366,20 @@ pub struct GetExplorerApiKeyParams {
 }
 
 // =========================================
+// Pairing Types
+// =========================================
+
+/// Parameters for verify_pairing request.
+// Used in Task 9 (pairing handshake wiring); struct is declared here so the wire
+// format is established and tested independently of the server connection loop.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Deserialize)]
+pub struct VerifyPairingParams {
+    /// The pairing code the user read off the desktop app screen.
+    pub code: String,
+}
+
+// =========================================
 // Message Signing Types (EIP-191, EIP-712)
 // =========================================
 
@@ -411,4 +434,28 @@ pub struct MessageSignResult {
 pub struct PendingMessageSignWithChannel {
     pub request: PendingMessageSign,
     pub response_sender: tokio::sync::oneshot::Sender<MessageSignResult>,
+}
+
+#[cfg(test)]
+mod pairing_protocol_tests {
+    use super::*;
+
+    #[test]
+    fn request_pairing_deserializes_from_snake_case() {
+        let m: WsMethod = serde_json::from_str("\"request_pairing\"").unwrap();
+        assert!(matches!(m, WsMethod::RequestPairing));
+    }
+
+    #[test]
+    fn verify_pairing_deserializes_from_snake_case() {
+        let m: WsMethod = serde_json::from_str("\"verify_pairing\"").unwrap();
+        assert!(matches!(m, WsMethod::VerifyPairing));
+    }
+
+    #[test]
+    fn verify_pairing_params_deserialize() {
+        let p: VerifyPairingParams =
+            serde_json::from_str("{\"code\":\"1234-5678\"}").unwrap();
+        assert_eq!(p.code, "1234-5678");
+    }
 }

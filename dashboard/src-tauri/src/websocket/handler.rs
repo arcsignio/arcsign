@@ -182,6 +182,11 @@ pub async fn handle_request(
         }
         #[cfg(not(feature = "dev-mode"))]
         WsMethod::GetExplorerApiKey => handle_dev_method_unavailable(request.id),
+
+        // Pairing handshake — wired in Task 9
+        WsMethod::RequestPairing | WsMethod::VerifyPairing => {
+            WsResponse::error(request.id, "pairing not yet implemented")
+        }
     }
 }
 
