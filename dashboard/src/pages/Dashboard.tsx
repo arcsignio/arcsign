@@ -1172,7 +1172,7 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
       />
 
       {/* Pairing Dialog (mint-page connection ticket) */}
-      <PairingDialog code={pairing?.code_display ?? null} origin={pairing?.origin ?? null} />
+      <PairingDialog code={pairing?.code_display ?? null} origin={pairing?.origin ?? null} onClose={() => setPairing(null)} />
     </div>
   );
 }

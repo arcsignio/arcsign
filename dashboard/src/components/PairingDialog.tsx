@@ -1,14 +1,17 @@
 interface Props {
   code: string | null;
   origin: string | null;
+  onClose: () => void;
 }
 
 // 配對碼彈窗：顯示桌面端產生的碼 + 來源 origin。使用者把碼填回 mint 網頁。
 // 純呈現——配對驗證在後端（連線層門票，不碰簽章閘）。
-export function PairingDialog({ code, origin }: Props) {
+export function PairingDialog({ code, origin, onClose }: Props) {
   if (!code) return null;
   return (
     <div
+      role="dialog"
+      aria-modal="true"
       style={{
         position: 'fixed',
         inset: 0,
@@ -46,6 +49,22 @@ export function PairingDialog({ code, origin }: Props) {
         <p style={{ color: '#64748b', fontSize: 12, marginTop: 12 }}>
           60 秒內有效，輸錯 3 次鎖定此連線。
         </p>
+        <button
+          onClick={onClose}
+          style={{
+            marginTop: 16,
+            width: '100%',
+            padding: '8px 0',
+            background: '#0d9488',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            cursor: 'pointer',
+            fontSize: 14,
+          }}
+        >
+          關閉
+        </button>
       </div>
     </div>
   );
