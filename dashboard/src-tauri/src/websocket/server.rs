@@ -198,6 +198,30 @@ impl WebSocketServer {
     }
 }
 
+/// Origins always allowed (the mint page + Tauri's own webview origins).
+const ALLOWED_ORIGINS: &[&str] = &[
+    "https://arcsign.io",        // mint page (production website)
+    "tauri://localhost",         // Tauri production webview
+    "https://tauri.localhost",   // Tauri alternative origin
+];
+
+/// Decide whether a WebSocket Origin header is allowed.
+/// Production builds reject empty Origin (non-browser local processes) and
+/// localhost dev ports. The `dev-mode` build additionally allows both, so the
+/// Hardhat CLI (empty Origin) and a locally-served mint page work.
+pub(crate) fn is_origin_allowed(origin: &str) -> bool {
+    if ALLOWED_ORIGINS.contains(&origin) {
+        return true;
+    }
+    #[cfg(feature = "dev-mode")]
+    {
+        if origin.is_empty() || origin.starts_with("http://localhost:") {
+            return true;
+        }
+    }
+    false
+}
+
 /// Handle a single WebSocket connection
 async fn handle_connection(
     stream: TcpStream,
@@ -216,10 +240,7 @@ async fn handle_connection(
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
 
-        let allowed = origin.is_empty()                          // non-browser clients (e.g. wscat)
-            || origin == "tauri://localhost"                      // Tauri v1 production webview
-            || origin == "https://tauri.localhost"                // Tauri v1 alternative origin
-            || origin.starts_with("http://localhost:");           // Tauri dev mode with Vite
+        let allowed = is_origin_allowed(origin);
 
         if allowed {
             tracing::debug!("WebSocket Origin accepted: {:?}", origin);
@@ -320,4 +341,53 @@ async fn handle_connection(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod origin_tests {
+    use super::is_origin_allowed;
+
+    #[test]
+    fn mint_origin_allowed_in_all_builds() {
+        assert!(is_origin_allowed("https://arcsign.io"));
+    }
+
+    #[test]
+    fn tauri_webview_origins_allowed() {
+        assert!(is_origin_allowed("tauri://localhost"));
+        assert!(is_origin_allowed("https://tauri.localhost"));
+    }
+
+    #[test]
+    fn other_website_origin_rejected() {
+        assert!(!is_origin_allowed("https://evil.example"));
+    }
+
+    // Production: empty Origin (non-browser local process) rejected.
+    #[cfg(not(feature = "dev-mode"))]
+    #[test]
+    fn empty_origin_rejected_in_production() {
+        assert!(!is_origin_allowed(""));
+    }
+
+    // Production: localhost dev port rejected.
+    #[cfg(not(feature = "dev-mode"))]
+    #[test]
+    fn localhost_dev_port_rejected_in_production() {
+        assert!(!is_origin_allowed("http://localhost:5173"));
+    }
+
+    // Dev build: empty Origin (Hardhat) allowed.
+    #[cfg(feature = "dev-mode")]
+    #[test]
+    fn empty_origin_allowed_in_dev() {
+        assert!(is_origin_allowed(""));
+    }
+
+    // Dev build: localhost dev port (locally-served mint) allowed.
+    #[cfg(feature = "dev-mode")]
+    #[test]
+    fn localhost_dev_port_allowed_in_dev() {
+        assert!(is_origin_allowed("http://localhost:5173"));
+    }
 }
