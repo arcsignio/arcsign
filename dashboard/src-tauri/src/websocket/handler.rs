@@ -7,12 +7,19 @@
 use super::protocol::{
     WsRequest, WsResponse, WsMethod, SignTransactionParams, PendingTransaction,
     TransactionResult, PendingTransactionWithChannel,
-    // Developer mode types
+    // Developer mode types (production-used)
+    DevSession,
+    // Message signing types (production-used)
+    PendingMessageSignWithChannel,
+};
+// Developer-mode-only protocol types — only referenced inside `#[cfg(feature = "dev-mode")]`
+// handlers, so they are unused (and would warn) in a production build.
+#[cfg(feature = "dev-mode")]
+use super::protocol::{
     DevSignTransactionParams, PersonalSignParams, SignTypedDataParams,
-    DevSession, DevCreateSessionParams, DevContext, PendingDevRequest, DevRequestType,
+    DevCreateSessionParams, DevContext, PendingDevRequest, DevRequestType,
     GetExplorerApiKeyParams,
-    // Message signing types
-    PendingMessageSign, PendingMessageSignWithChannel, MessageSignResult, MessageSignType,
+    PendingMessageSign, MessageSignResult, MessageSignType,
 };
 use crate::ffi::LazyWalletQueue;
 use serde_json::{json, Value};
@@ -28,6 +35,12 @@ pub type PendingMsgSender = mpsc::UnboundedSender<PendingMessageSignWithChannel>
 pub type PendingMsgReceiver = mpsc::UnboundedReceiver<PendingMessageSignWithChannel>;
 
 /// Handler context with access to app state
+//
+// Several fields (`pending_msg_sender`, `usb_path`, `dev_session`, `wallet_queue`) are
+// only read inside `#[cfg(feature = "dev-mode")]` handlers. In a production build they are
+// still constructed (server.rs) but never read, so allow the resulting dead-code noise
+// without dropping the fields the dev build needs.
+#[cfg_attr(not(feature = "dev-mode"), allow(dead_code))]
 pub struct HandlerContext {
     /// Channel to send pending transactions to UI
     pub pending_tx_sender: PendingTxSender,
@@ -348,6 +361,7 @@ fn short_address(addr: &str) -> String {
 // =========================================
 
 /// Map chain ID to network name
+#[cfg(feature = "dev-mode")]
 fn chain_id_to_network(chain_id: u64) -> String {
     match chain_id {
         1 => "ethereum".to_string(),
@@ -365,6 +379,7 @@ fn chain_id_to_network(chain_id: u64) -> String {
 }
 
 /// Check if network is a testnet
+#[cfg(feature = "dev-mode")]
 fn is_testnet(chain_id: u64) -> bool {
     matches!(chain_id, 5 | 11155111 | 97 | 80001 | 421613 | 420 | 84531)
 }
@@ -897,6 +912,7 @@ async fn handle_dev_end_session(
 }
 
 /// Try to decode a hex message to a readable UTF-8 string
+#[cfg(feature = "dev-mode")]
 fn decode_hex_message(hex_msg: &str) -> Option<String> {
     // Remove 0x prefix if present
     let hex_str = hex_msg.strip_prefix("0x").unwrap_or(hex_msg);
@@ -927,6 +943,7 @@ fn decode_hex_message(hex_msg: &str) -> Option<String> {
 }
 
 /// Parse method name from calldata
+#[cfg(feature = "dev-mode")]
 fn parse_method_name(data: &str) -> String {
     if data.len() < 10 {
         return "Unknown Method".to_string();
@@ -956,6 +973,7 @@ fn parse_method_name(data: &str) -> String {
 }
 
 /// Get current timestamp in milliseconds
+#[cfg(feature = "dev-mode")]
 fn current_timestamp_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
