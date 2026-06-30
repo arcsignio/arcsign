@@ -121,33 +121,54 @@ pub async fn handle_request(
         }
 
         // Developer Mode Methods
+        #[cfg(feature = "dev-mode")]
         WsMethod::DevSignTransaction => {
             handle_dev_sign_transaction(request.id, request.params, context).await
         }
+        #[cfg(not(feature = "dev-mode"))]
+        WsMethod::DevSignTransaction => handle_dev_method_unavailable(request.id),
 
+        #[cfg(feature = "dev-mode")]
         WsMethod::PersonalSign => {
             handle_personal_sign(request.id, request.params, context).await
         }
+        #[cfg(not(feature = "dev-mode"))]
+        WsMethod::PersonalSign => handle_dev_method_unavailable(request.id),
 
+        #[cfg(feature = "dev-mode")]
         WsMethod::SignTypedDataV4 => {
             handle_sign_typed_data(request.id, request.params, context).await
         }
+        #[cfg(not(feature = "dev-mode"))]
+        WsMethod::SignTypedDataV4 => handle_dev_method_unavailable(request.id),
 
+        #[cfg(feature = "dev-mode")]
         WsMethod::DevGetSession => {
             handle_dev_get_session(request.id, context).await
         }
+        #[cfg(not(feature = "dev-mode"))]
+        WsMethod::DevGetSession => handle_dev_method_unavailable(request.id),
 
+        #[cfg(feature = "dev-mode")]
         WsMethod::DevCreateSession => {
             handle_dev_create_session(request.id, request.params, context).await
         }
+        #[cfg(not(feature = "dev-mode"))]
+        WsMethod::DevCreateSession => handle_dev_method_unavailable(request.id),
 
+        #[cfg(feature = "dev-mode")]
         WsMethod::DevEndSession => {
             handle_dev_end_session(request.id, context).await
         }
+        #[cfg(not(feature = "dev-mode"))]
+        WsMethod::DevEndSession => handle_dev_method_unavailable(request.id),
 
+        #[cfg(feature = "dev-mode")]
         WsMethod::GetExplorerApiKey => {
             handle_get_explorer_api_key(request.id, request.params, context).await
         }
+        #[cfg(not(feature = "dev-mode"))]
+        WsMethod::GetExplorerApiKey => handle_dev_method_unavailable(request.id),
     }
 }
 
@@ -348,7 +369,20 @@ fn is_testnet(chain_id: u64) -> bool {
     matches!(chain_id, 5 | 11155111 | 97 | 80001 | 421613 | 420 | 84531)
 }
 
+/// Production builds (without the `dev-mode` feature) do not compile the
+/// developer auto-sign methods. Reaching a dev method here means a developer
+/// tool (e.g. the Hardhat plugin) connected to a production wallet build.
+#[cfg(not(feature = "dev-mode"))]
+fn handle_dev_method_unavailable(id: u64) -> WsResponse {
+    WsResponse::error(
+        id,
+        "dev methods are not available in this production build; \
+         install the ArcSign developer build to use the Hardhat plugin",
+    )
+}
+
 /// Handle dev_sign_transaction request (developer mode)
+#[cfg(feature = "dev-mode")]
 async fn handle_dev_sign_transaction(
     id: u64,
     params: Value,
@@ -575,6 +609,7 @@ async fn handle_dev_sign_transaction(
 }
 
 /// Handle personal_sign request (EIP-191)
+#[cfg(feature = "dev-mode")]
 async fn handle_personal_sign(
     id: u64,
     params: Value,
@@ -665,6 +700,7 @@ async fn handle_personal_sign(
 }
 
 /// Handle signTypedData_v4 request (EIP-712)
+#[cfg(feature = "dev-mode")]
 async fn handle_sign_typed_data(
     id: u64,
     params: Value,
@@ -759,6 +795,7 @@ async fn handle_sign_typed_data(
 }
 
 /// Handle dev_get_session request
+#[cfg(feature = "dev-mode")]
 async fn handle_dev_get_session(
     id: u64,
     context: &HandlerContext,
@@ -789,6 +826,7 @@ async fn handle_dev_get_session(
 }
 
 /// Handle dev_create_session request
+#[cfg(feature = "dev-mode")]
 async fn handle_dev_create_session(
     id: u64,
     params: Value,
@@ -833,6 +871,7 @@ async fn handle_dev_create_session(
 }
 
 /// Handle dev_end_session request
+#[cfg(feature = "dev-mode")]
 async fn handle_dev_end_session(
     id: u64,
     context: &HandlerContext,
@@ -925,6 +964,7 @@ fn current_timestamp_ms() -> u64 {
 }
 
 /// Handle get_explorer_api_key request
+#[cfg(feature = "dev-mode")]
 async fn handle_get_explorer_api_key(
     id: u64,
     params: Value,
@@ -1002,4 +1042,23 @@ async fn handle_get_explorer_api_key(
         "api_key": api_key,
         "explorer": key_params.explorer,
     }))
+}
+
+#[cfg(test)]
+mod dev_gate_tests {
+    use super::*;
+
+    // Production build (no dev-mode feature): dispatching a dev method returns a friendly error.
+    #[cfg(not(feature = "dev-mode"))]
+    #[test]
+    fn dev_method_returns_friendly_error_in_production_build() {
+        let resp = handle_dev_method_unavailable(42);
+        assert!(!resp.success);
+        let err = resp.error.unwrap();
+        assert!(
+            err.contains("developer build"),
+            "error should point user to the developer build, got: {err}"
+        );
+        assert_eq!(resp.id, 42);
+    }
 }
