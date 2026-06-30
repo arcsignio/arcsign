@@ -48,8 +48,10 @@ use commands::provider::{set_provider_config, get_provider_config, list_provider
 use commands::websocket_commands::{
     get_pending_transaction, respond_to_transaction, cancel_pending_transaction,
     get_pending_message_sign, respond_to_message_sign, cancel_pending_message_sign,
+    get_pending_pairing,
     PendingTxReceiverState, CurrentPendingTxState,
     PendingMsgReceiverState, CurrentPendingMsgState,
+    PairingPromptReceiverState,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -226,6 +228,7 @@ fn main() {
             // Start WebSocket server for mint-page integration
             let (pending_tx_sender, pending_tx_receiver) = mpsc::unbounded_channel();
             let (pending_msg_sender, pending_msg_receiver) = mpsc::unbounded_channel();
+            let (pending_pairing_sender, pending_pairing_receiver) = mpsc::unbounded_channel();
 
             // Store receiver in app state for UI to receive pending transactions
             let receiver_state: PendingTxReceiverState = Arc::new(Mutex::new(pending_tx_receiver));
@@ -243,12 +246,26 @@ fn main() {
             let current_msg_state: CurrentPendingMsgState = Arc::new(Mutex::new(None));
             app.manage(current_msg_state);
 
+            // Store pairing prompt receiver in app state for the UI to show codes
+            let pairing_receiver_state: PairingPromptReceiverState =
+                Arc::new(Mutex::new(pending_pairing_receiver));
+            app.manage(pairing_receiver_state);
+
             // Create and start WebSocket server (with wallet queue for session-based auto-signing)
             let ws_server = Arc::new(tokio::sync::RwLock::new(
                 if let Some(queue) = wallet_queue {
-                    WebSocketServer::with_wallet_queue(pending_tx_sender, pending_msg_sender, queue)
+                    WebSocketServer::with_wallet_queue(
+                        pending_tx_sender,
+                        pending_msg_sender,
+                        pending_pairing_sender,
+                        queue,
+                    )
                 } else {
-                    WebSocketServer::new(pending_tx_sender, pending_msg_sender)
+                    WebSocketServer::new(
+                        pending_tx_sender,
+                        pending_msg_sender,
+                        pending_pairing_sender,
+                    )
                 }
             ));
             app.manage(ws_server.clone());
@@ -376,6 +393,8 @@ fn main() {
             get_pending_message_sign,
             respond_to_message_sign,
             cancel_pending_message_sign,
+            // WebSocket pairing prompt
+            get_pending_pairing,
             // WalletConnect commands (session persistence)
             commands::walletconnect::save_wc_sessions,
             commands::walletconnect::load_wc_sessions,

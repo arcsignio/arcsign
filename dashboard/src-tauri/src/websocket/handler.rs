@@ -183,9 +183,11 @@ pub async fn handle_request(
         #[cfg(not(feature = "dev-mode"))]
         WsMethod::GetExplorerApiKey => handle_dev_method_unavailable(request.id),
 
-        // Pairing handshake — wired in Task 9
+        // Pairing handshake is handled in server.rs (it mutates per-connection
+        // state), so the per-request handler never sees it. Reaching here means
+        // the gate let a pairing method through to dispatch — a logic error.
         WsMethod::RequestPairing | WsMethod::VerifyPairing => {
-            WsResponse::error(request.id, "pairing not yet implemented")
+            WsResponse::error(request.id, "pairing is handled at the connection layer")
         }
     }
 }
