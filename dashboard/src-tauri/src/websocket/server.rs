@@ -7,6 +7,7 @@
 
 use super::handler::{handle_request, HandlerContext, PendingTxSender, PendingMsgSender};
 use super::protocol::{WsMethod, WsRequest, WsResponse, DevSession};
+use super::{PairingState, VerifyResult};
 use crate::ffi::LazyWalletQueue;
 use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;
@@ -25,6 +26,20 @@ use tokio_tungstenite::{
 /// WebSocket server port
 const WS_PORT: u16 = 9527;
 
+/// A pairing prompt pushed to the desktop UI: the connection asked to pair,
+/// the app shows this 8-digit code for the user to type into the requesting page.
+#[derive(Clone, serde::Serialize)]
+pub struct PairingPrompt {
+    /// "1234-5678" display form of the fresh pairing code.
+    pub code_display: String,
+    /// Requesting Origin header, shown for context.
+    pub origin: String,
+}
+
+/// Channel for sending pairing prompts to the UI. Mirrors the pending-tx
+/// `mpsc::UnboundedSender` flavor so the call sites stay symmetric.
+pub type PairingPromptSender = mpsc::UnboundedSender<PairingPrompt>;
+
 /// WebSocket server state
 pub struct WebSocketServer {
     /// Currently connected addresses (from loaded wallet)
@@ -35,6 +50,8 @@ pub struct WebSocketServer {
     pending_tx_sender: PendingTxSender,
     /// Channel for pending message sign requests
     pending_msg_sender: PendingMsgSender,
+    /// Channel for pushing pairing prompts to the UI
+    pending_pairing_sender: PairingPromptSender,
     /// FFI wallet queue for session-based signing
     wallet_queue: Option<LazyWalletQueue>,
     /// Developer session state (shared across connections)
@@ -45,12 +62,17 @@ pub struct WebSocketServer {
 
 impl WebSocketServer {
     /// Create a new WebSocket server
-    pub fn new(pending_tx_sender: PendingTxSender, pending_msg_sender: PendingMsgSender) -> Self {
+    pub fn new(
+        pending_tx_sender: PendingTxSender,
+        pending_msg_sender: PendingMsgSender,
+        pending_pairing_sender: PairingPromptSender,
+    ) -> Self {
         Self {
             accounts: Arc::new(RwLock::new(Vec::new())),
             usb_path: Arc::new(RwLock::new(None)),
             pending_tx_sender,
             pending_msg_sender,
+            pending_pairing_sender,
             wallet_queue: None,
             dev_session: Arc::new(RwLock::new(None)),
             shutdown_tx: None,
@@ -61,6 +83,7 @@ impl WebSocketServer {
     pub fn with_wallet_queue(
         pending_tx_sender: PendingTxSender,
         pending_msg_sender: PendingMsgSender,
+        pending_pairing_sender: PairingPromptSender,
         wallet_queue: LazyWalletQueue,
     ) -> Self {
         Self {
@@ -68,6 +91,7 @@ impl WebSocketServer {
             usb_path: Arc::new(RwLock::new(None)),
             pending_tx_sender,
             pending_msg_sender,
+            pending_pairing_sender,
             wallet_queue: Some(wallet_queue),
             dev_session: Arc::new(RwLock::new(None)),
             shutdown_tx: None,
@@ -129,6 +153,7 @@ impl WebSocketServer {
         let usb_path = Arc::clone(&self.usb_path);
         let pending_tx_sender = self.pending_tx_sender.clone();
         let pending_msg_sender = self.pending_msg_sender.clone();
+        let pending_pairing_sender = self.pending_pairing_sender.clone();
         let wallet_queue = self.wallet_queue.clone();
         let dev_session = Arc::clone(&self.dev_session);
 
@@ -155,6 +180,7 @@ impl WebSocketServer {
                                 let usb_path = Arc::clone(&usb_path);
                                 let pending_tx_sender = pending_tx_sender.clone();
                                 let pending_msg_sender = pending_msg_sender.clone();
+                                let pending_pairing_sender = pending_pairing_sender.clone();
                                 let wallet_queue = wallet_queue.clone();
                                 let dev_session = Arc::clone(&dev_session);
 
@@ -166,6 +192,7 @@ impl WebSocketServer {
                                         usb_path,
                                         pending_tx_sender,
                                         pending_msg_sender,
+                                        pending_pairing_sender,
                                         wallet_queue,
                                         dev_session,
                                     ).await {
@@ -198,6 +225,56 @@ impl WebSocketServer {
     }
 }
 
+/// Origins always allowed (the mint page + Tauri's own webview origins).
+const ALLOWED_ORIGINS: &[&str] = &[
+    "https://arcsign.io",        // mint page (production website)
+    "tauri://localhost",         // Tauri production webview
+    "https://tauri.localhost",   // Tauri alternative origin
+];
+
+/// Decide whether a WebSocket Origin header is allowed.
+/// Production builds reject empty Origin (non-browser local processes) and
+/// localhost dev ports. The `dev-mode` build additionally allows both, so the
+/// Hardhat CLI (empty Origin) and a locally-served mint page work.
+pub(crate) fn is_origin_allowed(origin: &str) -> bool {
+    if ALLOWED_ORIGINS.contains(&origin) {
+        return true;
+    }
+    #[cfg(feature = "dev-mode")]
+    {
+        if origin.is_empty() || origin.starts_with("http://localhost:") {
+            return true;
+        }
+    }
+    false
+}
+
+/// Before a connection is paired, only the pairing handshake + ping are allowed.
+/// Everything else (account enumeration, signing) is rejected until the user
+/// types the pairing code shown in the desktop app.
+pub(crate) fn method_allowed_before_pairing(m: &WsMethod) -> bool {
+    matches!(m, WsMethod::Ping | WsMethod::RequestPairing | WsMethod::VerifyPairing)
+}
+
+/// Normalize a submitted pairing code to digits-only. The desktop app displays
+/// the code with a dash ("1234-5678") but the stored secret is 8 raw digits, so
+/// strip every non-digit before the constant-time compare — otherwise the
+/// displayed form could never verify (fails closed = pairing deadlock).
+pub(crate) fn normalize_pairing_code(raw: &str) -> String {
+    raw.chars().filter(|c| c.is_ascii_digit()).collect()
+}
+
+/// Current wall-clock time in milliseconds since the UNIX epoch.
+/// (handler.rs has a `current_timestamp_ms`, but it is gated behind `dev-mode`;
+/// pairing needs an always-available one.)
+fn now_ms() -> u64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
 /// Handle a single WebSocket connection
 async fn handle_connection(
     stream: TcpStream,
@@ -206,20 +283,28 @@ async fn handle_connection(
     usb_path: Arc<RwLock<Option<String>>>,
     pending_tx_sender: PendingTxSender,
     pending_msg_sender: PendingMsgSender,
+    pending_pairing_sender: PairingPromptSender,
     wallet_queue: Option<LazyWalletQueue>,
     dev_session: Arc<RwLock<Option<DevSession>>>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let ws_stream = accept_hdr_async(stream, |req: &Request, response: Response| {
+    // The Origin header is only visible inside the handshake callback below.
+    // Lift it out via a shared cell so the pairing prompt can show which page
+    // is requesting the connection.
+    let captured_origin = Arc::new(std::sync::Mutex::new(String::new()));
+    let origin_for_cb = Arc::clone(&captured_origin);
+
+    let ws_stream = accept_hdr_async(stream, move |req: &Request, response: Response| {
         let origin = req
             .headers()
             .get("Origin")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
 
-        let allowed = origin.is_empty()                          // non-browser clients (e.g. wscat)
-            || origin == "tauri://localhost"                      // Tauri v1 production webview
-            || origin == "https://tauri.localhost"                // Tauri v1 alternative origin
-            || origin.starts_with("http://localhost:");           // Tauri dev mode with Vite
+        if let Ok(mut slot) = origin_for_cb.lock() {
+            *slot = origin.to_string();
+        }
+
+        let allowed = is_origin_allowed(origin);
 
         if allowed {
             tracing::debug!("WebSocket Origin accepted: {:?}", origin);
@@ -234,13 +319,15 @@ async fn handle_connection(
     .await?;
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
 
+    let client_origin = captured_origin.lock().map(|s| s.clone()).unwrap_or_default();
+
     tracing::info!("WebSocket connection established with {}", peer_addr);
 
-    // Authentication: unauthenticated connections can only use read-only methods.
-    // Clients must send a Ping request first to establish the session before
-    // using write methods (sign, broadcast, etc.). This prevents arbitrary
-    // local processes from immediately invoking signing operations.
-    let mut authenticated = false;
+    // Per-connection pairing. Until paired, only ping + the pairing handshake
+    // are allowed. A fresh PairingState is created per connection (never reused
+    // across reconnects), and once `paired` is true we stop calling `verify`.
+    let mut pairing: Option<PairingState> = None;
+    let mut paired = false;
 
     while let Some(msg) = ws_receiver.next().await {
         match msg {
@@ -256,30 +343,91 @@ async fn handle_connection(
                     }
                 };
 
-                // Read-only methods are always allowed
-                let is_read_only = matches!(
-                    request.method,
-                    WsMethod::GetAccounts | WsMethod::Ping | WsMethod::GetBalance
-                );
-
-                // Ping also serves as the authentication handshake
-                if request.method == WsMethod::Ping && !authenticated {
-                    authenticated = true;
-                    tracing::info!("WebSocket client {} authenticated via Ping", peer_addr);
+                // Pairing handshake (handled here, not in the per-request handler,
+                // because it mutates per-connection state).
+                if request.method == WsMethod::RequestPairing {
+                    // Only generate a fresh code if there isn't already an active
+                    // one for this connection. Prevents a local process that
+                    // passed the Origin check from spamming request_pairing to
+                    // reset the 3-attempt lockout, flood the prompt channel, or
+                    // pop a UI dialog per call. An expired or locked pairing may
+                    // be replaced; an active one is reused.
+                    let need_new = match pairing.as_ref() {
+                        None => true,
+                        Some(p) => p.is_expired(now_ms()) || p.is_locked(),
+                    };
+                    if need_new {
+                        let state = PairingState::generate(
+                            std::time::Duration::from_secs(60),
+                            now_ms(),
+                        );
+                        let _ = pending_pairing_sender.send(PairingPrompt {
+                            code_display: state.code_display(),
+                            origin: client_origin.clone(),
+                        });
+                        pairing = Some(state);
+                    }
+                    let resp = WsResponse::success(
+                        request.id,
+                        serde_json::json!({"status": "pairing_started"}),
+                    );
+                    ws_sender.send(Message::Text(serde_json::to_string(&resp)?)).await?;
+                    continue;
                 }
 
-                if !authenticated && !is_read_only {
+                if request.method == WsMethod::VerifyPairing {
+                    let raw = request
+                        .params
+                        .get("code")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    // Accept the code with or without the display dash
+                    // ("1234-5678" or "12345678"): the stored secret is 8 raw
+                    // digits, so strip non-digits before the constant-time compare.
+                    let code = normalize_pairing_code(raw);
+                    let result = match pairing.as_mut() {
+                        Some(p) => p.verify(&code, now_ms()),
+                        None => VerifyResult::Wrong { remaining: 0 },
+                    };
+                    // Single source of truth: derive the gate flag from the
+                    // PairingState itself rather than a separate manual assignment.
+                    paired = pairing.as_ref().map_or(false, |p| p.is_paired());
+                    let (ok, msg) = match result {
+                        VerifyResult::Paired => {
+                            tracing::info!("WebSocket client {} paired", peer_addr);
+                            (true, "paired".to_string())
+                        }
+                        VerifyResult::Wrong { remaining } => {
+                            (false, format!("wrong code, {remaining} attempts left"))
+                        }
+                        VerifyResult::Locked => {
+                            (false, "too many attempts, connection locked".to_string())
+                        }
+                        VerifyResult::Expired => {
+                            (false, "pairing code expired".to_string())
+                        }
+                    };
+                    let resp = if ok {
+                        WsResponse::success(request.id, serde_json::json!({"status": msg}))
+                    } else {
+                        WsResponse::error(request.id, msg)
+                    };
+                    ws_sender.send(Message::Text(serde_json::to_string(&resp)?)).await?;
+                    continue;
+                }
+
+                // Everything else requires a paired connection.
+                if !paired && !method_allowed_before_pairing(&request.method) {
                     tracing::warn!(
-                        "WebSocket client {} attempted {:?} without authentication",
+                        "WebSocket client {} attempted {:?} before pairing",
                         peer_addr,
                         request.method
                     );
-                    let error_response = WsResponse::error(
+                    let resp = WsResponse::error(
                         request.id,
-                        "Authentication required. Send a Ping request first.".to_string(),
+                        "pairing required: call request_pairing then verify_pairing".to_string(),
                     );
-                    let response_text = serde_json::to_string(&error_response)?;
-                    ws_sender.send(Message::Text(response_text)).await?;
+                    ws_sender.send(Message::Text(serde_json::to_string(&resp)?)).await?;
                     continue;
                 }
 
@@ -320,4 +468,91 @@ async fn handle_connection(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod origin_tests {
+    use super::is_origin_allowed;
+
+    #[test]
+    fn mint_origin_allowed_in_all_builds() {
+        assert!(is_origin_allowed("https://arcsign.io"));
+    }
+
+    #[test]
+    fn tauri_webview_origins_allowed() {
+        assert!(is_origin_allowed("tauri://localhost"));
+        assert!(is_origin_allowed("https://tauri.localhost"));
+    }
+
+    #[test]
+    fn other_website_origin_rejected() {
+        assert!(!is_origin_allowed("https://evil.example"));
+    }
+
+    // Production: empty Origin (non-browser local process) rejected.
+    #[cfg(not(feature = "dev-mode"))]
+    #[test]
+    fn empty_origin_rejected_in_production() {
+        assert!(!is_origin_allowed(""));
+    }
+
+    // Production: localhost dev port rejected.
+    #[cfg(not(feature = "dev-mode"))]
+    #[test]
+    fn localhost_dev_port_rejected_in_production() {
+        assert!(!is_origin_allowed("http://localhost:5173"));
+    }
+
+    // Dev build: empty Origin (Hardhat) allowed.
+    #[cfg(feature = "dev-mode")]
+    #[test]
+    fn empty_origin_allowed_in_dev() {
+        assert!(is_origin_allowed(""));
+    }
+
+    // Dev build: localhost dev port (locally-served mint) allowed.
+    #[cfg(feature = "dev-mode")]
+    #[test]
+    fn localhost_dev_port_allowed_in_dev() {
+        assert!(is_origin_allowed("http://localhost:5173"));
+    }
+}
+
+#[cfg(test)]
+mod gate_tests {
+    use super::{method_allowed_before_pairing, normalize_pairing_code};
+    use crate::websocket::protocol::WsMethod;
+
+    #[test]
+    fn normalize_strips_display_dash() {
+        // The user reads "1234-5678" off the desktop app and types it into the
+        // mint page; it must normalize to the 8-digit stored secret.
+        assert_eq!(normalize_pairing_code("1234-5678"), "12345678");
+        assert_eq!(normalize_pairing_code("12345678"), "12345678");
+        assert_eq!(normalize_pairing_code(" 1234 5678 "), "12345678");
+    }
+
+    #[test]
+    fn normalized_dashed_code_verifies_against_secret() {
+        // End-to-end of Issue 1: dashed display form must pair against the secret.
+        use crate::websocket::pairing::{PairingState, VerifyResult};
+        use std::time::Duration;
+        let mut p = PairingState::new_with_code("12345678".into(), Duration::from_secs(60), 0);
+        let submitted = normalize_pairing_code("1234-5678");
+        assert!(matches!(p.verify(&submitted, 1_000), VerifyResult::Paired));
+    }
+
+    #[test]
+    fn pairing_methods_allowed_before_pairing() {
+        assert!(method_allowed_before_pairing(&WsMethod::Ping));
+        assert!(method_allowed_before_pairing(&WsMethod::RequestPairing));
+        assert!(method_allowed_before_pairing(&WsMethod::VerifyPairing));
+    }
+
+    #[test]
+    fn account_and_sign_methods_blocked_before_pairing() {
+        assert!(!method_allowed_before_pairing(&WsMethod::GetAccounts));
+        assert!(!method_allowed_before_pairing(&WsMethod::SignTransaction));
+    }
 }

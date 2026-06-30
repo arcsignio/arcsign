@@ -53,6 +53,15 @@ pub enum WsMethod {
 
     /// Get block explorer API key from developer settings
     GetExplorerApiKey,
+
+    // =========================================
+    // Pairing Handshake
+    // =========================================
+
+    /// Request a pairing code (desktop app displays it; client then verifies).
+    RequestPairing,
+    /// Submit the pairing code the user read off the desktop app screen.
+    VerifyPairing,
 }
 
 /// WebSocket response to client
@@ -185,6 +194,7 @@ pub struct DevContext {
 }
 
 /// Developer transaction request parameters (extends SignTransactionParams)
+#[cfg(feature = "dev-mode")]
 #[derive(Debug, Clone, Deserialize)]
 pub struct DevSignTransactionParams {
     /// BSC address to sign with
@@ -220,6 +230,7 @@ pub struct DevSignTransactionParams {
 }
 
 /// EIP-191 personal_sign parameters
+#[cfg(feature = "dev-mode")]
 #[derive(Debug, Clone, Deserialize)]
 pub struct PersonalSignParams {
     /// Address to sign with
@@ -232,6 +243,7 @@ pub struct PersonalSignParams {
 }
 
 /// EIP-712 signTypedData_v4 parameters
+#[cfg(feature = "dev-mode")]
 #[derive(Debug, Clone, Deserialize)]
 pub struct SignTypedDataParams {
     /// Address to sign with
@@ -268,6 +280,7 @@ pub struct DevSession {
 }
 
 /// Developer session create request
+#[cfg(feature = "dev-mode")]
 #[derive(Debug, Clone, Deserialize)]
 pub struct DevCreateSessionParams {
     /// Wallet ID to use for session
@@ -283,10 +296,12 @@ pub struct DevCreateSessionParams {
     pub max_gas_limit: Option<String>,
 }
 
+#[cfg(feature = "dev-mode")]
 fn default_session_duration() -> u32 {
     30 // 30 minutes
 }
 
+#[cfg(feature = "dev-mode")]
 fn default_trusted_networks() -> Vec<String> {
     vec![
         "sepolia".to_string(),
@@ -297,6 +312,7 @@ fn default_trusted_networks() -> Vec<String> {
 }
 
 /// Pending developer request (for UI display)
+#[cfg(feature = "dev-mode")]
 #[derive(Debug, Clone, Serialize)]
 pub struct PendingDevRequest {
     /// Request ID
@@ -324,6 +340,7 @@ pub struct PendingDevRequest {
 }
 
 /// Type of developer request
+#[cfg(feature = "dev-mode")]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum DevRequestType {
@@ -338,6 +355,7 @@ pub enum DevRequestType {
 }
 
 /// Parameters for get_explorer_api_key request
+#[cfg(feature = "dev-mode")]
 #[derive(Debug, Clone, Deserialize)]
 pub struct GetExplorerApiKeyParams {
     /// Explorer type: etherscan, bscscan, polygonscan, arbiscan, optimism, basescan, snowtrace
@@ -345,6 +363,20 @@ pub struct GetExplorerApiKeyParams {
     /// USB path where settings are stored (optional, uses server's stored path if not provided)
     #[serde(default)]
     pub usb_path: Option<String>,
+}
+
+// =========================================
+// Pairing Types
+// =========================================
+
+/// Parameters for verify_pairing request.
+// Used in Task 9 (pairing handshake wiring); struct is declared here so the wire
+// format is established and tested independently of the server connection loop.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Deserialize)]
+pub struct VerifyPairingParams {
+    /// The pairing code the user read off the desktop app screen.
+    pub code: String,
 }
 
 // =========================================
@@ -387,6 +419,10 @@ pub enum MessageSignType {
 }
 
 /// Message sign result from UI
+//
+// Constructed in production (websocket_commands.rs) but its fields are only read inside
+// `#[cfg(feature = "dev-mode")]` handlers, so allow the production-only dead-code noise.
+#[cfg_attr(not(feature = "dev-mode"), allow(dead_code))]
 #[derive(Debug, Clone)]
 pub struct MessageSignResult {
     pub success: bool,
@@ -398,4 +434,28 @@ pub struct MessageSignResult {
 pub struct PendingMessageSignWithChannel {
     pub request: PendingMessageSign,
     pub response_sender: tokio::sync::oneshot::Sender<MessageSignResult>,
+}
+
+#[cfg(test)]
+mod pairing_protocol_tests {
+    use super::*;
+
+    #[test]
+    fn request_pairing_deserializes_from_snake_case() {
+        let m: WsMethod = serde_json::from_str("\"request_pairing\"").unwrap();
+        assert!(matches!(m, WsMethod::RequestPairing));
+    }
+
+    #[test]
+    fn verify_pairing_deserializes_from_snake_case() {
+        let m: WsMethod = serde_json::from_str("\"verify_pairing\"").unwrap();
+        assert!(matches!(m, WsMethod::VerifyPairing));
+    }
+
+    #[test]
+    fn verify_pairing_params_deserialize() {
+        let p: VerifyPairingParams =
+            serde_json::from_str("{\"code\":\"1234-5678\"}").unwrap();
+        assert_eq!(p.code, "1234-5678");
+    }
 }

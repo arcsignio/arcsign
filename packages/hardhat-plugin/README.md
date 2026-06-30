@@ -54,6 +54,8 @@ module.exports = {
 
 The plugin connects to ArcSign Dashboard via WebSocket (127.0.0.1:9527).
 
+> **Requires the ArcSign developer build.** The production build (what normal users download) does not include the developer auto-sign methods (`dev_*`). Use the ArcSign developer build — either the `*-dev` artifacts on the GitHub release page, or build it yourself with `make build-lib-<platform> DEV=1` and `cargo tauri build --features dev-mode`. When the plugin connects to a production build, it will receive the error: "dev methods are not available in this production build".
+
 1. Open ArcSign Dashboard
 2. Unlock your wallet
 3. Go to Developer Mode (🔧 button)

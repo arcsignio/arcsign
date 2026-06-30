@@ -7,12 +7,19 @@
 use super::protocol::{
     WsRequest, WsResponse, WsMethod, SignTransactionParams, PendingTransaction,
     TransactionResult, PendingTransactionWithChannel,
-    // Developer mode types
+    // Developer mode types (production-used)
+    DevSession,
+    // Message signing types (production-used)
+    PendingMessageSignWithChannel,
+};
+// Developer-mode-only protocol types — only referenced inside `#[cfg(feature = "dev-mode")]`
+// handlers, so they are unused (and would warn) in a production build.
+#[cfg(feature = "dev-mode")]
+use super::protocol::{
     DevSignTransactionParams, PersonalSignParams, SignTypedDataParams,
-    DevSession, DevCreateSessionParams, DevContext, PendingDevRequest, DevRequestType,
+    DevCreateSessionParams, DevContext, PendingDevRequest, DevRequestType,
     GetExplorerApiKeyParams,
-    // Message signing types
-    PendingMessageSign, PendingMessageSignWithChannel, MessageSignResult, MessageSignType,
+    PendingMessageSign, MessageSignResult, MessageSignType,
 };
 use crate::ffi::LazyWalletQueue;
 use serde_json::{json, Value};
@@ -28,6 +35,12 @@ pub type PendingMsgSender = mpsc::UnboundedSender<PendingMessageSignWithChannel>
 pub type PendingMsgReceiver = mpsc::UnboundedReceiver<PendingMessageSignWithChannel>;
 
 /// Handler context with access to app state
+//
+// Several fields (`pending_msg_sender`, `usb_path`, `dev_session`, `wallet_queue`) are
+// only read inside `#[cfg(feature = "dev-mode")]` handlers. In a production build they are
+// still constructed (server.rs) but never read, so allow the resulting dead-code noise
+// without dropping the fields the dev build needs.
+#[cfg_attr(not(feature = "dev-mode"), allow(dead_code))]
 pub struct HandlerContext {
     /// Channel to send pending transactions to UI
     pub pending_tx_sender: PendingTxSender,
@@ -121,32 +134,60 @@ pub async fn handle_request(
         }
 
         // Developer Mode Methods
+        #[cfg(feature = "dev-mode")]
         WsMethod::DevSignTransaction => {
             handle_dev_sign_transaction(request.id, request.params, context).await
         }
+        #[cfg(not(feature = "dev-mode"))]
+        WsMethod::DevSignTransaction => handle_dev_method_unavailable(request.id),
 
+        #[cfg(feature = "dev-mode")]
         WsMethod::PersonalSign => {
             handle_personal_sign(request.id, request.params, context).await
         }
+        #[cfg(not(feature = "dev-mode"))]
+        WsMethod::PersonalSign => handle_dev_method_unavailable(request.id),
 
+        #[cfg(feature = "dev-mode")]
         WsMethod::SignTypedDataV4 => {
             handle_sign_typed_data(request.id, request.params, context).await
         }
+        #[cfg(not(feature = "dev-mode"))]
+        WsMethod::SignTypedDataV4 => handle_dev_method_unavailable(request.id),
 
+        #[cfg(feature = "dev-mode")]
         WsMethod::DevGetSession => {
             handle_dev_get_session(request.id, context).await
         }
+        #[cfg(not(feature = "dev-mode"))]
+        WsMethod::DevGetSession => handle_dev_method_unavailable(request.id),
 
+        #[cfg(feature = "dev-mode")]
         WsMethod::DevCreateSession => {
             handle_dev_create_session(request.id, request.params, context).await
         }
+        #[cfg(not(feature = "dev-mode"))]
+        WsMethod::DevCreateSession => handle_dev_method_unavailable(request.id),
 
+        #[cfg(feature = "dev-mode")]
         WsMethod::DevEndSession => {
             handle_dev_end_session(request.id, context).await
         }
+        #[cfg(not(feature = "dev-mode"))]
+        WsMethod::DevEndSession => handle_dev_method_unavailable(request.id),
 
+        #[cfg(feature = "dev-mode")]
         WsMethod::GetExplorerApiKey => {
             handle_get_explorer_api_key(request.id, request.params, context).await
+        }
+        #[cfg(not(feature = "dev-mode"))]
+        WsMethod::GetExplorerApiKey => handle_dev_method_unavailable(request.id),
+
+        // Pairing handshake is handled in server.rs (it mutates per-connection
+        // state), so the per-request handler never sees it. Reaching here means
+        // the gate let a pairing method through to dispatch — a logic error.
+        WsMethod::RequestPairing | WsMethod::VerifyPairing => {
+            WsResponse::error(request.id, "pairing is handled at the connection layer")
         }
     }
 }
@@ -327,6 +368,7 @@ fn short_address(addr: &str) -> String {
 // =========================================
 
 /// Map chain ID to network name
+#[cfg(feature = "dev-mode")]
 fn chain_id_to_network(chain_id: u64) -> String {
     match chain_id {
         1 => "ethereum".to_string(),
@@ -344,11 +386,25 @@ fn chain_id_to_network(chain_id: u64) -> String {
 }
 
 /// Check if network is a testnet
+#[cfg(feature = "dev-mode")]
 fn is_testnet(chain_id: u64) -> bool {
     matches!(chain_id, 5 | 11155111 | 97 | 80001 | 421613 | 420 | 84531)
 }
 
+/// Production builds (without the `dev-mode` feature) do not compile the
+/// developer auto-sign methods. Reaching a dev method here means a developer
+/// tool (e.g. the Hardhat plugin) connected to a production wallet build.
+#[cfg(not(feature = "dev-mode"))]
+fn handle_dev_method_unavailable(id: u64) -> WsResponse {
+    WsResponse::error(
+        id,
+        "dev methods are not available in this production build; \
+         install the ArcSign developer build to use the Hardhat plugin",
+    )
+}
+
 /// Handle dev_sign_transaction request (developer mode)
+#[cfg(feature = "dev-mode")]
 async fn handle_dev_sign_transaction(
     id: u64,
     params: Value,
@@ -575,6 +631,7 @@ async fn handle_dev_sign_transaction(
 }
 
 /// Handle personal_sign request (EIP-191)
+#[cfg(feature = "dev-mode")]
 async fn handle_personal_sign(
     id: u64,
     params: Value,
@@ -665,6 +722,7 @@ async fn handle_personal_sign(
 }
 
 /// Handle signTypedData_v4 request (EIP-712)
+#[cfg(feature = "dev-mode")]
 async fn handle_sign_typed_data(
     id: u64,
     params: Value,
@@ -759,6 +817,7 @@ async fn handle_sign_typed_data(
 }
 
 /// Handle dev_get_session request
+#[cfg(feature = "dev-mode")]
 async fn handle_dev_get_session(
     id: u64,
     context: &HandlerContext,
@@ -789,6 +848,7 @@ async fn handle_dev_get_session(
 }
 
 /// Handle dev_create_session request
+#[cfg(feature = "dev-mode")]
 async fn handle_dev_create_session(
     id: u64,
     params: Value,
@@ -833,6 +893,7 @@ async fn handle_dev_create_session(
 }
 
 /// Handle dev_end_session request
+#[cfg(feature = "dev-mode")]
 async fn handle_dev_end_session(
     id: u64,
     context: &HandlerContext,
@@ -858,6 +919,7 @@ async fn handle_dev_end_session(
 }
 
 /// Try to decode a hex message to a readable UTF-8 string
+#[cfg(feature = "dev-mode")]
 fn decode_hex_message(hex_msg: &str) -> Option<String> {
     // Remove 0x prefix if present
     let hex_str = hex_msg.strip_prefix("0x").unwrap_or(hex_msg);
@@ -888,6 +950,7 @@ fn decode_hex_message(hex_msg: &str) -> Option<String> {
 }
 
 /// Parse method name from calldata
+#[cfg(feature = "dev-mode")]
 fn parse_method_name(data: &str) -> String {
     if data.len() < 10 {
         return "Unknown Method".to_string();
@@ -917,6 +980,7 @@ fn parse_method_name(data: &str) -> String {
 }
 
 /// Get current timestamp in milliseconds
+#[cfg(feature = "dev-mode")]
 fn current_timestamp_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -925,6 +989,7 @@ fn current_timestamp_ms() -> u64 {
 }
 
 /// Handle get_explorer_api_key request
+#[cfg(feature = "dev-mode")]
 async fn handle_get_explorer_api_key(
     id: u64,
     params: Value,
@@ -1002,4 +1067,23 @@ async fn handle_get_explorer_api_key(
         "api_key": api_key,
         "explorer": key_params.explorer,
     }))
+}
+
+#[cfg(test)]
+mod dev_gate_tests {
+    use super::*;
+
+    // Production build (no dev-mode feature): dispatching a dev method returns a friendly error.
+    #[cfg(not(feature = "dev-mode"))]
+    #[test]
+    fn dev_method_returns_friendly_error_in_production_build() {
+        let resp = handle_dev_method_unavailable(42);
+        assert!(!resp.success);
+        let err = resp.error.unwrap();
+        assert!(
+            err.contains("developer build"),
+            "error should point user to the developer build, got: {err}"
+        );
+        assert_eq!(resp.id, 42);
+    }
 }

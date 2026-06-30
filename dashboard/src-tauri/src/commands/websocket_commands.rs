@@ -8,6 +8,7 @@
 use crate::websocket::{
     PendingTransaction, PendingTransactionWithChannel, TransactionResult,
     PendingMessageSign, PendingMessageSignWithChannel, MessageSignResult, MessageSignType,
+    PairingPrompt,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -25,6 +26,11 @@ pub type PendingMsgReceiverState = Arc<Mutex<mpsc::UnboundedReceiver<PendingMess
 
 /// Stores the current pending message sign's response sender
 pub type CurrentPendingMsgState = Arc<Mutex<Option<(PendingMessageSign, oneshot::Sender<MessageSignResult>)>>>;
+
+/// Pairing prompt receiver type (drained by the UI to show pairing codes).
+/// Mirrors `PendingTxReceiverState` (an `Arc<Mutex<UnboundedReceiver>>`), but
+/// pairing prompts are display-only so there is no response/current-state side.
+pub type PairingPromptReceiverState = Arc<Mutex<mpsc::UnboundedReceiver<PairingPrompt>>>;
 
 /// Response for pending transaction (sent to frontend)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -218,6 +224,28 @@ pub async fn cancel_pending_transaction(
     }
 
     Ok(())
+}
+
+/// Get a pending pairing prompt from the queue (if any).
+/// Frontend polls this periodically; when a code is returned, the UI shows it
+/// so the user can type it into the requesting page. Display-only: there is no
+/// response channel (verification happens over the WebSocket connection).
+#[tauri::command]
+pub async fn get_pending_pairing(
+    receiver: State<'_, PairingPromptReceiverState>,
+) -> Result<Option<PairingPrompt>, String> {
+    let mut rx = receiver.lock().map_err(|e| format!("Lock error: {}", e))?;
+
+    match rx.try_recv() {
+        Ok(prompt) => {
+            tracing::info!("Pending pairing prompt for origin: {}", prompt.origin);
+            Ok(Some(prompt))
+        }
+        Err(mpsc::error::TryRecvError::Empty) => Ok(None),
+        Err(mpsc::error::TryRecvError::Disconnected) => {
+            Err("Pairing channel disconnected".to_string())
+        }
+    }
 }
 
 // =========================================

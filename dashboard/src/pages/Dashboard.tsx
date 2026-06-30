@@ -13,7 +13,7 @@ import {
   useWalletLimitInfo,
   useLockedWalletIds,
 } from "@/stores/dashboardStore";
-import tauriApi, { type AppError, type PendingTransactionInfo } from "@/services/tauri-api";
+import tauriApi, { type AppError, type PendingTransactionInfo, type PairingPrompt } from "@/services/tauri-api";
 import { WalletCreate } from "@/components/WalletCreate";
 import { WalletImport } from "@/components/WalletImport";
 import { ImportBackup } from "@/components/ImportBackup";
@@ -31,6 +31,7 @@ import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { DeleteWalletDialog } from "@/components/DeleteWalletDialog";
 import { TransactionSignDialog } from "@/components/TransactionSignDialog";
+import { PairingDialog } from "@/components/PairingDialog";
 import { MembershipBadge } from "@/components/MembershipBadge";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useInactivityLogout } from "@/hooks/useInactivityLogout";
@@ -125,6 +126,7 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
 
   // Pending transaction state (for mint-page integration)
   const [pendingTransaction, setPendingTransaction] = useState<PendingTransactionInfo | null>(null);
+  const [pairing, setPairing] = useState<PairingPrompt | null>(null);
   const [isSigningTransaction, setIsSigningTransaction] = useState(false);
   const [rejectCooldown, setRejectCooldown] = useState(false); // Prevent immediate re-polling after reject
   const prevViewRef = useRef<View>("list"); // Track previous view for developer mode cleanup
@@ -194,6 +196,18 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
   // Note: Skip polling when in developer mode - DeveloperMode page handles its own polling
   useEffect(() => {
     const pollPendingTransactions = async () => {
+      // Pairing prompts (connection ticket) are independent of the tx-signing
+      // gates — poll them on the same interval, even while a tx is in flight.
+      try {
+        const prompt = await tauriApi.getPendingPairing();
+        if (prompt) {
+          console.log("🔗 Pairing prompt received:", prompt.origin);
+          setPairing(prompt);
+        }
+      } catch (err) {
+        console.debug("Pairing polling error (non-critical):", err);
+      }
+
       // Don't poll in developer mode - let DeveloperMode page handle it
       if (currentView === 'developer') return;
       // Don't poll if we're already handling a transaction or in cooldown
@@ -1156,6 +1170,9 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
         onConfirm={handleTransactionConfirm}
         onReject={handleTransactionReject}
       />
+
+      {/* Pairing Dialog (mint-page connection ticket) */}
+      <PairingDialog code={pairing?.code_display ?? null} origin={pairing?.origin ?? null} onClose={() => setPairing(null)} />
     </div>
   );
 }

@@ -11,9 +11,13 @@
 
 mod server;
 mod handler;
+mod pairing;
 pub mod protocol;
 
+pub(crate) use pairing::{PairingState, VerifyResult};
+
 pub use server::WebSocketServer;
+pub use server::PairingPrompt;
 pub use handler::{PendingTxSender, PendingTxReceiver, PendingMsgSender, PendingMsgReceiver};
 pub use protocol::{
     WsRequest, WsResponse, WsMethod, PendingTransaction,
