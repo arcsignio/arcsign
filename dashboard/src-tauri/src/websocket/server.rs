@@ -39,7 +39,6 @@ pub struct PairingPrompt {
 /// Channel for sending pairing prompts to the UI. Mirrors the pending-tx
 /// `mpsc::UnboundedSender` flavor so the call sites stay symmetric.
 pub type PairingPromptSender = mpsc::UnboundedSender<PairingPrompt>;
-pub type PairingPromptReceiver = mpsc::UnboundedReceiver<PairingPrompt>;
 
 /// WebSocket server state
 pub struct WebSocketServer {
@@ -257,6 +256,14 @@ pub(crate) fn method_allowed_before_pairing(m: &WsMethod) -> bool {
     matches!(m, WsMethod::Ping | WsMethod::RequestPairing | WsMethod::VerifyPairing)
 }
 
+/// Normalize a submitted pairing code to digits-only. The desktop app displays
+/// the code with a dash ("1234-5678") but the stored secret is 8 raw digits, so
+/// strip every non-digit before the constant-time compare — otherwise the
+/// displayed form could never verify (fails closed = pairing deadlock).
+pub(crate) fn normalize_pairing_code(raw: &str) -> String {
+    raw.chars().filter(|c| c.is_ascii_digit()).collect()
+}
+
 /// Current wall-clock time in milliseconds since the UNIX epoch.
 /// (handler.rs has a `current_timestamp_ms`, but it is gated behind `dev-mode`;
 /// pairing needs an always-available one.)
@@ -339,15 +346,27 @@ async fn handle_connection(
                 // Pairing handshake (handled here, not in the per-request handler,
                 // because it mutates per-connection state).
                 if request.method == WsMethod::RequestPairing {
-                    let state = PairingState::generate(
-                        std::time::Duration::from_secs(60),
-                        now_ms(),
-                    );
-                    let _ = pending_pairing_sender.send(PairingPrompt {
-                        code_display: state.code_display(),
-                        origin: client_origin.clone(),
-                    });
-                    pairing = Some(state);
+                    // Only generate a fresh code if there isn't already an active
+                    // one for this connection. Prevents a local process that
+                    // passed the Origin check from spamming request_pairing to
+                    // reset the 3-attempt lockout, flood the prompt channel, or
+                    // pop a UI dialog per call. An expired or locked pairing may
+                    // be replaced; an active one is reused.
+                    let need_new = match pairing.as_ref() {
+                        None => true,
+                        Some(p) => p.is_expired(now_ms()) || p.is_locked(),
+                    };
+                    if need_new {
+                        let state = PairingState::generate(
+                            std::time::Duration::from_secs(60),
+                            now_ms(),
+                        );
+                        let _ = pending_pairing_sender.send(PairingPrompt {
+                            code_display: state.code_display(),
+                            origin: client_origin.clone(),
+                        });
+                        pairing = Some(state);
+                    }
                     let resp = WsResponse::success(
                         request.id,
                         serde_json::json!({"status": "pairing_started"}),
@@ -357,18 +376,24 @@ async fn handle_connection(
                 }
 
                 if request.method == WsMethod::VerifyPairing {
-                    let code = request
+                    let raw = request
                         .params
                         .get("code")
                         .and_then(|v| v.as_str())
                         .unwrap_or("");
+                    // Accept the code with or without the display dash
+                    // ("1234-5678" or "12345678"): the stored secret is 8 raw
+                    // digits, so strip non-digits before the constant-time compare.
+                    let code = normalize_pairing_code(raw);
                     let result = match pairing.as_mut() {
-                        Some(p) => p.verify(code, now_ms()),
+                        Some(p) => p.verify(&code, now_ms()),
                         None => VerifyResult::Wrong { remaining: 0 },
                     };
+                    // Single source of truth: derive the gate flag from the
+                    // PairingState itself rather than a separate manual assignment.
+                    paired = pairing.as_ref().map_or(false, |p| p.is_paired());
                     let (ok, msg) = match result {
                         VerifyResult::Paired => {
-                            paired = true;
                             tracing::info!("WebSocket client {} paired", peer_addr);
                             (true, "paired".to_string())
                         }
@@ -496,8 +521,27 @@ mod origin_tests {
 
 #[cfg(test)]
 mod gate_tests {
-    use super::method_allowed_before_pairing;
+    use super::{method_allowed_before_pairing, normalize_pairing_code};
     use crate::websocket::protocol::WsMethod;
+
+    #[test]
+    fn normalize_strips_display_dash() {
+        // The user reads "1234-5678" off the desktop app and types it into the
+        // mint page; it must normalize to the 8-digit stored secret.
+        assert_eq!(normalize_pairing_code("1234-5678"), "12345678");
+        assert_eq!(normalize_pairing_code("12345678"), "12345678");
+        assert_eq!(normalize_pairing_code(" 1234 5678 "), "12345678");
+    }
+
+    #[test]
+    fn normalized_dashed_code_verifies_against_secret() {
+        // End-to-end of Issue 1: dashed display form must pair against the secret.
+        use crate::websocket::pairing::{PairingState, VerifyResult};
+        use std::time::Duration;
+        let mut p = PairingState::new_with_code("12345678".into(), Duration::from_secs(60), 0);
+        let submitted = normalize_pairing_code("1234-5678");
+        assert!(matches!(p.verify(&submitted, 1_000), VerifyResult::Paired));
+    }
 
     #[test]
     fn pairing_methods_allowed_before_pairing() {

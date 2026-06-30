@@ -52,6 +52,16 @@ impl PairingState {
 
     pub fn is_paired(&self) -> bool { self.paired }
 
+    /// True once the attempt budget is exhausted (locked out).
+    pub fn is_locked(&self) -> bool { self.locked }
+
+    /// True once `now_ms` is past the creation time + TTL.
+    pub fn is_expired(&self, now_ms: u64) -> bool {
+        now_ms.saturating_sub(self.created_at_ms) > self.ttl.as_millis() as u64
+    }
+
+    /// `verify` expects a digits-only code (the display dash must be stripped by
+    /// the caller — see `normalize_pairing_code` in server.rs).
     pub fn verify(&mut self, input: &str, now_ms: u64) -> VerifyResult {
         if self.paired {
             return VerifyResult::Paired;
@@ -129,6 +139,24 @@ mod tests {
         // A subsequent wrong code must NOT un-pair or count an attempt — stays Paired.
         assert!(matches!(p.verify("00000000", 1_000), VerifyResult::Paired));
         assert!(p.is_paired());
+    }
+
+    #[test]
+    fn is_expired_boundary() {
+        let p = PairingState::new_with_code("12345678".into(), Duration::from_secs(60), 0);
+        // Exactly at the TTL edge is still valid; one ms past is expired.
+        assert!(!p.is_expired(60_000));
+        assert!(p.is_expired(60_001));
+    }
+
+    #[test]
+    fn is_locked_reflects_lockout() {
+        let mut p = PairingState::new_with_code("12345678".into(), Duration::from_secs(60), 0);
+        assert!(!p.is_locked());
+        p.verify("0", 1_000);
+        p.verify("0", 1_000);
+        p.verify("0", 1_000);
+        assert!(p.is_locked());
     }
 
     #[test]
