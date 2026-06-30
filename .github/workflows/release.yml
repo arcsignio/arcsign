@@ -48,11 +48,13 @@ jobs:
           echo "All versions match: $TAG_VERSION"
 
   build-go-libs:
-    name: Build Go Libs (${{ matrix.target }})
+    name: Build Go Libs (${{ matrix.target }} / ${{ matrix.variant }})
     needs: version-check
     strategy:
       fail-fast: false
       matrix:
+        # variant: prod = 正式版（不帶 dev tag）；dev = 開發者版（DEV=1 → exports_dev.go）
+        variant: [prod, dev]
         include:
           - os: ubuntu-latest
             target: linux
@@ -63,6 +65,9 @@ jobs:
           - os: windows-latest
             target: windows
             output: libarcsign.dll
+        exclude:
+          # 開發者版只出 macOS + Linux；Windows dev 使用者罕見，跳過省 CI
+          - { variant: dev, target: windows }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -89,7 +94,10 @@ jobs:
         env:
           CGO_ENABLED: "1"
           CC: ${{ matrix.target == 'windows' && 'gcc' || '' }}
-        run: make build-reproducible
+        # 正式版：make build-reproducible（無 DEV）。開發者版：DEV=1 → -tags dev
+        # 透過命令列變數傳入，會經由 MAKEFLAGS 自動傳遞給 build-reproducible 內
+        # 遞迴呼叫的 build-lib-{macos,linux}，使 exports_dev.go 編入。
+        run: make build-reproducible${{ matrix.variant == 'dev' && ' DEV=1' || '' }}
 
       - name: Copy artifact to repo root for upload
         shell: bash
@@ -103,16 +111,18 @@ jobs:
       - name: Upload Go library
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: go-lib-${{ matrix.target }}
+          name: go-lib-${{ matrix.target }}${{ matrix.variant == 'dev' && '-dev' || '' }}
           path: ${{ matrix.output }}
           retention-days: 1
 
   build-tauri-apps:
-    name: Build App (${{ matrix.target }})
+    name: Build App (${{ matrix.target }} / ${{ matrix.variant }})
     needs: build-go-libs
     strategy:
       fail-fast: false
       matrix:
+        # variant: prod = 正式版（無 dev-mode feature）；dev = 開發者版（--features dev-mode）
+        variant: [prod, dev]
         include:
           - os: macos-latest
             target: macos
@@ -126,6 +136,9 @@ jobs:
             target: windows
             lib_name: libarcsign.dll
             lib_artifact: go-lib-windows
+        exclude:
+          # 開發者版只出 macOS + Linux
+          - { variant: dev, target: windows }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -148,7 +161,8 @@ jobs:
       - name: Download Go library
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: ${{ matrix.lib_artifact }}
+          # dev 版抓帶 DEV=1（含 exports_dev.go）的 lib，與 dev-mode feature 配對
+          name: ${{ matrix.lib_artifact }}${{ matrix.variant == 'dev' && '-dev' || '' }}
           path: dashboard/src-tauri
 
       - name: Verify Go library (Unix)
@@ -187,11 +201,14 @@ jobs:
           # macOS code signing + notarization (disabled until Apple Developer account is configured)
         with:
           projectPath: dashboard
+          # 開發者版傳 --features dev-mode 給 `tauri build`，啟用 WebSocket dev handlers。
+          # 正式版傳空字串，行為與原本完全相同（process-identical）。
+          args: ${{ matrix.variant == 'dev' && '--features dev-mode' || '' }}
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: tauri-app-${{ matrix.target }}
+          name: tauri-app-${{ matrix.target }}${{ matrix.variant == 'dev' && '-dev' || '' }}
           path: |
             dashboard/src-tauri/target/release/bundle/**/*.dmg
             dashboard/src-tauri/target/release/bundle/**/*.app.tar.gz
@@ -229,7 +246,9 @@ jobs:
         with:
           path: artifacts
           pattern: go-lib-*
-          merge-multiple: true
+          # merge-multiple:false 讓 prod 與 dev 的 libarcsign.* 各自留在
+          # go-lib-<target>/ vs go-lib-<target>-dev/ 子目錄，不互相覆蓋。
+          merge-multiple: false
 
       - name: List artifacts
         run: find artifacts -type f | head -50
@@ -239,37 +258,42 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p release-assets
 
-          # === Installer artifacts (for direct download) ===
+          # 正式版 (prod) 與開發者版 (dev) 的 bundle 檔名相同（productName 都是
+          # ArcSign），靠 artifact 子目錄區分：prod 在 <artifact>/、dev 在
+          # <artifact>-dev/。下面 prod 的 find 用 `-path '*-dev/*' -prune -o ... -print`
+          # 排除 dev 子目錄，dev 區塊則用 `-path '*-dev/*'` 只挑 dev。
+
+          # === PRODUCTION installer artifacts (for direct download) ===
           # Stable filenames (no version) — landing page uses
           # github.com/.../releases/latest/download/<asset> which requires
           # consistent asset names across releases.
 
           # macOS DMG
-          DMG=$(find artifacts -name "*.dmg" | head -1)
+          DMG=$(find artifacts -path "*-dev/*" -prune -o -name "*.dmg" -print | head -1)
           if [ -n "$DMG" ]; then
             cp "$DMG" "release-assets/ArcSign-macOS-ARM64.dmg"
           fi
 
           # Windows MSI
-          MSI=$(find artifacts -name "*.msi" ! -name "*.msi.zip" | head -1)
+          MSI=$(find artifacts -path "*-dev/*" -prune -o \( -name "*.msi" ! -name "*.msi.zip" \) -print | head -1)
           if [ -n "$MSI" ]; then
             cp "$MSI" "release-assets/ArcSign-Windows-x64.msi"
           fi
 
           # Windows EXE (NSIS installer)
-          EXE=$(find artifacts -name "*-setup.exe" -o -name "*_x64-setup.exe" | head -1)
+          EXE=$(find artifacts -path "*-dev/*" -prune -o \( -name "*-setup.exe" -o -name "*_x64-setup.exe" \) -print | head -1)
           if [ -n "$EXE" ]; then
             cp "$EXE" "release-assets/ArcSign-Windows-x64-Setup.exe"
           fi
 
           # Linux DEB
-          DEB=$(find artifacts -name "*.deb" | head -1)
+          DEB=$(find artifacts -path "*-dev/*" -prune -o -name "*.deb" -print | head -1)
           if [ -n "$DEB" ]; then
             cp "$DEB" "release-assets/ArcSign-Linux-x64.deb"
           fi
 
           # Linux AppImage
-          APPIMAGE=$(find artifacts -name "*.AppImage" ! -name "*.AppImage.tar.gz" ! -name "*.AppImage.tar.gz.sig" | head -1)
+          APPIMAGE=$(find artifacts -path "*-dev/*" -prune -o \( -name "*.AppImage" ! -name "*.AppImage.tar.gz" ! -name "*.AppImage.tar.gz.sig" \) -print | head -1)
           if [ -n "$APPIMAGE" ]; then
             cp "$APPIMAGE" "release-assets/ArcSign-Linux-x64.AppImage"
           fi
@@ -278,18 +302,19 @@ jobs:
           # Allows users to verify the dylib/so/dll inside the bundle
           # matches the bit-for-bit reproducible build from source.
 
-          GO_DYLIB=$(find artifacts -name "libarcsign.dylib" | head -1)
-          GO_SO=$(find artifacts -name "libarcsign.so" | head -1)
-          GO_DLL=$(find artifacts -name "libarcsign.dll" | head -1)
+          GO_DYLIB=$(find artifacts -path "*-dev/*" -prune -o -name "libarcsign.dylib" -print | head -1)
+          GO_SO=$(find artifacts -path "*-dev/*" -prune -o -name "libarcsign.so" -print | head -1)
+          GO_DLL=$(find artifacts -path "*-dev/*" -prune -o -name "libarcsign.dll" -print | head -1)
           [ -n "$GO_DYLIB" ] && cp "$GO_DYLIB" "release-assets/libarcsign.dylib"
           [ -n "$GO_SO" ] && cp "$GO_SO" "release-assets/libarcsign.so"
           [ -n "$GO_DLL" ] && cp "$GO_DLL" "release-assets/libarcsign.dll"
 
           # === Updater artifacts (for OTA auto-update) ===
+          # OTA 只走正式版；開發者版不掛 latest.json，故只取 prod 子目錄。
 
           # macOS updater bundle (.app.tar.gz + .sig)
-          MAC_TAR=$(find artifacts -name "*.app.tar.gz" ! -name "*.sig" | head -1)
-          MAC_SIG=$(find artifacts -name "*.app.tar.gz.sig" | head -1)
+          MAC_TAR=$(find artifacts -path "*-dev/*" -prune -o \( -name "*.app.tar.gz" ! -name "*.sig" \) -print | head -1)
+          MAC_SIG=$(find artifacts -path "*-dev/*" -prune -o -name "*.app.tar.gz.sig" -print | head -1)
           if [ -n "$MAC_TAR" ]; then
             cp "$MAC_TAR" "release-assets/ArcSign.app.tar.gz"
           fi
@@ -298,8 +323,8 @@ jobs:
           fi
 
           # Windows NSIS updater bundle (.nsis.zip + .sig)
-          WIN_NSIS_ZIP=$(find artifacts -name "*.nsis.zip" ! -name "*.sig" | head -1)
-          WIN_NSIS_SIG=$(find artifacts -name "*.nsis.zip.sig" | head -1)
+          WIN_NSIS_ZIP=$(find artifacts -path "*-dev/*" -prune -o \( -name "*.nsis.zip" ! -name "*.sig" \) -print | head -1)
+          WIN_NSIS_SIG=$(find artifacts -path "*-dev/*" -prune -o -name "*.nsis.zip.sig" -print | head -1)
           if [ -n "$WIN_NSIS_ZIP" ]; then
             cp "$WIN_NSIS_ZIP" "release-assets/ArcSign-Windows-x64-Setup.nsis.zip"
           fi
@@ -308,8 +333,8 @@ jobs:
           fi
 
           # Linux updater bundle (.AppImage.tar.gz + .sig)
-          LINUX_TAR=$(find artifacts -name "*.AppImage.tar.gz" ! -name "*.sig" | head -1)
-          LINUX_SIG=$(find artifacts -name "*.AppImage.tar.gz.sig" | head -1)
+          LINUX_TAR=$(find artifacts -path "*-dev/*" -prune -o \( -name "*.AppImage.tar.gz" ! -name "*.sig" \) -print | head -1)
+          LINUX_SIG=$(find artifacts -path "*-dev/*" -prune -o -name "*.AppImage.tar.gz.sig" -print | head -1)
           if [ -n "$LINUX_TAR" ]; then
             cp "$LINUX_TAR" "release-assets/ArcSign-Linux-x64.AppImage.tar.gz"
           fi
@@ -317,13 +342,45 @@ jobs:
             cp "$LINUX_SIG" "release-assets/ArcSign-Linux-x64.AppImage.tar.gz.sig"
           fi
 
+          # === DEVELOPER (dev) installer artifacts — macOS + Linux only ===
+          # Hardhat/testnet 自動簽版本；檔名插入 `-dev` 後綴，與正式版不撞名。
+          # 不進 OTA（無 latest.json 引用），但會被 SHA256SUMS 涵蓋。
+
+          # macOS DMG (dev)
+          DMG_DEV=$(find artifacts -path "*-dev/*" -name "*.dmg" -print | head -1)
+          if [ -n "$DMG_DEV" ]; then
+            cp "$DMG_DEV" "release-assets/ArcSign-dev-macOS-ARM64.dmg"
+          fi
+
+          # Linux DEB (dev)
+          DEB_DEV=$(find artifacts -path "*-dev/*" -name "*.deb" -print | head -1)
+          if [ -n "$DEB_DEV" ]; then
+            cp "$DEB_DEV" "release-assets/ArcSign-dev-Linux-x64.deb"
+          fi
+
+          # Linux AppImage (dev)
+          APPIMAGE_DEV=$(find artifacts -path "*-dev/*" \( -name "*.AppImage" ! -name "*.AppImage.tar.gz" ! -name "*.AppImage.tar.gz.sig" \) -print | head -1)
+          if [ -n "$APPIMAGE_DEV" ]; then
+            cp "$APPIMAGE_DEV" "release-assets/ArcSign-dev-Linux-x64.AppImage"
+          fi
+
+          # Dev Go shared libraries (DEV=1 build, for reproducibility verification)
+          GO_DYLIB_DEV=$(find artifacts -path "*-dev/*" -name "libarcsign.dylib" -print | head -1)
+          GO_SO_DEV=$(find artifacts -path "*-dev/*" -name "libarcsign.so" -print | head -1)
+          [ -n "$GO_DYLIB_DEV" ] && cp "$GO_DYLIB_DEV" "release-assets/libarcsign-dev.dylib"
+          [ -n "$GO_SO_DEV" ] && cp "$GO_SO_DEV" "release-assets/libarcsign-dev.so"
+
           echo "=== Release Assets ==="
           ls -la release-assets/
 
       - name: Generate checksums
         run: |
           cd release-assets
-          # Hash everything: bundles, reproducibility dylib/so/dll, updater artifacts
+          # Hash everything: prod + dev bundles + reproducibility libs + updater
+          # artifacts. `ArcSign-*` already catches ArcSign-dev-* names, and
+          # `libarcsign.*` already catches libarcsign-dev.* — so listing those two
+          # globs covers dev artifacts too (no separate libarcsign-dev.* needed,
+          # which would double-count).
           sha256sum ArcSign-* libarcsign.* 2>/dev/null > SHA256SUMS
           echo "=== SHA256SUMS ==="
           cat SHA256SUMS
