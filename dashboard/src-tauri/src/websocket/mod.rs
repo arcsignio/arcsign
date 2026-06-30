@@ -11,7 +11,12 @@
 
 mod server;
 mod handler;
+#[allow(dead_code)] // wired into server.rs in Task 9
+mod pairing;
 pub mod protocol;
+
+#[allow(unused_imports)] // wired in Task 9
+pub(crate) use pairing::{PairingState, VerifyResult};
 
 pub use server::WebSocketServer;
 pub use handler::{PendingTxSender, PendingTxReceiver, PendingMsgSender, PendingMsgReceiver};
