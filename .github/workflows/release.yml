@@ -377,11 +377,18 @@ jobs:
         run: |
           cd release-assets
           # Hash everything: prod + dev bundles + reproducibility libs + updater
-          # artifacts. `ArcSign-*` already catches ArcSign-dev-* names, and
-          # `libarcsign.*` already catches libarcsign-dev.* — so listing those two
-          # globs covers dev artifacts too (no separate libarcsign-dev.* needed,
-          # which would double-count).
-          sha256sum ArcSign-* libarcsign.* 2>/dev/null > SHA256SUMS
+          # artifacts. `ArcSign-*` covers both prod and dev bundles (the `-dev-`
+          # infix is matched by the `*`). The Go libs need BOTH globs, though:
+          # `libarcsign.*` matches the prod libs (libarcsign.dylib/.so/.dll) but
+          # NOT the dev libs (libarcsign-dev.dylib/.so), because the glob requires
+          # a literal `.` right after `libarcsign`. So `libarcsign-dev.*` is listed
+          # explicitly to cover the dev Go libs.
+          # `2>/dev/null` swallows the "No such file" from any glob that matches
+          # nothing on a prod-only run (e.g. libarcsign-dev.*); `|| true` keeps the
+          # non-zero exit from that unmatched arg from aborting the step under
+          # GitHub Actions' default `bash -eo pipefail`. SHA256SUMS is still written
+          # for the files that DO exist.
+          sha256sum ArcSign-* libarcsign.* libarcsign-dev.* 2>/dev/null > SHA256SUMS || true
           echo "=== SHA256SUMS ==="
           cat SHA256SUMS
 
