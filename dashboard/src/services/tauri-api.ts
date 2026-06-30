@@ -1702,6 +1702,30 @@ export async function getPendingMessageSign(): Promise<PendingMessageSignInfo | 
 }
 
 /**
+ * Pairing prompt pushed by the Rust WebSocket layer when a page requests pairing.
+ * Fields are snake_case to match the Rust `PairingPrompt` (plain serde::Serialize,
+ * no rename): `code_display` (e.g. "1234-5678") + `origin`.
+ */
+export interface PairingPrompt {
+  code_display: string;
+  origin: string;
+}
+
+/**
+ * Get pending pairing prompt (if any)
+ * Dashboard should poll this to show the pairing code the user types into the page.
+ */
+export async function getPendingPairing(): Promise<PairingPrompt | null> {
+  try {
+    const result = await invoke<PairingPrompt | null>("get_pending_pairing");
+    return result;
+  } catch (error) {
+    console.error("🔴 [tauri-api] getPendingPairing error:", error);
+    throw parseError(error);
+  }
+}
+
+/**
  * Respond to a pending message sign request after user confirms/rejects
  */
 export async function respondToMessageSign(params: {
@@ -1905,6 +1929,9 @@ export const tauriApi = {
   getPendingTransaction,
   respondToTransaction,
   cancelPendingTransaction,
+
+  // WebSocket Pending Pairing (mint-page connection ticket)
+  getPendingPairing,
 
   // WebSocket Pending Message Sign (EIP-191, EIP-712)
   getPendingMessageSign,
