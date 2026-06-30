@@ -55,8 +55,17 @@ OUTPUT_LIB := $(LIB_DIR)/$(LIB_NAME).$(LIB_EXT)
 GO := go
 CGO_ENABLED := 1
 BUILD_MODE := c-shared
+# 正式版預設不帶 dev tag —— exports_dev.go (//go:build dev) 不編入，
+# 正式 binary 無自動簽方法。開發者版用 `make <target> DEV=1`。
+ifeq ($(DEV),1)
 BUILD_TAGS := -tags dev
-SOURCE := internal/lib/*.go
+else
+BUILD_TAGS :=
+endif
+# 用 package path 而非 *.go glob：go build 對「命令列上明列的檔案」不套用
+# build constraint，會無視 //go:build dev 把 exports_dev.go 一律編入；改用
+# package path 才會讓 -tags dev 真正生效（無 tag 時排除 dev 匯出）。
+SOURCE := ./internal/lib/
 
 # Windows reproducibility: MinGW ld stamps the PE header with the current
 # wall-clock time by default (SOURCE_DATE_EPOCH does not reach the external
