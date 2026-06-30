@@ -35,6 +35,10 @@ impl PairingState {
     }
 
     pub fn new_with_code(code: String, ttl: Duration, now_ms: u64) -> Self {
+        debug_assert!(
+            code.len() == 8 && code.bytes().all(|b| b.is_ascii_digit()),
+            "pairing code must be exactly 8 ASCII digits"
+        );
         Self { code, created_at_ms: now_ms, ttl, attempts: 0, paired: false, locked: false }
     }
 
@@ -49,6 +53,9 @@ impl PairingState {
     pub fn is_paired(&self) -> bool { self.paired }
 
     pub fn verify(&mut self, input: &str, now_ms: u64) -> VerifyResult {
+        if self.paired {
+            return VerifyResult::Paired;
+        }
         if self.locked {
             return VerifyResult::Locked;
         }
@@ -106,6 +113,22 @@ mod tests {
     fn expired_code_rejected() {
         let mut p = PairingState::new_with_code("12345678".into(), Duration::from_secs(60), 0);
         assert!(matches!(p.verify("12345678", 61_000), VerifyResult::Expired));
+    }
+
+    #[test]
+    fn second_wrong_attempt_reports_one_remaining() {
+        let mut p = PairingState::new_with_code("12345678".into(), Duration::from_secs(60), 0);
+        assert!(matches!(p.verify("00000000", 1_000), VerifyResult::Wrong { remaining: 2 }));
+        assert!(matches!(p.verify("00000000", 1_000), VerifyResult::Wrong { remaining: 1 }));
+    }
+
+    #[test]
+    fn verify_after_paired_is_idempotent() {
+        let mut p = PairingState::new_with_code("12345678".into(), Duration::from_secs(60), 0);
+        assert!(matches!(p.verify("12345678", 1_000), VerifyResult::Paired));
+        // A subsequent wrong code must NOT un-pair or count an attempt — stays Paired.
+        assert!(matches!(p.verify("00000000", 1_000), VerifyResult::Paired));
+        assert!(p.is_paired());
     }
 
     #[test]
