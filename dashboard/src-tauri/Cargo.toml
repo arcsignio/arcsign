@@ -1,6 +1,6 @@
 [package]
 name = "arcsign-dashboard"
-version = "1.5.1"
+version = "1.5.2"
 description = "ArcSign HD Wallet Dashboard"
 authors = ["ArcSign Team"]
 license = ""
