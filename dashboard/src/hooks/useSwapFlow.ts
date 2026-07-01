@@ -400,101 +400,25 @@ export function useSwapFlow({
         console.log("🔐 Getting unlimited approval...");
       }
 
-      // Step 1: Get approval transaction data from backend
       // Use swapTx.txData.to as the spender (DEX router address)
       // Note: quote.approvalAddress may be empty for some DEX providers (e.g., OpenOcean)
       // The swap transaction's "to" field is the DEX router that needs approval
       const spenderAddress = quote.approvalAddress || swapTx.txData.to;
       console.log(`🔐 Spender address: ${spenderAddress}`);
 
-      const approvalData = await tauriApi.getSwapApproval({
-        chainId,
-        tokenAddress: fromToken.tokenAddress,
-        spenderAddress, // DEX router address
-        amount: approvalAmountWei, // Empty = unlimited, otherwise specific amount
-        usbPath,
-        sessionToken,  // ✅ Low-risk: get approval data
-      });
-
-      console.log("✅ Approval data received:", approvalData);
-
-      // Step 2: Build the approval transaction
-      console.log("🔨 Building approval transaction...");
-      const buildResult = await tauriApi.buildTransaction({
-        chainId,
-        from: fromToken.fromAddress,
-        to: approvalData.to, // Token contract address
-        amount: "0", // Approval doesn't transfer value
-        data: approvalData.data, // approve() calldata
-        feeSpeed: "fast",
-        usbPath,
-        sessionToken,  // ✅ Low-risk: build transaction
-      });
-
-      console.log("✅ Approval tx built:", buildResult);
-
-      // Step 3: Sign the approval transaction
-      console.log("✍️ Signing approval transaction...");
-      const signResult = await tauriApi.signTransaction({
+      const approvalTxHash = await swapService.executeApproval({
         chainId,
         walletId,
-        password: walletPassword,  // ✅ High-risk: wallet password for signing
-        passphrase: preValidatedPassphrase || "",
-        fromAddress: fromToken.fromAddress,
-        unsignedTx: buildResult,
+        fromToken,
+        spenderAddress,
+        approvalAmountWei,
+        walletPassword,
+        preValidatedPassphrase: preValidatedPassphrase || "",
         usbPath,
-        sessionToken,  // ✅ Session token for provider config
+        sessionToken,
       });
 
-      console.log("✅ Approval tx signed");
-
-      // Step 4: Broadcast the approval transaction
-      console.log("📡 Broadcasting approval transaction...");
-      const broadcastResult = await tauriApi.broadcastTransaction({
-        chainId,
-        signedTx: signResult,
-        usbPath,
-        sessionToken,  // ✅ Low-risk: broadcast transaction
-      });
-
-      console.log("✅ Approval tx broadcast:", broadcastResult.txHash);
-      setApprovalTxHash(broadcastResult.txHash);
-
-      // Step 5: Poll for transaction confirmation (max 60 seconds)
-      console.log("⏳ Waiting for approval confirmation...");
-      const maxAttempts = 20; // 20 attempts * 3 seconds = 60 seconds max
-      let confirmed = false;
-
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds between checks
-
-        try {
-          const statusResult = await tauriApi.queryTransactionStatus({
-            chainId,
-            txHash: broadcastResult.txHash,
-            usbPath,
-            sessionToken,  // ✅ Low-risk: query transaction status
-          });
-
-          console.log(`🔍 Tx status (attempt ${attempt + 1}):`, statusResult.status);
-
-          if (statusResult.status === "confirmed") {
-            confirmed = true;
-            console.log("✅ Approval transaction confirmed!");
-            break;
-          } else if (statusResult.status === "failed") {
-            throw new Error(t('swap.approvalFailed'));
-          }
-          // Continue polling if still pending
-        } catch (statusErr) {
-          console.warn(`⚠️ Status check failed (attempt ${attempt + 1}):`, statusErr);
-          // Continue polling - status check might fail temporarily
-        }
-      }
-
-      if (!confirmed) {
-        throw new Error(t('swap.approvalTimeout'));
-      }
+      setApprovalTxHash(approvalTxHash);
 
       // Success! Now proceed to swap password step
       console.log("✅ Approval complete, proceeding to swap...");
@@ -504,7 +428,14 @@ export function useSwapFlow({
     } catch (err) {
       const appErr = err as AppError;
       console.error("🔴 Approval failed:", appErr);
-      setError(appErr.message || t('swap.failedToApprove'));
+      const msg = appErr.message;
+      if (msg === "APPROVAL_FAILED") {
+        setError(t('swap.approvalFailed'));
+      } else if (msg === "APPROVAL_TIMEOUT") {
+        setError(t('swap.approvalTimeout'));
+      } else {
+        setError(appErr.message || t('swap.failedToApprove'));
+      }
       setStep("approve"); // Go back to approve step to retry
     } finally {
       setIsLoading(false);
