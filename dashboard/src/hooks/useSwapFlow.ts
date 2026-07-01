@@ -335,65 +335,29 @@ export function useSwapFlow({
 
     try {
       const amountWei = toSmallestUnit(amount, fromToken.decimals);
-      const fromAddr = fromToken.tokenAddress || "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
-      const isNativeToken = !fromToken.tokenAddress || fromToken.tokenAddress === "";
 
       console.log("🔧 Building swap transaction...");
 
-      const result = await tauriApi.buildSwapTransaction({
+      const { swapTx: builtTx, allowance } = await swapService.buildSwap({
         chainId,
-        fromTokenAddress: fromAddr,
+        fromToken,
         toTokenAddress: toToken.address,
-        amount: amountWei,
-        fromAddress: fromToken.fromAddress,
+        amountWei,
         slippage,
-        provider: isPro ? undefined : selectedProvider, // Pro: backend picks best; Free: user-selected
+        provider: selectedProvider,
         isPro,
         usbPath,
-        sessionToken,  // ✅ Low-risk: build swap transaction
+        sessionToken,
       });
 
-      setSwapTx(result);
+      setSwapTx(builtTx);
+      setCurrentAllowance(allowance.current);
 
-      // For ERC-20 tokens, check actual on-chain allowance
-      if (!isNativeToken) {
-        console.log("🔍 Checking current allowance...");
-        try {
-          const allowanceResult = await tauriApi.checkSwapAllowance({
-            chainId,
-            tokenAddress: fromToken.tokenAddress,
-            walletAddress: fromToken.fromAddress,
-            provider: selectedProvider,
-            usbPath,
-            sessionToken,  // ✅ Low-risk: allowance query
-          });
-
-          setCurrentAllowance(allowanceResult.allowance);
-          console.log(`✅ Current allowance: ${allowanceResult.allowance}`);
-
-          // Compare allowance with swap amount
-          const allowanceBN = BigInt(allowanceResult.allowance || "0");
-          const amountBN = BigInt(amountWei);
-
-          if (allowanceBN >= amountBN) {
-            // Sufficient allowance, skip approval step
-            console.log("✅ Sufficient allowance, skipping approval");
-            setStep("password");
-          } else {
-            // Need approval - set default approval amount to swap amount
-            console.log("⚠️ Insufficient allowance, need approval");
-            setApprovalAmount(amount); // Default to swap amount
-            setIsUnlimitedApproval(false);
-            setStep("approve");
-          }
-        } catch (allowanceErr) {
-          console.warn("⚠️ Failed to check allowance, assuming approval needed:", allowanceErr);
-          setApprovalAmount(amount);
-          setIsUnlimitedApproval(false);
-          setStep("approve");
-        }
+      if (allowance.needsApproval) {
+        setApprovalAmount(amount);
+        setIsUnlimitedApproval(false);
+        setStep("approve");
       } else {
-        // Native token doesn't need approval
         setStep("password");
       }
     } catch (err) {
