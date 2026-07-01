@@ -72,7 +72,11 @@ impl PairingState {
         if now_ms.saturating_sub(self.created_at_ms) > self.ttl.as_millis() as u64 {
             return VerifyResult::Expired;
         }
-        let ok: bool = input.as_bytes().ct_eq(self.code.as_bytes()).into();
+        // Length gate first: a length mismatch must fold into the SAME wrong-attempt
+        // path as a content mismatch (no distinguishable early return). ct_eq still
+        // runs constant-time over equal-length inputs.
+        let ok: bool = input.len() == self.code.len()
+            && bool::from(input.as_bytes().ct_eq(self.code.as_bytes()));
         if ok {
             self.paired = true;
             return VerifyResult::Paired;
@@ -117,6 +121,16 @@ mod tests {
         p.verify("0", 1_000);
         assert!(matches!(p.verify("0", 1_000), VerifyResult::Locked));
         assert!(matches!(p.verify("12345678", 1_000), VerifyResult::Locked));
+    }
+
+    #[test]
+    fn empty_input_counts_as_wrong_attempt() {
+        let mut p = PairingState::new_with_code("12345678".into(), Duration::from_secs(60), 0);
+        // Length mismatch (empty) must be a normal wrong attempt, not a distinguishable path.
+        assert!(matches!(p.verify("", 1_000), VerifyResult::Wrong { remaining: 2 }));
+        assert!(matches!(p.verify("", 1_000), VerifyResult::Wrong { remaining: 1 }));
+        assert!(matches!(p.verify("", 1_000), VerifyResult::Locked));
+        assert!(!p.is_paired());
     }
 
     #[test]
