@@ -137,6 +137,25 @@ under that name. See [`TRADEMARK.md`](TRADEMARK.md).
 This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
 By contributing you agree to abide by it.
 
+## Release checklist (maintainers)
+
+Every tagged release updates documentation **before** the tag. Run this list
+in order:
+
+1. **CHANGELOG.md** — add a `## [vX.Y.Z] — YYYY-MM-DD — <title>` section. The
+   Release workflow extracts the release note from this heading, so it must
+   exist before the tag.
+2. **ROADMAP.md** — move newly shipped items into "Recently Shipped"; bump
+   "Last reviewed".
+3. **Cross-file audit** — grep for drifting facts across `README.md`,
+   `ROADMAP.md`, and `CLAUDE.md` (chain counts, feature counts, provider
+   matrix). Fix any mismatch (e.g. "6 vs 7 EVM chains").
+4. **Version bump** — `dashboard/package.json`,
+   `dashboard/src-tauri/tauri.conf.json`, `dashboard/src-tauri/Cargo.toml`,
+   and the top-level `version` in `dashboard/package-lock.json`.
+5. **Tag + push** — `git tag vX.Y.Z && git push arcsignio vX.Y.Z` to trigger
+   the 3-platform Release workflow.
+
 ## License
 
 By contributing, you agree your contributions will be licensed under

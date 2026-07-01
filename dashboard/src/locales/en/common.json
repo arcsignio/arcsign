@@ -809,7 +809,8 @@
     "swapFee": "Swap Fee",
     "freeSwap": "Free",
     "bestRouteDesc": "Compares multiple DEXes for the best price",
-    "feeIncluded": "Fee included in swap amount"
+    "feeIncluded": "Fee included in swap amount",
+    "routeUpdated": "Route updated — you'll sign via {{provider}} (fee {{fee}}). Please re-check before confirming."
   },
   "staking": {
     "selectStakingOption": "Select Staking Option",

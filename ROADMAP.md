@@ -4,12 +4,18 @@ This is the **public** roadmap. It lists shipped milestones and planned
 near-term direction. Specific dates are intentionally omitted — we ship
 when the quality bar is met, not by calendar.
 
-Last reviewed: 2026-05
+Last reviewed: 2026-07
 
 ---
 
 ## Recently Shipped
 
+- ✅ **Mint-page connection pairing gate** — the localhost WebSocket
+  (`127.0.0.1:9527`) that the Pro NFT mint page uses to request signatures now
+  requires a one-time 8-digit pairing code (shown in the desktop app, entered in
+  the mint page) before any account/sign method is allowed. 60s TTL, 3-attempt
+  lockout, constant-time comparison, Origin allowlist. Replaces the prior
+  boolean-authenticated model.
 - ✅ **Unified mandatory signing security gate** — every signing path
   (transactions, EIP-712 typed data, `personal_sign`) is forced through one
   backend gate before a private key is touched. Adds EIP-712 phishing
@@ -29,7 +35,7 @@ Last reviewed: 2026-05
 - ✅ **Pro NFT membership** — BSC ERC-721 with 1-year expiry, 30 USDT mint.
 - ✅ **Referral contract** — 10–20% revenue share, on-chain enforcement.
 - ✅ **Token approvals management** — view and revoke ERC-20 approvals
-  across 6 EVM chains. Pro users get batch revoke.
+  across 7 EVM chains. Pro users get batch revoke.
 - ✅ **NFT Gallery** — cross-chain display (ERC-721 / ERC-1155).
 - ✅ **DeFi positions** — liquid staking positions (stETH, ankrETH, ankrBNB)
   with real-time APY.
@@ -48,7 +54,7 @@ Order is approximate. We may reprioritize as feedback comes in.
 
 - 📋 **Mobile companion app** — phone as a second screen for cold-wallet
   confirmations. Not a standalone wallet.
-- 📋 **Additional chain adapters** — beyond Bitcoin + 6 EVM chains.
+- 📋 **Additional chain adapters** — beyond Bitcoin + 7 EVM chains.
   Community contributions following the existing `src/chainadapter/`
   pattern are very welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - 📋 **Bug bounty program** — will launch when the project is sustainable

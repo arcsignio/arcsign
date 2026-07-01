@@ -237,12 +237,16 @@ const ALLOWED_ORIGINS: &[&str] = &[
 /// localhost dev ports. The `dev-mode` build additionally allows both, so the
 /// Hardhat CLI (empty Origin) and a locally-served mint page work.
 pub(crate) fn is_origin_allowed(origin: &str) -> bool {
-    if ALLOWED_ORIGINS.contains(&origin) {
+    // RFC 6454: an Origin's scheme and host are case-insensitive. Compare
+    // lowercased against ALLOWED_ORIGINS (already lowercase) so a case variant
+    // matches instead of being wrongly rejected.
+    let origin_lc = origin.to_ascii_lowercase();
+    if ALLOWED_ORIGINS.contains(&origin_lc.as_str()) {
         return true;
     }
     #[cfg(feature = "dev-mode")]
     {
-        if origin.is_empty() || origin.starts_with("http://localhost:") {
+        if origin_lc.is_empty() || origin_lc.starts_with("http://localhost:") {
             return true;
         }
     }
@@ -475,6 +479,23 @@ mod origin_tests {
     use super::is_origin_allowed;
 
     #[test]
+    fn allows_exact_lowercase_origin() {
+        assert!(is_origin_allowed("https://arcsign.io"));
+    }
+
+    #[test]
+    fn allows_mixed_case_origin_rfc6454() {
+        // RFC 6454: scheme/host are case-insensitive. Must still match.
+        assert!(is_origin_allowed("HTTPS://ARCSIGN.IO"));
+        assert!(is_origin_allowed("https://ArcSign.io"));
+    }
+
+    #[test]
+    fn rejects_unknown_origin() {
+        assert!(!is_origin_allowed("https://evil.example"));
+    }
+
+    #[test]
     fn mint_origin_allowed_in_all_builds() {
         assert!(is_origin_allowed("https://arcsign.io"));
     }
@@ -483,11 +504,6 @@ mod origin_tests {
     fn tauri_webview_origins_allowed() {
         assert!(is_origin_allowed("tauri://localhost"));
         assert!(is_origin_allowed("https://tauri.localhost"));
-    }
-
-    #[test]
-    fn other_website_origin_rejected() {
-        assert!(!is_origin_allowed("https://evil.example"));
     }
 
     // Production: empty Origin (non-browser local process) rejected.

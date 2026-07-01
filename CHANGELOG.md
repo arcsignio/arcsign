@@ -3,6 +3,43 @@
 All notable changes to ArcSign. Format follows [Keep a Changelog](https://keepachangelog.com/),
 Semantic Versioning.
 
+## [v1.5.2] — 2026-07-01 — WebSocket Pairing Gate + Swap Resilience
+
+### Security
+
+- **Mint-page connection pairing gate.** The localhost WebSocket (`127.0.0.1:9527`)
+  used by the Pro NFT mint page now requires a one-time 8-digit pairing code
+  (shown in the desktop app, entered in the mint page) before any account or
+  signing method is allowed — 60s TTL, 3-attempt lockout, constant-time
+  comparison. Replaces the prior boolean-authenticated model.
+- **Origin allowlist hardening.** Production builds reject empty Origin
+  (non-browser local processes) and localhost dev ports; only the apex mint-page
+  origin and Tauri's own webview origins are allowed. Origin comparison is now
+  case-insensitive per RFC 6454.
+- **Pairing-code comparison length gate.** A length mismatch now folds into the
+  same wrong-attempt path as a content mismatch, removing a distinguishable
+  early return so the constant-time compare is honest end-to-end.
+
+### Changed
+
+- **Dev / production build split.** Developer-only WebSocket auto-sign helpers
+  are compiled behind a `dev-mode` feature; production builds return a friendly
+  error instead. CI publishes both a production release (3 platforms) and a
+  `-dev` build (macOS/Linux).
+- Signing paths (transaction / message / typed-data) consolidated through a
+  single `deriveSecureSigner` (decrypt + derive), byte-identical to the prior
+  per-path code.
+
+### Fixed
+
+- **Swap quote resilience.** OpenOcean and KyberSwap clients send a browser-like
+  User-Agent to avoid Cloudflare 403s. Free users whose OpenOcean quote/build
+  fails now fall back to KyberSwap automatically (no referrer fee on the
+  fallback), for both quote and transaction build.
+- **Swap confirm shows the route you'll actually sign.** When a free-user swap
+  falls back to a different provider between quote and build, the confirmation
+  step shows a "route updated" notice with the actual provider and fee.
+
 ## [v1.5.1] — 2026-06-25 — Unified Signing Security Gate
 
 ### Security
