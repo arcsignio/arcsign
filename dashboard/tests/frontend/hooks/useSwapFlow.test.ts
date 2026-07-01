@@ -45,10 +45,21 @@ vi.mock("@/utils/walletLock", () => ({
   isWalletLocked: vi.fn().mockReturnValue(false),
 }));
 
+// Mock swapService so handleExecuteApproval tests can drive executeApproval outcomes
+// without going through the real Tauri API layer.
+vi.mock("@/services/swapService", () => ({
+  fetchSwapTokens: vi.fn().mockResolvedValue({ tokens: [] }),
+  fetchQuote: vi.fn().mockResolvedValue({}),
+  buildSwap: vi.fn().mockResolvedValue({ swapTx: { txData: { to: "0xrouter", value: "0", data: "0x" } }, allowance: { needsApproval: false, current: null } }),
+  executeApproval: vi.fn().mockResolvedValue("0xapprovalhash"),
+  executeSwap: vi.fn().mockResolvedValue("0xswaphash"),
+}));
+
 // ── imports after mocks ────────────────────────────────────────────────────────
 
 import { useSwapFlow } from "@/hooks/useSwapFlow";
 import type { SendableToken } from "@/components/SendTransaction";
+import * as swapService from "@/services/swapService";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -322,5 +333,73 @@ describe("useSwapFlow — setStep direct control", () => {
     const { result } = renderHook(() => useSwapFlow(baseParams));
     act(() => { result.current.actions.setStep("password"); });
     expect(result.current.state.step).toBe("password");
+  });
+});
+
+describe("useSwapFlow — handleExecuteApproval APPROVAL_TIMEOUT i18n mapping", () => {
+  // t() in tests returns the key itself (see tests/setup.ts stableT).
+  // So t('swap.approvalTimeout') === 'swap.approvalTimeout'.
+  beforeEach(() => vi.clearAllMocks());
+
+  it("maps APPROVAL_TIMEOUT error to swap.approvalTimeout i18n key and returns step to approve", async () => {
+    // Override executeApproval to reject with the sentinel error string.
+    (swapService.executeApproval as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("APPROVAL_TIMEOUT"),
+    );
+    // buildSwap must signal needsApproval so the hook reaches the "approve" step
+    // and sets swapTx in state — this is the only way to populate swapTx since
+    // the hook does not expose setSwapTx in actions.
+    (swapService.buildSwap as ReturnType<typeof vi.fn>).mockResolvedValue({
+      swapTx: { txData: { to: "0xrouter", value: "0", data: "0xcalldata" } },
+      allowance: { needsApproval: true, current: "0" },
+    });
+
+    const { result } = renderHook(() => useSwapFlow(baseParams));
+
+    // 1. Select source and destination tokens.
+    act(() => { result.current.actions.handleSelectFromToken(usdcToken); });
+    act(() => {
+      result.current.actions.handleSelectToToken({
+        address: ethToken.tokenAddress || "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        symbol: ethToken.tokenSymbol,
+        name: ethToken.tokenName,
+        decimals: ethToken.decimals,
+      });
+    });
+
+    // 2. Set a quote directly (setQuote IS exported).
+    act(() => {
+      result.current.actions.setQuote({
+        fromToken: usdcToken.tokenAddress,
+        toToken: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        fromTokenAmount: "1000000",
+        toTokenAmount: "300000000000000000",
+        estimatedGas: "200000",
+        provider: "openocean",
+        approvalAddress: "0xrouter",
+      } as any);
+    });
+
+    // 3. Build the swap — sets swapTx and advances to "approve" step.
+    await act(async () => {
+      await result.current.actions.handleBuildSwapTx();
+    });
+    expect(result.current.state.step).toBe("approve");
+
+    // 4. Enter password and proceed to approvalPassword step.
+    act(() => {
+      result.current.actions.setWalletPassword("test-password");
+      result.current.actions.setStep("approvalPassword");
+    });
+
+    // 5. Execute approval — should reject and map APPROVAL_TIMEOUT → i18n key.
+    await act(async () => {
+      await result.current.actions.handleExecuteApproval();
+    });
+
+    // The hook must surface the i18n key (t() returns the key in this test env).
+    expect(result.current.state.error).toBe("swap.approvalTimeout");
+    // After a timeout the hook returns the user to the approve step to retry.
+    expect(result.current.state.step).toBe("approve");
   });
 });

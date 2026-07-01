@@ -83,6 +83,9 @@ describe("swapService.buildSwap", () => {
     (api.checkSwapAllowance as any).mockResolvedValue({ allowance: "0" });
     await buildSwap({ ...baseBuild, fromToken: erc20, isPro: true });
     expect(api.buildSwapTransaction).toHaveBeenCalledWith(expect.objectContaining({ provider: undefined, isPro: true, fromTokenAddress: "0xtoken", toTokenAddress: "0xb" }));
+    // Invariant: allowance provider is NOT gated by isPro — checkSwapAllowance must
+    // receive the concrete provider string (p.provider ?? "") even when isPro=true.
+    expect(api.checkSwapAllowance).toHaveBeenCalledWith(expect.objectContaining({ provider: "openocean" }));
   });
 });
 
