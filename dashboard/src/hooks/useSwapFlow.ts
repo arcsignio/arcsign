@@ -21,6 +21,7 @@ import tauriApi, {
   type SwapTokenInfo,
 } from "@/services/tauri-api";
 import type { SendableToken } from "@/components/SendTransaction";
+import * as swapService from "@/services/swapService";
 import {
   networkToChainId,
   toSmallestUnit,
@@ -273,7 +274,7 @@ export function useSwapFlow({
 
       console.log("🔄 Fetching swap quote...", { chainId, fromAddr, toAddr: toToken.address, amount: amountWei });
 
-      const result = await tauriApi.getSwapQuote({
+      const result = await swapService.fetchQuote({
         chainId,
         fromTokenAddress: fromAddr,
         toTokenAddress: toToken.address,
