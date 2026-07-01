@@ -15,11 +15,11 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
 import { useSignGate } from "@/hooks/useSignGate";
 import { ProviderSelector } from "@/components/swap/ProviderSelector";
 import { TokenPicker } from "@/components/swap/TokenPicker";
 import { SwapQuoteView } from "@/components/swap/SwapQuoteView";
+import { SwapConfirm } from "@/components/swap/SwapConfirm";
 import { isWalletLocked } from "@/utils/walletLock";
 import { useIsPro } from "@/stores/dashboardStore";
 import tauriApi, {
@@ -34,7 +34,6 @@ import {
   networkToChainId,
   getExplorerUrl,
   getNetworkIcon,
-  getNativeTokenSymbol,
   toSmallestUnit,
   fromSmallestUnit,
   shortenAddress,
@@ -1019,99 +1018,20 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 
       {/* Password Step */}
       {step === "password" && swapTx && fromToken && toToken && (
-        <div className="password-form">
-          <h3>{t('swap.confirmSwap')}</h3>
-
-          {swapRouteChanged(quote, swapTx.quote) && (
-            <div className="route-updated-notice" role="alert">
-              ⚠️ {t('swap.routeUpdated', {
-                provider: swapTx.quote.dex,
-                fee: swapTx.quote.feeRate === "0" ? t('swap.freeSwap') : `${swapTx.quote.feeRate}%`,
-              })}
-            </div>
-          )}
-
-          <div className="swap-summary">
-            <div className="swap-summary-row">
-              <span className="summary-label">{t('swap.youPay')}</span>
-              <span className="summary-value">
-                {amount} {fromToken.tokenSymbol}
-              </span>
-            </div>
-            <div className="swap-summary-row">
-              <span className="summary-label">{t('swap.youReceive')}</span>
-              <span className="summary-value highlight">
-                ~{fromSmallestUnit(swapTx.quote.toAmount, toToken.decimals)} {toToken.symbol}
-              </span>
-            </div>
-            <div className="swap-summary-row">
-              <span className="summary-label">{t('swap.network')}</span>
-              <span className="summary-value">
-                {getNetworkIcon(fromToken.network)} {fromToken.networkLabel}
-              </span>
-            </div>
-            <div className="swap-summary-row">
-              <span className="summary-label">{t('swap.exchangeRate')}</span>
-              <span className="summary-value">
-                1 {fromToken.tokenSymbol} ≈ {swapTx.quote.exchangeRate} {toToken.symbol}
-              </span>
-            </div>
-            <div className="swap-summary-row">
-              <span className="summary-label">{t('swap.priceImpact')}</span>
-              <span className="summary-value" style={{ color: parseFloat(swapTx.quote.priceImpact || '0') < -1 ? '#ef4444' : '#10b981' }}>
-                {swapTx.quote.priceImpact}%
-              </span>
-            </div>
-            <div className="swap-summary-row">
-              <span className="summary-label">{t('swap.estimatedGasFee')}</span>
-              <span className="summary-value">
-                ~{swapTx.quote.gasCostETH} {getNativeTokenSymbol(fromToken.network)}
-              </span>
-            </div>
-            <div className="swap-summary-row">
-              <span className="summary-label">{t('swap.swapFee')}</span>
-              <span className={`summary-value ${swapTx.quote.feeRate === "0" ? "fee-free" : ""}`}>
-                {swapTx.quote.feeRate === "0"
-                  ? t('swap.freeSwap')
-                  : `${swapTx.quote.feeRate}%`}
-              </span>
-            </div>
-            <div className="swap-summary-row">
-              <span className="summary-label">{t('swap.minimumReceived')}</span>
-              <span className="summary-value">
-                {fromSmallestUnit(swapTx.quote.toAmountMin, toToken.decimals)} {toToken.symbol}
-              </span>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>{t('swap.walletPassword')}</label>
-            <input
-              type="password"
-              placeholder={t('swap.enterWalletPassword')}
-              value={walletPassword}
-              onChange={(e) => setWalletPassword(e.target.value)}
-              className="password-input"
-              autoFocus
-            />
-          </div>
-
-          {/* High-risk acknowledgment — friction gate for backend-flagged dangers */}
-          <SignGateAcknowledge
-            requiresAcknowledge={gate.requiresAcknowledge}
-            acknowledged={gate.acknowledged}
-            onChange={gate.setAcknowledged}
-          />
-
-          <button
-            className="primary-button"
-            onClick={handleSignAndBroadcast}
-            disabled={isLoading || !walletPassword || (gate.requiresAcknowledge && !gate.acknowledged)}
-            style={gate.requiresAcknowledge ? { background: "#dc2626", boxShadow: "none" } : undefined}
-          >
-            {isLoading ? t('swap.processing') : t('swap.confirmSwap')}
-          </button>
-        </div>
+        <SwapConfirm
+          fromToken={fromToken}
+          toToken={toToken}
+          amount={amount}
+          swapQuote={swapTx.quote}
+          routeChanged={swapRouteChanged(quote, swapTx.quote)}
+          walletPassword={walletPassword}
+          isLoading={isLoading}
+          requiresAcknowledge={gate.requiresAcknowledge}
+          acknowledged={gate.acknowledged}
+          onAcknowledgeChange={(checked) => gate.setAcknowledged(checked)}
+          onPasswordChange={(v) => setWalletPassword(v)}
+          onConfirm={handleSignAndBroadcast}
+        />
       )}
 
       {/* Signing/Broadcasting Steps */}
