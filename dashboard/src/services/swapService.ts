@@ -8,6 +8,7 @@ import {
   signTransaction,
   broadcastTransaction,
   queryTransactionStatus,
+  addTouchedToken,
   type GetSwapTokensResponse,
   type SwapQuoteResponse,
   type BuildSwapTransactionResponse,
@@ -143,4 +144,62 @@ export async function executeApproval(p: {
     }
   }
   throw new Error("APPROVAL_TIMEOUT");
+}
+
+export async function executeSwap(p: {
+  chainId: string; walletId: string; fromToken: SendableToken;
+  toToken: { address: string; symbol: string; decimals: number; network?: string } | null;
+  swapTx: BuildSwapTransactionResponse; walletPassword: string; preValidatedPassphrase: string;
+  acknowledgedRisk: boolean; isPro: boolean; usbPath: string; sessionToken: string;
+}, opts?: SwapProgress): Promise<string> {
+  const txValue = p.swapTx.txData.value || "0";
+
+  const built = await buildTransaction({
+    chainId: p.chainId,
+    from: p.fromToken.fromAddress,
+    to: p.swapTx.txData.to,
+    amount: txValue,
+    data: p.swapTx.txData.data || "",
+    feeSpeed: "fast",
+    usbPath: p.usbPath,
+    sessionToken: p.sessionToken,
+    isPro: p.isPro,
+  });
+
+  opts?.onProgress?.("signing");
+
+  const signed = await signTransaction({
+    chainId: p.chainId,
+    walletId: p.walletId,
+    password: p.walletPassword,
+    passphrase: p.preValidatedPassphrase || "",
+    fromAddress: p.fromToken.fromAddress,
+    unsignedTx: built,
+    usbPath: p.usbPath,
+    sessionToken: p.sessionToken,
+    acknowledgedRisk: p.acknowledgedRisk,
+  });
+
+  opts?.onProgress?.("broadcasting");
+
+  const broadcast = await broadcastTransaction({
+    chainId: p.chainId, signedTx: signed, usbPath: p.usbPath, sessionToken: p.sessionToken,
+  });
+
+  // Best-effort: record the output token into table B. Failure must not affect the swap.
+  const ownerAddr = p.fromToken.fromAddress;
+  const outNetwork = p.toToken?.network;
+  if (ownerAddr && outNetwork && p.toToken?.address) {
+    addTouchedToken({
+      usbPath: p.usbPath,
+      userAddress: ownerAddr,
+      tokenAddress: p.toToken.address,
+      network: outNetwork,
+      symbol: p.toToken.symbol,
+      decimals: p.toToken.decimals,
+      sessionToken: p.sessionToken,
+    }).catch((e) => console.warn("[Swap] failed to record output token into table B:", e));
+  }
+
+  return broadcast.txHash;
 }

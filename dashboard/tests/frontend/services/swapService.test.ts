@@ -14,7 +14,7 @@ vi.mock("@/services/tauri-api", () => ({
 }));
 
 import * as api from "@/services/tauri-api";
-import { fetchSwapTokens, fetchQuote, buildSwap, executeApproval } from "@/services/swapService";
+import { fetchSwapTokens, fetchQuote, buildSwap, executeApproval, executeSwap } from "@/services/swapService";
 
 describe("swapService.fetchSwapTokens", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -129,5 +129,43 @@ describe("swapService.executeApproval", () => {
     const assertion = expect(promise).rejects.toThrow("APPROVAL_FAILED");
     await vi.runAllTimersAsync();
     await assertion;
+  });
+});
+
+const toTok = { address: "0xout", symbol: "ETH", decimals: 18, network: "eth-mainnet" };
+const swapParams = { chainId: "ethereum", walletId: "w1", fromToken: erc20, toToken: toTok, swapTx: { txData: { to: "0xrouter", data: "0xcalldata", value: "0" } } as any, walletPassword: "pw", preValidatedPassphrase: "", acknowledgedRisk: true, isPro: true, usbPath: "/u", sessionToken: "t" };
+
+describe("swapService.executeSwap", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("build→sign→broadcast, fires onProgress signing then broadcasting, returns txHash", async () => {
+    (api.buildTransaction as any).mockResolvedValue({ unsigned: "0xbuilt" });
+    (api.signTransaction as any).mockResolvedValue("0xsigned");
+    (api.broadcastTransaction as any).mockResolvedValue({ txHash: "0xswaphash" });
+    (api.addTouchedToken as any).mockResolvedValue({ added: true });
+
+    const stages: string[] = [];
+    const hash = await executeSwap(swapParams, { onProgress: (s) => stages.push(s) });
+
+    expect(hash).toBe("0xswaphash");
+    expect(stages).toEqual(["signing", "broadcasting"]);
+    // SAFETY: acknowledgedRisk + password threaded through unchanged
+    expect(api.signTransaction).toHaveBeenCalledWith({
+      chainId: "ethereum", walletId: "w1", password: "pw", passphrase: "",
+      fromAddress: "0xowner", unsignedTx: { unsigned: "0xbuilt" }, usbPath: "/u",
+      sessionToken: "t", acknowledgedRisk: true,
+    });
+    // build uses the swap tx value + calldata + fast fee + isPro
+    expect(api.buildTransaction).toHaveBeenCalledWith(expect.objectContaining({ to: "0xrouter", amount: "0", data: "0xcalldata", feeSpeed: "fast", isPro: true }));
+  });
+
+  it("records the output token via addTouchedToken (best effort) but a failure does NOT reject the swap", async () => {
+    (api.buildTransaction as any).mockResolvedValue({ unsigned: "0xbuilt" });
+    (api.signTransaction as any).mockResolvedValue("0xsigned");
+    (api.broadcastTransaction as any).mockResolvedValue({ txHash: "0xswaphash" });
+    (api.addTouchedToken as any).mockRejectedValue(new Error("db down"));
+    const hash = await executeSwap(swapParams);
+    expect(hash).toBe("0xswaphash"); // not rejected
+    expect(api.addTouchedToken).toHaveBeenCalledWith(expect.objectContaining({ tokenAddress: "0xout", network: "eth-mainnet", symbol: "ETH", decimals: 18 }));
   });
 });
