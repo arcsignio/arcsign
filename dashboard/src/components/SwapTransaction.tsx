@@ -19,6 +19,7 @@ import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
 import { useSignGate } from "@/hooks/useSignGate";
 import { ProviderSelector } from "@/components/swap/ProviderSelector";
 import { TokenPicker } from "@/components/swap/TokenPicker";
+import { SwapQuoteView } from "@/components/swap/SwapQuoteView";
 import { isWalletLocked } from "@/utils/walletLock";
 import { useIsPro } from "@/stores/dashboardStore";
 import tauriApi, {
@@ -787,173 +788,42 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 
       {/* Step 3: Input Amount */}
       {step === "input" && fromToken && toToken && (
-        <div className="swap-input-form">
-          {/* From Token */}
-          <div className="swap-token-card from">
-            <div className="token-card-header">
-              <span className="card-label">{t('swap.youPay')}</span>
-              <span className="balance-label">
-                {t('swap.balance')}: {formatBalance(fromToken.balance)} {fromToken.tokenSymbol}
-              </span>
-            </div>
-            <div className="token-card-body">
-              <input
-                type="text"
-                placeholder="0.0"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="amount-input-large"
-              />
-              <div className="token-selector" onClick={() => setStep("selectFrom")}>
-                <div className="token-icon-small">
-                  {fromToken.tokenLogo ? (
-                    <img src={fromToken.tokenLogo} alt={fromToken.tokenSymbol} />
-                  ) : (
-                    <span>{fromToken.tokenSymbol.slice(0, 2)}</span>
-                  )}
-                </div>
-                <span className="token-symbol">{fromToken.tokenSymbol}</span>
-                <span className="dropdown-arrow">▼</span>
-              </div>
-            </div>
-            <div className="token-card-footer">
-              <button className="max-button" onClick={() => setAmount(fromToken.balance)}>
-                MAX
-              </button>
-              <button className="half-button" onClick={() => setAmount(String(parseFloat(fromToken.balance) / 2))}>
-                50%
-              </button>
-            </div>
-          </div>
-
-          {/* Swap Direction Indicator */}
-          <div className="swap-direction">
-            <button className="swap-direction-btn" onClick={() => {
-              // Swap tokens (if destination has balance)
-              const destAsFromToken = availableTokens.find(t =>
-                (t.tokenAddress || "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee").toLowerCase() === toToken.address.toLowerCase() &&
-                t.network === fromToken.network
-              );
-              if (destAsFromToken) {
-                setFromToken(destAsFromToken);
-                setToToken({
-                  address: fromToken.tokenAddress || "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-                  symbol: fromToken.tokenSymbol,
-                  name: fromToken.tokenName,
-                  decimals: fromToken.decimals,
-                  logoURI: fromToken.tokenLogo,
-                  network: fromToken.network,
-                });
-                setAmount("");
-                setQuote(null);
-              }
-            }}>
-              ↕
-            </button>
-          </div>
-
-          {/* To Token */}
-          <div className="swap-token-card to">
-            <div className="token-card-header">
-              <span className="card-label">{t('swap.youReceive')}</span>
-            </div>
-            <div className="token-card-body">
-              <div className="amount-display">
-                {isLoading ? (
-                  <span className="loading-text">{t('common.loading')}</span>
-                ) : quote ? (
-                  fromSmallestUnit(quote.toAmount, toToken.decimals)
-                ) : (
-                  "0.0"
-                )}
-              </div>
-              <div className="token-selector" onClick={() => setStep("selectTo")}>
-                <div className="token-icon-small">
-                  {toToken.logoURI ? (
-                    <img src={toToken.logoURI} alt={toToken.symbol} />
-                  ) : (
-                    <span>{toToken.symbol.slice(0, 2)}</span>
-                  )}
-                </div>
-                <span className="token-symbol">{toToken.symbol}</span>
-                <span className="dropdown-arrow">▼</span>
-              </div>
-            </div>
-            {quote && (
-              <div className="token-card-footer">
-                <span className="min-received">
-                  {t('swap.min')}: {fromSmallestUnit(quote.toAmountMin, toToken.decimals)} {toToken.symbol}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Quote Details */}
-          {quote && (
-            <div className="quote-details">
-              <div className="quote-row">
-                <span className="quote-label">{t('swap.exchangeRate')}</span>
-                <span className="quote-value">
-                  1 {fromToken.tokenSymbol} = {quote.exchangeRate} {toToken.symbol}
-                </span>
-              </div>
-              <div className="quote-row">
-                <span className="quote-label">{t('swap.priceImpact')}</span>
-                <span className={`quote-value ${
-                  quote.priceImpact !== "N/A" && parseFloat(quote.priceImpact) > 3 ? "warning" : ""
-                }`}>
-                  {quote.priceImpact === "N/A" || quote.priceImpact === "" || quote.priceImpact === "0"
-                    ? "N/A"
-                    : `${quote.priceImpact}%`}
-                </span>
-              </div>
-              <div className="quote-row">
-                <span className="quote-label">{t('swap.estimatedGas')}</span>
-                <span className="quote-value">{quote.gasCostETH} {getNativeTokenSymbol(fromToken.network)}</span>
-              </div>
-              <div className="quote-row">
-                <span className="quote-label">{t('swap.swapFee')}</span>
-                <span className={`quote-value ${quote.feeRate === "0" ? "fee-free" : ""}`}>
-                  {quote.feeRate === "0"
-                    ? t('swap.freeSwap')
-                    : `${quote.feeRate}%`}
-                </span>
-              </div>
-              <div className="quote-row">
-                <span className="quote-label">{t('swap.route')}</span>
-                <span className="quote-value route">
-                  {quote.routeType === "best" && <span className="best-route-tag">⚡ </span>}
-                  {quote.protocols.join(" → ")}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Slippage Settings */}
-          <div className="slippage-settings">
-            <span className="slippage-label">{t('swap.slippageTolerance')}</span>
-            <div className="slippage-options">
-              {[0.5, 1, 3].map(s => (
-                <button
-                  key={s}
-                  className={`slippage-option ${slippage === s ? "selected" : ""}`}
-                  onClick={() => setSlippage(s)}
-                >
-                  {s}%
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Continue Button */}
-          <button
-            className="primary-button"
-            onClick={handleBuildSwapTx}
-            disabled={isLoading || !isValidAmount(amount) || !quote}
-          >
-            {isLoading ? t('common.loading') : t('swap.reviewSwap')}
-          </button>
-        </div>
+        <SwapQuoteView
+          fromToken={fromToken}
+          toToken={toToken}
+          amount={amount}
+          quote={quote}
+          isLoading={isLoading}
+          slippage={slippage}
+          isValidAmount={isValidAmount}
+          onAmountChange={(v) => setAmount(v)}
+          onSetMax={() => setAmount(fromToken.balance)}
+          onSetHalf={() => setAmount(String(parseFloat(fromToken.balance) / 2))}
+          onSlippageChange={(s) => setSlippage(s)}
+          onSelectFromToken={() => setStep("selectFrom")}
+          onSelectToToken={() => setStep("selectTo")}
+          onSwapTokens={() => {
+            // Swap tokens (if destination has balance)
+            const destAsFromToken = availableTokens.find(t =>
+              (t.tokenAddress || "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee").toLowerCase() === toToken.address.toLowerCase() &&
+              t.network === fromToken.network
+            );
+            if (destAsFromToken) {
+              setFromToken(destAsFromToken);
+              setToToken({
+                address: fromToken.tokenAddress || "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                symbol: fromToken.tokenSymbol,
+                name: fromToken.tokenName,
+                decimals: fromToken.decimals,
+                logoURI: fromToken.tokenLogo,
+                network: fromToken.network,
+              });
+              setAmount("");
+              setQuote(null);
+            }
+          }}
+          onContinue={handleBuildSwapTx}
+        />
       )}
 
       {/* Approval Step */}
