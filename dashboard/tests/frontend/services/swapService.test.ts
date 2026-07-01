@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("@/services/tauri-api", () => ({
   getSwapTokens: vi.fn(),
@@ -14,7 +14,7 @@ vi.mock("@/services/tauri-api", () => ({
 }));
 
 import * as api from "@/services/tauri-api";
-import { fetchSwapTokens, fetchQuote, buildSwap } from "@/services/swapService";
+import { fetchSwapTokens, fetchQuote, buildSwap, executeApproval } from "@/services/swapService";
 
 describe("swapService.fetchSwapTokens", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -83,5 +83,51 @@ describe("swapService.buildSwap", () => {
     (api.checkSwapAllowance as any).mockResolvedValue({ allowance: "0" });
     await buildSwap({ ...baseBuild, fromToken: erc20, isPro: true });
     expect(api.buildSwapTransaction).toHaveBeenCalledWith(expect.objectContaining({ provider: undefined, isPro: true, fromTokenAddress: "0xtoken", toTokenAddress: "0xb" }));
+  });
+});
+
+const apprParams = { chainId: "ethereum", walletId: "w1", fromToken: erc20, spenderAddress: "0xrouter", approvalAmountWei: "1000000", walletPassword: "pw", preValidatedPassphrase: "", usbPath: "/u", sessionToken: "t" };
+
+describe("swapService.executeApproval", () => {
+  // Fake timers so the 3s poll sleep costs no real wall-clock time. The loop is
+  // driven by advancing timers + flushing microtasks (runAllTimersAsync).
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("runs getApproval→build→sign→broadcast→poll and returns the tx hash on confirmation", async () => {
+    (api.getSwapApproval as any).mockResolvedValue({ to: "0xtoken", data: "0xapprovecalldata" });
+    (api.buildTransaction as any).mockResolvedValue({ unsigned: "0xbuilt" });
+    (api.signTransaction as any).mockResolvedValue("0xsigned");
+    (api.broadcastTransaction as any).mockResolvedValue({ txHash: "0xapprovalhash" });
+    (api.queryTransactionStatus as any).mockResolvedValue({ status: "confirmed" });
+
+    const promise = executeApproval(apprParams);
+    // Drive the real poll loop through its 3s sleep without waiting in real time.
+    await vi.runAllTimersAsync();
+    const hash = await promise;
+    expect(hash).toBe("0xapprovalhash");
+
+    // SAFETY: signTransaction params byte-identical to the handler
+    expect(api.signTransaction).toHaveBeenCalledWith({
+      chainId: "ethereum", walletId: "w1", password: "pw", passphrase: "",
+      fromAddress: "0xowner", unsignedTx: { unsigned: "0xbuilt" }, usbPath: "/u", sessionToken: "t",
+    });
+    // approval build sends value "0" and the approve calldata to the token contract
+    expect(api.buildTransaction).toHaveBeenCalledWith(expect.objectContaining({ to: "0xtoken", amount: "0", data: "0xapprovecalldata", feeSpeed: "fast" }));
+  });
+
+  it("throws APPROVAL_FAILED when status is failed", async () => {
+    (api.getSwapApproval as any).mockResolvedValue({ to: "0xtoken", data: "0xd" });
+    (api.buildTransaction as any).mockResolvedValue({ unsigned: "0xbuilt" });
+    (api.signTransaction as any).mockResolvedValue("0xsigned");
+    (api.broadcastTransaction as any).mockResolvedValue({ txHash: "0xh" });
+    (api.queryTransactionStatus as any).mockResolvedValue({ status: "failed" });
+    const promise = executeApproval(apprParams);
+    const assertion = expect(promise).rejects.toThrow("APPROVAL_FAILED");
+    await vi.runAllTimersAsync();
+    await assertion;
   });
 });
