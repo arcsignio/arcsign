@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
 import { useSignGate } from "@/hooks/useSignGate";
 import { ProviderSelector } from "@/components/swap/ProviderSelector";
+import { TokenPicker } from "@/components/swap/TokenPicker";
 import { isWalletLocked } from "@/utils/walletLock";
 import { useIsPro } from "@/stores/dashboardStore";
 import tauriApi, {
@@ -761,150 +762,27 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 
       {/* Step 1: Select Source Token */}
       {step === "selectFrom" && (
-        <div className="token-select-form">
-          <h3>{t('swap.selectTokenToSwap')}</h3>
-          <p className="select-description">{t('swap.chooseAssetToSwap')}</p>
-
-          {swappableTokens.length === 0 ? (
-            <div className="no-tokens">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-              <p>{t('swap.noTokensForSwap')}</p>
-              <p className="supported-chains">{t('swap.supportedChains')}</p>
-              <button className="secondary-button" onClick={onBack}>
-                {t('swap.goBack')}
-              </button>
-            </div>
-          ) : (
-            <div className="token-list">
-              {Object.entries(tokensByNetwork).map(([networkLabel, tokens]) => (
-                <div key={networkLabel} className="network-group">
-                  <div className="network-header">
-                    <span className="network-icon">{getNetworkIcon(tokens[0].network)}</span>
-                    <span className="network-name">{networkLabel}</span>
-                  </div>
-                  <div className="network-tokens">
-                    {tokens.map((token, idx) => (
-                      <button
-                        key={`${token.network}-${token.tokenAddress || "native"}-${idx}`}
-                        className="token-option"
-                        onClick={() => handleSelectFromToken(token)}
-                      >
-                        <div className="token-icon">
-                          {token.tokenLogo ? (
-                            <img
-                              src={token.tokenLogo}
-                              alt={token.tokenSymbol}
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                                (e.currentTarget.nextElementSibling as HTMLElement)?.style.setProperty('display', 'flex');
-                              }}
-                            />
-                          ) : null}
-                          <span className="token-icon-fallback" style={token.tokenLogo ? { display: 'none' } : undefined}>{token.tokenSymbol.slice(0, 2)}</span>
-                        </div>
-                        <div className="token-info">
-                          <span className="token-symbol">{token.tokenSymbol}</span>
-                          <span className="token-name">{token.tokenName}</span>
-                        </div>
-                        <div className="token-balance">
-                          <span className="balance-amount">{formatBalance(token.balance)}</span>
-                        </div>
-                        <span className="token-arrow">→</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <TokenPicker
+          mode="from"
+          tokensByNetwork={tokensByNetwork}
+          onSelectToken={handleSelectFromToken}
+          onBack={onBack}
+        />
       )}
 
       {/* Step 2: Select Destination Token */}
       {step === "selectTo" && fromToken && (
-        <div className="token-select-form">
-          <h3>{t('swap.selectTokenToReceive')}</h3>
-          <p className="select-description">
-            {t('swap.swappingFrom', { symbol: fromToken.tokenSymbol, network: fromToken.networkLabel })}
-          </p>
-
-          {/* Search Input */}
-          <div className="token-search-wrapper">
-            <input
-              type="text"
-              placeholder={t('swap.searchPlaceholder')}
-              value={tokenSearchQuery}
-              onChange={(e) => setTokenSearchQuery(e.target.value)}
-              className="token-search-input"
-            />
-            {tokenSearchQuery && (
-              <button
-                className="search-clear-btn"
-                onClick={() => setTokenSearchQuery("")}
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {/* Loading State */}
-          {loadingTokens && (
-            <div className="token-loading">
-              <div className="token-loading-spinner"></div>
-              <span>{t('swap.loadingTokenRegistry')}</span>
-            </div>
-          )}
-
-          {/* Token Count Info */}
-          {!loadingTokens && tokenCache[tokenCacheKey] && (
-            <div className="token-count-info">
-              {t('swap.tokensAvailable', { count: getDestinationTokens().length })}
-              {tokenSearchQuery && ` (${t('swap.filtered')})`}
-            </div>
-          )}
-
-          <div className="token-list">
-            {getDestinationTokens().length === 0 && !loadingTokens ? (
-              <div className="no-tokens-found">
-                {tokenSearchQuery
-                  ? t('swap.noTokensMatching', { query: tokenSearchQuery })
-                  : t('swap.noTokensAvailable')}
-              </div>
-            ) : (
-              getDestinationTokens().map((token, idx) => (
-                <button
-                  key={`${token.address}-${idx}`}
-                  className="token-option"
-                  onClick={() => handleSelectToToken(token)}
-                >
-                  <div className="token-icon">
-                    {token.logoURI ? (
-                      <img
-                        src={token.logoURI}
-                        alt={token.symbol}
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                          (e.currentTarget.nextElementSibling as HTMLElement)?.style.setProperty('display', 'flex');
-                        }}
-                      />
-                    ) : null}
-                    <span className="token-icon-fallback" style={token.logoURI ? { display: 'none' } : undefined}>{token.symbol.slice(0, 2)}</span>
-                  </div>
-                  <div className="token-info">
-                    <span className="token-symbol">{token.symbol}</span>
-                    <span className="token-name">{token.name}</span>
-                  </div>
-                  {token.balance && (
-                    <div className="token-balance">
-                      <span className="balance-amount">{formatBalance(token.balance)}</span>
-                    </div>
-                  )}
-                  <span className="token-arrow">→</span>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
+        <TokenPicker
+          mode="to"
+          destinationTokens={getDestinationTokens()}
+          searchQuery={tokenSearchQuery}
+          loadingTokens={loadingTokens}
+          cacheHasTokens={!!tokenCache[tokenCacheKey]}
+          fromTokenSymbol={fromToken.tokenSymbol}
+          fromTokenNetworkLabel={fromToken.networkLabel}
+          onSearch={(q) => setTokenSearchQuery(q)}
+          onSelectToken={handleSelectToToken}
+        />
       )}
 
       {/* Step 3: Input Amount */}
