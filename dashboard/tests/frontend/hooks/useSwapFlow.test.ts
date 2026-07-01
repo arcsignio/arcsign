@@ -282,6 +282,22 @@ describe("useSwapFlow — handleReset", () => {
     expect(result.current.state.swapTx).toBeNull();
     expect(result.current.state.txHash).toBeNull();
   });
+
+  it("clears walletPassword (secret hygiene) and resets slippage to 0.5", () => {
+    const { result } = renderHook(() => useSwapFlow(baseParams));
+    // Pre-dirty both fields so the post-reset assertions are non-tautological.
+    act(() => {
+      result.current.actions.setWalletPassword("secret");
+      result.current.actions.setSlippage(1.0);
+    });
+    expect(result.current.state.walletPassword).toBe("secret");
+    expect(result.current.state.slippage).toBe(1.0);
+
+    act(() => { result.current.actions.handleReset(); });
+
+    expect(result.current.state.walletPassword).toBe("");
+    expect(result.current.state.slippage).toBe(0.5);
+  });
 });
 
 describe("useSwapFlow — swappableTokens filter", () => {
