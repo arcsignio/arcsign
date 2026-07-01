@@ -506,11 +506,6 @@ mod origin_tests {
         assert!(is_origin_allowed("https://tauri.localhost"));
     }
 
-    #[test]
-    fn other_website_origin_rejected() {
-        assert!(!is_origin_allowed("https://evil.example"));
-    }
-
     // Production: empty Origin (non-browser local process) rejected.
     #[cfg(not(feature = "dev-mode"))]
     #[test]

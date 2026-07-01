@@ -7,7 +7,7 @@
  * - wallet_addEthereumChain: Request to add a new chain
  *
  * Implementation:
- * - If chain is in our supported list (6 EVM chains): Return success
+ * - If chain is in our supported list (7 EVM chains): Return success
  * - If chain is not supported: Return 4902 error
  *
  * Note: ArcSign only supports a fixed set of chains for security.
