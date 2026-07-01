@@ -163,7 +163,7 @@ export function useSwapFlow({
         const registryProvider = "openocean";
         console.log(`[SwapTransaction] Fetching token registry for chain: ${chainId} (source: ${registryProvider})`);
 
-        const response = await tauriApi.getSwapTokens({
+        const response = await swapService.fetchSwapTokens({
           chainId,
           provider: registryProvider, // Fixed registry source
           usbPath,
