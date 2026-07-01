@@ -809,7 +809,8 @@
     "swapFee": "手續費",
     "freeSwap": "免費",
     "bestRouteDesc": "比較多家 DEX 以取得最佳價格",
-    "feeIncluded": "手續費已包含在兌換金額中"
+    "feeIncluded": "手續費已包含在兌換金額中",
+    "routeUpdated": "路由已更新 — 實際將透過 {{provider}} 簽章（手續費 {{fee}}）。請重新確認後再送出。"
   },
   "staking": {
     "selectStakingOption": "選擇質押選項",

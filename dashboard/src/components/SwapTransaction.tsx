@@ -27,6 +27,19 @@ import tauriApi, {
 } from "@/services/tauri-api";
 import type { SendableToken } from "./SendTransaction";
 
+/**
+ * True when the built transaction's route differs from the quote the user first
+ * saw (provider fell back, or fee changed). Used to show a "route updated"
+ * re-confirm notice. Missing first quote → nothing to compare → not "changed".
+ */
+export function swapRouteChanged(
+  firstQuote: SwapQuoteResponse | null,
+  builtQuote: SwapQuoteResponse,
+): boolean {
+  if (!firstQuote) return false;
+  return firstQuote.dex !== builtQuote.dex || firstQuote.feeRate !== builtQuote.feeRate;
+}
+
 // Swap steps
 type SwapStep =
   | "selectFrom"         // Select source token
@@ -1432,6 +1445,15 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
       {step === "password" && swapTx && fromToken && toToken && (
         <div className="password-form">
           <h3>{t('swap.confirmSwap')}</h3>
+
+          {swapRouteChanged(quote, swapTx.quote) && (
+            <div className="route-updated-notice" role="alert">
+              ⚠️ {t('swap.routeUpdated', {
+                provider: swapTx.quote.dex,
+                fee: swapTx.quote.feeRate === "0" ? t('swap.freeSwap') : `${swapTx.quote.feeRate}%`,
+              })}
+            </div>
+          )}
 
           <div className="swap-summary">
             <div className="swap-summary-row">
