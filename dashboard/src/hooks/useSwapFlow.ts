@@ -470,79 +470,26 @@ export function useSwapFlow({
     setError(null);
 
     try {
-      console.log("🔨 Building swap transaction...");
-      console.log("📦 Swap tx data:", JSON.stringify(swapTx.txData, null, 2));
+      const txHash = await swapService.executeSwap(
+        {
+          chainId,
+          walletId,
+          fromToken,
+          toToken,
+          swapTx,
+          walletPassword,
+          preValidatedPassphrase: preValidatedPassphrase || "",
+          acknowledgedRisk: gate.acknowledged,
+          isPro,
+          usbPath,
+          sessionToken,
+        },
+        { onProgress: (stage) => setStep(stage) },
+      );
 
-      // Step 1: Build transaction using the swap data from OpenOcean
-      // The buildTransaction call calculates the correct signingPayload (tx hash)
-      // Note: OpenOcean provides gas estimates but backend will recalculate for safety
-      // Note: swapTx.txData.value from DEX API is the ETH amount to send (in wei)
-      const txValue = swapTx.txData.value || "0";
-      console.log("💰 Transaction value (wei):", txValue);
-
-      const buildResult = await tauriApi.buildTransaction({
-        chainId,
-        from: fromToken.fromAddress,
-        to: swapTx.txData.to,
-        amount: txValue,
-        data: swapTx.txData.data || "",
-        feeSpeed: "fast", // Use fast for swap tx to ensure they go through
-        usbPath,
-        sessionToken,  // ✅ Low-risk: build transaction
-        isPro,         // Pro membership for security checks
-      });
-
-      console.log("✅ Build result:", buildResult);
-      console.log("✍️ Signing swap transaction...");
-
-      // Step 2: Sign transaction with the proper unsigned tx from buildTransaction
-      const signResult = await tauriApi.signTransaction({
-        chainId,
-        walletId,
-        password: walletPassword,  // ✅ High-risk: wallet password for signing
-        passphrase: preValidatedPassphrase || "",
-        fromAddress: fromToken.fromAddress,
-        unsignedTx: buildResult,
-        usbPath,
-        sessionToken,  // ✅ Session token for provider config
-        acknowledgedRisk: gate.acknowledged,  // user acknowledged a backend-flagged danger
-      });
-
-      setStep("broadcasting");
-      console.log("📡 Broadcasting swap transaction...");
-
-      const broadcastResult = await tauriApi.broadcastTransaction({
-        chainId,
-        signedTx: signResult,
-        usbPath,
-        sessionToken,  // ✅ Low-risk: broadcast transaction
-      });
-
-      setTxHash(broadcastResult.txHash);
+      setTxHash(txHash);
       setStep("success");
-      onSuccess?.(broadcastResult.txHash);
-
-      // Record the swap output token into table B so its balance is queried on
-      // the self-hosted path going forward. We already KNOW what we swapped into
-      // (it's the output token) — no scanning needed. Best-effort: a failure here
-      // must not affect the successful swap, so we only log.
-      const ownerAddr = fromToken?.fromAddress;
-      const outNetwork = toToken?.network;
-      if (ownerAddr && outNetwork && toToken?.address) {
-        tauriApi
-          .addTouchedToken({
-            usbPath,
-            userAddress: ownerAddr,
-            tokenAddress: toToken.address,
-            network: outNetwork,
-            symbol: toToken.symbol,
-            decimals: toToken.decimals,
-            sessionToken,
-          })
-          .catch((e) => {
-            console.warn("[Swap] failed to record output token into table B:", e);
-          });
-      }
+      onSuccess?.(txHash);
     } catch (err) {
       const appErr = err as AppError;
       setError(appErr.message || t('swap.failedToExecuteSwap'));
