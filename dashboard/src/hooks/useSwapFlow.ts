@@ -14,7 +14,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useSignGate } from "@/hooks/useSignGate";
 import { isWalletLocked } from "@/utils/walletLock";
-import tauriApi, {
+import {
   type SwapQuoteResponse,
   type BuildSwapTransactionResponse,
   type AppError,
