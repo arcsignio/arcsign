@@ -17,6 +17,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
 import { useSignGate } from "@/hooks/useSignGate";
+import { ProviderSelector } from "@/components/swap/ProviderSelector";
 import { isWalletLocked } from "@/utils/walletLock";
 import { useIsPro } from "@/stores/dashboardStore";
 import tauriApi, {
@@ -37,9 +38,7 @@ import {
   shortenAddress,
   formatBalance,
   SUPPORTED_SWAP_CHAINS,
-  AVAILABLE_PROVIDERS,
   type SwapProvider,
-  type ProviderInfo,
 } from "@/utils/swapFormat";
 
 // Re-exported for backward-compatible import path (tests import from here).
@@ -711,9 +710,6 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     }
   };
 
-  // Get current provider info
-  const currentProvider = AVAILABLE_PROVIDERS.find(p => p.id === selectedProvider) || AVAILABLE_PROVIDERS[0];
-
   // Handle provider selection
   const handleProviderSelect = (provider: SwapProvider) => {
     setSelectedProvider(provider);
@@ -738,44 +734,12 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
             </div>
           ) : (
             /* Free: DEX Provider Selector */
-            <div className="provider-selector">
-              <button
-                className="provider-badge"
-                onClick={() => setShowProviderDropdown(!showProviderDropdown)}
-              >
-                <img
-                  src={currentProvider.logoUrl}
-                  alt={currentProvider.name}
-                  className="provider-logo"
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                />
-                <span className="provider-name">{currentProvider.name}</span>
-                <span className="dropdown-arrow">{showProviderDropdown ? '▲' : '▼'}</span>
-              </button>
-              {showProviderDropdown && (
-                <div className="provider-dropdown">
-                  {AVAILABLE_PROVIDERS.map(provider => (
-                    <button
-                      key={provider.id}
-                      className={`provider-option ${provider.id === selectedProvider ? 'selected' : ''}`}
-                      onClick={() => handleProviderSelect(provider.id)}
-                    >
-                      <img
-                        src={provider.logoUrl}
-                        alt={provider.name}
-                        className="provider-logo"
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                      />
-                      <div className="provider-info">
-                        <span className="provider-name">{provider.name}</span>
-                        <span className="provider-desc">{provider.description}</span>
-                      </div>
-                      {provider.id === selectedProvider && <span className="check-mark">✓</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <ProviderSelector
+              selectedProvider={selectedProvider}
+              showDropdown={showProviderDropdown}
+              onToggleDropdown={() => setShowProviderDropdown(v => !v)}
+              onSelectProvider={(p) => handleProviderSelect(p)}
+            />
           )}
           {fromToken && (
             <div className="chain-badge">
