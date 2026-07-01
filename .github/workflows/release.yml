@@ -54,16 +54,20 @@ jobs:
       fail-fast: false
       matrix:
         # variant: prod = 正式版（不帶 dev tag）；dev = 開發者版（DEV=1 → exports_dev.go）
+        # target 與 variant 都是「原始矩陣」維度（陣列），exclude 只能引用原始維度
+        # （非 include-only 的鍵），否則 GitHub 會在解析期拒絕整個 workflow 檔。
+        # 平台細節（os / output）放 include，用 target 當鍵補齊。
         variant: [prod, dev]
+        target: [linux, macos, windows]
         include:
-          - os: ubuntu-latest
-            target: linux
+          - target: linux
+            os: ubuntu-latest
             output: libarcsign.so
-          - os: macos-latest
-            target: macos
+          - target: macos
+            os: macos-latest
             output: libarcsign.dylib
-          - os: windows-latest
-            target: windows
+          - target: windows
+            os: windows-latest
             output: libarcsign.dll
         exclude:
           # 開發者版只出 macOS + Linux；Windows dev 使用者罕見，跳過省 CI
@@ -122,18 +126,20 @@ jobs:
       fail-fast: false
       matrix:
         # variant: prod = 正式版（無 dev-mode feature）；dev = 開發者版（--features dev-mode）
+        # 同 build-go-libs：target 也是原始矩陣維度，exclude 才能引用它。
         variant: [prod, dev]
+        target: [macos, linux, windows]
         include:
-          - os: macos-latest
-            target: macos
+          - target: macos
+            os: macos-latest
             lib_name: libarcsign.dylib
             lib_artifact: go-lib-macos
-          - os: ubuntu-22.04
-            target: linux
+          - target: linux
+            os: ubuntu-22.04
             lib_name: libarcsign.so
             lib_artifact: go-lib-linux
-          - os: windows-latest
-            target: windows
+          - target: windows
+            os: windows-latest
             lib_name: libarcsign.dll
             lib_artifact: go-lib-windows
         exclude:
