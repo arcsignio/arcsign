@@ -1308,6 +1308,10 @@ export function WalletDetail({
           onBack={() => setShowSwapTransaction(false)}
           onSuccess={(txHash) => {
             console.log("✅ Swap transaction submitted:", txHash);
+            // Return to the asset list and refresh balances so the swapped
+            // amounts are reflected (mirrors the token-import onAdded pattern).
+            setShowSwapTransaction(false);
+            void handleRefreshBalances();
           }}
         />
       </ErrorBoundary>
