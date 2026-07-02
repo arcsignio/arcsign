@@ -75,6 +75,14 @@ describe("fromSmallestUnit", () => {
   it("defaults to 18 decimals when decimals is 0", () => {
     expect(fromSmallestUnit("1000000000000000000", 0)).toBe("1");
   });
+  it("caps displayed decimal digits at 8 when raw decimals exceed 8", () => {
+    // "123456789123456789" with decimals=18:
+    //   padded = "0123456789123456789" (19 chars)
+    //   intPart = "0", decPart = "123456789123456789"
+    //   slice(0,8) = "12345678" → no trailing zeros → "0.12345678"
+    // Digits 9-18 ("9123456789") are dropped, proving the 8-digit cap fires.
+    expect(fromSmallestUnit("123456789123456789", 18)).toBe("0.12345678");
+  });
 });
 
 describe("shortenAddress", () => {
@@ -93,6 +101,13 @@ describe("formatBalance", () => {
   });
   it("returns the small-value sentinel below 0.0001", () => {
     expect(formatBalance("0.00001")).toBe("<0.0001");
+  });
+  it("truncates to 6 decimals in the 0.0001 ≤ num < 0.01 band", () => {
+    // num=0.005678901 satisfies 0.0001 <= num < 0.01, so truncate(num,6):
+    //   Math.floor(0.005678901 * 1e6) / 1e6 = Math.floor(5678.901) / 1e6
+    //   = 5678 / 1e6 = 0.005678 → toFixed(6) → "0.005678"
+    // Confirms the branch is taken (not the sentinel) and truncation not rounding.
+    expect(formatBalance("0.005678901")).toBe("0.005678");
   });
   it("truncates (does not round) mid-range values to 6 decimals", () => {
     expect(formatBalance("0.1234569")).toBe("0.123456");
