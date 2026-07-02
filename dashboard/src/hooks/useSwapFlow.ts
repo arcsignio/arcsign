@@ -21,6 +21,7 @@ import {
   type SwapTokenInfo,
 } from "@/services/tauri-api";
 import type { SendableToken } from "@/components/SendTransaction";
+import type { ToToken } from "@/components/swap/types";
 import * as swapService from "@/services/swapService";
 import {
   networkToChainId,
@@ -50,15 +51,7 @@ export type SwapStep =
 // provider only affects quote/route/build operations
 type TokenCache = Record<string, SwapTokenInfo[]>;
 
-// Destination token shape (from SwapConfirm's ToToken, network optional here)
-type ToToken = {
-  address: string;
-  symbol: string;
-  name: string;
-  decimals: number;
-  logoURI?: string;
-  network?: string;
-};
+export type { ToToken };
 
 export interface UseSwapFlowParams {
   walletId: string;

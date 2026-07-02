@@ -8,15 +8,9 @@ import {
 } from "@/utils/swapFormat";
 import type { SwapQuoteResponse } from "@/services/tauri-api";
 import type { SendableToken } from "@/components/SendTransaction";
+import type { ToToken } from "@/components/swap/types";
 
-export interface ToToken {
-  address: string;
-  symbol: string;
-  name: string;
-  decimals: number;
-  logoURI?: string;
-  network?: string;
-}
+export type { ToToken };
 
 interface SwapConfirmProps {
   fromToken: SendableToken;
