@@ -1287,6 +1287,8 @@ export function WalletDetail({
           onBack={() => setShowSendTransaction(false)}
           onSuccess={(txHash) => {
             console.log("✅ Transaction submitted:", txHash);
+            setShowSendTransaction(false);
+            void handleRefreshBalances();
           }}
         />
       </ErrorBoundary>

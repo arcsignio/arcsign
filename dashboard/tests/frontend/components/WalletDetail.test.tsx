@@ -1891,8 +1891,11 @@ describe('WalletDetail', () => {
     });
   });
 
-  // ── 63. SendTransaction onSuccess callback ────────────────────────────────
-  it('handles SendTransaction onSuccess callback', async () => {
+  // ── 63. SendTransaction onSuccess: closes view AND refreshes balances ────────
+  // Regression test for: send success previously only console.log-ed; the view
+  // stayed open and balances were never refreshed. Fix: setShowSendTransaction(false)
+  // + handleRefreshBalances() are both called on success (mirrors swap behavior).
+  it('closes send view and refreshes balances after successful send', async () => {
     const user = userEvent.setup();
     render(<WalletDetail {...defaultProps} />);
 
@@ -1903,16 +1906,29 @@ describe('WalletDetail', () => {
       expect(screen.queryByText('walletDetail.unlockAndViewAssets')).not.toBeInTheDocument();
     });
 
+    // Open the send view
     await user.click(screen.getByText('walletDetail.send'));
     await waitFor(() => {
       expect(screen.getByTestId('send-tx')).toBeInTheDocument();
     });
 
-    // Click the mock's success button (triggers onSuccess callback)
+    // Record how many times getTokenBalances has been called so far (initial load)
+    const callsBefore = (tauriApi.getTokenBalances as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    // Trigger send success
     await user.click(screen.getByTestId('send-tx-success'));
 
-    // onSuccess just logs, no UI change expected; verify no crash
-    expect(screen.getByTestId('send-tx')).toBeInTheDocument();
+    // (a) Send view must be closed — the token list (asset list marker) must reappear
+    await waitFor(() => {
+      expect(screen.queryByTestId('send-tx')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('ETH')).toBeInTheDocument();
+
+    // (b) Balances must have been refreshed — call count must have increased
+    await waitFor(() => {
+      const callsAfter = (tauriApi.getTokenBalances as ReturnType<typeof vi.fn>).mock.calls.length;
+      expect(callsAfter).toBeGreaterThan(callsBefore);
+    });
   });
 
   // ── 64. SwapTransaction onBack callback ───────────────────────────────────
