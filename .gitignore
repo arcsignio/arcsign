@@ -165,3 +165,6 @@ test_provider_config.go
 # git worktrees (平行開發隔離工作區)
 .worktrees/
 dashboard/src-tauri/libarcsign_*.h
+
+# .superpowers/ = subagent-driven-development scratch (ledger, task reports); never commit
+.superpowers/
