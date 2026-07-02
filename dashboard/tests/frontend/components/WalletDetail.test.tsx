@@ -1939,8 +1939,11 @@ describe('WalletDetail', () => {
     });
   });
 
-  // ── 65. SwapTransaction onSuccess callback ────────────────────────────────
-  it('handles SwapTransaction onSuccess callback', async () => {
+  // ── 65. SwapTransaction onSuccess: closes view AND refreshes balances ────────
+  // Regression test for: swap success previously only console.log-ed; the view
+  // stayed open and balances were never refreshed. Fix: setShowSwapTransaction(false)
+  // + handleRefreshBalances() are both called on success.
+  it('closes swap view and refreshes balances after successful swap', async () => {
     const user = userEvent.setup();
     render(<WalletDetail {...defaultProps} />);
 
@@ -1951,13 +1954,29 @@ describe('WalletDetail', () => {
       expect(screen.queryByText('walletDetail.unlockAndViewAssets')).not.toBeInTheDocument();
     });
 
+    // Open the swap view
     await user.click(screen.getByText('walletDetail.swap'));
     await waitFor(() => {
       expect(screen.getByTestId('swap-tx')).toBeInTheDocument();
     });
 
+    // Record how many times getTokenBalances has been called so far (initial load)
+    const callsBefore = (tauriApi.getTokenBalances as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    // Trigger swap success
     await user.click(screen.getByTestId('swap-tx-success'));
-    expect(screen.getByTestId('swap-tx')).toBeInTheDocument();
+
+    // (a) Swap view must be closed — the token list (asset list marker) must reappear
+    await waitFor(() => {
+      expect(screen.queryByTestId('swap-tx')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('ETH')).toBeInTheDocument();
+
+    // (b) Balances must have been refreshed — call count must have increased
+    await waitFor(() => {
+      const callsAfter = (tauriApi.getTokenBalances as ReturnType<typeof vi.fn>).mock.calls.length;
+      expect(callsAfter).toBeGreaterThan(callsBefore);
+    });
   });
 
   // ── 66. StakingTransaction onBack callback ────────────────────────────────
