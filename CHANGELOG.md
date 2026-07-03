@@ -3,6 +3,30 @@
 All notable changes to ArcSign. Format follows [Keep a Changelog](https://keepachangelog.com/),
 Semantic Versioning.
 
+## [v1.5.3] — 2026-07-03 — Swap Component Decomposition + Service Layer
+
+### Changed
+
+- **SwapTransaction refactored from a 3238-line component into focused units.**
+  Pure formatters moved to `swapFormat.ts`, the flow state machine to a
+  `useSwapFlow` hook, and each step rendered by a small presentational component
+  under `components/swap/`. The main component is now a ~355-line coordinator.
+  Behavior is unchanged; the mandatory backend sign-gate and its
+  `acknowledgedRisk` plumbing are byte-identical to before.
+- **Swap orchestration extracted into a pure `swapService.ts`.** The multi-step
+  build → sign → broadcast → record sequence (for both approval and swap) now
+  lives in a React-free service that the hook calls; the service reports progress
+  via a callback and throws stable error codes the hook maps to i18n. Every
+  `signTransaction` call is byte-identical to the pre-refactor code, verified
+  field-by-field. No Go / backend changes.
+
+### Fixed
+
+- **Return to the asset list and refresh balances after a successful swap.**
+  Previously the swap success handler only logged; the view stayed open and
+  balances weren't refreshed. It now closes the swap view and re-fetches
+  balances. The same pre-existing bug in the Send flow is fixed the same way.
+
 ## [v1.5.2] — 2026-07-01 — WebSocket Pairing Gate + Swap Resilience
 
 ### Security
