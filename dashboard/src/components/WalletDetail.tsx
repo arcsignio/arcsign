@@ -20,6 +20,7 @@ import {
   getNetworkKey,
 } from "@/constants/nativeTokens";
 import { enrichNativeTokens } from "@/utils/enrichTokens";
+import { formatUSD, formatBalance } from "@/utils/walletDetailFormat";
 import { usePriorityTokens, useAllTokens } from "@/hooks/useTokenList";
 import type { ChainKey } from "@/services/tokenList";
 import { TransactionHistory } from "@/components/TransactionHistory";
@@ -375,31 +376,6 @@ export function WalletDetail({
       setIsValidatingPassphrase(false);
       setIsLoading(false);
     }
-  };
-
-  const formatUSD = (value: number): string => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
-
-  const formatBalance = (balance: string): string => {
-    const num = parseFloat(balance);
-    if (num === 0) return "0";
-
-    // Truncate instead of rounding (floor to N decimal places)
-    const truncate = (n: number, decimals: number): string => {
-      const factor = Math.pow(10, decimals);
-      return (Math.floor(n * factor) / factor).toFixed(decimals);
-    };
-
-    if (num < 0.000001) return truncate(num, 10);
-    if (num < 0.01) return truncate(num, 8);
-    if (num < 1000) return truncate(num, 6);
-    return truncate(num, 4);
   };
 
   // Refresh token balances
