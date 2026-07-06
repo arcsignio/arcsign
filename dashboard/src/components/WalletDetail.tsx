@@ -38,18 +38,6 @@ import { WalletDetailViews } from "@/components/walletDetail/WalletDetailViews";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
 
-// Map network labels to Alchemy network IDs (used in History feature)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const NETWORK_TO_ALCHEMY: Record<string, string> = {
-  Ethereum: "eth-mainnet",
-  Polygon: "polygon-mainnet",
-  Arbitrum: "arbitrum-mainnet",
-  Optimism: "optimism-mainnet",
-  Base: "base-mainnet",
-  "BNB Chain": "bnb-mainnet",
-};
-void NETWORK_TO_ALCHEMY; // Suppress unused warning temporarily
-
 interface WalletDetailProps {
   wallet: Wallet;
   usbPath: string;
@@ -63,7 +51,6 @@ export function WalletDetail({
   onBack,
   onViewAddresses: _onViewAddresses,
 }: WalletDetailProps) {
-  void _onViewAddresses; // Suppress unused variable warning
   const { t } = useTranslation();
   const { getSessionToken } = useAppPassword(); // ✅ Zero password storage!
   const walletConnect = useWalletConnect();
@@ -491,7 +478,6 @@ export function WalletDetail({
     isValidatingPassphrase,
     setShowPassphrasePrompt,
     setShowPasswordPrompt,
-    setTempPassword_passphrase: setTempPassword,
     passwordRef,
     setError,
     // session token (shared)

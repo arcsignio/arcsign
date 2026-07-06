@@ -36,7 +36,6 @@ export interface WalletDetailViewsProps {
   isValidatingPassphrase: boolean;
   setShowPassphrasePrompt: (v: boolean) => void;
   setShowPasswordPrompt: (v: boolean) => void;
-  setTempPassword_passphrase: (v: string) => void; // same setter, aliased for clarity
   passwordRef: React.MutableRefObject<string>;
   setError: (v: string | null) => void;
 
@@ -85,7 +84,6 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
     isValidatingPassphrase,
     setShowPassphrasePrompt,
     setShowPasswordPrompt,
-    setTempPassword_passphrase,
     passwordRef,
     setError,
 
@@ -542,7 +540,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
             onClick={() => {
               setShowPassphrasePrompt(false);
               setShowPasswordPrompt(true);
-              setTempPassword_passphrase("");
+              setTempPassword("");
               passwordRef.current = "";
               setPassphrase("");
               setError(null);
