@@ -19,6 +19,7 @@ import {
   isNativeTokenAddress,
   getNetworkKey,
 } from "@/constants/nativeTokens";
+import { enrichNativeTokens } from "@/utils/enrichTokens";
 import { usePriorityTokens, useAllTokens } from "@/hooks/useTokenList";
 import type { ChainKey } from "@/services/tokenList";
 import { TransactionHistory } from "@/components/TransactionHistory";
@@ -252,21 +253,7 @@ export function WalletDetail({
 
         // Pre-process: Enrich native tokens with metadata before setting state
         // This ensures native tokens have proper symbol/name even if Alchemy returns empty
-        response.tokens.forEach((token) => {
-          const networkKey = getNetworkKey(token.networkLabel || token.network);
-          if (networkKey && isNativeTokenAddress(token.tokenAddress)) {
-            const nativeToken = getNativeToken(networkKey);
-            if (nativeToken && !token.tokenSymbol) {
-              console.log(`🔧 Pre-enriching native token for ${networkKey}:`, {
-                before: { symbol: token.tokenSymbol, name: token.tokenName },
-                after: { symbol: nativeToken.symbol, name: nativeToken.name },
-              });
-              token.tokenSymbol = nativeToken.symbol;
-              token.tokenName = nativeToken.name;
-              token.tokenLogo = nativeToken.logoURI;
-            }
-          }
-        });
+        enrichNativeTokens(response.tokens);
       } else {
         console.error("❌ Invalid tokens data:", response?.tokens);
       }
@@ -354,17 +341,7 @@ export function WalletDetail({
 
         // Pre-process tokens (same as in handleLoadBalances)
         if (response?.tokens && Array.isArray(response.tokens)) {
-          response.tokens.forEach((token) => {
-            const networkKey = getNetworkKey(token.networkLabel || token.network);
-            if (networkKey && isNativeTokenAddress(token.tokenAddress)) {
-              const nativeToken = getNativeToken(networkKey);
-              if (nativeToken && !token.tokenSymbol) {
-                token.tokenSymbol = nativeToken.symbol;
-                token.tokenName = nativeToken.name;
-                token.tokenLogo = nativeToken.logoURI;
-              }
-            }
-          });
+          enrichNativeTokens(response.tokens);
         }
 
         setTokens(response.tokens);
@@ -452,17 +429,7 @@ export function WalletDetail({
 
       // Pre-process tokens with native token metadata
       if (response?.tokens && Array.isArray(response.tokens)) {
-        response.tokens.forEach((token) => {
-          const networkKey = getNetworkKey(token.networkLabel || token.network);
-          if (networkKey && isNativeTokenAddress(token.tokenAddress)) {
-            const nativeToken = getNativeToken(networkKey);
-            if (nativeToken && !token.tokenSymbol) {
-              token.tokenSymbol = nativeToken.symbol;
-              token.tokenName = nativeToken.name;
-              token.tokenLogo = nativeToken.logoURI;
-            }
-          }
-        });
+        enrichNativeTokens(response.tokens);
       }
 
       setTokens(response.tokens);
