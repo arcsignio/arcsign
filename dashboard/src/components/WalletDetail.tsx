@@ -3,13 +3,11 @@
  * Feature: Asset management with Alchemy API integration + CoinGecko Token Lists
  */
 
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppPassword } from "@/contexts/AppPasswordContext";
-import { useWalletSessionStore } from "@/stores/walletSessionStore";
 import { useWalletConnect } from "@/contexts/WalletConnectContext";
-import tauriApi, { type AppError } from "@/services/tauri-api";
-import type { TokenBalance, TokenBalancesResponse, ProviderUnavailable } from "@/types/tokens";
+import type { TokenBalance } from "@/types/tokens";
 import type { Wallet } from "@/types/wallet";
 import type { Address } from "@/types/address";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -19,12 +17,11 @@ import {
   isNativeTokenAddress,
   getNetworkKey,
 } from "@/constants/nativeTokens";
+import { formatUSD, formatBalance } from "@/utils/walletDetailFormat";
+import { useWalletData } from "@/hooks/useWalletData";
 import { usePriorityTokens, useAllTokens } from "@/hooks/useTokenList";
 import type { ChainKey } from "@/services/tokenList";
-import { TransactionHistory } from "@/components/TransactionHistory";
-import { SendTransaction, type SendableToken } from "@/components/SendTransaction";
-import SwapTransaction from "@/components/SwapTransaction";
-import StakingTransaction from "@/components/StakingTransaction";
+import { type SendableToken } from "@/components/SendTransaction";
 import { getChainIconUrl, getChainFallbackIcon, isChainSupported, isChainEnabled } from "@/utils/chainIcons";
 import { aggregateTokens, type AggregatedToken } from "@/utils/aggregateTokens";
 import { ChainAllocationTreemap, buildChainAllocation } from "@/components/ChainAllocationTreemap";
@@ -36,23 +33,10 @@ import { ExportBackup } from "@/components/ExportBackup";
 import { NFTGallery } from "@/components/NFTGallery";
 import { DefiPositions } from "@/components/DefiPositions";
 import { TokenApprovals } from "@/components/TokenApprovals";
-import { AddressBook } from "@/components/AddressBook";
 import { AddTokenDialog } from "@/components/AddTokenDialog";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { WalletDetailViews } from "@/components/walletDetail/WalletDetailViews";
 
 type TabType = "crypto" | "defi" | "nft" | "approvals";
-
-// Map network labels to Alchemy network IDs (used in History feature)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const NETWORK_TO_ALCHEMY: Record<string, string> = {
-  Ethereum: "eth-mainnet",
-  Polygon: "polygon-mainnet",
-  Arbitrum: "arbitrum-mainnet",
-  Optimism: "optimism-mainnet",
-  Base: "base-mainnet",
-  "BNB Chain": "bnb-mainnet",
-};
-void NETWORK_TO_ALCHEMY; // Suppress unused warning temporarily
 
 interface WalletDetailProps {
   wallet: Wallet;
@@ -67,17 +51,40 @@ export function WalletDetail({
   onBack,
   onViewAddresses: _onViewAddresses,
 }: WalletDetailProps) {
-  void _onViewAddresses; // Suppress unused variable warning
   const { t } = useTranslation();
   const { getSessionToken } = useAppPassword(); // ✅ Zero password storage!
-  const walletSession = useWalletSessionStore();
   const walletConnect = useWalletConnect();
-  const [tokens, setTokens] = useState<TokenBalance[]>([]);
-  const [totalUsd, setTotalUsd] = useState<number>(0);
-  // Providers (chains) that couldn't be fetched — e.g. no Alchemy/NodeReal key.
-  const [unavailableProviders, setUnavailableProviders] = useState<ProviderUnavailable[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // ── 解鎖 → 載入資料 狀態機（unlock / passphrase / refresh）──────────────────
+  // 三個 handler 與其共享 state 已抽到 useWalletData（耦合的狀態機）。
+  // validatedPassphrase 是簽章輸入，往下傳給子畫面的值與路徑不變。
+  const { state, actions } = useWalletData({ wallet, usbPath });
+  const {
+    tokens,
+    totalUsd,
+    unavailableProviders,
+    isLoading,
+    isRefreshing,
+    error,
+    walletAddresses,
+    validatedPassphrase,
+    passphrase,
+    isValidatingPassphrase,
+    showPasswordPrompt,
+    showPassphrasePrompt,
+    tempPassword,
+    passwordRef,
+  } = state;
+  const {
+    setTempPassword,
+    setPassphrase,
+    setError,
+    setShowPasswordPrompt,
+    setShowPassphrasePrompt,
+    unlock: handleLoadBalances,
+    validatePassphrase: handleValidatePassphrase,
+    refresh: handleRefreshBalances,
+  } = actions;
 
   // Unknown token filter state (whitelist-based)
   const [showScamTokens, setShowScamTokens] = useState(false);
@@ -86,27 +93,13 @@ export function WalletDetail({
   // Token detail modal: the aggregated row the user tapped (per-chain breakdown).
   const [selectedToken, setSelectedToken] = useState<AggregatedToken | null>(null);
 
-  // Wallet session state (replaces password state)
-  const [tempPassword, setTempPassword] = useState(""); // Only used during unlock, immediately discarded
-  const [showPasswordPrompt, setShowPasswordPrompt] = useState(true);
-  // Temporary password ref for operations that still require password
-  // TODO: Migrate all APIs to use session tokens, then remove this ref
-  const passwordRef = useRef<string>("");
   const [activeTab, setActiveTab] = useState<TabType>("crypto");
   const [showPercentage, setShowPercentage] = useState(true);
   const [showAddToken, setShowAddToken] = useState(false);
 
-  // Passphrase validation state (for wallets with BIP39 passphrase)
-  const [showPassphrasePrompt, setShowPassphrasePrompt] = useState(false);
-  const [passphrase, setPassphrase] = useState("");
-  const [validatedPassphrase, setValidatedPassphrase] = useState<string | null>(null);
-  const [isValidatingPassphrase, setIsValidatingPassphrase] = useState(false);
-
   // Transaction History state
   const [showHistory, setShowHistory] = useState(false);
   const [historyAddress, setHistoryAddress] = useState("");
-  // Store wallet addresses from AddressBook (loaded when unlocking wallet)
-  const [walletAddresses, setWalletAddresses] = useState<Address[]>([]);
   // BSC address for membership NFT lookup
   const bscAddress = useMemo(() =>
     walletAddresses.find(a => a.symbol === 'BNB' && !a.is_testnet)?.address,
@@ -141,9 +134,6 @@ export function WalletDetail({
   // Address Book state
   const [showAddressBook, setShowAddressBook] = useState(false);
 
-  // Refresh state
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
   // Load priority tokens from CoinGecko token lists
   const { tokens: priorityTokens, isLoading: isLoadingPriority } =
     usePriorityTokens();
@@ -152,329 +142,6 @@ export function WalletDetail({
   // ✅ Only load AFTER wallet is unlocked (!showPasswordPrompt means unlocked)
   // This prevents unnecessary loading before user enters password
   const { tokens: allTokensByChain } = useAllTokens(!showPasswordPrompt);
-
-  // NOTE: Removed session-based password skip logic
-  // Security requirement: Always require password when entering wallet
-  // Session is preserved for non-sensitive operations (future use)
-  // but unlocking wallet always requires password verification
-
-  const handleLoadBalances = async () => {
-    if (!tempPassword || !getSessionToken()) {
-      setError(t('walletDetail.pleaseEnterPassword'));
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      console.log("🚀 Starting wallet unlock...", {
-        walletId: wallet.id,
-        usbPath,
-        hasPassword: !!tempPassword,
-        hasSessionToken: !!getSessionToken(),
-      });
-
-      // Store password in local variable for this function scope
-      const passwordForThisUnlock = tempPassword;
-
-      // Create wallet session token (this validates the password)
-      console.log("🔐 Creating wallet session token...");
-      await walletSession.createWalletSession(wallet.id, passwordForThisUnlock, usbPath);
-      console.log("✅ Wallet session created successfully");
-
-      // Store password in ref for operations that still need it
-      // TODO: Remove this when all APIs migrate to session tokens
-      passwordRef.current = passwordForThisUnlock;
-
-      // Password validated and token created, clear from state immediately
-      setTempPassword("");
-
-      // First, load wallet addresses from AddressBook
-      // Note: Still using password for this initial unlock, but it's the last time
-      console.log("📍 Loading wallet addresses...");
-      const addressResponse = await tauriApi.loadAddresses({
-        wallet_id: wallet.id,
-        password: passwordForThisUnlock,
-        usb_path: usbPath,
-      });
-      console.log("📍 Loaded addresses:", addressResponse.addresses.length);
-      setWalletAddresses(addressResponse.addresses);
-
-      // Check if wallet has passphrase - if so, prompt for it before continuing
-      if (wallet.has_passphrase && !validatedPassphrase) {
-        console.log("🔐 Wallet has passphrase - prompting user for passphrase...");
-        setShowPasswordPrompt(false);
-        setShowPassphrasePrompt(true);
-        setIsLoading(false);
-        return; // Exit here - user will enter passphrase and call handleValidatePassphrase
-      }
-
-      // Then load token balances
-      // In dev mode, also include testnet balances (Sepolia)
-      const includeTestnets = import.meta.env.DEV;
-      console.log("🚀 Starting getTokenBalances request...", { includeTestnets });
-      const response: TokenBalancesResponse = await tauriApi.getTokenBalances({
-        walletId: wallet.id,
-        password: passwordForThisUnlock, // Using local variable
-        usbPath,
-        sessionToken: getSessionToken() || undefined, // ✅ Backend will decrypt provider key from session
-        // ✅ No appPassword needed - zero password storage!
-        includeTestnets,
-      });
-
-      console.log("📡 Alchemy API Response (RAW):", response);
-      console.log("📊 Response Details:", {
-        totalTokens: response?.tokens?.length || 0,
-        totalUsd: response?.totalUsd || 0,
-        tokensIsArray: Array.isArray(response?.tokens),
-        responseType: typeof response,
-        responseKeys: response ? Object.keys(response) : [],
-      });
-
-      // Log each token in detail
-      if (response?.tokens && Array.isArray(response.tokens)) {
-        if (response.tokens.length === 0) {
-          console.warn("⚠️ No tokens returned from Alchemy API");
-        }
-        response.tokens.forEach((token, idx) => {
-          console.log(`🪙 Token ${idx + 1}:`, {
-            symbol: token.tokenSymbol,
-            name: token.tokenName,
-            network: token.network,
-            networkLabel: token.networkLabel,
-            address: token.tokenAddress,
-            balance: token.balance,
-            usdValue: token.usdValue,
-            logo: token.tokenLogo,
-          });
-        });
-
-        // Pre-process: Enrich native tokens with metadata before setting state
-        // This ensures native tokens have proper symbol/name even if Alchemy returns empty
-        response.tokens.forEach((token) => {
-          const networkKey = getNetworkKey(token.networkLabel || token.network);
-          if (networkKey && isNativeTokenAddress(token.tokenAddress)) {
-            const nativeToken = getNativeToken(networkKey);
-            if (nativeToken && !token.tokenSymbol) {
-              console.log(`🔧 Pre-enriching native token for ${networkKey}:`, {
-                before: { symbol: token.tokenSymbol, name: token.tokenName },
-                after: { symbol: nativeToken.symbol, name: nativeToken.name },
-              });
-              token.tokenSymbol = nativeToken.symbol;
-              token.tokenName = nativeToken.name;
-              token.tokenLogo = nativeToken.logoURI;
-            }
-          }
-        });
-      } else {
-        console.error("❌ Invalid tokens data:", response?.tokens);
-      }
-
-      setTokens(response.tokens);
-      setTotalUsd(response.totalUsd);
-      setUnavailableProviders(response.unavailableProviders || []);
-      setShowPasswordPrompt(false);
-
-      // Set wallet context for WalletConnect signing operations
-      // Use the first EVM address (Ethereum address) for WalletConnect
-      console.log("[WalletDetail] Looking for ETH address in:",
-        addressResponse.addresses.slice(0, 5).map(a => ({ name: a.name, symbol: a.symbol, address: a.address.slice(0, 10) }))
-      );
-      const evmAddress = addressResponse.addresses.find(
-        (addr) => addr.name === "Ethereum" || addr.symbol === "ETH" || addr.coin_type === 60
-      );
-      if (evmAddress) {
-        walletConnect.setWalletContext(wallet.id, evmAddress.address);
-        console.log("[WalletDetail] ✅ Set WalletConnect context:", {
-          walletId: wallet.id,
-          address: evmAddress.address,
-        });
-      } else {
-        console.warn("[WalletDetail] ⚠️ No Ethereum address found in wallet!");
-      }
-    } catch (err) {
-      const error = err as AppError;
-      const errorMessage = error.message || "";
-
-      // Check for password-related errors and show user-friendly message
-      if (errorMessage.includes("invalid wallet credentials") ||
-          errorMessage.includes("Invalid wallet credentials") ||
-          errorMessage.includes("Failed to create wallet session")) {
-        setError(t("walletDetail.incorrectPassword"));
-      } else {
-        setError(errorMessage || t("walletDetail.failedToLoadBalances"));
-      }
-      console.error("❌ Failed to load token balances:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle passphrase validation for wallets with BIP39 passphrase
-  const handleValidatePassphrase = async () => {
-    if (!passphrase || !getSessionToken()) {
-      setError(t('walletDetail.pleaseEnterPassphrase'));
-      return;
-    }
-
-    setIsValidatingPassphrase(true);
-    setError(null);
-
-    try {
-      console.log("🔐 Validating passphrase for wallet:", wallet.id);
-      const result = await tauriApi.validatePassphrase({
-        walletId: wallet.id,
-        password: passwordRef.current,
-        passphrase,
-        usbPath,
-      });
-
-      console.log("🔐 Passphrase validation result:", result);
-
-      if (result.valid) {
-        console.log("✅ Passphrase is valid! Derived address matches stored address.");
-        setValidatedPassphrase(passphrase);
-        setShowPassphrasePrompt(false);
-
-        // Now continue with loading token balances
-        setIsLoading(true);
-        const includeTestnets = import.meta.env.DEV;
-        console.log("🚀 Continuing with getTokenBalances...", { includeTestnets });
-        const response: TokenBalancesResponse = await tauriApi.getTokenBalances({
-          walletId: wallet.id,
-          password: passwordRef.current,
-          usbPath,
-          sessionToken: getSessionToken() || undefined, // ✅ Backend will decrypt provider key
-          // ✅ No appPassword - zero password storage!
-          includeTestnets,
-        });
-
-        console.log("📡 Alchemy API Response (RAW):", response);
-
-        // Pre-process tokens (same as in handleLoadBalances)
-        if (response?.tokens && Array.isArray(response.tokens)) {
-          response.tokens.forEach((token) => {
-            const networkKey = getNetworkKey(token.networkLabel || token.network);
-            if (networkKey && isNativeTokenAddress(token.tokenAddress)) {
-              const nativeToken = getNativeToken(networkKey);
-              if (nativeToken && !token.tokenSymbol) {
-                token.tokenSymbol = nativeToken.symbol;
-                token.tokenName = nativeToken.name;
-                token.tokenLogo = nativeToken.logoURI;
-              }
-            }
-          });
-        }
-
-        setTokens(response.tokens);
-        setTotalUsd(response.totalUsd);
-
-        // Set wallet context for WalletConnect signing operations
-        // Use the first EVM address (Ethereum address) for WalletConnect
-        const evmAddress = walletAddresses.find(
-          (addr) => addr.name === "Ethereum" || addr.symbol === "ETH" || addr.coin_type === 60
-        );
-        if (evmAddress) {
-          walletConnect.setWalletContext(wallet.id, evmAddress.address);
-          console.log("[WalletDetail] ✅ Set WalletConnect context (with passphrase):", {
-            walletId: wallet.id,
-            address: evmAddress.address,
-          });
-        } else {
-          console.warn("[WalletDetail] ⚠️ No Ethereum address found in wallet (passphrase flow)!");
-        }
-      } else {
-        console.log("❌ Passphrase is invalid!");
-        console.log("   Expected address:", result.expectedAddress);
-        console.log("   Derived address:", result.derivedAddress);
-        setError(t('walletDetail.invalidPassphrase'));
-      }
-    } catch (err) {
-      const error = err as AppError;
-      setError(error.message || t('walletDetail.failedToValidatePassphrase'));
-      console.error("❌ Failed to validate passphrase:", error);
-    } finally {
-      setIsValidatingPassphrase(false);
-      setIsLoading(false);
-    }
-  };
-
-  const formatUSD = (value: number): string => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
-
-  const formatBalance = (balance: string): string => {
-    const num = parseFloat(balance);
-    if (num === 0) return "0";
-
-    // Truncate instead of rounding (floor to N decimal places)
-    const truncate = (n: number, decimals: number): string => {
-      const factor = Math.pow(10, decimals);
-      return (Math.floor(n * factor) / factor).toFixed(decimals);
-    };
-
-    if (num < 0.000001) return truncate(num, 10);
-    if (num < 0.01) return truncate(num, 8);
-    if (num < 1000) return truncate(num, 6);
-    return truncate(num, 4);
-  };
-
-  // Refresh token balances
-  const handleRefreshBalances = async () => {
-    if (!passwordRef.current || !getSessionToken()) {
-      console.warn("Cannot refresh: missing password or sessionToken");
-      setError(t('walletDetail.sessionExpired'));
-      return;
-    }
-
-    setIsRefreshing(true);
-    setError(null);
-
-    try {
-      console.log("🔄 Refreshing token balances...");
-      const includeTestnets = import.meta.env.DEV;
-      const response: TokenBalancesResponse = await tauriApi.getTokenBalances({
-        walletId: wallet.id,
-        password: passwordRef.current,
-        usbPath,
-        sessionToken: getSessionToken() || undefined, // ✅ Backend will decrypt provider key
-        // ✅ No appPassword - zero password storage!
-        includeTestnets,
-      });
-
-      console.log("📡 Refresh complete:", response.tokens.length, "tokens");
-
-      // Pre-process tokens with native token metadata
-      if (response?.tokens && Array.isArray(response.tokens)) {
-        response.tokens.forEach((token) => {
-          const networkKey = getNetworkKey(token.networkLabel || token.network);
-          if (networkKey && isNativeTokenAddress(token.tokenAddress)) {
-            const nativeToken = getNativeToken(networkKey);
-            if (nativeToken && !token.tokenSymbol) {
-              token.tokenSymbol = nativeToken.symbol;
-              token.tokenName = nativeToken.name;
-              token.tokenLogo = nativeToken.logoURI;
-            }
-          }
-        });
-      }
-
-      setTokens(response.tokens);
-      setTotalUsd(response.totalUsd);
-    } catch (err) {
-      const error = err as AppError;
-      setError(error.message || t('walletDetail.failedToRefresh'));
-      console.error("❌ Failed to refresh token balances:", error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
 
   const handleCopyAddress = async (address: string) => {
     try {
@@ -782,459 +449,7 @@ export function WalletDetail({
     }));
   }, [displayTokens]);
 
-  if (showPasswordPrompt) {
-    return (
-      <div className="wallet-detail">
-        <div className="detail-header">
-          <button onClick={onBack} className="back-button">
-            ← {t('walletDetail.backToWallets')}
-          </button>
-          <h2>{wallet.name}</h2>
-        </div>
-
-        <div
-          style={{
-            maxWidth: "480px",
-            margin: "3rem auto",
-            background: "white",
-            borderRadius: "1rem",
-            padding: "2.5rem",
-            boxShadow:
-              "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
-            border: "1px solid #e5e7eb",
-          }}
-        >
-          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-            <div
-              style={{
-                width: "64px",
-                height: "64px",
-                margin: "0 auto 1.5rem",
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "2rem",
-                boxShadow: "0 4px 14px rgba(102, 126, 234, 0.4)",
-              }}
-            >
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-            </div>
-            <h3
-              style={{
-                fontSize: "1.5rem",
-                fontWeight: "700",
-                color: "#1f2937",
-                marginBottom: "0.5rem",
-              }}
-            >
-              {t('walletDetail.unlockWallet')}
-            </h3>
-            <p
-              style={{
-                fontSize: "0.9375rem",
-                color: "#6b7280",
-                lineHeight: "1.5",
-              }}
-            >
-              {t('walletDetail.unlockDescription')}
-            </p>
-          </div>
-
-          {error && (
-            <div
-              style={{
-                background: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)",
-                border: "1px solid #ef4444",
-                borderRadius: "0.5rem",
-                padding: "1rem",
-                marginBottom: "1.5rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.75rem",
-                animation: "shake 0.4s ease-in-out",
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <span
-                style={{
-                  color: "#991b1b",
-                  fontSize: "0.875rem",
-                  fontWeight: "500",
-                }}
-              >
-                {error}
-              </span>
-            </div>
-          )}
-
-          <div className="form-group" style={{ marginBottom: "1.5rem" }}>
-            <label
-              htmlFor="password"
-              style={{
-                display: "block",
-                fontSize: "0.875rem",
-                fontWeight: "600",
-                color: "#374151",
-                marginBottom: "0.5rem",
-              }}
-            >
-              {t('walletDetail.walletPassword')}
-            </label>
-            <div style={{ position: "relative" }}>
-              <span
-                style={{
-                  position: "absolute",
-                  left: "1rem",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  fontSize: "1.125rem",
-                  color: "#9ca3af",
-                }}
-              >
-                🔑
-              </span>
-              <input
-                type="password"
-                id="password"
-                value={tempPassword}
-                onChange={(e) => setTempPassword(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleLoadBalances()}
-                placeholder={t('walletDetail.enterPassword')}
-                autoFocus
-                style={{
-                  width: "100%",
-                  padding: "0.875rem 1rem 0.875rem 3rem",
-                  border: "2px solid #e5e7eb",
-                  borderRadius: "0.5rem",
-                  fontSize: "1rem",
-                  transition: "all 0.2s ease",
-                  outline: "none",
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = "#667eea";
-                  e.target.style.boxShadow =
-                    "0 0 0 3px rgba(102, 126, 234, 0.1)";
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = "#e5e7eb";
-                  e.target.style.boxShadow = "none";
-                }}
-              />
-            </div>
-            <small
-              style={{
-                display: "block",
-                fontSize: "0.75rem",
-                color: "#9ca3af",
-                marginTop: "0.5rem",
-                textAlign: "right",
-              }}
-            >
-              {t('walletDetail.pressEnterToSubmit')}
-            </small>
-          </div>
-
-          <button
-            onClick={handleLoadBalances}
-            disabled={isLoading || !tempPassword}
-            style={{
-              width: "100%",
-              background:
-                isLoading || !tempPassword
-                  ? "#d1d5db"
-                  : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              color: "white",
-              padding: "0.875rem 1.5rem",
-              border: "none",
-              borderRadius: "0.5rem",
-              fontSize: "1rem",
-              fontWeight: "600",
-              cursor: isLoading || !tempPassword ? "not-allowed" : "pointer",
-              transition: "all 0.2s ease",
-              boxShadow:
-                isLoading || !tempPassword
-                  ? "none"
-                  : "0 4px 14px rgba(102, 126, 234, 0.4)",
-              transform: isLoading || !tempPassword ? "none" : "translateY(0)",
-            }}
-            onMouseEnter={(e) => {
-              if (!isLoading && tempPassword) {
-                e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow =
-                  "0 6px 20px rgba(102, 126, 234, 0.5)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isLoading && tempPassword) {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow =
-                  "0 4px 14px rgba(102, 126, 234, 0.4)";
-              }
-            }}
-          >
-            {isLoading ? (
-              <span
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.5rem",
-                }}
-              >
-                <span
-                  style={{
-                    width: "16px",
-                    height: "16px",
-                    border: "2px solid white",
-                    borderTopColor: "transparent",
-                    borderRadius: "50%",
-                    animation: "spin 0.6s linear infinite",
-                  }}
-                ></span>
-                {t('walletDetail.loadingAssets')}
-              </span>
-            ) : (
-              t('walletDetail.unlockAndViewAssets')
-            )}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Show passphrase prompt for wallets with BIP39 passphrase
-  if (showPassphrasePrompt) {
-    return (
-      <div className="wallet-detail">
-        <div className="detail-header">
-          <button onClick={onBack} className="back-button">
-            ← {t('walletDetail.backToWallets')}
-          </button>
-          <h2>{wallet.name}</h2>
-        </div>
-
-        <div
-          style={{
-            maxWidth: "480px",
-            margin: "3rem auto",
-            background: "white",
-            borderRadius: "1rem",
-            padding: "2.5rem",
-            boxShadow:
-              "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
-            border: "1px solid #e5e7eb",
-          }}
-        >
-          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-            <div
-              style={{
-                width: "64px",
-                height: "64px",
-                margin: "0 auto 1.5rem",
-                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "2rem",
-                boxShadow: "0 4px 14px rgba(245, 158, 11, 0.4)",
-              }}
-            >
-              🔑
-            </div>
-            <h3
-              style={{
-                fontSize: "1.5rem",
-                fontWeight: "700",
-                color: "#1f2937",
-                marginBottom: "0.5rem",
-              }}
-            >
-              {t('walletDetail.enterPassphrase')}
-            </h3>
-            <p
-              style={{
-                fontSize: "0.9375rem",
-                color: "#6b7280",
-                lineHeight: "1.5",
-              }}
-            >
-              {t('walletDetail.passphraseDescription')}
-              <br />
-              {t('walletDetail.passphraseDescriptionContinue')}
-            </p>
-          </div>
-
-          {error && (
-            <div
-              style={{
-                background: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)",
-                border: "1px solid #ef4444",
-                borderRadius: "0.5rem",
-                padding: "1rem",
-                marginBottom: "1.5rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.75rem",
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <span
-                style={{
-                  color: "#991b1b",
-                  fontSize: "0.875rem",
-                  fontWeight: "500",
-                }}
-              >
-                {error}
-              </span>
-            </div>
-          )}
-
-          <div className="form-group" style={{ marginBottom: "1.5rem" }}>
-            <label
-              htmlFor="passphrase"
-              style={{
-                display: "block",
-                fontSize: "0.875rem",
-                fontWeight: "600",
-                color: "#374151",
-                marginBottom: "0.5rem",
-              }}
-            >
-              {t('walletDetail.bip39Passphrase')}
-            </label>
-            <div style={{ position: "relative" }}>
-              <span
-                style={{
-                  position: "absolute",
-                  left: "1rem",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  fontSize: "1.125rem",
-                  color: "#9ca3af",
-                }}
-              >
-                🔑
-              </span>
-              <input
-                type="password"
-                id="passphrase"
-                value={passphrase}
-                onChange={(e) => setPassphrase(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleValidatePassphrase()}
-                placeholder={t('walletDetail.enterYourPassphrase')}
-                autoFocus
-                style={{
-                  width: "100%",
-                  padding: "0.875rem 1rem 0.875rem 3rem",
-                  border: "2px solid #e5e7eb",
-                  borderRadius: "0.5rem",
-                  fontSize: "1rem",
-                  transition: "all 0.2s ease",
-                  outline: "none",
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = "#f59e0b";
-                  e.target.style.boxShadow =
-                    "0 0 0 3px rgba(245, 158, 11, 0.1)";
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = "#e5e7eb";
-                  e.target.style.boxShadow = "none";
-                }}
-              />
-            </div>
-            <small
-              style={{
-                display: "block",
-                fontSize: "0.75rem",
-                color: "#9ca3af",
-                marginTop: "0.5rem",
-              }}
-            >
-              {t('walletDetail.passphraseCaseSensitive')}
-            </small>
-          </div>
-
-          <button
-            onClick={handleValidatePassphrase}
-            disabled={isValidatingPassphrase || !passphrase}
-            style={{
-              width: "100%",
-              background:
-                isValidatingPassphrase || !passphrase
-                  ? "#d1d5db"
-                  : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-              color: "white",
-              padding: "0.875rem 1.5rem",
-              border: "none",
-              borderRadius: "0.5rem",
-              fontSize: "1rem",
-              fontWeight: "600",
-              cursor: isValidatingPassphrase || !passphrase ? "not-allowed" : "pointer",
-              transition: "all 0.2s ease",
-              boxShadow:
-                isValidatingPassphrase || !passphrase
-                  ? "none"
-                  : "0 4px 14px rgba(245, 158, 11, 0.4)",
-            }}
-          >
-            {isValidatingPassphrase ? (
-              <span
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.5rem",
-                }}
-              >
-                <span
-                  style={{
-                    width: "16px",
-                    height: "16px",
-                    border: "2px solid white",
-                    borderTopColor: "transparent",
-                    borderRadius: "50%",
-                    animation: "spin 0.6s linear infinite",
-                  }}
-                ></span>
-                {t('walletDetail.validating')}
-              </span>
-            ) : (
-              t('walletDetail.verifyAndContinue')
-            )}
-          </button>
-
-          <button
-            onClick={() => {
-              setShowPassphrasePrompt(false);
-              setShowPasswordPrompt(true);
-              setTempPassword("");
-              passwordRef.current = "";
-              setPassphrase("");
-              setError(null);
-            }}
-            style={{
-              width: "100%",
-              marginTop: "1rem",
-              background: "transparent",
-              color: "#6b7280",
-              padding: "0.75rem",
-              border: "none",
-              fontSize: "0.875rem",
-              cursor: "pointer",
-            }}
-          >
-            {t('walletDetail.backToPassword')}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+  // ── 子畫面 dispatch ───────────────────────────────────────────────────────
   // Show Transaction History view
   // ✅ Migrated to session tokens (2026-01-23)
   const sessionToken = getSessionToken();
@@ -1245,101 +460,49 @@ export function WalletDetail({
     shouldShowHistory: showHistory && historyAddress && sessionToken,
   });
 
-  if (showHistory && historyAddress && sessionToken) {
-    console.log("✅ [WalletDetail] Rendering TransactionHistory component");
-    return (
-      <TransactionHistory
-        address={historyAddress}
-        usbPath={usbPath}
-        sessionToken={sessionToken}
-        onBack={() => {
-          setShowHistory(false);
-          setHistoryAddress("");
-        }}
-      />
-    );
-  }
-
-  // Show Address Book view
-  if (showAddressBook && sessionToken) {
-    return (
-      <AddressBook
-        usbPath={usbPath}
-        sessionToken={sessionToken}
-        onBack={() => setShowAddressBook(false)}
-      />
-    );
-  }
-
-  // Show Send Transaction view
-  // ✅ Migrated to session tokens (2026-01-12)
-  if (showSendTransaction && sessionToken) {
-    console.log("💸 [WalletDetail] Rendering SendTransaction component with", availableTokensForSend.length, "tokens");
-    return (
-      <ErrorBoundary level="component">
-        <SendTransaction
-          walletId={wallet.id}
-          walletHasPassphrase={wallet.has_passphrase}
-          walletPassphrase={validatedPassphrase || undefined}
-          availableTokens={availableTokensForSend}
-          usbPath={usbPath}
-          sessionToken={sessionToken}  // ✅ Session token for low-risk operations
-          onBack={() => setShowSendTransaction(false)}
-          onSuccess={(txHash) => {
-            console.log("✅ Transaction submitted:", txHash);
-            setShowSendTransaction(false);
-            void handleRefreshBalances();
-          }}
-        />
-      </ErrorBoundary>
-    );
-  }
-
-  // Show Swap Transaction view (✅ Migrated to session tokens)
-  if (showSwapTransaction && sessionToken) {
-    console.log("🔄 [WalletDetail] Rendering SwapTransaction component with", availableTokensForSend.length, "tokens");
-    return (
-      <ErrorBoundary level="component">
-        <SwapTransaction
-          walletId={wallet.id}
-          walletHasPassphrase={wallet.has_passphrase}
-          walletPassphrase={validatedPassphrase || undefined}
-          availableTokens={availableTokensForSend}
-          usbPath={usbPath}
-          sessionToken={sessionToken}  // ✅ Uses session token
-          onBack={() => setShowSwapTransaction(false)}
-          onSuccess={(txHash) => {
-            console.log("✅ Swap transaction submitted:", txHash);
-            // Return to the asset list and refresh balances so the swapped
-            // amounts are reflected (mirrors the token-import onAdded pattern).
-            setShowSwapTransaction(false);
-            void handleRefreshBalances();
-          }}
-        />
-      </ErrorBoundary>
-    );
-  }
-
-  // Show Staking Transaction view (✅ Migrated to session tokens)
-  if (showStakingTransaction && sessionToken) {
-    console.log("📈 [WalletDetail] Rendering StakingTransaction component with", availableTokensForSend.length, "tokens");
-    return (
-      <ErrorBoundary level="component">
-        <StakingTransaction
-          walletId={wallet.id}
-          walletHasPassphrase={wallet.has_passphrase}
-          walletPassphrase={validatedPassphrase || undefined}
-          availableTokens={availableTokensForSend}
-          usbPath={usbPath}
-          sessionToken={sessionToken}  // ✅ Uses session token
-          onBack={() => setShowStakingTransaction(false)}
-          onSuccess={(txHash) => {
-            console.log("✅ Staking transaction submitted:", txHash);
-          }}
-        />
-      </ErrorBoundary>
-    );
-  }
+  const subView = WalletDetailViews({
+    // password prompt
+    showPasswordPrompt,
+    wallet,
+    onBack,
+    error,
+    tempPassword,
+    setTempPassword,
+    handleLoadBalances,
+    isLoading,
+    // passphrase prompt
+    showPassphrasePrompt,
+    passphrase,
+    setPassphrase,
+    handleValidatePassphrase,
+    isValidatingPassphrase,
+    setShowPassphrasePrompt,
+    setShowPasswordPrompt,
+    passwordRef,
+    setError,
+    // session token (shared)
+    sessionToken,
+    // history
+    showHistory,
+    historyAddress,
+    usbPath,
+    setShowHistory,
+    setHistoryAddress,
+    // address book
+    showAddressBook,
+    setShowAddressBook,
+    // send / swap / staking
+    showSendTransaction,
+    showSwapTransaction,
+    showStakingTransaction,
+    validatedPassphrase,
+    availableTokensForSend,
+    setShowSendTransaction,
+    setShowSwapTransaction,
+    setShowStakingTransaction,
+    handleRefreshBalances,
+  });
+  if (subView) return subView;
 
   return (
     <div
