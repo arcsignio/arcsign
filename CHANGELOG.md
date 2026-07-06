@@ -3,6 +3,21 @@
 All notable changes to ArcSign. Format follows [Keep a Changelog](https://keepachangelog.com/),
 Semantic Versioning.
 
+## [v1.5.4] — 2026-07-06 — WalletDetail Decomposition
+
+### Changed
+
+- **WalletDetail refactored from a 2979-line component into focused units.**
+  The largest frontend file after v1.5.3 is now a ~2142-line coordinator.
+  Extracted: pure token-metadata enrichment (`enrichTokens.ts`, deduping three
+  identical copies), pure formatters (`walletDetailFormat.ts`), the seven
+  full-screen sub-view dispatch blocks (`walletDetail/WalletDetailViews.tsx`),
+  and the unlock → passphrase → load-balances state machine (`useWalletData.ts`).
+  Behavior is unchanged; the signing-sensitive `validatedPassphrase` and
+  `passwordRef` plumbing is byte-identical to before, verified end-to-end.
+  The asset-list render body stays in the main component (its extraction is
+  planned for a later release).
+
 ## [v1.5.3] — 2026-07-03 — Swap Component Decomposition + Service Layer
 
 ### Changed
