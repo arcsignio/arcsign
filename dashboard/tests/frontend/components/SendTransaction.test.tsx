@@ -24,10 +24,6 @@ vi.mock('@/stores/dashboardStore', () => ({
   useIsPro: vi.fn(),
 }));
 
-vi.mock('@/utils/walletLock', () => ({
-  isWalletLocked: vi.fn(),
-}));
-
 vi.mock('@/components/AddressBook', () => ({
   AddressBook: ({ onBack, onSelectAddress }: any) => (
     <div data-testid="address-book-mock">
@@ -41,7 +37,6 @@ vi.mock('@/components/AddressBook', () => ({
 
 import tauriApi, { checkTransactionSecurity } from '@/services/tauri-api';
 import { useIsPro } from '@/stores/dashboardStore';
-import { isWalletLocked } from '@/utils/walletLock';
 
 // Test data — addresses must be valid hex (0x + 40 hex chars) to pass isValidAddress
 const mockEthToken: SendableToken = {
@@ -123,7 +118,6 @@ const mockBroadcastResponse = {
 describe('SendTransaction', () => {
   beforeEach(() => {
     (useIsPro as any).mockReturnValue(false);
-    (isWalletLocked as any).mockReturnValue(false);
     (tauriApi.estimateFee as any).mockImplementation(() => Promise.resolve(null));
     (tauriApi.buildTransaction as any).mockImplementation(() => Promise.resolve(mockBuildResponse));
     (tauriApi.signTransaction as any).mockImplementation(() => Promise.resolve(mockSignResponse));

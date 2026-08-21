@@ -133,10 +133,6 @@ vi.mock('@/constants/commonTokens', () => ({
   normalizeTokenForDisplay: vi.fn(),
 }));
 
-vi.mock('@/utils/walletLock', () => ({
-  isWalletLocked: vi.fn(),
-}));
-
 // ── Imports (AFTER vi.mock calls) ────────────────────────────────────────────
 import tauriApi from '@/services/tauri-api';
 import { useAppPassword } from '@/contexts/AppPasswordContext';
@@ -146,7 +142,6 @@ import { usePriorityTokens, useAllTokens } from '@/hooks/useTokenList';
 import { isNativeTokenAddress, getNativeToken, getNetworkKey } from '@/constants/nativeTokens';
 import { getChainIconUrl, getChainFallbackIcon, isChainSupported, isChainEnabled } from '@/utils/chainIcons';
 import { normalizeTokenForDisplay } from '@/constants/commonTokens';
-import { isWalletLocked } from '@/utils/walletLock';
 
 import { WalletDetail } from '@/components/WalletDetail';
 
@@ -217,7 +212,6 @@ beforeEach(() => {
 
   // Other utils
   (normalizeTokenForDisplay as ReturnType<typeof vi.fn>).mockImplementation((t: unknown) => t);
-  (isWalletLocked as ReturnType<typeof vi.fn>).mockReturnValue(false);
 
   (useAppPassword as ReturnType<typeof vi.fn>).mockReturnValue({
     getSessionToken: () => 'session-token-123',
@@ -1073,34 +1067,6 @@ describe('WalletDetail', () => {
     expect(screen.getByText(/^1\.500000 ETH$/)).toBeInTheDocument();
   });
 
-  // ── 37. Wallet locked state disables Send and Swap ────────────────────────
-  it('disables Send and Swap buttons when wallet is locked', async () => {
-    (isWalletLocked as ReturnType<typeof vi.fn>).mockReturnValue(true);
-
-    const user = userEvent.setup();
-    render(<WalletDetail {...defaultProps} />);
-
-    await user.type(screen.getByLabelText('walletDetail.walletPassword'), 'mypassword');
-    await user.click(screen.getByText('walletDetail.unlockAndViewAssets'));
-
-    await waitFor(() => {
-      expect(screen.queryByText('walletDetail.unlockAndViewAssets')).not.toBeInTheDocument();
-    });
-
-    // Send and Swap buttons should be disabled (they have the disabled attribute)
-    const sendButton = screen.getByText('walletDetail.send').closest('button');
-    const swapButton = screen.getByText('walletDetail.swap').closest('button');
-
-    expect(sendButton).toBeDisabled();
-    expect(swapButton).toBeDisabled();
-
-    // Receive and History should NOT be disabled
-    const receiveButton = screen.getByText('walletDetail.receive').closest('button');
-    const historyButton = screen.getByText('walletDetail.history').closest('button');
-    expect(receiveButton).not.toBeDisabled();
-    expect(historyButton).not.toBeDisabled();
-  });
-
   // ── 38. No tokens to send alert ──────────────────────────────────────────
   it('alerts when there are no tokens to send', async () => {
     // Return tokens with zero balances only
@@ -1504,30 +1470,6 @@ describe('WalletDetail', () => {
 
     // Should show case-sensitive note
     expect(screen.getByText(/walletDetail.passphraseCaseSensitive/)).toBeInTheDocument();
-  });
-
-  // ── 50. Wallet locked: Send button shows alert ────────────────────────────
-  it('shows locked alert when clicking Send on locked wallet', async () => {
-    (isWalletLocked as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    const mockAlert = vi.fn();
-    window.alert = mockAlert;
-
-    const user = userEvent.setup();
-    render(<WalletDetail {...defaultProps} />);
-
-    await user.type(screen.getByLabelText('walletDetail.walletPassword'), 'mypassword');
-    await user.click(screen.getByText('walletDetail.unlockAndViewAssets'));
-
-    await waitFor(() => {
-      expect(screen.queryByText('walletDetail.unlockAndViewAssets')).not.toBeInTheDocument();
-    });
-
-    // The send button is disabled, so clicking it won't fire the onClick.
-    // But the component actually still fires alert in onClick before checking disabled.
-    // Actually the button IS disabled, so click will do nothing.
-    // Verify the button IS disabled - this tests the walletIsLocked path.
-    const sendButton = screen.getByText('walletDetail.send').closest('button');
-    expect(sendButton).toBeDisabled();
   });
 
   // ── 51. History fallback: uses 0x address if no coin_type 60 ──────────────

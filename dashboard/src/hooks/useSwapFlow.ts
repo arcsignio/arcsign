@@ -13,7 +13,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useSignGate } from "@/hooks/useSignGate";
-import { isWalletLocked } from "@/utils/walletLock";
 import {
   type SwapQuoteResponse,
   type BuildSwapTransactionResponse,
@@ -440,12 +439,6 @@ export function useSwapFlow({
     // Action-level guard: refuse to sign a backend-flagged danger until the user
     // ticks the acknowledgment checkbox (mirrors the button's disabled prop).
     if (gate.requiresAcknowledge && !gate.acknowledged) {
-      return;
-    }
-
-    // Check if wallet is locked due to membership limit
-    if (isWalletLocked(walletId)) {
-      setError(t('wallet.walletLocked', 'Wallet is locked due to membership limit. Please upgrade to unlock.'));
       return;
     }
 

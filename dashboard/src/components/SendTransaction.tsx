@@ -16,7 +16,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { AddressBook } from "@/components/AddressBook";
 import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
 import { useSignGate } from "@/hooks/useSignGate";
-import { isWalletLocked } from "@/utils/walletLock";
 import { useIsPro } from "@/stores/dashboardStore";
 import { getNativeToken, getNetworkKey } from "@/constants/nativeTokens";
 import tauriApi, {
@@ -463,12 +462,6 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
     // Action-level guard: refuse to sign a backend-flagged danger until the user
     // ticks the acknowledgment checkbox (mirrors the button's disabled prop).
     if (gate.requiresAcknowledge && !gate.acknowledged) {
-      return;
-    }
-
-    // Check if wallet is locked due to membership limit
-    if (isWalletLocked(walletId)) {
-      setError("Wallet is locked due to membership limit. Please upgrade to unlock.");
       return;
     }
 

@@ -9,35 +9,6 @@ import { persist } from 'zustand/middleware';
 import type { Wallet } from '@/types/wallet';
 import type { Address, AddressFilter } from '@/types/address';
 import { Category } from '@/types/address';
-import type { TokenInfo } from '@/services/tauri-api';
-import { WALLET_LIMIT_FREE } from '@/constants/contracts';
-
-/**
- * Membership status for Pro tier verification
- * NFT count is aggregated across ALL BSC addresses in all wallets
- * Wallet limit formula: 1 + (totalNftCount * 3)
- * - Free (0 NFT): 1 wallet
- * - Pro (1 NFT): 4 wallets
- * - Pro (n NFTs): 1 + (n * 3) wallets
- */
-interface MembershipState {
-  /** Whether user is a Pro member (requires NFT + device binding) */
-  isPro: boolean;
-  /** Total NFTs owned across all BSC addresses */
-  nftCount: number;
-  /** NFTs bound to this device */
-  boundNftCount: number;
-  /** Days remaining until membership expires */
-  daysRemaining: number;
-  /** Wallet creation limit: 1 + (boundNftCount * 3) */
-  walletLimit: number;
-  /** NFT count breakdown by address */
-  addressNftCounts: { address: string; nftCount: number; boundCount: number; tokens: TokenInfo[] }[];
-  /** IDs of wallets that are locked due to exceeding the limit */
-  lockedWalletIds: string[];
-  /** Whether device binding is required for Pro status */
-  bindingRequired: boolean;
-}
 
 /**
  * Dashboard application state
@@ -53,10 +24,6 @@ interface DashboardState {
 
   /** Addresses for currently selected wallet */
   addresses: Address[];
-
-  // Membership state
-  /** Current membership status */
-  membership: MembershipState;
 
   // UI state
   /** Address filter criteria */
@@ -120,9 +87,6 @@ interface DashboardState {
   /** Set error message */
   setError: (error: string | null) => void;
 
-  /** Set membership status */
-  setMembership: (membership: Partial<MembershipState>) => void;
-
   /** Check if wallet creation is allowed */
   canCreateWallet: () => boolean;
 
@@ -130,22 +94,10 @@ interface DashboardState {
   reset: () => void;
 }
 
-const initialMembership: MembershipState = {
-  isPro: false,
-  nftCount: 0,
-  boundNftCount: 0,
-  daysRemaining: 0,
-  walletLimit: WALLET_LIMIT_FREE, // Free tier default
-  addressNftCounts: [],
-  lockedWalletIds: [],
-  bindingRequired: true, // Binding is required for Pro status
-};
-
 const initialState = {
   wallets: [],
   selectedWalletId: null,
   addresses: [],
-  membership: initialMembership,
   filter: {},
   searchQuery: '',
   onlineDecodingEnabled: true,
@@ -204,11 +156,6 @@ export const useDashboardStore = create<DashboardState>()(
       setLoadingAddresses: (loading) => set({ isLoadingAddresses: loading }),
 
       setError: (error) => set({ error }),
-
-      setMembership: (membershipUpdates) => {
-        const { membership } = get();
-        set({ membership: { ...membership, ...membershipUpdates } });
-      },
 
       canCreateWallet: () => {
         const { wallets, membership } = get();
@@ -309,38 +256,13 @@ export const useHasWallets = () =>
 export const useHasAddresses = () =>
   useDashboardStore((state) => state.addresses.length > 0);
 
-/** Get current membership status */
-export const useMembershipStatus = () =>
-  useDashboardStore((state) => state.membership);
-
-/** Check if user is Pro member */
-export const useIsPro = () =>
-  useDashboardStore((state) => state.membership.isPro);
-
 /** Check if wallet creation is allowed */
 export const useCanCreateWallet = () =>
   useDashboardStore((state) => state.canCreateWallet());
 
-/** Get wallet count and limit info */
-export const useWalletLimitInfo = () =>
-  useDashboardStore((state) => ({
-    current: state.wallets.length,
-    limit: state.membership.walletLimit,
-    isPro: state.membership.isPro,
-    canCreate: state.canCreateWallet(),
-  }));
-
 /** Get NFT count breakdown by address */
 export const useAddressNftCounts = () =>
   useDashboardStore((state) => state.membership.addressNftCounts);
-
-/** Get locked wallet IDs */
-export const useLockedWalletIds = () =>
-  useDashboardStore((state) => state.membership.lockedWalletIds);
-
-/** Check if a specific wallet is locked */
-export const useIsWalletLocked = (walletId: string) =>
-  useDashboardStore((state) => state.membership.lockedWalletIds.includes(walletId));
 
 /** Whether online ABI fallback (Sourcify) is enabled for transaction decoding */
 export const useOnlineDecodingEnabled = () =>

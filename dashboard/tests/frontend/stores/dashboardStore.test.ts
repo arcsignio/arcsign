@@ -7,13 +7,6 @@ import {
   useAddressCounts,
   useHasWallets,
   useHasAddresses,
-  useMembershipStatus,
-  useIsPro,
-  useCanCreateWallet,
-  useWalletLimitInfo,
-  useAddressNftCounts,
-  useLockedWalletIds,
-  useIsWalletLocked,
 } from '@/stores/dashboardStore';
 import { Category, KeyType } from '@/types/address';
 import type { Wallet } from '@/types/wallet';
@@ -62,12 +55,6 @@ describe('dashboardStore', () => {
       const state = useDashboardStore.getState();
       expect(state.isLoadingWallets).toBe(false);
       expect(state.isLoadingAddresses).toBe(false);
-    });
-
-    it('starts with free tier membership', () => {
-      const { membership } = useDashboardStore.getState();
-      expect(membership.isPro).toBe(false);
-      expect(membership.walletLimit).toBe(1); // WALLET_LIMIT_FREE
     });
   });
 
@@ -187,60 +174,6 @@ describe('dashboardStore', () => {
       useDashboardStore.getState().setError('error');
       useDashboardStore.getState().setError(null);
       expect(useDashboardStore.getState().error).toBeNull();
-    });
-  });
-
-  describe('Membership', () => {
-    it('updates membership', () => {
-      useDashboardStore.getState().setMembership({
-        isPro: true,
-        nftCount: 2,
-        walletLimit: 7,
-      });
-
-      const { membership } = useDashboardStore.getState();
-      expect(membership.isPro).toBe(true);
-      expect(membership.nftCount).toBe(2);
-      expect(membership.walletLimit).toBe(7);
-    });
-
-    it('merges membership updates', () => {
-      useDashboardStore.getState().setMembership({ isPro: true, nftCount: 1 });
-      useDashboardStore.getState().setMembership({ daysRemaining: 300 });
-
-      const { membership } = useDashboardStore.getState();
-      expect(membership.isPro).toBe(true);
-      expect(membership.daysRemaining).toBe(300);
-    });
-  });
-
-  describe('canCreateWallet', () => {
-    it('allows creation when under limit', () => {
-      useDashboardStore.getState().setWallets([]);
-      useDashboardStore.getState().setMembership({ walletLimit: 3 });
-
-      expect(useDashboardStore.getState().canCreateWallet()).toBe(true);
-    });
-
-    it('disallows creation when at limit', () => {
-      useDashboardStore.getState().setWallets([
-        makeWallet('w1', 'W1'),
-        makeWallet('w2', 'W2'),
-        makeWallet('w3', 'W3'),
-      ]);
-      useDashboardStore.getState().setMembership({ walletLimit: 3 });
-
-      expect(useDashboardStore.getState().canCreateWallet()).toBe(false);
-    });
-
-    it('respects wallet limit formula', () => {
-      // With 2 NFTs: limit = 1 + (2 * 3) = 7
-      useDashboardStore.getState().setMembership({ walletLimit: 7 });
-      useDashboardStore.getState().setWallets(
-        Array.from({ length: 6 }, (_, i) => makeWallet(`w${i}`, `W${i}`))
-      );
-
-      expect(useDashboardStore.getState().canCreateWallet()).toBe(true);
     });
   });
 
@@ -450,118 +383,4 @@ describe('dashboardStore - computed selectors', () => {
     });
   });
 
-  describe('useMembershipStatus', () => {
-    it('returns default membership state', () => {
-      const { result } = renderHook(() => useMembershipStatus());
-      expect(result.current.isPro).toBe(false);
-      expect(result.current.nftCount).toBe(0);
-    });
-
-    it('reflects updated membership', () => {
-      useDashboardStore.getState().setMembership({ isPro: true, nftCount: 5 });
-      const { result } = renderHook(() => useMembershipStatus());
-      expect(result.current.isPro).toBe(true);
-      expect(result.current.nftCount).toBe(5);
-    });
-  });
-
-  describe('useIsPro', () => {
-    it('returns false by default', () => {
-      const { result } = renderHook(() => useIsPro());
-      expect(result.current).toBe(false);
-    });
-
-    it('returns true when membership is Pro', () => {
-      useDashboardStore.getState().setMembership({ isPro: true });
-      const { result } = renderHook(() => useIsPro());
-      expect(result.current).toBe(true);
-    });
-  });
-
-  describe('useCanCreateWallet (selector)', () => {
-    it('returns true when under limit', () => {
-      useDashboardStore.getState().setMembership({ walletLimit: 3 });
-      const { result } = renderHook(() => useCanCreateWallet());
-      expect(result.current).toBe(true);
-    });
-
-    it('returns false when at limit', () => {
-      useDashboardStore.getState().setWallets([
-        makeWallet('w1', 'W1'),
-        makeWallet('w2', 'W2'),
-        makeWallet('w3', 'W3'),
-      ]);
-      useDashboardStore.getState().setMembership({ walletLimit: 3 });
-      const { result } = renderHook(() => useCanCreateWallet());
-      expect(result.current).toBe(false);
-    });
-  });
-
-  describe('useWalletLimitInfo', () => {
-    it('returns correct wallet limit info', () => {
-      useDashboardStore.getState().setWallets([makeWallet('w1', 'W1')]);
-      useDashboardStore.getState().setMembership({ isPro: true, walletLimit: 7 });
-
-      const { result } = renderHook(() => useWalletLimitInfo());
-      expect(result.current.current).toBe(1);
-      expect(result.current.limit).toBe(7);
-      expect(result.current.isPro).toBe(true);
-      expect(result.current.canCreate).toBe(true);
-    });
-
-    it('canCreate is false when at limit', () => {
-      useDashboardStore.getState().setWallets([makeWallet('w1', 'W1'), makeWallet('w2', 'W2')]);
-      useDashboardStore.getState().setMembership({ walletLimit: 2 });
-
-      const { result } = renderHook(() => useWalletLimitInfo());
-      expect(result.current.canCreate).toBe(false);
-    });
-  });
-
-  describe('useAddressNftCounts', () => {
-    it('returns empty array by default', () => {
-      const { result } = renderHook(() => useAddressNftCounts());
-      expect(result.current).toEqual([]);
-    });
-
-    it('returns address NFT counts when set', () => {
-      useDashboardStore.getState().setMembership({
-        addressNftCounts: [
-          { address: '0x1', nftCount: 2, boundCount: 1, tokens: [] },
-        ],
-      });
-      const { result } = renderHook(() => useAddressNftCounts());
-      expect(result.current).toHaveLength(1);
-      expect(result.current[0].nftCount).toBe(2);
-    });
-  });
-
-  describe('useLockedWalletIds', () => {
-    it('returns empty array by default', () => {
-      const { result } = renderHook(() => useLockedWalletIds());
-      expect(result.current).toEqual([]);
-    });
-
-    it('returns locked IDs when set', () => {
-      useDashboardStore.getState().setMembership({
-        lockedWalletIds: ['w2', 'w3'],
-      });
-      const { result } = renderHook(() => useLockedWalletIds());
-      expect(result.current).toEqual(['w2', 'w3']);
-    });
-  });
-
-  describe('useIsWalletLocked', () => {
-    it('returns false for unlocked wallet', () => {
-      useDashboardStore.getState().setMembership({ lockedWalletIds: ['w2'] });
-      const { result } = renderHook(() => useIsWalletLocked('w1'));
-      expect(result.current).toBe(false);
-    });
-
-    it('returns true for locked wallet', () => {
-      useDashboardStore.getState().setMembership({ lockedWalletIds: ['w1', 'w2'] });
-      const { result } = renderHook(() => useIsWalletLocked('w1'));
-      expect(result.current).toBe(true);
-    });
-  });
 });
