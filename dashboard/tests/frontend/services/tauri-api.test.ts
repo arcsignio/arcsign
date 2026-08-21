@@ -60,13 +60,6 @@ import {
   cancelPendingMessageSign,
   signMessage,
   signTypedData,
-  checkAllMemberships,
-  getDeviceMembershipStatus,
-  getDeviceMembershipStatusWithToken,
-  addDeviceMembershipBinding,
-  removeDeviceMembershipBinding,
-  syncMembershipBindingWithToken,
-  removeMembershipBindingWithToken,
   createSession,
   validateSession,
   revokeSession,
@@ -495,7 +488,6 @@ describe('tauri-api service', () => {
           data: '',
           usbPath: '/dev/sda1',
           sessionToken: 'tok',
-          isPro: false,
         }),
       });
     });
@@ -1064,7 +1056,6 @@ describe('tauri-api service', () => {
           fromAddress: '0x1',
           slippage: 0.5,
           provider: 'openocean',
-          isPro: false,
           usbPath: '/dev/sda1',
           sessionToken: 'tok',
           appPassword: undefined,
@@ -1097,7 +1088,6 @@ describe('tauri-api service', () => {
           fromAddress: '0x1',
           slippage: 0.5,
           provider: 'openocean',
-          isPro: false,
           usbPath: '/dev/sda1',
           sessionToken: undefined,
           appPassword: undefined,
@@ -1427,173 +1417,6 @@ describe('tauri-api service', () => {
   });
 
   // ==========================================================================
-  // Membership (NFT verification)
-  // ==========================================================================
-  describe('checkAllMemberships', () => {
-    it('calls invoke with "check_all_memberships" wrapping in input', async () => {
-      const mockResp = {
-        totalNftCount: 2, boundNftCount: 1, isPro: true, daysRemaining: 365,
-        walletLimit: 4, addressNftCounts: [], bindingRequired: true,
-      };
-      mockInvoke.mockImplementation(() => Promise.resolve(mockResp));
-
-      const result = await checkAllMemberships(['0xaddr1', '0xaddr2'], '0xdevicehash');
-
-      expect(mockInvoke).toHaveBeenCalledWith('check_all_memberships', {
-        input: { addresses: ['0xaddr1', '0xaddr2'], deviceHash: '0xdevicehash' },
-      });
-      expect(result.isPro).toBe(true);
-    });
-
-    it('works without deviceHash', async () => {
-      mockInvoke.mockImplementation(() => Promise.resolve({
-        totalNftCount: 0, boundNftCount: 0, isPro: false, daysRemaining: 0,
-        walletLimit: 1, addressNftCounts: [], bindingRequired: false,
-      }));
-
-      await checkAllMemberships(['0xaddr1']);
-
-      expect(mockInvoke).toHaveBeenCalledWith('check_all_memberships', {
-        input: { addresses: ['0xaddr1'], deviceHash: undefined },
-      });
-    });
-  });
-
-  // ==========================================================================
-  // USB Device Membership (Device Binding System)
-  // ==========================================================================
-  describe('getDeviceMembershipStatus', () => {
-    it('calls invoke with "get_device_membership_status" wrapping in input', async () => {
-      const mockResp = {
-        deviceId: 'uuid', deviceIdHash: '0xhash', walletLimit: 3,
-        walletCount: 1, canCreateWallet: true, memberships: [], lockedWalletIds: [],
-      };
-      mockInvoke.mockImplementation(() => Promise.resolve(mockResp));
-
-      const result = await getDeviceMembershipStatus({
-        usbPath: '/dev/sda1',
-        appPassword: 'pass',
-      });
-
-      expect(mockInvoke).toHaveBeenCalledWith('get_device_membership_status', {
-        input: { usbPath: '/dev/sda1', appPassword: 'pass' },
-      });
-      expect(result.deviceId).toBe('uuid');
-    });
-  });
-
-  describe('getDeviceMembershipStatusWithToken', () => {
-    it('calls invoke with "get_device_membership_status_with_token" wrapping in input', async () => {
-      const mockResp = {
-        deviceId: 'uuid', deviceIdHash: '0xhash', walletLimit: 3,
-        walletCount: 1, canCreateWallet: true, memberships: [], lockedWalletIds: [],
-      };
-      mockInvoke.mockImplementation(() => Promise.resolve(mockResp));
-
-      const result = await getDeviceMembershipStatusWithToken({ token: 'session-tok' });
-
-      expect(mockInvoke).toHaveBeenCalledWith('get_device_membership_status_with_token', {
-        input: { token: 'session-tok' },
-      });
-      expect(result.deviceId).toBe('uuid');
-    });
-  });
-
-  describe('addDeviceMembershipBinding', () => {
-    it('calls invoke with "add_device_membership_binding" wrapping in input', async () => {
-      mockInvoke.mockImplementation(() => Promise.resolve(undefined));
-
-      await addDeviceMembershipBinding({
-        usbPath: '/dev/sda1',
-        appPassword: 'pass',
-        nftTokenId: '1',
-        nftContract: '0xcontract',
-        chainId: '56',
-        boundAddress: '0xaddr',
-        signature: '0xsig',
-      });
-
-      expect(mockInvoke).toHaveBeenCalledWith('add_device_membership_binding', {
-        input: {
-          usbPath: '/dev/sda1',
-          appPassword: 'pass',
-          nftTokenId: '1',
-          nftContract: '0xcontract',
-          chainId: '56',
-          boundAddress: '0xaddr',
-          signature: '0xsig',
-        },
-      });
-    });
-  });
-
-  describe('removeDeviceMembershipBinding', () => {
-    it('calls invoke with "remove_device_membership_binding" wrapping in input', async () => {
-      mockInvoke.mockImplementation(() => Promise.resolve(undefined));
-
-      await removeDeviceMembershipBinding({
-        usbPath: '/dev/sda1',
-        appPassword: 'pass',
-        nftTokenId: '1',
-        nftContract: '0xcontract',
-      });
-
-      expect(mockInvoke).toHaveBeenCalledWith('remove_device_membership_binding', {
-        input: {
-          usbPath: '/dev/sda1',
-          appPassword: 'pass',
-          nftTokenId: '1',
-          nftContract: '0xcontract',
-        },
-      });
-    });
-  });
-
-  describe('syncMembershipBindingWithToken', () => {
-    it('calls invoke with "sync_membership_binding_with_token" wrapping in input', async () => {
-      mockInvoke.mockImplementation(() => Promise.resolve(undefined));
-
-      await syncMembershipBindingWithToken({
-        token: 'session-tok',
-        nftTokenId: '1',
-        nftContract: '0xcontract',
-        chainId: '56',
-        boundAddress: '0xaddr',
-      });
-
-      expect(mockInvoke).toHaveBeenCalledWith('sync_membership_binding_with_token', {
-        input: {
-          token: 'session-tok',
-          nftTokenId: '1',
-          nftContract: '0xcontract',
-          chainId: '56',
-          boundAddress: '0xaddr',
-        },
-      });
-    });
-  });
-
-  describe('removeMembershipBindingWithToken', () => {
-    it('calls invoke with "remove_membership_binding_with_token" wrapping in input', async () => {
-      mockInvoke.mockImplementation(() => Promise.resolve(undefined));
-
-      await removeMembershipBindingWithToken({
-        token: 'session-tok',
-        nftTokenId: '1',
-        nftContract: '0xcontract',
-      });
-
-      expect(mockInvoke).toHaveBeenCalledWith('remove_membership_binding_with_token', {
-        input: {
-          token: 'session-tok',
-          nftTokenId: '1',
-          nftContract: '0xcontract',
-        },
-      });
-    });
-  });
-
-  // ==========================================================================
   // Session Management
   // ==========================================================================
   describe('createSession', () => {
@@ -1854,7 +1677,6 @@ describe('tauri-api service', () => {
       expect(typeof tauriApi.signTransaction).toBe('function');
       expect(typeof tauriApi.getSwapQuote).toBe('function');
       expect(typeof tauriApi.signMessage).toBe('function');
-      expect(typeof tauriApi.checkAllMemberships).toBe('function');
       expect(typeof tauriApi.createSession).toBe('function');
     });
 
@@ -1880,13 +1702,6 @@ describe('tauri-api service', () => {
       expect(tauriApi.cancelPendingMessageSign).toBe(cancelPendingMessageSign);
       expect(tauriApi.signMessage).toBe(signMessage);
       expect(tauriApi.signTypedData).toBe(signTypedData);
-      expect(tauriApi.checkAllMemberships).toBe(checkAllMemberships);
-      expect(tauriApi.getDeviceMembershipStatus).toBe(getDeviceMembershipStatus);
-      expect(tauriApi.getDeviceMembershipStatusWithToken).toBe(getDeviceMembershipStatusWithToken);
-      expect(tauriApi.addDeviceMembershipBinding).toBe(addDeviceMembershipBinding);
-      expect(tauriApi.removeDeviceMembershipBinding).toBe(removeDeviceMembershipBinding);
-      expect(tauriApi.syncMembershipBindingWithToken).toBe(syncMembershipBindingWithToken);
-      expect(tauriApi.removeMembershipBindingWithToken).toBe(removeMembershipBindingWithToken);
       expect(tauriApi.createSession).toBe(createSession);
       expect(tauriApi.validateSession).toBe(validateSession);
       expect(tauriApi.revokeSession).toBe(revokeSession);

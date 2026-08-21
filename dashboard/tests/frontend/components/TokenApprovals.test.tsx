@@ -8,17 +8,8 @@ vi.mock('@/hooks/useTokenApprovals', () => ({
   useTokenApprovals: vi.fn(),
 }));
 
-vi.mock('@/hooks/useMembership', () => ({
-  useMembership: vi.fn(),
-}));
-
 vi.mock('@/components/LoadingSpinner', () => ({
   LoadingSpinner: () => <div data-testid="loading-spinner">Loading...</div>,
-}));
-
-vi.mock('@/constants/contracts', () => ({
-  APPROVE_SELECTOR: '0x095ea7b3',
-  ACTIVE_NETWORK: { nftContract: '0xnft' },
 }));
 
 vi.mock('@/services/tauri-api', () => ({
@@ -30,7 +21,6 @@ vi.mock('@/services/tauri-api', () => ({
 }));
 
 import { useTokenApprovals } from '@/hooks/useTokenApprovals';
-import { useMembership } from '@/hooks/useMembership';
 import tauriApi from '@/services/tauri-api';
 
 const defaultProps = {
@@ -38,7 +28,6 @@ const defaultProps = {
   password: 'pw',
   usbPath: '/dev/usb0',
   sessionToken: 'token',
-  bscAddress: '0xbsc',
 };
 
 // Mock data matching ApprovalEntry type exactly
@@ -71,7 +60,6 @@ function setupMocks(overrides?: {
   approvals?: any[];
   isLoading?: boolean;
   error?: string | null;
-  isPro?: boolean;
 }) {
   const refreshFn = vi.fn();
   (useTokenApprovals as any).mockReturnValue({
@@ -79,13 +67,6 @@ function setupMocks(overrides?: {
     isLoading: overrides?.isLoading ?? false,
     error: overrides?.error ?? null,
     refresh: refreshFn,
-  });
-  (useMembership as any).mockReturnValue({
-    status: overrides?.isPro ? { isPro: true, nftCount: 1 } : null,
-    isLoading: false,
-    error: null,
-    isPro: overrides?.isPro ?? false,
-    walletLimit: overrides?.isPro ? 10 : 1,
   });
   (tauriApi.buildTransaction as any).mockImplementation(() =>
     Promise.resolve('unsigned-tx-hex')
@@ -147,10 +128,9 @@ describe('TokenApprovals', () => {
     expect(revokeButtons.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('shows Pro selectAll button for Pro users', () => {
-    setupMocks({ approvals: mockApprovals, isPro: true });
+  it('shows selectAll button when there is more than one approval', () => {
+    setupMocks({ approvals: mockApprovals });
     render(<TokenApprovals {...defaultProps} />);
-    // Pro users see checkboxes and selectAll button
     expect(screen.getByText('tokenApprovals.selectAll')).toBeInTheDocument();
   });
 
@@ -224,11 +204,11 @@ describe('TokenApprovals', () => {
     expect(screen.getByText('DAI')).toBeInTheDocument();
   });
 
-  // --- Checkbox toggle (Pro only) ---
+  // --- Checkbox toggle ---
 
-  it('toggles checkbox selection for Pro users', async () => {
+  it('toggles checkbox selection', async () => {
     const user = userEvent.setup();
-    setupMocks({ approvals: mockApprovals, isPro: true });
+    setupMocks({ approvals: mockApprovals });
 
     render(<TokenApprovals {...defaultProps} />);
     const checkboxes = screen.getAllByRole('checkbox');
@@ -250,7 +230,7 @@ describe('TokenApprovals', () => {
 
   it('selects all approvals when selectAll is clicked', async () => {
     const user = userEvent.setup();
-    setupMocks({ approvals: mockApprovals, isPro: true });
+    setupMocks({ approvals: mockApprovals });
 
     render(<TokenApprovals {...defaultProps} />);
     await user.click(screen.getByText('tokenApprovals.selectAll'));
@@ -265,7 +245,7 @@ describe('TokenApprovals', () => {
 
   it('deselects all approvals when deselectAll is clicked', async () => {
     const user = userEvent.setup();
-    setupMocks({ approvals: mockApprovals, isPro: true });
+    setupMocks({ approvals: mockApprovals });
 
     render(<TokenApprovals {...defaultProps} />);
 
@@ -330,12 +310,12 @@ describe('TokenApprovals', () => {
     });
   });
 
-  // --- Batch revoke (Pro) ---
+  // --- Batch revoke ---
 
   it('performs batch revoke for selected approvals', async () => {
     const user = userEvent.setup();
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const { refreshFn } = setupMocks({ approvals: mockApprovals, isPro: true });
+    const { refreshFn } = setupMocks({ approvals: mockApprovals });
 
     render(<TokenApprovals {...defaultProps} />);
 
@@ -363,21 +343,10 @@ describe('TokenApprovals', () => {
     vi.useRealTimers();
   });
 
-  it('batch revoke does nothing if not Pro', async () => {
-    const user = userEvent.setup();
-    setupMocks({ approvals: mockApprovals, isPro: false });
-
-    render(<TokenApprovals {...defaultProps} />);
-    // No select all button for non-pro users
-    expect(screen.queryByText('tokenApprovals.selectAll')).not.toBeInTheDocument();
-    // PRO badge/banner shown instead
-    expect(screen.getByText('tokenApprovals.batchRevokeProOnly')).toBeInTheDocument();
-  });
-
   it('shows mixed success/failure result in batch revoke', async () => {
     const user = userEvent.setup();
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    setupMocks({ approvals: mockApprovals, isPro: true });
+    setupMocks({ approvals: mockApprovals });
 
     // First call succeeds, second fails
     let buildCallCount = 0;
@@ -399,28 +368,11 @@ describe('TokenApprovals', () => {
     vi.useRealTimers();
   });
 
-  // --- PRO badge for batch feature for non-Pro ---
-
-  it('shows PRO badge banner when non-Pro user has multiple approvals', () => {
-    setupMocks({ approvals: mockApprovals, isPro: false });
-    render(<TokenApprovals {...defaultProps} />);
-    expect(screen.getByText('PRO')).toBeInTheDocument();
-    expect(screen.getByText('tokenApprovals.batchRevokeProOnly')).toBeInTheDocument();
-  });
-
-  // --- No checkboxes for non-Pro ---
-
-  it('does not show checkboxes for non-Pro users', () => {
-    setupMocks({ approvals: mockApprovals, isPro: false });
-    render(<TokenApprovals {...defaultProps} />);
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
-  });
-
   // --- Batch revoke button shows selected count ---
 
   it('shows batch revoke button with count after selecting items', async () => {
     const user = userEvent.setup();
-    setupMocks({ approvals: mockApprovals, isPro: true });
+    setupMocks({ approvals: mockApprovals });
 
     render(<TokenApprovals {...defaultProps} />);
     const checkboxes = screen.getAllByRole('checkbox');

@@ -15,7 +15,6 @@
 
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { ProviderSelector } from "@/components/swap/ProviderSelector";
 import { TokenPicker } from "@/components/swap/TokenPicker";
 import { SwapQuoteView } from "@/components/swap/SwapQuoteView";
 import { SwapConfirm } from "@/components/swap/SwapConfirm";
@@ -23,7 +22,6 @@ import { ApprovalView } from "@/components/swap/ApprovalView";
 import { SwapProgress } from "@/components/swap/SwapProgress";
 import { SwapResult } from "@/components/swap/SwapResult";
 import { SwapStyles } from "@/components/swap/SwapStyles";
-import { useIsPro } from "@/stores/dashboardStore";
 import { useSwapFlow } from "@/hooks/useSwapFlow";
 import type { SendableToken } from "./SendTransaction";
 import {
@@ -58,7 +56,6 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 }) => {
   void _walletHasPassphrase; // Reserved for future passphrase validation
   const { t } = useTranslation();
-  const isPro = useIsPro();
 
   const { state, actions } = useSwapFlow({
     walletId,
@@ -66,7 +63,6 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     availableTokens,
     usbPath,
     sessionToken,
-    isPro,
     onSuccess,
   });
 
@@ -92,8 +88,6 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     tokenCacheKey,
     loadingTokens,
     tokenSearchQuery,
-    selectedProvider,
-    showProviderDropdown,
     tokensByNetwork,
     gate,
   } = state;
@@ -109,7 +103,6 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     setError,
     setQuote,
     setTokenSearchQuery,
-    setShowProviderDropdown,
     isValidAmount,
     getDestinationTokens,
     handleSelectFromToken,
@@ -119,7 +112,6 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     handleExecuteApproval,
     handleSignAndBroadcast,
     handleReset,
-    handleProviderSelect,
   } = actions;
 
   // Get back handler based on current step (uses onBack, a component prop)
@@ -144,21 +136,10 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         </button>
         <h2>{t('swap.title')}</h2>
         <div className="header-badges">
-          {isPro ? (
-            /* Pro: Best Route badge */
-            <div className="best-route-badge">
-              <span className="best-route-icon">⚡</span>
-              <span>{t('swap.bestRoute')}</span>
-            </div>
-          ) : (
-            /* Free: DEX Provider Selector */
-            <ProviderSelector
-              selectedProvider={selectedProvider}
-              showDropdown={showProviderDropdown}
-              onToggleDropdown={() => setShowProviderDropdown(v => !v)}
-              onSelectProvider={(p) => handleProviderSelect(p)}
-            />
-          )}
+          <div className="best-route-badge">
+            <span className="best-route-icon">⚡</span>
+            <span>{t('swap.bestRoute')}</span>
+          </div>
           {fromToken && (
             <div className="chain-badge">
               <span className="chain-icon">{getNetworkIcon(fromToken.network)}</span>

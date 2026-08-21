@@ -58,7 +58,6 @@ export interface UseSwapFlowParams {
   availableTokens: SendableToken[];
   usbPath: string;
   sessionToken: string;
-  isPro: boolean;
   onSuccess?: (txHash: string) => void;
 }
 
@@ -68,7 +67,6 @@ export function useSwapFlow({
   availableTokens,
   usbPath,
   sessionToken,
-  isPro,
   onSuccess,
 }: UseSwapFlowParams) {
   const { t } = useTranslation();
@@ -130,7 +128,6 @@ export function useSwapFlow({
           data: swapTx.txData.data || "",
           usbPath,
           sessionToken,
-          isPro,
         }
       : null,
   );
@@ -273,8 +270,7 @@ export function useSwapFlow({
         amount: amountWei,
         fromAddress: fromToken.fromAddress,
         slippage,
-        provider: isPro ? undefined : selectedProvider, // Pro: backend picks best; Free: user-selected
-        isPro,
+        provider: undefined, // Backend always routes best price now.
         usbPath,
         sessionToken,  // ✅ Low-risk: quote query
       });
@@ -288,7 +284,7 @@ export function useSwapFlow({
     } finally {
       setIsLoading(false);
     }
-  }, [fromToken, toToken, amount, chainId, slippage, selectedProvider, isPro, usbPath, sessionToken]);
+  }, [fromToken, toToken, amount, chainId, slippage, usbPath, sessionToken]);
 
   // Debounced quote fetch
   useEffect(() => {
@@ -337,7 +333,6 @@ export function useSwapFlow({
         amountWei,
         slippage,
         provider: selectedProvider,
-        isPro,
         usbPath,
         sessionToken,
       });
@@ -466,7 +461,6 @@ export function useSwapFlow({
           walletPassword,
           preValidatedPassphrase: preValidatedPassphrase || "",
           acknowledgedRisk: gate.acknowledged,
-          isPro,
           usbPath,
           sessionToken,
         },

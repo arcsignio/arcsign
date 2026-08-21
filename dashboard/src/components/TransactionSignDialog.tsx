@@ -40,9 +40,8 @@ export function TransactionSignDialog({
   const [usbConnected, setUsbConnected] = useState(false);
   const [intent, setIntent] = useState<DecodedIntent | null>(null);
 
-  // Read usbPath, isPro, and sessionToken from Zustand stores
+  // Read usbPath and sessionToken from Zustand stores
   const usbPath = useDashboardStore((state) => state.usbPath) ?? '';
-  const isPro = useDashboardStore((state) => state.membership.isPro);
   const onlineDecodingEnabled = useDashboardStore((s) => s.onlineDecodingEnabled);
   const sessionToken = useSessionStore((state) => state.token) ?? '';
 
@@ -60,7 +59,6 @@ export function TransactionSignDialog({
           data: transaction.data,
           usbPath,
           sessionToken,
-          isPro,
         }
       : null,
   );

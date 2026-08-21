@@ -134,7 +134,6 @@ const sendTransactionHandler: RequestHandler = async (
       data: tx.data,
       usbPath: context.usbPath,
       sessionToken: context.sessionToken,
-      isPro: context.isPro,
     });
   } catch {
     security = undefined;

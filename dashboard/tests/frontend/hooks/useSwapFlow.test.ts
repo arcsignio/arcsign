@@ -91,7 +91,6 @@ const baseParams = {
   availableTokens: [ethToken, usdcToken],
   usbPath: "/usb",
   sessionToken: "tok",
-  isPro: false,
 };
 
 // ── tests ─────────────────────────────────────────────────────────────────────

@@ -19,10 +19,7 @@ import { OnboardingFlow } from '@/components/Onboarding';
 import { UpdateDialog } from '@/components/UpdateDialog';
 import { useShouldShowOnboarding, useOnboardingStore } from '@/stores/onboardingStore';
 import { useUpdateChecker } from '@/hooks/useUpdateChecker';
-import { getVersion } from '@tauri-apps/api/app';
 import tauriApi, { type AppError, type AppConfig } from '@/services/tauri-api';
-import { sendHeartbeat } from '@/services/analytics';
-import { useDashboardStore } from '@/stores/dashboardStore';
 
 function AppContent() {
   const { isUnlocked, unlock, getSessionToken } = useAppPassword();
@@ -137,14 +134,6 @@ function AppContent() {
 
   // OTA Update checker - active after unlock
   const updateChecker = useUpdateChecker({ enabled: isUnlocked });
-
-  // Anonymous heartbeat — send once per session after unlock
-  useEffect(() => {
-    if (isUnlocked) {
-      const tier = useDashboardStore.getState().membership.isPro ? 'pro' : 'free';
-      getVersion().then((v) => sendHeartbeat(v, tier)).catch(() => {});
-    }
-  }, [isUnlocked]);
 
   // Loading USB detection
   if (loadingUsb) {

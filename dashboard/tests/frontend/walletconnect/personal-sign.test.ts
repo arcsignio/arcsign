@@ -66,7 +66,6 @@ function makeContext(overrides: Partial<HandlerContext> = {}): {
     usbPath: '/usb',
     passphrase: '',
     sessionToken: 'token-1',
-    isPro: true,
     requestSignature: requestSignature as unknown as HandlerContext['requestSignature'],
     getRpcUrl: () => null,
     ...overrides,

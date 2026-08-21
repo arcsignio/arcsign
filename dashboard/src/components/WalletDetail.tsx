@@ -99,11 +99,6 @@ export function WalletDetail({
   // Transaction History state
   const [showHistory, setShowHistory] = useState(false);
   const [historyAddress, setHistoryAddress] = useState("");
-  // BSC address for membership NFT lookup
-  const bscAddress = useMemo(() =>
-    walletAddresses.find(a => a.symbol === 'BNB' && !a.is_testnet)?.address,
-    [walletAddresses]
-  );
   // Address List modal state (for Copy Address feature)
   const [showAddressList, setShowAddressList] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
@@ -1490,7 +1485,6 @@ export function WalletDetail({
           password={passwordRef.current}
           usbPath={usbPath}
           sessionToken={getSessionToken() || undefined}
-          bscAddress={bscAddress}
         />
       )}
 
@@ -1501,7 +1495,6 @@ export function WalletDetail({
           password={passwordRef.current}
           usbPath={usbPath}
           sessionToken={getSessionToken() || undefined}
-          bscAddress={bscAddress}
         />
       )}
 

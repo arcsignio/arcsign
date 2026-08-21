@@ -1,68 +1,24 @@
 /**
  * NFT Gallery Component - Display owned NFTs in a grid
  * Feature: NFT tab in WalletDetail
- *
- * Includes ArcSign Pro membership NFT injection via BSC direct query
- * (Alchemy doesn't support BSC, so membership NFTs are fetched separately)
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import tauriApi from "@/services/tauri-api";
 import type { NFT } from "@/types/nft";
 import type { ProviderUnavailable } from "@/types/tokens";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { getChainIconUrl, getChainFallbackIcon } from "@/utils/chainIcons";
-import { useMembership, type MembershipStatus } from "@/hooks/useMembership";
-import { ACTIVE_NETWORK } from "@/constants/contracts";
-
-// Sentinel slug for identifying membership NFTs
-const MEMBERSHIP_SLUG = "arcsign-pro";
-
-function isMembershipNFT(nft: NFT): boolean {
-  return nft.collectionSlug === MEMBERSHIP_SLUG;
-}
-
-/** Build synthetic NFT objects from membership status */
-function buildMembershipNFTs(
-  status: MembershipStatus | null,
-  bscAddress: string,
-  t: (key: string) => string
-): NFT[] {
-  if (!status?.isPro || status.nftCount === 0) return [];
-
-  const count = status.nftCount;
-  const hasTokenIds = status.tokenIds.length > 0;
-
-  return Array.from({ length: count }, (_, i) => {
-    const tokenId = hasTokenIds ? String(status.tokenIds[i]) : String(i + 1);
-    return {
-      address: bscAddress,
-      network: "bnb-mainnet",
-      networkLabel: "BNB Chain",
-      contractAddress: ACTIVE_NETWORK.nftContract,
-      tokenId,
-      tokenType: "ERC721",
-      name: `ArcSign Pro${hasTokenIds ? ` #${tokenId}` : ""}`,
-      description: `${t("nftGallery.proDescription")} (${status.daysRemaining} ${t("nftGallery.daysRemaining")})`,
-      imageUrl: "/arcsign-pro-nft.png",
-      thumbnailUrl: "/arcsign-pro-nft.png",
-      collectionName: "ArcSign Pro Membership",
-      collectionSlug: MEMBERSHIP_SLUG,
-      balance: "1",
-    };
-  });
-}
 
 interface NFTGalleryProps {
   walletId: string;
   password: string;
   usbPath: string;
   sessionToken?: string;
-  bscAddress?: string;
 }
 
-export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddress }: NFTGalleryProps) {
+export function NFTGallery({ walletId, password, usbPath, sessionToken }: NFTGalleryProps) {
   const { t } = useTranslation();
   const [nfts, setNfts] = useState<NFT[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -71,9 +27,6 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
   const [filterNetwork, setFilterNetwork] = useState<string>("all");
   const [imgErrors, setImgErrors] = useState<Set<string>>(new Set());
   const [unavailableProviders, setUnavailableProviders] = useState<ProviderUnavailable[]>([]);
-
-  // Membership NFT via BSC direct query
-  const { status: membershipStatus } = useMembership(bscAddress || null);
 
   const loadNFTs = useCallback(async () => {
     setIsLoading(true);
@@ -101,17 +54,10 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
     }
   }, [walletId, password, usbPath, loadNFTs]);
 
-  // Merge membership NFTs (prepended) with Alchemy NFTs
-  const membershipNfts = useMemo(
-    () => (bscAddress && membershipStatus) ? buildMembershipNFTs(membershipStatus, bscAddress, t) : [],
-    [membershipStatus, bscAddress, t]
-  );
-  const allNfts = useMemo(() => [...membershipNfts, ...nfts], [membershipNfts, nfts]);
-
-  const networks = Array.from(new Set(allNfts.map((n) => n.network)));
+  const networks = Array.from(new Set(nfts.map((n) => n.network)));
   const filteredNfts = filterNetwork === "all"
-    ? allNfts
-    : allNfts.filter((n) => n.network === filterNetwork);
+    ? nfts
+    : nfts.filter((n) => n.network === filterNetwork);
 
   const handleImgError = (key: string) => {
     setImgErrors((prev) => new Set(prev).add(key));
@@ -126,8 +72,7 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
     );
   }
 
-  // Only show error when we have zero NFTs (membership NFTs can still render)
-  if (error && allNfts.length === 0) {
+  if (error && nfts.length === 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "3rem 1.5rem", color: "#64748b" }}>
         <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>&#9888;</div>
@@ -149,7 +94,7 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
     );
   }
 
-  if (allNfts.length === 0) {
+  if (nfts.length === 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "3rem 1.5rem", color: "#64748b" }}>
         <div style={{ marginBottom: "1rem" }}>
@@ -202,7 +147,6 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
 
   // NFT detail modal
   if (selectedNft) {
-    const isPro = isMembershipNFT(selectedNft);
     return (
       <div style={{ padding: "1rem" }}>
         <button
@@ -264,16 +208,6 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
               <h3 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#1e293b", margin: 0 }}>
                 {selectedNft.name || `#${selectedNft.tokenId}`}
               </h3>
-              {isPro && (
-                <span style={{
-                  background: "linear-gradient(135deg, #f59e0b, #d97706)",
-                  color: "#fff", fontSize: "0.625rem", fontWeight: 700,
-                  padding: "0.125rem 0.5rem", borderRadius: "0.25rem",
-                  letterSpacing: "0.05em",
-                }}>
-                  PRO
-                </span>
-              )}
             </div>
             <p style={{ color: "#64748b", fontSize: "0.875rem", margin: "0 0 1rem" }}>
               {selectedNft.collectionName}
@@ -290,43 +224,9 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
               {selectedNft.tokenType === "ERC1155" && (
                 <DetailRow label={t("nftGallery.balance")} value={selectedNft.balance} />
               )}
-              {/* Membership-specific rows */}
-              {isPro && membershipStatus && (
-                <>
-                  <DetailRow
-                    label={t("nftGallery.daysRemaining")}
-                    value={`${membershipStatus.daysRemaining} ${t("nftGallery.days")}`}
-                  />
-                  <DetailRow
-                    label={t("nftGallery.walletQuota")}
-                    value={membershipStatus.walletLimit ? String(membershipStatus.walletLimit) : t("nftGallery.unlimited")}
-                  />
-                </>
-              )}
             </div>
 
-            {/* BscScan link for membership NFT */}
-            {isPro && (
-              <a
-                href={`${ACTIVE_NETWORK.explorer}/token/${ACTIVE_NETWORK.nftContract}?a=${selectedNft.address}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: "0.375rem",
-                  marginTop: "1rem", fontSize: "0.8125rem", color: "#0d9488",
-                  textDecoration: "none", fontWeight: 500,
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                  <polyline points="15 3 21 3 21 9"/>
-                  <line x1="10" y1="14" x2="21" y2="3"/>
-                </svg>
-                {t("nftGallery.viewOnExplorer")}
-              </a>
-            )}
-
-            {selectedNft.description && !isPro && (
+            {selectedNft.description && (
               <div style={{ marginTop: "1rem" }}>
                 <p style={{ fontSize: "0.75rem", color: "#94a3b8", textTransform: "uppercase", fontWeight: 600, margin: "0 0 0.25rem" }}>
                   {t("nftGallery.description")}
@@ -354,11 +254,11 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
             label={t("nftGallery.allNetworks")}
             active={filterNetwork === "all"}
             onClick={() => setFilterNetwork("all")}
-            count={allNfts.length}
+            count={nfts.length}
           />
           {networks.map((net) => {
-            const count = allNfts.filter((n) => n.network === net).length;
-            const label = allNfts.find((n) => n.network === net)?.networkLabel || net;
+            const count = nfts.filter((n) => n.network === net).length;
+            const label = nfts.find((n) => n.network === net)?.networkLabel || net;
             return (
               <FilterChip
                 key={net}
@@ -386,7 +286,6 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
       }}>
         {filteredNfts.map((nft) => {
           const key = `${nft.contractAddress}-${nft.tokenId}-${nft.network}`;
-          const isPro = isMembershipNFT(nft);
           return (
             <div
               key={key}
@@ -394,20 +293,18 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
               style={{
                 borderRadius: "0.75rem",
                 overflow: "hidden",
-                border: isPro ? "2px solid #f59e0b" : "1px solid #e2e8f0",
+                border: "1px solid #e2e8f0",
                 cursor: "pointer",
                 transition: "all 0.15s",
                 background: "#fff",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = isPro ? "#d97706" : "#0d9488";
+                e.currentTarget.style.borderColor = "#0d9488";
                 e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = isPro
-                  ? "0 4px 12px rgba(245,158,11,0.2)"
-                  : "0 4px 12px rgba(13,148,136,0.1)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(13,148,136,0.1)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = isPro ? "#f59e0b" : "#e2e8f0";
+                e.currentTarget.style.borderColor = "#e2e8f0";
                 e.currentTarget.style.transform = "translateY(0)";
                 e.currentTarget.style.boxShadow = "none";
               }}
@@ -435,19 +332,6 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
                     </svg>
                   </div>
                 )}
-                {/* PRO badge (top-left) */}
-                {isPro && (
-                  <div style={{
-                    position: "absolute", top: "0.25rem", left: "0.25rem",
-                    background: "linear-gradient(135deg, #f59e0b, #d97706)",
-                    borderRadius: "0.25rem",
-                    padding: "0.125rem 0.5rem",
-                    fontSize: "0.625rem", color: "#fff", fontWeight: 700,
-                    letterSpacing: "0.05em",
-                  }}>
-                    PRO
-                  </div>
-                )}
                 {/* Network badge (top-right) */}
                 <div style={{
                   position: "absolute", top: "0.25rem", right: "0.25rem",
@@ -467,9 +351,8 @@ export function NFTGallery({ walletId, password, usbPath, sessionToken, bscAddre
                   {nft.name || `#${nft.tokenId}`}
                 </p>
                 <p style={{
-                  fontSize: "0.625rem", color: isPro ? "#d97706" : "#94a3b8",
+                  fontSize: "0.625rem", color: "#94a3b8",
                   margin: "0.125rem 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  fontWeight: isPro ? 600 : 400,
                 }}>
                   {nft.collectionName}
                 </p>

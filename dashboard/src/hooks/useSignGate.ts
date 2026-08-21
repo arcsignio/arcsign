@@ -10,7 +10,6 @@ export interface SignGateParams {
   data: string;
   usbPath: string;
   sessionToken: string;
-  isPro: boolean;
 }
 
 export interface SignGate {
@@ -31,7 +30,6 @@ export function useSignGate(params: SignGateParams | null): SignGate {
   const key = params ? `${params.chainId}:${params.to}:${params.data}` : "";
   const usbPath = params?.usbPath;
   const sessionToken = params?.sessionToken;
-  const isPro = params?.isPro;
 
   useEffect(() => {
     if (!params || !params.usbPath) {
@@ -44,13 +42,13 @@ export function useSignGate(params: SignGateParams | null): SignGate {
     checkTransactionSecurity({
       from: params.from, to: params.to, chainId: params.chainId,
       value: params.value, data: params.data,
-      usbPath: params.usbPath, sessionToken: params.sessionToken, isPro: params.isPro,
+      usbPath: params.usbPath, sessionToken: params.sessionToken,
     })
       .then((r) => { if (!cancelled) setSecurity(r); })
       .catch(() => { if (!cancelled) setSecurity(undefined); }); // advisory — never block
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, usbPath, sessionToken, isPro]);
+  }, [key, usbPath, sessionToken]);
 
   return {
     security,

@@ -17,7 +17,6 @@ import { useTranslation } from "react-i18next";
 import tauriApi, { type AppError, type BuildTransactionResponse } from "@/services/tauri-api";
 import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
 import { useSignGate } from "@/hooks/useSignGate";
-import { useIsPro } from "@/stores/dashboardStore";
 import type { SendableToken } from "./SendTransaction";
 import type { StakingStep, StakableAsset, StakingProvider } from "@/types/defi";
 import {
@@ -113,7 +112,6 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
 }) => {
   void _walletHasPassphrase;
   const { t } = useTranslation();
-  const isPro = useIsPro();
 
   // Selected staking option (combines asset + provider)
   const [selectedOption, setSelectedOption] = useState<StakingOption | null>(null);
@@ -214,9 +212,8 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
       data: encoder(amountSmallest),
       usbPath,
       sessionToken,
-      isPro,
     };
-  }, [selectedOption, selectedAssetAddress, amount, usbPath, sessionToken, isPro]);
+  }, [selectedOption, selectedAssetAddress, amount, usbPath, sessionToken]);
   const gate = useSignGate(gateParams);
 
   // Calculate estimated output (1:1 for most liquid staking)

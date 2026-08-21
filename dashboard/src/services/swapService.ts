@@ -26,7 +26,7 @@ export function fetchSwapTokens(p: {
 
 export function fetchQuote(p: {
   chainId: string; fromTokenAddress: string; toTokenAddress: string; amount: string;
-  fromAddress: string; slippage: number; provider?: string; isPro: boolean;
+  fromAddress: string; slippage: number; provider?: string;
   usbPath: string; sessionToken: string;
 }): Promise<SwapQuoteResponse> {
   return getSwapQuote(p);
@@ -46,13 +46,13 @@ export async function buildSwap(p: {
   amountWei: string;
   slippage: number;
   provider?: string;
-  isPro: boolean;
   usbPath: string;
   sessionToken: string;
 }): Promise<BuildSwapResult> {
   const fromAddr = p.fromToken.tokenAddress || NATIVE_SENTINEL;
   const isNative = !p.fromToken.tokenAddress || p.fromToken.tokenAddress === "";
 
+  // Everyone gets the best route now — provider is always backend-picked.
   const swapTx = await buildSwapTransaction({
     chainId: p.chainId,
     fromTokenAddress: fromAddr,
@@ -60,8 +60,7 @@ export async function buildSwap(p: {
     amount: p.amountWei,
     fromAddress: p.fromToken.fromAddress,
     slippage: p.slippage,
-    provider: p.isPro ? undefined : p.provider,
-    isPro: p.isPro,
+    provider: undefined,
     usbPath: p.usbPath,
     sessionToken: p.sessionToken,
   });
@@ -150,7 +149,7 @@ export async function executeSwap(p: {
   chainId: string; walletId: string; fromToken: SendableToken;
   toToken: { address: string; symbol: string; decimals: number; network?: string } | null;
   swapTx: BuildSwapTransactionResponse; walletPassword: string; preValidatedPassphrase: string;
-  acknowledgedRisk: boolean; isPro: boolean; usbPath: string; sessionToken: string;
+  acknowledgedRisk: boolean; usbPath: string; sessionToken: string;
 }, opts?: SwapProgress): Promise<string> {
   const txValue = p.swapTx.txData.value || "0";
 
@@ -163,7 +162,6 @@ export async function executeSwap(p: {
     feeSpeed: "fast",
     usbPath: p.usbPath,
     sessionToken: p.sessionToken,
-    isPro: p.isPro,
   });
 
   opts?.onProgress?.("signing");

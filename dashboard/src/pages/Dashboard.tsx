@@ -129,7 +129,6 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
     setUsbPath,
     selectWallet,
     selectedWalletId,
-    membership,
   } = useDashboardStore();
 
   const selectedWallet = useSelectedWallet();
@@ -822,14 +821,12 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
           >
             {t('backup.importTitle')}
           </button>
-          {membership.isPro && (
-            <button
-              onClick={() => setCurrentView("import-all-backups")}
-              className="secondary-button"
-            >
-              {t('backup.importAllTitle')}
-            </button>
-          )}
+          <button
+            onClick={() => setCurrentView("import-all-backups")}
+            className="secondary-button"
+          >
+            {t('backup.importAllTitle')}
+          </button>
         </div>
       </header>
 

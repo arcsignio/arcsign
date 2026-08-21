@@ -1561,7 +1561,6 @@ pub async fn check_transaction_security(
     usb_path: String,
     session_token: Option<String>,
     mut app_password: Option<String>,
-    is_pro: bool,
 ) -> Result<serde_json::Value, String> {
     let start = Instant::now();
     tracing::info!("check_transaction_security called from: {} to: {} chain: {}", from, to, chain_id);
@@ -1575,7 +1574,6 @@ pub async fn check_transaction_security(
         "usbPath": usb_path,
         "sessionToken": session_token.unwrap_or_default(),
         "appPassword": app_password.as_deref().unwrap_or_default(),
-        "isPro": is_pro,
     });
 
     let params_json = serde_json::to_string(&params)

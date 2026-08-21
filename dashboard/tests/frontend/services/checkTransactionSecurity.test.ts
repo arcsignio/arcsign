@@ -8,14 +8,14 @@ describe('checkTransactionSecurity', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns the SecurityReport from the backend', async () => {
-    (invoke as any).mockResolvedValue({ proRequired: false, warnings: [], riskLevel: 'safe' });
-    const r = await checkTransactionSecurity({ from: '0x1', to: '0x2', chainId: '1', usbPath: '/usb', sessionToken: 't', isPro: true });
+    (invoke as any).mockResolvedValue({ warnings: [], riskLevel: 'safe' });
+    const r = await checkTransactionSecurity({ from: '0x1', to: '0x2', chainId: '1', usbPath: '/usb', sessionToken: 't' });
     expect(r.riskLevel).toBe('safe');
-    expect(invoke).toHaveBeenCalledWith('check_transaction_security', expect.objectContaining({ to: '0x2', isPro: true }));
+    expect(invoke).toHaveBeenCalledWith('check_transaction_security', expect.objectContaining({ to: '0x2' }));
   });
 
   it('throws a parsed error on failure (caller treats as no report)', async () => {
     (invoke as any).mockRejectedValue('INTERNAL_ERROR: boom');
-    await expect(checkTransactionSecurity({ from: '0x1', to: '0x2', chainId: '1', usbPath: '/usb', sessionToken: 't', isPro: true })).rejects.toBeTruthy();
+    await expect(checkTransactionSecurity({ from: '0x1', to: '0x2', chainId: '1', usbPath: '/usb', sessionToken: 't' })).rejects.toBeTruthy();
   });
 });

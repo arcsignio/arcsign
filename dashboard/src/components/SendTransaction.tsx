@@ -16,7 +16,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { AddressBook } from "@/components/AddressBook";
 import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
 import { useSignGate } from "@/hooks/useSignGate";
-import { useIsPro } from "@/stores/dashboardStore";
 import { getNativeToken, getNetworkKey } from "@/constants/nativeTokens";
 import tauriApi, {
   type BuildTransactionResponse,
@@ -160,24 +159,14 @@ function shortenAddress(address: string): string {
 }
 
 /**
- * SecurityReportPanel — displays transaction security check results.
- * Pro users: full security report (blacklist check + simulation preview)
- * Free users: upgrade prompt with feature preview
+ * SecurityReportPanel — displays transaction security check results
+ * (blacklist check + simulation preview, when simulation data is available).
  */
 export const SecurityReportPanel: React.FC<{
   security: SecurityReport;
-  isPro: boolean;
-}> = ({ security, isPro }) => {
-  // The blacklist check runs for EVERYONE (free, embedded seed) — its verdict is
-  // valid regardless of Pro status. `proRequired` now means ONLY "simulation
-  // didn't run", NOT "report invalid". So the danger/blacklist alert must render
-  // for free users too; only the simulation preview + upgrade CTA are gated on
-  // proRequired. (Backend computes the verdict — txguard.Check; the frontend only
-  // renders the conclusion. The old `if (!isPro) return upgrade-prompt` swallowed
-  // the whole panel, hiding a real OFAC hit behind "not security checked".)
+}> = ({ security }) => {
   const isDanger = security.riskLevel === 'danger';
   const isWarning = security.riskLevel === 'warning';
-  const simulationGated = security.proRequired; // simulation didn't run (no key / free)
 
   return (
     <div className={`security-panel ${isDanger ? 'security-panel-danger' : isWarning ? 'security-panel-warning' : 'security-panel-safe'}`}>
@@ -230,30 +219,9 @@ export const SecurityReportPanel: React.FC<{
         </div>
       )}
 
-      {/* No blacklist match = address cleared the (free) blacklist check. */}
+      {/* No blacklist match = address cleared the blacklist check. */}
       {!security.blacklistMatch && !isDanger && !isWarning && (
         <p className="security-safe-text">Address is not on any known blacklist.</p>
-      )}
-
-      {/* Simulation upsell — only the SIMULATION is Pro-gated, not the blacklist.
-          A slim note (not a scary "not security checked") so free users know the
-          blacklist DID run; the deeper simulation preview is the Pro feature. */}
-      {simulationGated && (
-        <div className="security-sim-upsell">
-          <p className="security-sim-upsell-text">
-            Blacklist check complete. Transaction simulation preview is a Pro feature.
-          </p>
-          {!isPro && (
-            <a
-              href="https://arcsign.io/mint"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="security-upgrade-btn"
-            >
-              Upgrade to Pro — 30 USDT/year
-            </a>
-          )}
-        </div>
       )}
     </div>
   );
@@ -308,9 +276,6 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
   onBack,
   onSuccess,
 }) => {
-  // Pro membership status
-  const isPro = useIsPro();
-
   // Token selection state
   const [selectedToken, setSelectedToken] = useState<SendableToken | null>(null);
 
@@ -351,7 +316,6 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           data: "",
           usbPath,
           sessionToken,
-          isPro,
         }
       : null,
   );
@@ -443,7 +407,6 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         feeSpeed,
         usbPath,
         sessionToken,  // ✅ Low-risk: building transaction uses session token
-        isPro,         // Pro membership enables security checks
         // For ERC-20 tokens, include token contract address
         tokenAddress: selectedToken.tokenAddress || undefined,
       });
@@ -877,9 +840,9 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
             )}
           </div>
 
-          {/* Security Report Panel (Pro: full report, Free: upgrade prompt) */}
+          {/* Security Report Panel (blacklist check + simulation preview) */}
           {unsignedTx.security && (
-            <SecurityReportPanel security={unsignedTx.security} isPro={isPro} />
+            <SecurityReportPanel security={unsignedTx.security} />
           )}
 
           <div className="review-actions">
