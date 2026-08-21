@@ -16,7 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/arcsignio/arcsign/internal/security"
 	"golang.org/x/crypto/hkdf"
 )
@@ -96,9 +95,7 @@ type Session struct {
 
 	// Cached public data (loaded during login, no password needed after)
 	// These are non-sensitive and can be safely stored in memory
-	DeviceId     string              // UUID from app config
-	DeviceIdHash string              // keccak256(deviceId) for contract binding
-	Memberships  []MembershipBinding // NFT bindings (public data)
+	DeviceId string // UUID from app config
 
 	// Encrypted provider key (for decrypting provider_config.enc)
 	// Encrypted using AES-256-GCM with HKDF-derived key
@@ -139,16 +136,9 @@ func (sm *SessionManager) CreateSession(usbPath, appPassword string) (*Session, 
 	}
 
 	// Extract public data to cache in session
-	var deviceId, deviceIdHash string
-	var memberships []MembershipBinding
+	var deviceId string
 	if appConfig.Identity != nil {
 		deviceId = appConfig.Identity.DeviceId
-		// Calculate keccak256 hash for contract binding
-		if deviceId != "" {
-			hash := crypto.Keccak256Hash([]byte(deviceId))
-			deviceIdHash = hash.Hex()
-		}
-		memberships = appConfig.Identity.Memberships
 	}
 
 	// Get current pepper version for encryption
@@ -171,8 +161,6 @@ func (sm *SessionManager) CreateSession(usbPath, appPassword string) (*Session, 
 		ExpiresAt:            now.Add(SessionMaxLifetime), // Absolute timeout: 24 hours
 		LastUsed:             now,                         // Track for idle timeout: 2 hours
 		DeviceId:             deviceId,
-		DeviceIdHash:         deviceIdHash,
-		Memberships:          memberships,
 		EncryptedProviderKey: encryptedProviderKey, // ✅ Store encrypted key
 		PepperVersion:        pepperVersion,         // ✅ Store pepper version for future rotation
 	}
