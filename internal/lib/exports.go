@@ -332,11 +332,9 @@ func GetVersion() (result *C.char) {
 // CheckSwapAllowance, GetNativeTokenAddress, GetSwapTokens)
 // have been moved to exports_swap.go
 
-// Membership and session management functions (GetMembershipStatus, AddMembershipBinding,
-// RemoveMembershipBinding, SyncMembershipBindingWithToken, RemoveMembershipBindingWithToken,
-// CreateSessionToken, ValidateSessionToken, RevokeSessionToken,
-// GetDeviceMembershipStatusWithToken, CreateWalletSessionToken, ValidateWalletSessionToken,
-// RevokeWalletSessionToken) have been moved to exports_membership.go
+// Session token exports (CreateSessionToken, ValidateSessionToken,
+// RevokeSessionToken, CreateWalletSessionToken, ValidateWalletSessionToken,
+// RevokeWalletSessionToken) live in exports_session.go
 
 // Message signing functions (SignMessage, SignTypedData) and their hash
 // helpers (eip191Hash, hashTypedDataV4) have been moved to exports_signing.go

@@ -61,8 +61,8 @@ func Authorize(ctx context.Context, g *txguard.Guard, req SignRequest) error {
 func assess(ctx context.Context, g *txguard.Guard, req SignRequest) *txguard.SecurityReport {
 	switch req.Kind {
 	case KindTransaction:
-		// isPro=true so the free blacklist runs; alchemyKey="" skips simulation.
-		return g.Check(ctx, true, req.To, req.ChainID, "", simulation.TxParams{To: req.To})
+		// alchemyKey="" skips simulation; the blacklist still runs.
+		return g.Check(ctx, req.To, req.ChainID, "", simulation.TxParams{To: req.To})
 	case KindTypedData:
 		return g.CheckTypedData(ctx, req.TypedData)
 	case KindMessage:
