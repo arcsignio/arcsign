@@ -87,9 +87,6 @@ interface DashboardState {
   /** Set error message */
   setError: (error: string | null) => void;
 
-  /** Check if wallet creation is allowed */
-  canCreateWallet: () => boolean;
-
   /** Clear all state (logout) */
   reset: () => void;
 }
@@ -157,14 +154,6 @@ export const useDashboardStore = create<DashboardState>()(
 
       setError: (error) => set({ error }),
 
-      canCreateWallet: () => {
-        const { wallets, membership } = get();
-        // All users have a limit now: 3 + (nftCount * 3)
-        // walletLimit is calculated by backend based on nftCount
-        const limit = membership.walletLimit ?? 3;
-        return wallets.length < limit;
-      },
-
       reset: () => set(initialState),
     }),
     {
@@ -176,7 +165,6 @@ export const useDashboardStore = create<DashboardState>()(
         searchQuery: state.searchQuery,
         usbPath: state.usbPath,
         onlineDecodingEnabled: state.onlineDecodingEnabled,
-        // Membership is now calculated from all wallets, no need to persist address selection
       }),
     }
   )
@@ -255,14 +243,6 @@ export const useHasWallets = () =>
 /** Check if addresses are loaded for selected wallet */
 export const useHasAddresses = () =>
   useDashboardStore((state) => state.addresses.length > 0);
-
-/** Check if wallet creation is allowed */
-export const useCanCreateWallet = () =>
-  useDashboardStore((state) => state.canCreateWallet());
-
-/** Get NFT count breakdown by address */
-export const useAddressNftCounts = () =>
-  useDashboardStore((state) => state.membership.addressNftCounts);
 
 /** Whether online ABI fallback (Sourcify) is enabled for transaction decoding */
 export const useOnlineDecodingEnabled = () =>

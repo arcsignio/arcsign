@@ -12,13 +12,11 @@ import { useTranslation } from 'react-i18next';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { invoke } from '@tauri-apps/api/core';
 import { createWalletCreateSchema, type WalletCreateFormData } from '@/validation/password';
-import { useDashboardStore, useWalletLimitInfo } from '@/stores/dashboardStore';
-import tauriApi, { type UsbDevice, type AppError, type DeviceMembershipStatus } from '@/services/tauri-api';
+import { useDashboardStore } from '@/stores/dashboardStore';
+import tauriApi, { type UsbDevice, type AppError } from '@/services/tauri-api';
 import type { WalletCreateResponse } from '@/types/wallet';
 import { MnemonicDisplay } from './MnemonicDisplay';
 import { ConfirmationDialog } from './ConfirmationDialog';
-import { ProUpgradeDialog } from './ProUpgradeDialog';
-import { useSessionStore } from '@/stores/sessionStore';
 
 interface WalletCreateProps {
   onCancel?: () => void;
@@ -37,14 +35,8 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
     mnemonic: string;
   } | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
-  const [_deviceStatus, setDeviceStatus] = useState<DeviceMembershipStatus | null>(null);
-  void _deviceStatus; // Reserved for future use (display device membership info)
-  const [isCheckingDevice, setIsCheckingDevice] = useState(false);
 
   const { addWallet } = useDashboardStore();
-  const walletLimitInfo = useWalletLimitInfo();
-  const { getToken } = useSessionStore();
 
   // Create i18n-aware validation schema
   const walletCreateSchema = useMemo(() => createWalletCreateSchema(t), [t, i18n.language]);
@@ -83,48 +75,6 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
   }, [setValue]);
 
   const onSubmit = async (data: WalletCreateFormData) => {
-    // Check wallet limit (chain-based membership)
-    if (!walletLimitInfo.canCreate) {
-      setShowUpgradePrompt(true);
-      return;
-    }
-
-    // Check device membership for device info (not for blocking)
-    // Chain-based membership (walletLimitInfo) is the authoritative source for Pro status
-    const sessionToken = getToken();
-    if (sessionToken && data.usbPath) {
-      setIsCheckingDevice(true);
-      try {
-        const deviceMembership = await tauriApi.getDeviceMembershipStatusWithToken({
-          token: sessionToken, // ✅ Use session token
-        });
-
-        setDeviceStatus(deviceMembership);
-
-        // Device-level wallet limit check
-        // Only block if BOTH chain and device say limit reached
-        // Chain membership is authoritative (has real-time on-chain NFT binding status)
-        if (!deviceMembership.canCreateWallet && !walletLimitInfo.canCreate) {
-          setError(
-            t('wallet.deviceLimitReached', {
-              current: deviceMembership.walletCount,
-              limit: deviceMembership.walletLimit
-            })
-          );
-          setIsCheckingDevice(false);
-          return;
-        }
-        // If chain says Pro but device says limit reached, trust chain
-        // This can happen when NFT is bound but device hasn't synced yet
-      } catch (err) {
-        console.error('Failed to check device membership:', err);
-        // Continue with wallet creation even if device check fails
-        // (fallback to chain-based membership check)
-      } finally {
-        setIsCheckingDevice(false);
-      }
-    }
-
     setIsCreating(true);
     setError(null);
 
@@ -218,41 +168,6 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
   return (
     <div className="wallet-create">
       <h2>{t('wallet.createWallet')}</h2>
-
-      {/* Wallet Limit Info */}
-      <div className="wallet-limit-info" style={{
-        padding: '0.75rem 1rem',
-        marginBottom: '1rem',
-        borderRadius: '8px',
-        backgroundColor: walletLimitInfo.canCreate ? '#e8f5e9' : '#fff3e0',
-        border: `1px solid ${walletLimitInfo.canCreate ? '#4caf50' : '#ff9800'}`,
-        fontSize: '0.9rem'
-      }}>
-        <span style={{ fontWeight: 500 }}>
-          {walletLimitInfo.canCreate
-            ? t('wallet.walletsCount', { current: walletLimitInfo.current, limit: walletLimitInfo.limit, tier: walletLimitInfo.isPro ? t('membership.pro') : t('membership.free') })
-            : t('wallet.limitReachedCount', { current: walletLimitInfo.current, limit: walletLimitInfo.limit })
-          }
-        </span>
-        {!walletLimitInfo.canCreate && (
-          <button
-            type="button"
-            onClick={() => setShowUpgradePrompt(true)}
-            style={{
-              marginLeft: '1rem',
-              padding: '0.25rem 0.75rem',
-              backgroundColor: '#f0b90b',
-              color: '#000',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 600
-            }}
-          >
-            {walletLimitInfo.isPro ? t('membership.getMoreNfts') : t('actions.upgrade')}
-          </button>
-        )}
-      </div>
 
       {error && (
         <div className="error-message" role="alert">
@@ -368,12 +283,10 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
         <div className="form-actions">
           <button
             type="submit"
-            disabled={!isValid || isCreating || isCheckingDevice || usbDevices.length === 0}
+            disabled={!isValid || isCreating || usbDevices.length === 0}
             className="primary-button"
           >
-            {isCheckingDevice
-              ? t('wallet.checkingDeviceLimit')
-              : isCreating
+            {isCreating
               ? t('wallet.creatingWallet')
               : t('wallet.createWallet')
             }
@@ -382,7 +295,7 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
             <button
               type="button"
               onClick={handleCancelClick}
-              disabled={isCreating || isCheckingDevice}
+              disabled={isCreating}
               className="secondary-button"
             >
               {t('common.cancel')}
@@ -411,19 +324,6 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
         confirmVariant="danger"
         onConfirm={confirmCancel}
         onCancel={cancelCancel}
-      />
-
-      {/* Upgrade to Pro Prompt Dialog */}
-      <ProUpgradeDialog
-        isOpen={showUpgradePrompt}
-        currentWallets={walletLimitInfo.current}
-        walletLimit={walletLimitInfo.limit}
-        isPro={walletLimitInfo.isPro}
-        onUpgrade={() => {
-          setShowUpgradePrompt(false);
-          window.open('https://arcsign.io/mint', '_blank');
-        }}
-        onClose={() => setShowUpgradePrompt(false)}
       />
     </div>
   );

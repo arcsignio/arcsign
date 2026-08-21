@@ -13,7 +13,6 @@ import { WalletCreate } from '@/components/WalletCreate';
 vi.mock('@/services/tauri-api', () => ({
   default: {
     detectUsb: vi.fn(),
-    getDeviceMembershipStatusWithToken: vi.fn(),
     enableScreenshotProtection: vi.fn(),
     disableScreenshotProtection: vi.fn(),
     clearSensitiveMemory: vi.fn(),
@@ -23,18 +22,11 @@ vi.mock('@/services/tauri-api', () => ({
 // Mock dashboardStore
 vi.mock('@/stores/dashboardStore', () => ({
   useDashboardStore: vi.fn(),
-  useWalletLimitInfo: vi.fn(),
-}));
-
-// Mock sessionStore
-vi.mock('@/stores/sessionStore', () => ({
-  useSessionStore: vi.fn(),
 }));
 
 import tauriApi from '@/services/tauri-api';
 import { invoke } from '@tauri-apps/api/core';
-import { useDashboardStore, useWalletLimitInfo } from '@/stores/dashboardStore';
-import { useSessionStore } from '@/stores/sessionStore';
+import { useDashboardStore } from '@/stores/dashboardStore';
 
 const mockAddWallet = vi.fn();
 
@@ -48,31 +40,11 @@ describe('Wallet Creation Flow', () => {
     (useDashboardStore as any).mockReturnValue({
       addWallet: mockAddWallet,
     });
-    (useWalletLimitInfo as any).mockReturnValue({
-      current: 0,
-      limit: 3,
-      isPro: false,
-      canCreate: true,
-    });
-    (useSessionStore as any).mockReturnValue({
-      getToken: () => 'test-session-token',
-    });
     // Default: one USB device
     (tauriApi.detectUsb as any).mockImplementation(() =>
       Promise.resolve([
         { path: '/dev/usb0', name: 'USB Drive', is_writable: true, available_space: 1073741824 },
       ])
-    );
-    (tauriApi.getDeviceMembershipStatusWithToken as any).mockImplementation(() =>
-      Promise.resolve({
-        deviceId: 'device-123',
-        deviceIdHash: '0xhash',
-        walletLimit: 3,
-        walletCount: 0,
-        canCreateWallet: true,
-        memberships: [],
-        lockedWalletIds: [],
-      })
     );
     // MnemonicDisplay needs these to return Promises
     (tauriApi.enableScreenshotProtection as any).mockImplementation(() => Promise.resolve());
@@ -177,25 +149,6 @@ describe('Wallet Creation Flow', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
       expect(screen.getByText('USB_NOT_FOUND')).toBeInTheDocument();
     });
-  });
-
-  it('shows upgrade prompt when wallet limit reached', async () => {
-    // Override to indicate limit reached
-    (useWalletLimitInfo as any).mockReturnValue({
-      current: 3,
-      limit: 3,
-      isPro: false,
-      canCreate: false,
-    });
-
-    render(<WalletCreate onCancel={onCancel} onSuccess={onSuccess} />);
-
-    await waitFor(() => {
-      expect(screen.queryByText('usb.detecting')).not.toBeInTheDocument();
-    });
-
-    // Should show limit reached message
-    expect(screen.getByText('wallet.limitReachedCount')).toBeInTheDocument();
   });
 
   it('cancel flow: dirty form shows confirmation dialog', async () => {

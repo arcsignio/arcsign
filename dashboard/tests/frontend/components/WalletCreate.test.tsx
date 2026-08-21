@@ -13,7 +13,6 @@ import { WalletCreate } from '@/components/WalletCreate';
 vi.mock('@/services/tauri-api', () => ({
   default: {
     detectUsb: vi.fn(),
-    getDeviceMembershipStatusWithToken: vi.fn(),
     enableScreenshotProtection: vi.fn(),
     disableScreenshotProtection: vi.fn(),
   },
@@ -22,17 +21,10 @@ vi.mock('@/services/tauri-api', () => ({
 // Mock dashboardStore — mock the hooks WalletCreate uses
 vi.mock('@/stores/dashboardStore', () => ({
   useDashboardStore: vi.fn(),
-  useWalletLimitInfo: vi.fn(),
-}));
-
-// Mock sessionStore
-vi.mock('@/stores/sessionStore', () => ({
-  useSessionStore: vi.fn(),
 }));
 
 import tauriApi from '@/services/tauri-api';
-import { useDashboardStore, useWalletLimitInfo } from '@/stores/dashboardStore';
-import { useSessionStore } from '@/stores/sessionStore';
+import { useDashboardStore } from '@/stores/dashboardStore';
 import { passwordSchema, walletCreateSchema } from '@/validation/password';
 
 const mockAddWallet = vi.fn();
@@ -45,15 +37,6 @@ describe('WalletCreate Component', () => {
     // Re-set mock implementations after mockReset clears them
     (useDashboardStore as any).mockReturnValue({
       addWallet: mockAddWallet,
-    });
-    (useWalletLimitInfo as any).mockReturnValue({
-      current: 0,
-      limit: 3,
-      isPro: false,
-      canCreate: true,
-    });
-    (useSessionStore as any).mockReturnValue({
-      getToken: () => 'test-session-token',
     });
     (tauriApi.detectUsb as any).mockImplementation(() =>
       Promise.resolve([
@@ -161,16 +144,6 @@ describe('WalletCreate Component', () => {
 
     await user.click(screen.getByText('common.cancel'));
     expect(onCancel).toHaveBeenCalled();
-  });
-
-  it('displays wallet limit info', async () => {
-    render(<WalletCreate />);
-
-    await waitFor(() => {
-      expect(screen.queryByText('usb.detecting')).not.toBeInTheDocument();
-    });
-
-    expect(screen.getByText('wallet.walletsCount')).toBeInTheDocument();
   });
 
   it('displays security notice section', async () => {

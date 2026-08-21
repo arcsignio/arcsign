@@ -19,11 +19,10 @@ vi.mock('@/services/tauri-api', () => ({
 // Mock dashboardStore
 vi.mock('@/stores/dashboardStore', () => ({
   useDashboardStore: vi.fn(),
-  useWalletLimitInfo: vi.fn(),
 }));
 
 import tauriApi from '@/services/tauri-api';
-import { useDashboardStore, useWalletLimitInfo } from '@/stores/dashboardStore';
+import { useDashboardStore } from '@/stores/dashboardStore';
 import { mnemonicSchema, walletImportSchema, normalizeMnemonic } from '@/validation/mnemonic';
 
 const mockAddWallet = vi.fn();
@@ -39,12 +38,6 @@ describe('WalletImport Component', () => {
     vi.clearAllMocks();
     (useDashboardStore as any).mockReturnValue({
       addWallet: mockAddWallet,
-    });
-    (useWalletLimitInfo as any).mockReturnValue({
-      current: 0,
-      limit: 3,
-      isPro: false,
-      canCreate: true,
     });
   });
 
@@ -115,13 +108,6 @@ describe('WalletImport Component', () => {
     expect(defaultProps.onCancel).toHaveBeenCalled();
   });
 
-  it('displays wallet limit info', () => {
-    render(<WalletImport {...defaultProps} />);
-
-    // The wallet limit info should be shown (canCreate=true)
-    expect(screen.getByText('wallet.walletsCount')).toBeInTheDocument();
-  });
-
   it('shows import button with correct text', () => {
     render(<WalletImport {...defaultProps} />);
 
@@ -141,12 +127,6 @@ describe('WalletImport - handleMnemonicChange', () => {
     (useDashboardStore as any).mockReturnValue({
       addWallet: mockAddWallet,
     });
-    (useWalletLimitInfo as any).mockReturnValue({
-      current: 0,
-      limit: 3,
-      isPro: false,
-      canCreate: true,
-    });
   });
 
   it('updates textarea value when user types', async () => {
@@ -165,12 +145,6 @@ describe('WalletImport - handleMnemonicBlur', () => {
     vi.clearAllMocks();
     (useDashboardStore as any).mockReturnValue({
       addWallet: mockAddWallet,
-    });
-    (useWalletLimitInfo as any).mockReturnValue({
-      current: 0,
-      limit: 3,
-      isPro: false,
-      canCreate: true,
     });
   });
 
@@ -205,12 +179,6 @@ describe('WalletImport - onSubmit (import flow)', () => {
     vi.clearAllMocks();
     (useDashboardStore as any).mockReturnValue({
       addWallet: mockAddWallet,
-    });
-    (useWalletLimitInfo as any).mockReturnValue({
-      current: 0,
-      limit: 3,
-      isPro: false,
-      canCreate: true,
     });
   });
 
@@ -336,35 +304,6 @@ describe('WalletImport - onSubmit (import flow)', () => {
     });
   });
 
-  it('shows upgrade prompt when wallet limit reached', async () => {
-    (useWalletLimitInfo as any).mockReturnValue({
-      current: 3,
-      limit: 3,
-      isPro: false,
-      canCreate: false,
-    });
-
-    const user = userEvent.setup();
-    render(<WalletImport {...defaultProps} />);
-
-    const textarea = screen.getByPlaceholderText('mnemonic.enterRecoveryPhrase');
-    await user.type(
-      textarea,
-      'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
-    );
-    await user.type(screen.getByPlaceholderText('security.enterStrongPassword'), 'StrongPassword1');
-    await user.type(screen.getByPlaceholderText('security.reenterPassword'), 'StrongPassword1');
-    await user.type(screen.getByPlaceholderText('wallet.myMainWallet'), 'My Wallet');
-
-    await user.click(screen.getByRole('button', { name: 'wallet.importWallet' }));
-
-    await waitFor(() => {
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-    });
-
-    // tauriApi.importWallet should NOT have been called
-    expect(tauriApi.importWallet).not.toHaveBeenCalled();
-  });
 });
 
 describe('WalletImport - duplicate dialog actions', () => {
@@ -372,12 +311,6 @@ describe('WalletImport - duplicate dialog actions', () => {
     vi.clearAllMocks();
     (useDashboardStore as any).mockReturnValue({
       addWallet: mockAddWallet,
-    });
-    (useWalletLimitInfo as any).mockReturnValue({
-      current: 0,
-      limit: 3,
-      isPro: false,
-      canCreate: true,
     });
   });
 
@@ -459,12 +392,6 @@ describe('WalletImport - cancel with dirty form', () => {
     (useDashboardStore as any).mockReturnValue({
       addWallet: mockAddWallet,
     });
-    (useWalletLimitInfo as any).mockReturnValue({
-      current: 0,
-      limit: 3,
-      isPro: false,
-      canCreate: true,
-    });
   });
 
   it('shows confirmation dialog when cancelling dirty form', async () => {
@@ -526,42 +453,6 @@ describe('WalletImport - cancel with dirty form', () => {
       expect(screen.queryByText('wallet.discardImport')).not.toBeInTheDocument();
     });
     expect(defaultProps.onCancel).not.toHaveBeenCalled();
-  });
-});
-
-describe('WalletImport - wallet limit reached UI', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    (useDashboardStore as any).mockReturnValue({
-      addWallet: mockAddWallet,
-    });
-  });
-
-  it('shows limit reached text and upgrade button when canCreate is false', () => {
-    (useWalletLimitInfo as any).mockReturnValue({
-      current: 3,
-      limit: 3,
-      isPro: false,
-      canCreate: false,
-    });
-
-    render(<WalletImport {...defaultProps} />);
-
-    expect(screen.getByText('wallet.limitReachedCount')).toBeInTheDocument();
-    expect(screen.getByText('actions.upgrade')).toBeInTheDocument();
-  });
-
-  it('shows different button text for Pro members at limit', () => {
-    (useWalletLimitInfo as any).mockReturnValue({
-      current: 7,
-      limit: 7,
-      isPro: true,
-      canCreate: false,
-    });
-
-    render(<WalletImport {...defaultProps} />);
-
-    expect(screen.getByText('membership.getMoreNfts')).toBeInTheDocument();
   });
 });
 
