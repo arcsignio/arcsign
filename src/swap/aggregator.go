@@ -82,24 +82,16 @@ func NewAggregator(cfg *Config) *Aggregator {
 	}
 }
 
-// FeeConfig for referrer fee collection
-type FeeConfig struct {
-	ReferrerAddress string  // EVM address to receive fees
-	FeeRate         float64 // Fee percentage (0.1 = 0.1%)
-}
-
 // QuoteParams for requesting a swap quote
 type QuoteParams struct {
-	Provider         Provider   // Which DEX provider to use (optional, uses default if empty)
-	ChainID          int        // Chain ID
-	FromTokenAddress string     // Source token address
-	ToTokenAddress   string     // Destination token address
-	Amount           *big.Int   // Amount in smallest unit
-	FromAddress      string     // User's wallet address
-	Slippage         float64    // Slippage tolerance (e.g., 0.5 for 0.5%)
-	GasPrice         *big.Int   // Gas price in wei
-	IsPro            bool       // Pro user — best route, no fee
-	Fee              *FeeConfig // Non-nil for Free users
+	Provider         Provider // Which DEX provider to use (optional, uses default if empty)
+	ChainID          int      // Chain ID
+	FromTokenAddress string   // Source token address
+	ToTokenAddress   string   // Destination token address
+	Amount           *big.Int // Amount in smallest unit
+	FromAddress      string   // User's wallet address
+	Slippage         float64  // Slippage tolerance (e.g., 0.5 for 0.5%)
+	GasPrice         *big.Int // Gas price in wei
 }
 
 // SwapQuote represents a standardized swap quote
@@ -166,98 +158,16 @@ func (a *Aggregator) getProvider(p Provider) Provider {
 	return p
 }
 
-// GetQuote fetches a swap quote from the specified provider
-// Pro users get best route (parallel query), Free users get OpenOcean with fee
+// GetQuote fetches a swap quote, querying all providers in parallel for the
+// best route. No referrer fee is applied — ArcSign takes no cut of user swaps.
 func (a *Aggregator) GetQuote(ctx context.Context, params *QuoteParams) (*SwapQuote, error) {
-	if params.IsPro {
-		return a.getBestRouteQuote(ctx, params)
-	}
-
-	// Free user: OpenOcean (with referrer fee), fall back to KyberSwap on failure.
-	ooQuote, ooErr := a.getOpenOceanQuote(ctx, params)
-	if ooErr == nil {
-		ooQuote.RouteType = "standard"
-		if params.Fee != nil {
-			ooQuote.FeeRate = fmt.Sprintf("%.1f", params.Fee.FeeRate)
-			ooQuote.FeeAmount = a.calculateFeeAmount(ooQuote.FromAmount, params.Fee.FeeRate)
-		} else {
-			ooQuote.FeeRate = "0"
-			ooQuote.FeeAmount = "0"
-		}
-		return ooQuote, nil
-	}
-	return resolveFreeQuote(nil, ooErr, kyberswap.IsChainSupported(params.ChainID), func() (*SwapQuote, error) {
-		return a.getKyberSwapQuote(ctx, params)
-	})
+	return a.getBestRouteQuote(ctx, params)
 }
 
-// resolveFreeQuote decides the free-user quote: prefer the OpenOcean result;
-// on OpenOcean failure fall back to KyberSwap (which loses the OpenOcean-only
-// referrer fee — a quote with no fee beats no quote). ksSupported gates whether
-// the fallback is attempted; getKS is called lazily only when needed.
-func resolveFreeQuote(ooQuote *SwapQuote, ooErr error, ksSupported bool, getKS func() (*SwapQuote, error)) (*SwapQuote, error) {
-	if ooErr == nil && ooQuote != nil {
-		return ooQuote, nil
-	}
-	if !ksSupported {
-		return nil, fmt.Errorf("openocean failed and kyberswap not available on this chain: %w", ooErr)
-	}
-	log.Printf("[DIAG swap] OpenOcean quote failed, falling back to KyberSwap: %v", ooErr)
-	ksQuote, ksErr := getKS()
-	if ksErr != nil {
-		return nil, fmt.Errorf("both providers failed: openocean: %w; kyberswap: %v", ooErr, ksErr)
-	}
-	ksQuote.Provider = ProviderKyberSwap
-	ksQuote.RouteType = "standard-fallback"
-	ksQuote.FeeRate = "0"
-	ksQuote.FeeAmount = "0"
-	return ksQuote, nil
-}
-
-// resolveFreeTx is the BuildSwapTransaction analog of resolveFreeQuote: prefer
-// the OpenOcean build; on failure fall back to KyberSwap (no referrer fee).
-func resolveFreeTx(ooTx *SwapTransaction, ooErr error, ksSupported bool, getKS func() (*SwapTransaction, error)) (*SwapTransaction, error) {
-	if ooErr == nil && ooTx != nil {
-		return ooTx, nil
-	}
-	if !ksSupported {
-		return nil, fmt.Errorf("openocean failed and kyberswap not available on this chain: %w", ooErr)
-	}
-	log.Printf("[DIAG swap] OpenOcean tx build failed, falling back to KyberSwap: %v", ooErr)
-	ksTx, ksErr := getKS()
-	if ksErr != nil {
-		return nil, fmt.Errorf("both providers failed: openocean: %w; kyberswap: %v", ooErr, ksErr)
-	}
-	ksTx.Quote.Provider = ProviderKyberSwap
-	ksTx.Quote.RouteType = "standard-fallback"
-	ksTx.Quote.FeeRate = "0"
-	ksTx.Quote.FeeAmount = "0"
-	return ksTx, nil
-}
-
-// BuildSwapTransaction builds a complete swap transaction from the specified provider
-// Pro users get best route (parallel query), Free users get OpenOcean with fee
+// BuildSwapTransaction builds a complete swap transaction, querying all
+// providers in parallel for the best route. No referrer fee is applied.
 func (a *Aggregator) BuildSwapTransaction(ctx context.Context, params *QuoteParams) (*SwapTransaction, error) {
-	if params.IsPro {
-		return a.buildBestRouteTransaction(ctx, params)
-	}
-
-	// Free user: OpenOcean (with referrer fee), fall back to KyberSwap on failure.
-	ooTx, ooErr := a.buildOpenOceanTransaction(ctx, params)
-	if ooErr == nil {
-		ooTx.Quote.RouteType = "standard"
-		if params.Fee != nil {
-			ooTx.Quote.FeeRate = fmt.Sprintf("%.1f", params.Fee.FeeRate)
-			ooTx.Quote.FeeAmount = a.calculateFeeAmount(ooTx.Quote.FromAmount, params.Fee.FeeRate)
-		} else {
-			ooTx.Quote.FeeRate = "0"
-			ooTx.Quote.FeeAmount = "0"
-		}
-		return ooTx, nil
-	}
-	return resolveFreeTx(nil, ooErr, kyberswap.IsChainSupported(params.ChainID), func() (*SwapTransaction, error) {
-		return a.buildKyberSwapTransaction(ctx, params)
-	})
+	return a.buildBestRouteTransaction(ctx, params)
 }
 
 // getBestRouteQuote queries both providers in parallel and returns the best quote
@@ -406,18 +316,6 @@ func (a *Aggregator) buildBestRouteTransaction(ctx context.Context, params *Quot
 	best.Quote.FeeRate = "0"
 	best.Quote.FeeAmount = "0"
 	return best, nil
-}
-
-// calculateFeeAmount computes the fee amount from input token amount and fee rate
-func (a *Aggregator) calculateFeeAmount(fromAmount string, feeRate float64) string {
-	amt := new(big.Int)
-	if _, ok := amt.SetString(fromAmount, 10); !ok {
-		return "0"
-	}
-	// feeAmount = fromAmount * feeRate / 100
-	feeNumerator := new(big.Int).Mul(amt, big.NewInt(int64(feeRate*1000)))
-	feeAmount := new(big.Int).Div(feeNumerator, big.NewInt(100000))
-	return feeAmount.String()
 }
 
 // GetApprovalTransaction gets the approval transaction for a token
@@ -625,12 +523,6 @@ func (a *Aggregator) getOpenOceanQuote(ctx context.Context, params *QuoteParams)
 		GasPrice:         params.GasPrice,
 	}
 
-	// Pass referrer fee config for Free users
-	if params.Fee != nil {
-		req.ReferrerAddress = params.Fee.ReferrerAddress
-		req.ReferrerFee = params.Fee.FeeRate
-	}
-
 	quote, err := a.openoceanClient.BuildSwapQuote(ctx, req)
 	if err != nil {
 		return nil, err
@@ -653,12 +545,6 @@ func (a *Aggregator) buildOpenOceanTransaction(ctx context.Context, params *Quot
 		ChainID:          params.ChainID,
 		GasPrice:         params.GasPrice,
 		DisableEstimate:  true,
-	}
-
-	// Pass referrer fee config for Free users
-	if params.Fee != nil {
-		req.ReferrerAddress = params.Fee.ReferrerAddress
-		req.ReferrerFee = params.Fee.FeeRate
 	}
 
 	tx, err := a.openoceanClient.BuildSwapTransaction(ctx, req)
