@@ -3,8 +3,6 @@ package app
 import (
 	"testing"
 	"time"
-
-	"github.com/arcsignio/arcsign/internal/constants"
 )
 
 // --- SessionManager Token Validation Tests ---
@@ -180,118 +178,6 @@ func TestGetActiveSessionCount_WithSessions(t *testing.T) {
 
 	if count := sm.GetActiveSessionCount(); count != 3 {
 		t.Errorf("expected 3, got %d", count)
-	}
-}
-
-// --- calculateLockedWallets Tests ---
-
-func TestCalculateLockedWallets_UnderLimit(t *testing.T) {
-	wallets := []WalletMetadata{
-		{ID: "w1", CreatedAt: time.Now().Add(-2 * time.Hour)},
-		{ID: "w2", CreatedAt: time.Now().Add(-1 * time.Hour)},
-	}
-
-	// 1 NFT -> limit = 1 + (1*3) = 4, 2 wallets < 4
-	locked := calculateLockedWallets(wallets, 1)
-	if len(locked) != 0 {
-		t.Errorf("expected 0 locked wallets, got %d: %v", len(locked), locked)
-	}
-}
-
-func TestCalculateLockedWallets_OverLimit(t *testing.T) {
-	wallets := []WalletMetadata{
-		{ID: "w1", CreatedAt: time.Now().Add(-5 * time.Hour)},
-		{ID: "w2", CreatedAt: time.Now().Add(-4 * time.Hour)},
-		{ID: "w3", CreatedAt: time.Now().Add(-3 * time.Hour)},
-		{ID: "w4", CreatedAt: time.Now().Add(-2 * time.Hour)},
-		{ID: "w5", CreatedAt: time.Now().Add(-1 * time.Hour)},
-	}
-
-	// 0 NFT -> limit = 1, 5 wallets > 1, so 4 should be locked
-	locked := calculateLockedWallets(wallets, 0)
-	expectedLocked := 5 - constants.WalletLimit(0)
-	if len(locked) != expectedLocked {
-		t.Errorf("expected %d locked wallets, got %d: %v", expectedLocked, len(locked), locked)
-	}
-}
-
-func TestCalculateLockedWallets_ExactLimit(t *testing.T) {
-	// 1 NFT -> limit = 4
-	wallets := make([]WalletMetadata, 4)
-	for i := range wallets {
-		wallets[i] = WalletMetadata{
-			ID:        "w" + string(rune('1'+i)),
-			CreatedAt: time.Now().Add(time.Duration(-i) * time.Hour),
-		}
-	}
-
-	locked := calculateLockedWallets(wallets, 1)
-	if len(locked) != 0 {
-		t.Errorf("expected 0 locked wallets at exact limit, got %d", len(locked))
-	}
-}
-
-func TestCalculateLockedWallets_SortByCreated(t *testing.T) {
-	// Create wallets in random order
-	wallets := []WalletMetadata{
-		{ID: "newest", CreatedAt: time.Now()},                       // newest
-		{ID: "oldest", CreatedAt: time.Now().Add(-10 * time.Hour)},  // oldest
-		{ID: "middle", CreatedAt: time.Now().Add(-5 * time.Hour)},   // middle
-	}
-
-	// 0 NFT -> limit = 1, so 2 newest should be locked
-	locked := calculateLockedWallets(wallets, 0)
-	if len(locked) != 2 {
-		t.Fatalf("expected 2 locked wallets, got %d", len(locked))
-	}
-
-	// Newest wallets should be locked (sorted by CreatedAt, oldest first, so newest are at end)
-	// "oldest" is kept (index 0), "middle" and "newest" are locked
-	lockedSet := make(map[string]bool)
-	for _, id := range locked {
-		lockedSet[id] = true
-	}
-
-	if !lockedSet["newest"] {
-		t.Error("newest wallet should be locked")
-	}
-	if !lockedSet["middle"] {
-		t.Error("middle wallet should be locked")
-	}
-	if lockedSet["oldest"] {
-		t.Error("oldest wallet should NOT be locked")
-	}
-}
-
-// --- IsWalletLocked Tests ---
-
-func TestIsWalletLocked_InList(t *testing.T) {
-	session := &Session{
-		LockedWalletIds: []string{"w1", "w2", "w3"},
-	}
-
-	if !session.IsWalletLocked("w2") {
-		t.Error("w2 should be locked")
-	}
-}
-
-func TestIsWalletLocked_NotInList(t *testing.T) {
-	session := &Session{
-		LockedWalletIds: []string{"w1", "w2"},
-	}
-
-	if session.IsWalletLocked("w3") {
-		t.Error("w3 should NOT be locked")
-	}
-}
-
-func TestIsWalletLocked_EmptyList(t *testing.T) {
-	session := &Session{
-		LockedWalletIds: []string{},
-	}
-
-	if session.IsWalletLocked("w1") {
-		t.Error("no wallets should be locked with empty list")
 	}
 }
 

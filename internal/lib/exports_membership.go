@@ -21,7 +21,6 @@ import (
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/arcsignio/arcsign/internal/app"
-	"github.com/arcsignio/arcsign/internal/constants"
 )
 
 // ============================================================================
@@ -43,9 +42,7 @@ import (
 //   "data": {
 //     "deviceId": "uuid-string",
 //     "deviceIdHash": "0x...",  // keccak256(deviceId) for contract binding
-//     "walletLimit": 1,
 //     "walletCount": 1,
-//     "canCreateWallet": true,
 //     "memberships": [{
 //       "nftTokenId": "1",
 //       "nftContract": "0x...",
@@ -154,17 +151,12 @@ func GetMembershipStatus(params *C.char) (result *C.char) {
 		}
 	}
 
-	// Calculate wallet limit and canCreate based on actual count
-	walletLimit := appConfig.GetWalletLimit()
-	canCreateWallet := walletCount < walletLimit
-
+	// 錢包數量限制已移除，此欄位待 Task 3 一併刪除
 	output := map[string]interface{}{
-		"deviceId":        deviceId,
-		"deviceIdHash":    "0x" + deviceIdHash.Hex()[2:], // Ensure 0x prefix
-		"walletLimit":     walletLimit,
-		"walletCount":     walletCount,
-		"canCreateWallet": canCreateWallet,
-		"memberships":     memberships,
+		"deviceId":     deviceId,
+		"deviceIdHash": "0x" + deviceIdHash.Hex()[2:], // Ensure 0x prefix
+		"walletCount":  walletCount,
+		"memberships":  memberships,
 	}
 
 	response := NewSuccessResponse(output)
@@ -271,14 +263,10 @@ func AddMembershipBinding(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Update session memberships and recalculate locked wallets
-	// This ensures the session reflects the new membership immediately
-	sm := initSessionManager()
-	sm.UpdateMembershipsAndRecalculate(input.USBPath, appConfig.GetMemberships())
+	// 錢包數量限制已移除，session 會員快取的即時更新待 Task 3 一併處理
 
 	output := map[string]interface{}{
-		"success":     true,
-		"walletLimit": appConfig.GetWalletLimit(),
+		"success": true,
 	}
 
 	response := NewSuccessResponse(output)
@@ -357,14 +345,10 @@ func RemoveMembershipBinding(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Update session memberships and recalculate locked wallets
-	// This ensures the session reflects the removed membership immediately
-	sm := initSessionManager()
-	sm.UpdateMembershipsAndRecalculate(input.USBPath, appConfig.GetMemberships())
+	// 錢包數量限制已移除，session 會員快取的即時更新待 Task 3 一併處理
 
 	output := map[string]interface{}{
-		"removed":     removed,
-		"walletLimit": appConfig.GetWalletLimit(),
+		"removed": removed,
 	}
 
 	response := NewSuccessResponse(output)
@@ -485,12 +469,10 @@ func SyncMembershipBindingWithToken(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Update session memberships and recalculate locked wallets
-	sm.UpdateMembershipsAndRecalculate(session.UsbPath, appConfig.GetMemberships())
+	// 錢包數量限制已移除，session 會員快取的即時更新待 Task 3 一併處理
 
 	output := map[string]interface{}{
-		"success":     true,
-		"walletLimit": appConfig.GetWalletLimit(),
+		"success": true,
 	}
 
 	response := NewSuccessResponse(output)
@@ -588,12 +570,10 @@ func RemoveMembershipBindingWithToken(params *C.char) (result *C.char) {
 		return C.CString(string(jsonBytes))
 	}
 
-	// Update session memberships and recalculate locked wallets
-	sm.UpdateMembershipsAndRecalculate(session.UsbPath, appConfig.GetMemberships())
+	// 錢包數量限制已移除，session 會員快取的即時更新待 Task 3 一併處理
 
 	output := map[string]interface{}{
-		"removed":     removed,
-		"walletLimit": appConfig.GetWalletLimit(),
+		"removed": removed,
 	}
 
 	response := NewSuccessResponse(output)
@@ -829,23 +809,13 @@ func GetDeviceMembershipStatusWithToken(params *C.char) (result *C.char) {
 		}
 	}
 
-	// Calculate wallet limit based on memberships
-	nftCount := len(session.Memberships)
-	walletLimit := constants.WalletLimit(nftCount)
-	canCreateWallet := walletCount < walletLimit
-
-	// Get locked wallet IDs from session (calculated at login)
-	lockedWalletIds := session.LockedWalletIds
-	if lockedWalletIds == nil {
-		lockedWalletIds = []string{}
-	}
+	// 錢包數量限制已移除，此欄位待 Task 3 一併刪除
+	lockedWalletIds := []string{}
 
 	output := map[string]interface{}{
 		"deviceId":        deviceId,
 		"deviceIdHash":    deviceIdHash,
-		"walletLimit":     walletLimit,
 		"walletCount":     walletCount,
-		"canCreateWallet": canCreateWallet,
 		"memberships":     memberships,
 		"lockedWalletIds": lockedWalletIds,
 	}

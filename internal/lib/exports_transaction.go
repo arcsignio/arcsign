@@ -382,20 +382,6 @@ func SignTransaction(params *C.char) (result *C.char) {
 		}
 	}
 
-	// Step 0b: Check if wallet is locked (before any expensive operations)
-	// Locked wallets cannot sign transactions - this enforces the wallet limit
-	sm := initSessionManager()
-	if session := sm.GetSessionByUSBPath(input.USBPath); session != nil {
-		if session.IsWalletLocked(input.WalletID) {
-			response := NewErrorResponse(ErrWalletLocked, "Wallet is locked due to exceeding the wallet limit. Please upgrade your membership or remove newer wallets to unlock this wallet.")
-			jsonBytes, _ := json.Marshal(response)
-			return C.CString(string(jsonBytes))
-		}
-	}
-	// Note: If no session exists, we proceed with the transaction
-	// This allows signing when the user hasn't logged in yet (fallback mode)
-	// The wallet limit is still enforced at the UI level in this case
-
 	// Step 1: Manually reconstruct UnsignedTransaction from map
 	// Note: *big.Int fields can't be directly unmarshalled from JSON strings
 	unsigned := chainadapter.UnsignedTransaction{}

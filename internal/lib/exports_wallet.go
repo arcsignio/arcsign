@@ -108,10 +108,6 @@ func CreateWallet(params *C.char) (result *C.char) {
 	// Ensure mnemonic is cleared from memory after return
 	defer zeroString(&mnemonic)
 
-	// Recalculate locked wallets after creation
-	// New wallet may cause others to become locked if limit exceeded
-	initSessionManager().RecalculateLockedWallets(input.USBPath)
-
 	// Return success response with mnemonic (caller must display and secure it)
 	data := map[string]interface{}{
 		"walletId":   walletObj.ID,
@@ -206,10 +202,6 @@ func ImportWallet(params *C.char) (result *C.char) {
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
-
-	// Recalculate locked wallets after import
-	// New wallet may cause others to become locked if limit exceeded
-	initSessionManager().RecalculateLockedWallets(input.USBPath)
 
 	// Return success response
 	data := map[string]interface{}{
@@ -899,10 +891,6 @@ func DeleteWallet(params *C.char) (result *C.char) {
 		jsonBytes, _ := json.Marshal(response)
 		return C.CString(string(jsonBytes))
 	}
-
-	// Recalculate locked wallets after deletion
-	// This may unlock wallets if we're now below the limit
-	initSessionManager().RecalculateLockedWallets(input.USBPath)
 
 	// Success
 	data := map[string]interface{}{

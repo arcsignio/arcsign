@@ -21,8 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
-
-	"github.com/arcsignio/arcsign/internal/constants"
 )
 
 // AppConfig represents the top-level application configuration
@@ -272,30 +270,6 @@ func (c *AppConfig) GetMemberships() []MembershipBinding {
 		return []MembershipBinding{}
 	}
 	return c.Identity.Memberships
-}
-
-// CountValidMemberships returns the number of valid memberships
-func (c *AppConfig) CountValidMemberships() int {
-	if c.Identity == nil {
-		return 0
-	}
-	count := 0
-	for _, m := range c.Identity.Memberships {
-		if m.IsValid {
-			count++
-		}
-	}
-	return count
-}
-
-// GetWalletLimit returns the maximum number of wallets allowed
-func (c *AppConfig) GetWalletLimit() int {
-	return constants.WalletLimit(c.CountValidMemberships())
-}
-
-// CanCreateWallet checks if a new wallet can be created
-func (c *AppConfig) CanCreateWallet() bool {
-	return len(c.Wallets) < c.GetWalletLimit()
 }
 
 // ToJSON serializes the AppConfig to JSON
