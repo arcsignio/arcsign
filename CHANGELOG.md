@@ -3,6 +3,24 @@
 All notable changes to ArcSign. Format follows [Keep a Changelog](https://keepachangelog.com/),
 Semantic Versioning.
 
+## [Unreleased]
+
+### Removed
+
+- 移除全部盈利機制：錢包數量限制、swap 0.1% 抽成、Pro 最佳路徑閘、
+  交易模擬分級閘、Pro NFT／Referral 合約、tier 回報 heartbeat、升級 UI。
+  所有功能對所有使用者開放。
+- 刪除 `contracts/` 與 `OFFICIAL_ADDRESSES.md`。
+
+### Changed
+
+- 交易模擬改為「有 Alchemy key 就執行」，不再依使用者分級。
+- Swap 一律走平行最佳路徑報價，不帶 referrer 參數。
+
+### Security
+
+- 黑名單檢查、`RequiresAcknowledge` 簽章閘、session token 機制不受影響。
+
 ## [v1.5.4] — 2026-07-06 — WalletDetail Decomposition
 
 ### Changed

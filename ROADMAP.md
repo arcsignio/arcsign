@@ -4,16 +4,16 @@ This is the **public** roadmap. It lists shipped milestones and planned
 near-term direction. Specific dates are intentionally omitted — we ship
 when the quality bar is met, not by calendar.
 
-Last reviewed: 2026-07
+Last reviewed: 2026-08
 
 ---
 
 ## Recently Shipped
 
 - ✅ **Mint-page connection pairing gate** — the localhost WebSocket
-  (`127.0.0.1:9527`) that the Pro NFT mint page uses to request signatures now
+  (`127.0.0.1:9527`) that ArcSign's website uses to request signatures now
   requires a one-time 8-digit pairing code (shown in the desktop app, entered in
-  the mint page) before any account/sign method is allowed. 60s TTL, 3-attempt
+  the requesting page) before any account/sign method is allowed. 60s TTL, 3-attempt
   lockout, constant-time comparison, Origin allowlist. Replaces the prior
   boolean-authenticated model.
 - ✅ **Unified mandatory signing security gate** — every signing path
@@ -28,14 +28,15 @@ Last reviewed: 2026-07
   brute force on session unlock and other high-value entry points.
 - ✅ **Swap aggregator** — parallel quote from OpenOcean + KyberSwap, picks
   best route automatically.
-- ✅ **FFI exports refactor** — split into 9 domain files for maintainability
+- ✅ **FFI exports refactor** — split into domain files for maintainability
   (`exports_wallet.go`, `exports_transaction.go`, `exports_swap.go`,
   `exports_signing.go`, `exports_address.go`, `exports_provider.go`,
-  `exports_membership.go`, `exports_app.go`, `exports_dev.go`).
-- ✅ **Pro NFT membership** — BSC ERC-721 with 1-year expiry, 30 USDT mint.
-- ✅ **Referral contract** — 10–20% revenue share, on-chain enforcement.
+  `exports_app.go`, `exports_dev.go`).
+- ✅ **Fully free, no tiers** — all monetization (Pro NFT membership,
+  referral revenue share, wallet-count limits, swap-quote gating) has been
+  removed. Every feature is available to every user.
 - ✅ **Token approvals management** — view and revoke ERC-20 approvals
-  across 7 EVM chains. Pro users get batch revoke.
+  across 7 EVM chains, including batch revoke.
 - ✅ **NFT Gallery** — cross-chain display (ERC-721 / ERC-1155).
 - ✅ **DeFi positions** — liquid staking positions (stETH, ankrETH, ankrBNB)
   with real-time APY.
@@ -57,10 +58,10 @@ Order is approximate. We may reprioritize as feedback comes in.
 - 📋 **Additional chain adapters** — beyond Bitcoin + 7 EVM chains.
   Community contributions following the existing `src/chainadapter/`
   pattern are very welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
-- 📋 **Bug bounty program** — will launch when the project is sustainable
-  enough to fund it. See [`SECURITY.md`](SECURITY.md) for what I can
-  offer in the meantime (Hall of Fame, references, CVE assignment help).
-- 📋 **Third-party security audit** — will be commissioned when there's
+- 📋 **Bug bounty program** — no monetary funding source at present. See
+  [`SECURITY.md`](SECURITY.md) for what I can offer in the meantime
+  (Hall of Fame, references, CVE assignment help).
+- 📋 **Third-party security audit** — will be commissioned if/when there's
   budget for it. No fixed timeline.
 - 📋 **Reproducible builds across all platforms** — we have CI for
   macOS / Linux / Windows; ongoing work to make every release bit-for-bit
@@ -76,13 +77,15 @@ add them.
 - ❌ **Token issuance / launchpad** — out of scope.
 - ❌ **Switching to a source-available license** (BUSL, SSPL, etc.) —
   ArcSign is and will remain Apache 2.0.
+- ❌ **Paid tiers / feature gating** — ArcSign is fully free with no
+  monetization. We will close PRs that try to reintroduce it.
 
 ## How decisions get made
 
 - **Roadmap changes**: maintainer decision, posted as a PR to this file.
   Issues with substantial community interest get heard.
-- **Architecture changes**: PR with discussion in `area/wallet-core`,
-  `area/dashboard`, or `area/contracts` labels.
+- **Architecture changes**: PR with discussion in `area/wallet-core` or
+  `area/dashboard` labels.
 - **Security policy changes**: see [`SECURITY.md`](SECURITY.md).
 
 ## Verifying our commitment
@@ -90,7 +93,3 @@ add them.
 Reproducible builds let you verify the binary you downloaded matches the
 source code at a specific tag. See
 [`docs/reproducible-builds.md`](docs/reproducible-builds.md).
-
-Compile-time constants (contract addresses, swap referrer) are pinned in
-[`internal/wallet/constants.go`](internal/wallet/constants.go) and
-documented in [`OFFICIAL_ADDRESSES.md`](OFFICIAL_ADDRESSES.md).

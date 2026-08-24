@@ -69,7 +69,7 @@ flowchart LR
             seclgate["signing security gate<br/>signgate · txguard · blacklist · simulation"]
             keyprot["key protection<br/>SecureSigner (XOR-split) · memzero"]
             provider["provider<br/>balances (no-key) · NFT/history<br/>· approvals risk"]
-            app["app · session · membership<br/>· ratelimit · audit"]
+            app["app · session<br/>· ratelimit · audit"]
             rpcreg["rpc registry<br/>keyless endpoints + failover<br/>(shared management layer)"]
             misc["contacts · txlabels · abicache<br/>· dev mode (-tags dev)"]
         end
@@ -141,14 +141,14 @@ The same layering as ASCII, for reference:
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  Tauri shell (Rust) — src-tauri/src/                                      │
-│    commands/*.rs (15 files)  →  ffi/queue.rs (single serialized worker)   │
+│    commands/*.rs (14 files)  →  ffi/queue.rs (single serialized worker)   │
 │    →  ffi/bindings.rs (libloading)        websocket/ (127.0.0.1:9527)     │
 └───────────────────────────────┬───────────────────────────────────────────┘
                                 │  C FFI  (CString in / JSON *C.char out, GoFree)
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  libarcsign.{dylib,so,dll} — Go shared library (CGO, c-shared)            │
-│    internal/lib/  exports_*.go (11 domain files, the //export surface)    │
+│    internal/lib/  exports_*.go (domain files, the //export surface)       │
 │    internal/      wallet · crypto · security · provider · rpc · app …      │
 │    src/chainadapter/  (separate module)   src/swap/  (in root module)      │
 └──────────────┬────────────────────────────────────────┬───────────────────┘
@@ -293,7 +293,7 @@ flowchart TD
         ct["contacts.enc"]
         tl["txlabels (encrypted)"]
         ab["abi_cache.enc<br/>(clear-signing ABIs)"]
-        ac["app_config.enc<br/>(identity, memberships)"]
+        ac["app_config.enc<br/>(identity, wallet metadata)"]
     end
 
     pw["wallet password"] -->|"Argon2id t=4,m=256MiB,p=4"| key["32-byte key"]
@@ -348,8 +348,9 @@ private-key storage so a plaintext key exists for only ~1–5 ms.
   offline seed (OFAC sanctioned + MEW/Revoke malicious spenders) so the first
   sign works offline; background `Update` merges online OFAC/ScamSniffer/MetaMask
   without overwriting the seed.
-- `internal/security/simulation/` — Alchemy `simulateAssetChanges` (Pro only;
-  ETH/Polygon/Arbitrum/Optimism/Base).
+- `internal/security/simulation/` — Alchemy `simulateAssetChanges`
+  (ETH/Polygon/Arbitrum/Optimism/Base; runs whenever an Alchemy key is
+  configured — no tier gating).
 
 **Public interface.** `signgate.Authorize` (the entry point),
 `security.{NewSecureSigner,SecureZero,EIP191Hash}`,
@@ -401,7 +402,7 @@ flowchart TD
     subgraph gatebox["signgate.Authorize — the mandatory gate"]
         GATE["assess by SignKind"]
         GATE --> CHK["txguard:<br/>Check / CheckTypedData / CheckMessage"]
-        CHK --> BL["blacklist (free, embedded seed)<br/>+ EIP-712 verifyingContract normalization<br/>+ simulation (Pro only)"]
+        CHK --> BL["blacklist (embedded seed)<br/>+ EIP-712 verifyingContract normalization<br/>+ simulation (needs Alchemy key)"]
         BL --> RA{"RequiresAcknowledge<br/>&& !acknowledgedRisk?"}
     end
     RA -->|"yes — danger, not acknowledged"| REJ2["ErrBlocked → ErrBlacklisted<br/>(key NEVER derived)"]
@@ -437,7 +438,7 @@ flowchart LR
             cmsg["CheckMessage (personal_sign)"]
         end
         blacklist["blacklist.Manager<br/>embedded OFAC + MEW/Revoke seed<br/>+ online merge"]
-        sim["simulation.Simulator<br/>(Alchemy, Pro only)"]
+        sim["simulation.Simulator<br/>(Alchemy, needs key)"]
         signer["SecureSigner<br/>SignHash / Sign"]
         share["secret_share<br/>XOR-split 3 shares"]
         mz["memzero<br/>SecureZero / SecureAlloc (mlock)"]
@@ -584,8 +585,8 @@ the backend security report + the human can, which is why the decode in step
 ### 3.4 Session, app state & rate limiting
 
 **Responsibility.** App-level auth sessions (token + encrypted provider key,
-never the plain password), per-wallet sessions, wallet locking by NFT tier,
-rate limiting, and append-only audit logging.
+never the plain password), per-wallet sessions, rate limiting, and
+append-only audit logging.
 
 **Key files.**
 - `internal/app/session.go` — `SessionManager`. A `Session` stores public data
@@ -593,9 +594,7 @@ rate limiting, and append-only audit logging.
   2 h idle. Provider-key encryption: `AES-256-GCM` with key =
   `HKDF(SHA256(token), salt=serverPepper, info="session-key-v{n}")`, where
   `serverPepper` is 32 random bytes generated **fresh per app launch, never
-  persisted** — so a leaked token alone can't decrypt. `calculateLockedWallets`
-  locks the newest wallets beyond `WalletLimit(nftCount)`; `IsWalletLocked`
-  blocks signing.
+  persisted** — so a leaked token alone can't decrypt.
 - `internal/app/wallet_session.go` — `WalletSessionManager`, 15-minute per-wallet
   sessions (verifies password via `RestoreWallet`, then clears the mnemonic).
 - `internal/app/storage.go` — `VerifyAppPassword` (constant-time, ≥200 ms to
@@ -606,7 +605,7 @@ rate limiting, and append-only audit logging.
   CREATE/IMPORT/ACCESS/DELETE/EXPORT/… operations.
 
 **Public interface.** `SessionManager.{CreateSession,ValidateToken,GetProviderKey,
-RecalculateLockedWallets,UpdateMembershipsAndRecalculate}`,
+RevokeToken,RevokeAllSessions}`,
 `WalletSessionManager.{CreateWalletSession,ValidateWalletToken}`,
 `ratelimit.{AllowAttempt,ResetWallet}`, `audit.LogOperation`.
 
@@ -801,51 +800,28 @@ path tries each endpoint, first success wins).
 
 ### 3.8 Swap (`src/swap/` — part of the root module)
 
-**Responsibility.** DEX aggregation across OpenOcean + KyberSwap with tier-based
-routing.
+**Responsibility.** DEX aggregation across OpenOcean + KyberSwap, always
+picking the best route.
 
-**Key files.** `aggregator.go` (`Aggregator`, `QuoteParams`, `SwapQuote`, tier
-logic, `resolveFreeQuote`/`resolveFreeTx`), `openocean/`, `kyberswap/`,
+**Key files.** `aggregator.go` (`Aggregator`, `QuoteParams`, `SwapQuote`,
+`getBestRouteQuote`/`buildBestRouteTransaction`), `openocean/`, `kyberswap/`,
 `oneinch/` (present but **not wired** into the aggregator — reference only).
 
 **Public interface.** `Aggregator.{GetQuote,BuildSwapTransaction,
 GetApprovalTransaction,CheckAllowance,GetTokens}`. Both active providers report
 `RequiresKey:false`.
 
-**Flow (tiers).**
-- **Free:** OpenOcean (carries the 0.1% referrer fee → Treasury EOA). On
-  OpenOcean failure → fall back to KyberSwap (`RouteType="standard-fallback"`,
-  fee=0 — "a quote with no fee beats no quote"). `resolveFreeQuote` (quote) and
-  `resolveFreeTx` (build) are symmetric so you never "see a price but can't swap".
-- **Pro:** query both providers **in parallel** (`getBestRouteQuote`), pick the
-  larger `ToAmount`, `RouteType="best"`, no fee.
+**Flow.** Every quote and build queries OpenOcean and KyberSwap **in
+parallel** (`getBestRouteQuote`/`buildBestRouteTransaction`), picks the larger
+`ToAmount`, sets `RouteType="best"`. No referrer fee — `FeeRate`/`FeeAmount`
+are always `"0"`; ArcSign takes no cut of user swaps. If a provider errors or
+doesn't support the chain, the other's result is used; if both fail, both
+errors are surfaced.
 
 > Both active clients set a browser `User-Agent` (`Mozilla/5.0 (compatible;
 > ArcSign/…)`) — the default Go UA gets 403'd by Cloudflare bot management.
 
-### 3.9 Membership / Pro / Referral
-
-**Responsibility.** Pro-tier gating (on-chain NFT balance) and per-USB
-device-bound membership records that drive the wallet limit.
-
-**Key files.**
-- `internal/wallet/constants.go` — **compile-time** addresses (BSC): Pro NFT,
-  Referral, Swap Referrer (Treasury EOA) + fee rate. Intentionally
-  non-configurable; forks produce different reproducible-build hashes.
-- `internal/constants/business.go` — `WalletLimit(nftCount) = 1 + 3·nftCount`
-  (free = 1, 1 NFT = 4).
-- `dashboard/src/hooks/useMembership.ts` + `commands/membership.rs` — on-chain
-  Pro check: `eth_call balanceOf(address)` against the Pro NFT contract over
-  BSC RPC; `isPro = nftCount > 0`; loops `tokenOfOwnerByIndex` + `expiresAt` for
-  expiry. Defaults to free tier on error.
-- `internal/lib/exports_membership.go` — per-USB membership records
-  (`MembershipBinding`), device-id hashing for contract binding, and session /
-  wallet-session token management.
-- `contracts/` — `ArcSignPro.sol` (ERC-721, 365-day expiry, 30 USDT mint,
-  device binding cleared on transfer) + `ArcSignReferral.sol` (trustless code
-  registry; commission settled off-chain).
-
-### 3.10 Contacts, transaction labels & ABI cache
+### 3.9 Contacts, transaction labels & ABI cache
 
 - **Contacts** — `internal/contacts/`: AES-encrypted `contacts.enc`,
   `Contact{Name,Address,Symbol,Notes,…}`, validated lengths.
@@ -856,7 +832,7 @@ device-bound membership records that drive the wallet limit.
   store-open error is always a cache miss (never blocks), so clear-signing
   degrades gracefully.
 
-### 3.11 Dev mode (build-gated)
+### 3.10 Dev mode (build-gated)
 
 `internal/lib/exports_dev.go` is `//go:build dev` — only compiled with
 `-tags dev`, **excluded from release binaries** so auto-signing can't exist in
@@ -886,7 +862,7 @@ the Go error → a user-facing code). The `//export` surface, by domain:
 | `exports_app.go` | app + assets | InitializeApp, UnlockApp, GetTokenBalances, GetNFTs, GetTokenApprovals, AddTouchedToken |
 | `exports_address.go` | book/labels/history | ListContacts, Add/Update/DeleteContact, Set/Get/DeleteTransactionLabel, GetAssetTransfers, ValidatePassphrase |
 | `exports_provider.go` | provider config | Set/Get/List/DeleteProviderConfig |
-| `exports_membership.go` | membership/sessions | GetMembershipStatus, *MembershipBinding, Create/Validate/RevokeSessionToken (+ wallet variants) |
+| `exports_session.go` | session tokens | Create/Validate/RevokeSessionToken (+ wallet variants) |
 | `exports_abicache.go` | clear-sign ABIs | Get/Set/ClearCachedAbi |
 | `exports_dev.go` | dev mode (`-tags dev`) | CreateDevSession, DevSessionSign, Get/EndDevSession |
 
@@ -901,17 +877,16 @@ the Go error → a user-facing code). The `//export` surface, by domain:
   spawns the worker on first use). `QueueMetrics` track depth/wait.
 - **`main.rs`** — loads the library at startup (exits on failure), registers all
   commands in `invoke_handler`, and spins up the WebSocket server.
-- **`commands/*.rs`** (15 files) — thin `#[tauri::command]` wrappers that route
+- **`commands/*.rs`** (14 files) — thin `#[tauri::command]` wrappers that route
   to `queue.<fn>(...).await`: `app`, `auth`, `wallet`, `transaction`, `swap`,
-  `membership`, `provider`, `security`, `usb`, `walletconnect` (session
+  `provider`, `security`, `usb`, `walletconnect` (session
   persistence), `websocket_commands` (bridge WS sign requests to the UI), `dev_*`.
-- **`websocket/`** — the **127.0.0.1:9527** server for the external mint page.
-  Localhost-only (rejects non-loopback peers **and** validates the WS `Origin`
-  header), `Ping`-authenticated. Sign requests (`SignTransaction`,
-  `SignAndBroadcast`, `PersonalSign`, `SignTypedDataV4`) push a pending request
-  to the UI over a oneshot channel (5-min timeout); the UI confirmation then
-  invokes the same signing FFI as everything else. Recognizes the ArcSign Pro
-  `mint()` selector for a friendly description.
+- **`websocket/`** — the **127.0.0.1:9527** server for external dApps (e.g. the
+  ArcSign website). Localhost-only (rejects non-loopback peers **and**
+  validates the WS `Origin` header), `Ping`-authenticated. Sign requests
+  (`SignTransaction`, `SignAndBroadcast`, `PersonalSign`, `SignTypedDataV4`)
+  push a pending request to the UI over a oneshot channel (5-min timeout); the
+  UI confirmation then invokes the same signing FFI as everything else.
 - **`capabilities/default.json`** — Tauri v2 permission model (`core:default`,
   shell open, dialog, scoped `fs:*`).
 
@@ -938,14 +913,10 @@ before touching the key.
 - **`stores/`** (Zustand) — `dashboardStore` (UI state, `persist`d incl.
   `usbPath`), `sessionStore` (app token, **in-memory only**, never localStorage),
   `walletSessionStore` (per-wallet tokens).
-- **`services/analytics.ts`** — anonymous HMAC-signed tier heartbeat to a
-  Cloudflare Worker; silent-fail, never affects functionality. *(The HMAC secret
-  currently lives in JS — a known item to move to Rust in the v2 migration.)*
 - **`components/`** — SendTransaction, SwapTransaction, StakingTransaction,
   TokenApprovals, NFTGallery, DefiPositions, TransactionHistory, the
-  WalletConnect dialogs, wallet lifecycle (Create/Import/Detail/Backup),
-  membership (Pro/Referral), and the sign-gate UI (`SignGateAcknowledge`,
-  `ClearSignSummary`).
+  WalletConnect dialogs, wallet lifecycle (Create/Import/Detail/Backup), and
+  the sign-gate UI (`SignGateAcknowledge`, `ClearSignSummary`).
 
 ---
 
@@ -989,9 +960,8 @@ by §2.
    *(The localhost:9527 WS path converges on this same FFI.)*
 
 ### 5.4 Get a swap quote + execute
-1. UI → FFI `GetSwapQuote`: dynamic gas, free-tier referrer fee config (Pro
-   skips it), `Aggregator.GetQuote` (30 s timeout, OpenOcean → KyberSwap
-   fallback / Pro parallel best-route).
+1. UI → FFI `GetSwapQuote`: dynamic gas, `Aggregator.GetQuote` (30 s timeout,
+   OpenOcean + KyberSwap queried in parallel, best route wins, no fee).
 2. If `needsApproval`: `CheckSwapAllowance` / `GetSwapApproval` → an ERC-20
    `approve` tx → signed via §5.2.
 3. `BuildSwapTransaction` → `SignTransaction` (§5.2, full gate) → broadcast. The
@@ -1014,7 +984,7 @@ by §2.
 2. Scan Approval events + `allowance`; each spender is risk-classified offline
    (`ClassifyApprovalRisk`) → red/yellow/green.
 3. Revoke = build `approve(spender, 0)` calldata to the token → §5.2 (build →
-   gate → sign → broadcast). Pro users get batch revoke.
+   gate → sign → broadcast). Batch revoke is available to every user.
 
 ### 5.7 Export / import `.arcsign` backup
 1. **Export** → FFI `ExportWallet`: **no password** (the inner `mnemonic.enc`
@@ -1032,7 +1002,6 @@ by §2.
 ```
 internal/
   lib/            FFI //export surface (exports_*.go) + sign_helper.go
-  wallet/         official contract constants
   models/         Wallet / AddressBook / DerivedAddress / EncryptedMnemonic
   services/       bip39service · hdkey · address · coinregistry · wallet ·
                   crypto · storage · backup · ratelimit · audit
@@ -1043,7 +1012,6 @@ internal/
                   engine · common/touched tokens · indexer clients · approval risk
   rpc/            keyless public RPC registry + gas price
   contacts/  txlabels/   encrypted address book + tx labels
-  constants/      WalletLimit business rules
 
 src/
   chainadapter/   (own go.mod) unified tx interface — ethereum/ · bitcoin/ · rpc/
@@ -1051,11 +1019,9 @@ src/
 
 dashboard/
   src/            React — components/ · hooks/ · stores/ · services/{tauri-api,
-                  clearsign,walletconnect,analytics}
+                  clearsign,walletconnect}
   src-tauri/src/  Rust — commands/*.rs · ffi/{bindings,queue}.rs · websocket/ ·
                   capabilities/
-
-contracts/        ArcSignPro.sol · ArcSignReferral.sol (+ testnet variants)
 ```
 
 For the security-judgment-in-backend rule and the provider data-path details in

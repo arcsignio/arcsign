@@ -47,16 +47,6 @@ npm test                # Run Vitest (watch mode — use `npx vitest run` for CI
 npm run test:coverage   # Run tests with coverage
 ```
 
-### Smart Contracts (Hardhat)
-
-```bash
-cd contracts
-npm install
-npm run compile         # Compile contracts
-npm test                # Run Hardhat tests
-npm run deploy:testnet  # Deploy to BSC testnet
-```
-
 ### Running Go Tests
 
 ```bash
@@ -71,14 +61,10 @@ go test -run TestSpecificName ./...       # Run single test
 ### Key Directories
 
 - `internal/` — Go core logic (wallet, crypto, services, providers)
-- `internal/lib/` — FFI exports for Tauri; split into 9 domain files
+- `internal/lib/` — FFI exports for Tauri; split into domain files
   (`exports_wallet.go`, `exports_transaction.go`, `exports_swap.go`,
   `exports_signing.go`, `exports_address.go`, `exports_provider.go`,
-  `exports_membership.go`, `exports_app.go`, `exports_dev.go`) +
-  `exports.go` (helpers only, 346 lines)
-- `internal/wallet/constants.go` — **Single source of truth for official
-  contract addresses and swap referrer.** Compile-time constants, NOT
-  configurable at runtime. See [`OFFICIAL_ADDRESSES.md`](OFFICIAL_ADDRESSES.md).
+  `exports_app.go`, `exports_dev.go`) + `exports.go` (helpers only)
 - `src/chainadapter/` — Cross-chain transaction adapters (Bitcoin, Ethereum)
 - `src/swap/` — DEX swap: `aggregator.go` (GetBestRoute parallel query),
   `kyberswap/`, `oneinch/`, `openocean/`
@@ -90,10 +76,6 @@ go test -run TestSpecificName ./...       # Run single test
   via libloading
 - `dashboard/src/services/tauri-api.ts` — Frontend Tauri invoke layer
   (2,500+ lines)
-- `dashboard/src/constants/contracts.ts` — Frontend mirror of the official
-  contract addresses. Stays in sync with `internal/wallet/constants.go`.
-- `contracts/` — Hardhat smart contracts: `ArcSignPro.sol` (Pro NFT),
-  `ArcSignReferral.sol` (10-20% referral), on BSC
 - **網站與 web app 不在本 repo** — landing page、blog、NFT mint 頁面都已移到
   獨立的 [`arcsignio/website`](https://github.com/arcsignio/website) repo（Astro 站，
   部署到 arcsign.io，含 blog source of truth 與 Pro NFT mint app）。冷錢包桌面 app
@@ -110,8 +92,7 @@ go test -run TestSpecificName ./...       # Run single test
 3. `ChainAdapter` provides unified interface for multi-chain transactions
    (Bitcoin + 7 EVM chains)
 4. Zustand stores (`dashboardStore`, `walletSessionStore`, `sessionStore`)
-   manage UI state; `analytics.ts` sends heartbeats to Cloudflare Worker
-   for tier tracking
+   manage UI state
 
 ### Frontend/Backend Separation（前後端職責，鐵則）
 
@@ -125,8 +106,8 @@ go test -run TestSpecificName ./...       # Run single test
 - 前端的 checkbox / 按鈕 disabled（`useSignGate` + `SignGateAcknowledge`）是**知情同意 UX，
   非安全保證**——真閘在後端，前端可繞過（改 JS / 直呼 FFI / 漏接的程式路徑）。`useSignGate`
   不自己算危險，只讀 `security.requiresAcknowledge`（後端算的）。
-- 黑名單是**免費基礎檢查**（所有人，零成本、嵌入種子）；交易模擬是 Pro（需 Alchemy key）。
-  `proRequired` 只代表「模擬沒跑」，不代表報告無效——黑名單對所有人有效。
+- 黑名單是**基礎檢查**（所有人、零成本、嵌入種子）；交易模擬需要 Alchemy key。
+  模擬沒跑不代表報告無效——黑名單對所有人有效。
 - **新功能套用**：任何「會改變鏈上狀態 / 動資產」的操作，安全判斷與閘放後端，前端只接
   `useSignGate` 呈現結論並把 `acknowledgedRisk` 帶回後端。
 
@@ -230,7 +211,7 @@ errors at runtime.
 - **Desktop**: Tauri v2 (Rust) — uses plugin model
   (`tauri-plugin-dialog`, `tauri-plugin-fs`, `tauri-plugin-shell`)
 - **Testing**: Vitest (frontend, 82%+ coverage, 846 tests), Go testing
-  (backend), Hardhat (contracts)
+  (backend)
 
 ## Release Process
 
@@ -280,7 +261,7 @@ integrity and reproduce the build from source (see
 - A **mobile app** is planned for the future (not yet released).
 - Key differentiator: `.arcsign` encrypted backup replaces paper seed phrases.
 - **Token Approvals management** — users can view and revoke ERC-20 approvals
-  across the EVM chains. Pro users get batch revoke. This is a security feature
+  across the EVM chains, including batch revoke. This is a security feature
   to prevent forgotten approvals from becoming attack vectors. Each approval is
   **risk-classified offline** (red/yellow/green): the backend labels the spender
   from a curated registry (`internal/provider/spender_registry.go`), flags
@@ -323,14 +304,6 @@ integrity and reproduce the build from source (see
 - Tauri v2 uses `capabilities` permission model (not `allowlist`). New
   Tauri commands need to be registered in `tauri.conf.json` capabilities
   and `src-tauri/src/commands/mod.rs`.
-- Pro/Free feature gating is checked via `MembershipStatus` (on-chain NFT
-  balance) — do not add client-side-only gates.
-- The Pro NFT and Referral contracts are deployed on BSC. **Their addresses
-  are pinned compile-time constants** in
-  [`internal/wallet/constants.go`](internal/wallet/constants.go) and
-  [`dashboard/src/constants/contracts.ts`](dashboard/src/constants/contracts.ts).
-  Any change requires explicit maintainer review — see
-  [`OFFICIAL_ADDRESSES.md`](OFFICIAL_ADDRESSES.md).
 
 ## Blog 與網站內容
 
