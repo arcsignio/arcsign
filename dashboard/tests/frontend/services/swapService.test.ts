@@ -31,20 +31,20 @@ describe("swapService.fetchQuote", () => {
   beforeEach(() => vi.clearAllMocks());
   it("forwards all quote params to getSwapQuote and returns the quote", async () => {
     (api.getSwapQuote as any).mockResolvedValue({ dex: "OpenOcean", feeRate: "0.1" });
-    const p = { chainId: "ethereum", fromTokenAddress: "0xa", toTokenAddress: "0xb", amount: "1000", fromAddress: "0xowner", slippage: 0.5, provider: "openocean", isPro: false, usbPath: "/u", sessionToken: "t" };
+    const p = { chainId: "ethereum", fromTokenAddress: "0xa", toTokenAddress: "0xb", amount: "1000", fromAddress: "0xowner", slippage: 0.5, provider: "openocean", usbPath: "/u", sessionToken: "t" };
     const out = await fetchQuote(p);
     expect(api.getSwapQuote).toHaveBeenCalledWith(p);
     expect(out).toEqual({ dex: "OpenOcean", feeRate: "0.1" });
   });
   it("propagates the underlying error (no swallowing)", async () => {
     (api.getSwapQuote as any).mockRejectedValue(new Error("quote boom"));
-    await expect(fetchQuote({ chainId: "ethereum", fromTokenAddress: "0xa", toTokenAddress: "0xb", amount: "1", fromAddress: "0xo", slippage: 0.5, isPro: false, usbPath: "/u", sessionToken: "t" })).rejects.toThrow("quote boom");
+    await expect(fetchQuote({ chainId: "ethereum", fromTokenAddress: "0xa", toTokenAddress: "0xb", amount: "1", fromAddress: "0xo", slippage: 0.5, usbPath: "/u", sessionToken: "t" })).rejects.toThrow("quote boom");
   });
 });
 
 const erc20 = { network: "eth-mainnet", fromAddress: "0xowner", tokenAddress: "0xtoken", tokenSymbol: "USDC", tokenName: "USD Coin", decimals: 6, balance: "100" } as any;
 const native = { network: "eth-mainnet", fromAddress: "0xowner", tokenAddress: "", tokenSymbol: "ETH", tokenName: "Ether", decimals: 18, balance: "1" } as any;
-const baseBuild = { chainId: "ethereum", toTokenAddress: "0xb", amountWei: "1000000", slippage: 0.5, provider: "openocean", isPro: false, usbPath: "/u", sessionToken: "t" };
+const baseBuild = { chainId: "ethereum", toTokenAddress: "0xb", amountWei: "1000000", slippage: 0.5, provider: "openocean", usbPath: "/u", sessionToken: "t" };
 
 describe("swapService.buildSwap", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -78,13 +78,12 @@ describe("swapService.buildSwap", () => {
     expect(r.allowance).toEqual({ needsApproval: true, current: null });
   });
 
-  it("forwards build params incl. provider undefined when isPro", async () => {
+  it("always forwards provider undefined to buildSwapTransaction (backend always best-routes)", async () => {
     (api.buildSwapTransaction as any).mockResolvedValue({ txData: { to: "0xrouter" } });
     (api.checkSwapAllowance as any).mockResolvedValue({ allowance: "0" });
-    await buildSwap({ ...baseBuild, fromToken: erc20, isPro: true });
-    expect(api.buildSwapTransaction).toHaveBeenCalledWith(expect.objectContaining({ provider: undefined, isPro: true, fromTokenAddress: "0xtoken", toTokenAddress: "0xb" }));
-    // Invariant: allowance provider is NOT gated by isPro — checkSwapAllowance must
-    // receive the concrete provider string (p.provider ?? "") even when isPro=true.
+    await buildSwap({ ...baseBuild, fromToken: erc20 });
+    expect(api.buildSwapTransaction).toHaveBeenCalledWith(expect.objectContaining({ provider: undefined, fromTokenAddress: "0xtoken", toTokenAddress: "0xb" }));
+    // checkSwapAllowance still receives the concrete provider string (p.provider).
     expect(api.checkSwapAllowance).toHaveBeenCalledWith(expect.objectContaining({ provider: "openocean" }));
   });
 });
@@ -136,7 +135,7 @@ describe("swapService.executeApproval", () => {
 });
 
 const toTok = { address: "0xout", symbol: "ETH", decimals: 18, network: "eth-mainnet" };
-const swapParams = { chainId: "ethereum", walletId: "w1", fromToken: erc20, toToken: toTok, swapTx: { txData: { to: "0xrouter", data: "0xcalldata", value: "0" } } as any, walletPassword: "pw", preValidatedPassphrase: "", acknowledgedRisk: true, isPro: true, usbPath: "/u", sessionToken: "t" };
+const swapParams = { chainId: "ethereum", walletId: "w1", fromToken: erc20, toToken: toTok, swapTx: { txData: { to: "0xrouter", data: "0xcalldata", value: "0" } } as any, walletPassword: "pw", preValidatedPassphrase: "", acknowledgedRisk: true, usbPath: "/u", sessionToken: "t" };
 
 describe("swapService.executeSwap", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -158,8 +157,8 @@ describe("swapService.executeSwap", () => {
       fromAddress: "0xowner", unsignedTx: { unsigned: "0xbuilt" }, usbPath: "/u",
       sessionToken: "t", acknowledgedRisk: true,
     });
-    // build uses the swap tx value + calldata + fast fee + isPro
-    expect(api.buildTransaction).toHaveBeenCalledWith(expect.objectContaining({ to: "0xrouter", amount: "0", data: "0xcalldata", feeSpeed: "fast", isPro: true }));
+    // build uses the swap tx value + calldata + fast fee
+    expect(api.buildTransaction).toHaveBeenCalledWith(expect.objectContaining({ to: "0xrouter", amount: "0", data: "0xcalldata", feeSpeed: "fast" }));
   });
 
   it("records the output token via addTouchedToken (best effort) but a failure does NOT reject the swap", async () => {

@@ -23,8 +23,6 @@ Closes #
 - [ ] All tests pass locally
       (`go test ./internal/... && cd dashboard && npx vitest run`)
 - [ ] Commit is signed off (`git commit -s`)
-- [ ] No changes to `internal/wallet/constants.go` or
-      `dashboard/src/constants/contracts.ts` (official addresses)
 - [ ] Documentation updated if user-visible behavior changed
 
 ## Screenshots / logs (if UI / behavior change)

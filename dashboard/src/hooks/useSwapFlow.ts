@@ -13,7 +13,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useSignGate } from "@/hooks/useSignGate";
-import { isWalletLocked } from "@/utils/walletLock";
 import {
   type SwapQuoteResponse,
   type BuildSwapTransactionResponse,
@@ -59,7 +58,6 @@ export interface UseSwapFlowParams {
   availableTokens: SendableToken[];
   usbPath: string;
   sessionToken: string;
-  isPro: boolean;
   onSuccess?: (txHash: string) => void;
 }
 
@@ -69,7 +67,6 @@ export function useSwapFlow({
   availableTokens,
   usbPath,
   sessionToken,
-  isPro,
   onSuccess,
 }: UseSwapFlowParams) {
   const { t } = useTranslation();
@@ -131,7 +128,6 @@ export function useSwapFlow({
           data: swapTx.txData.data || "",
           usbPath,
           sessionToken,
-          isPro,
         }
       : null,
   );
@@ -274,8 +270,7 @@ export function useSwapFlow({
         amount: amountWei,
         fromAddress: fromToken.fromAddress,
         slippage,
-        provider: isPro ? undefined : selectedProvider, // Pro: backend picks best; Free: user-selected
-        isPro,
+        provider: undefined, // Backend always routes best price now.
         usbPath,
         sessionToken,  // ✅ Low-risk: quote query
       });
@@ -289,7 +284,7 @@ export function useSwapFlow({
     } finally {
       setIsLoading(false);
     }
-  }, [fromToken, toToken, amount, chainId, slippage, selectedProvider, isPro, usbPath, sessionToken]);
+  }, [fromToken, toToken, amount, chainId, slippage, usbPath, sessionToken]);
 
   // Debounced quote fetch
   useEffect(() => {
@@ -338,7 +333,6 @@ export function useSwapFlow({
         amountWei,
         slippage,
         provider: selectedProvider,
-        isPro,
         usbPath,
         sessionToken,
       });
@@ -443,12 +437,6 @@ export function useSwapFlow({
       return;
     }
 
-    // Check if wallet is locked due to membership limit
-    if (isWalletLocked(walletId)) {
-      setError(t('wallet.walletLocked', 'Wallet is locked due to membership limit. Please upgrade to unlock.'));
-      return;
-    }
-
     if (!walletPassword) {
       setError(t('swap.pleaseEnterPassword'));
       return;
@@ -473,7 +461,6 @@ export function useSwapFlow({
           walletPassword,
           preValidatedPassphrase: preValidatedPassphrase || "",
           acknowledgedRisk: gate.acknowledged,
-          isPro,
           usbPath,
           sessionToken,
         },

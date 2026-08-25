@@ -109,7 +109,10 @@ func GetSelfHostedTokenBalances(addrs []AddressWithNetworks) []SimplifiedTokenBa
 // that address's touched tokens for that network. Balances stay live (no cached
 // amounts) — only the token *list* comes from table B.
 func GetSelfHostedTokenBalancesWithExtra(addrs []AddressWithNetworks, extraByAddr map[string][]TokenRef) []SimplifiedTokenBalance {
-	var all []SimplifiedTokenBalance
+	// Non-nil slice: a nil return marshals to JSON `null`, which the frontend
+	// dereferences as `tokens.length` and crashes on. An empty wallet must
+	// serialize as `[]`, not `null`.
+	all := []SimplifiedTokenBalance{}
 	for _, a := range addrs {
 		extra := extraByAddr[a.Address]
 		for _, net := range a.Networks {

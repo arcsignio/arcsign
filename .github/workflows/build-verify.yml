@@ -98,30 +98,6 @@ jobs:
         working-directory: dashboard
         run: npx vite build
 
-  contracts-compile:
-    name: Contracts Compile
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: contracts/package-lock.json
-
-      - name: Install hardhat-plugin dependencies
-        working-directory: packages/hardhat-plugin
-        run: npm ci
-
-      - name: Install contract dependencies
-        working-directory: contracts
-        run: npm ci
-
-      - name: Compile contracts
-        working-directory: contracts
-        run: npx hardhat compile
-
   tauri-check:
     name: Tauri Rust Check
     runs-on: ubuntu-22.04

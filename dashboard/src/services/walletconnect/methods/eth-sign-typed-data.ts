@@ -31,7 +31,6 @@ import {
   parseChainId,
   registerHandler,
 } from '../request-handler';
-import { isAddressLocked } from '@/utils/walletLock';
 import type { SessionTypes } from '@walletconnect/types';
 import { isValidAddress, extractSignature } from '../utils/validators';
 
@@ -145,16 +144,6 @@ const signTypedDataHandler: RequestHandler = async (
   }
 
   const { address, typedData } = parsed;
-
-  // Check if wallet is locked due to membership limit
-  if (isAddressLocked(address)) {
-    console.log('[eth_signTypedData_v4] Wallet is locked - membership limit exceeded');
-    return createErrorResponse(
-      id,
-      RPC_ERROR_CODES.UNAUTHORIZED,
-      'Wallet is locked due to membership limit. Please upgrade to unlock this wallet.'
-    );
-  }
 
   // Verify address matches session
   if (address.toLowerCase() !== context.address.toLowerCase()) {

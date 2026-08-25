@@ -11,11 +11,6 @@
       - any-glob-to-any-file:
           - 'dashboard/**'
 
-'area/contracts':
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'contracts/**'
-
 'area/chains':
   - changed-files:
       - any-glob-to-any-file:
@@ -49,4 +44,3 @@
       - any-glob-to-any-file:
           - 'internal/wallet/constants.go'
           - 'dashboard/src/constants/contracts.ts'
-          - 'OFFICIAL_ADDRESSES.md'

@@ -90,7 +90,6 @@ func BuildTransaction(params *C.char) (result *C.char) {
 		USBPath      string `json:"usbPath"`      // USB path for provider config
 		SessionToken string `json:"sessionToken"` // PREFERRED: Session token for app auth
 		AppPassword  string `json:"appPassword"`  // DEPRECATED: App password for decryption
-		IsPro        bool   `json:"isPro"`        // Pro membership status (for security features)
 	}
 
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
@@ -219,7 +218,7 @@ func BuildTransaction(params *C.char) (result *C.char) {
 			}
 		}
 	}
-	securityReport := guard.Check(ctx, input.IsPro, input.To, input.ChainID, alchemyAPIKey, simulation.TxParams{
+	securityReport := guard.Check(ctx, input.To, input.ChainID, alchemyAPIKey, simulation.TxParams{
 		From:  input.From,
 		To:    input.To,
 		Value: txValue,
@@ -238,7 +237,7 @@ func BuildTransaction(params *C.char) (result *C.char) {
 		"humanReadable":   unsigned.HumanReadable,
 		"buildTimestamp":  time.Now().Format(time.RFC3339),
 		"chainSpecific":   unsigned.ChainSpecific, // Critical for transaction reconstruction during signing
-		"security":        securityReport,          // Security report (Pro: full check, Free: proRequired=true)
+		"security":        securityReport,          // Security report (blacklist + simulation when key present)
 	}
 
 	response := NewSuccessResponse(data)
@@ -381,20 +380,6 @@ func SignTransaction(params *C.char) (result *C.char) {
 			return C.CString(string(jsonBytes))
 		}
 	}
-
-	// Step 0b: Check if wallet is locked (before any expensive operations)
-	// Locked wallets cannot sign transactions - this enforces the wallet limit
-	sm := initSessionManager()
-	if session := sm.GetSessionByUSBPath(input.USBPath); session != nil {
-		if session.IsWalletLocked(input.WalletID) {
-			response := NewErrorResponse(ErrWalletLocked, "Wallet is locked due to exceeding the wallet limit. Please upgrade your membership or remove newer wallets to unlock this wallet.")
-			jsonBytes, _ := json.Marshal(response)
-			return C.CString(string(jsonBytes))
-		}
-	}
-	// Note: If no session exists, we proceed with the transaction
-	// This allows signing when the user hasn't logged in yet (fallback mode)
-	// The wallet limit is still enforced at the UI level in this case
 
 	// Step 1: Manually reconstruct UnsignedTransaction from map
 	// Note: *big.Int fields can't be directly unmarshalled from JSON strings
@@ -904,7 +889,7 @@ func EstimateFee(params *C.char) (result *C.char) {
 // for a transaction WITHOUT building or signing it. Used by the WalletConnect and
 // mint-page signing paths to surface a SecurityReport before the user signs.
 // Reuses the same lazy global guard and provider-key loading as BuildTransaction.
-// Pro-gated inside guard.Check (Free → proRequired); never blocks signing.
+// Simulation runs when an Alchemy key is present; never blocks signing.
 func CheckTransactionSecurity(params *C.char) (result *C.char) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -930,7 +915,6 @@ func CheckTransactionSecurity(params *C.char) (result *C.char) {
 		USBPath      string `json:"usbPath"`
 		SessionToken string `json:"sessionToken"`
 		AppPassword  string `json:"appPassword"`
-		IsPro        bool   `json:"isPro"`
 	}
 	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
 		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
@@ -971,7 +955,7 @@ func CheckTransactionSecurity(params *C.char) (result *C.char) {
 	}
 
 	guard := initTxGuard()
-	report := guard.Check(context.Background(), input.IsPro, input.To, input.ChainID, alchemyAPIKey, simulation.TxParams{
+	report := guard.Check(context.Background(), input.To, input.ChainID, alchemyAPIKey, simulation.TxParams{
 		From:  input.From,
 		To:    input.To,
 		Value: input.Value,

@@ -30,7 +30,6 @@ import {
   parseChainId,
   registerHandler,
 } from '../request-handler';
-import { isAddressLocked } from '@/utils/walletLock';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import type { SessionTypes } from '@walletconnect/types';
 import {
@@ -87,16 +86,6 @@ const sendTransactionHandler: RequestHandler = async (
     );
   }
 
-  // Check if wallet is locked due to membership limit
-  if (isAddressLocked(tx.from)) {
-    console.log('[eth_sendTransaction] Wallet is locked - membership limit exceeded');
-    return createErrorResponse(
-      id,
-      RPC_ERROR_CODES.UNAUTHORIZED,
-      'Wallet is locked due to membership limit. Please upgrade to unlock this wallet.'
-    );
-  }
-
   // Verify from address matches session
   if (tx.from.toLowerCase() !== context.address.toLowerCase()) {
     return createErrorResponse(
@@ -145,7 +134,6 @@ const sendTransactionHandler: RequestHandler = async (
       data: tx.data,
       usbPath: context.usbPath,
       sessionToken: context.sessionToken,
-      isPro: context.isPro,
     });
   } catch {
     security = undefined;

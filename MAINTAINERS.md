@@ -14,9 +14,6 @@ The maintainer is responsible for:
 - Triaging issues and security reports (see [`SECURITY.md`](SECURITY.md)).
 - Publishing signed, reproducible releases (see
   [`docs/reproducible-builds.md`](docs/reproducible-builds.md)).
-- Guarding the official on-chain addresses in
-  [`internal/wallet/constants.go`](internal/wallet/constants.go)
-  (see [`OFFICIAL_ADDRESSES.md`](OFFICIAL_ADDRESSES.md)).
 
 ## Contact
 

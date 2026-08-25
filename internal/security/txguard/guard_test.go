@@ -8,39 +8,33 @@ import (
 	"github.com/arcsignio/arcsign/internal/security/simulation"
 )
 
-func TestCheck_FreeUser(t *testing.T) {
+func TestCheck_BlacklistedAddressRunsForEveryone(t *testing.T) {
 	blMgr := blacklist.NewManager(nil)
 	blMgr.AddAddress("0xevil", "OFAC", "sanctioned")
 
 	guard := NewGuard(blMgr, simulation.NewSimulator())
 
-	report := guard.Check(context.Background(), false, "0xevil", "ethereum", "test-key", simulation.TxParams{})
+	report := guard.Check(context.Background(), "0xevil", "ethereum", "test-key", simulation.TxParams{})
 
-	if !report.ProRequired {
-		t.Error("expected proRequired=true for free user (simulation gated)")
-	}
-	// New semantics: blacklist is free and runs for everyone, so a Free user
-	// targeting a blacklisted address still gets the match + danger risk.
+	// Blacklist is free and runs for everyone, so a blacklisted address
+	// always gets the match + danger risk.
 	if report.BlacklistMatch == nil {
-		t.Error("expected blacklist check to run for free user (blacklist is free)")
+		t.Error("expected blacklist check to run")
 	}
 	if report.RiskLevel != RiskDanger {
-		t.Errorf("expected danger risk level for free user on blacklisted addr, got %s", report.RiskLevel)
+		t.Errorf("expected danger risk level for blacklisted addr, got %s", report.RiskLevel)
 	}
 }
 
-func TestCheck_ProUser_SafeAddress(t *testing.T) {
+func TestCheck_SafeAddress(t *testing.T) {
 	blMgr := blacklist.NewManager(nil)
 	blMgr.AddAddress("0xevil", "OFAC", "sanctioned")
 
 	// No simulator (nil) to avoid real API calls
 	guard := NewGuard(blMgr, nil)
 
-	report := guard.Check(context.Background(), true, "0xsafe", "ethereum", "", simulation.TxParams{})
+	report := guard.Check(context.Background(), "0xsafe", "ethereum", "", simulation.TxParams{})
 
-	if report.ProRequired {
-		t.Error("expected proRequired=false for pro user")
-	}
 	if report.BlacklistMatch != nil {
 		t.Error("expected no blacklist match for safe address")
 	}
@@ -52,17 +46,14 @@ func TestCheck_ProUser_SafeAddress(t *testing.T) {
 	}
 }
 
-func TestCheck_ProUser_BlacklistedAddress(t *testing.T) {
+func TestCheck_BlacklistedAddress(t *testing.T) {
 	blMgr := blacklist.NewManager(nil)
 	blMgr.AddAddress("0xDangerousAddr", "OFAC", "sanctioned")
 
 	guard := NewGuard(blMgr, nil)
 
-	report := guard.Check(context.Background(), true, "0xdangerousaddr", "ethereum", "", simulation.TxParams{})
+	report := guard.Check(context.Background(), "0xdangerousaddr", "ethereum", "", simulation.TxParams{})
 
-	if report.ProRequired {
-		t.Error("expected proRequired=false for pro user")
-	}
 	if report.BlacklistMatch == nil {
 		t.Fatal("expected blacklist match for dangerous address")
 	}
@@ -80,11 +71,11 @@ func TestCheck_ProUser_BlacklistedAddress(t *testing.T) {
 	}
 }
 
-func TestCheck_ProUser_EmptyAddress(t *testing.T) {
+func TestCheck_EmptyAddress(t *testing.T) {
 	blMgr := blacklist.NewManager(nil)
 	guard := NewGuard(blMgr, nil)
 
-	report := guard.Check(context.Background(), true, "", "ethereum", "", simulation.TxParams{})
+	report := guard.Check(context.Background(), "", "ethereum", "", simulation.TxParams{})
 
 	if report.BlacklistMatch != nil {
 		t.Error("expected no match for empty address")
@@ -97,7 +88,7 @@ func TestCheck_ProUser_EmptyAddress(t *testing.T) {
 func TestCheck_NilBlacklistManager(t *testing.T) {
 	guard := NewGuard(nil, nil)
 
-	report := guard.Check(context.Background(), true, "0xany", "ethereum", "", simulation.TxParams{})
+	report := guard.Check(context.Background(), "0xany", "ethereum", "", simulation.TxParams{})
 
 	if report.BlacklistMatch != nil {
 		t.Error("expected no match with nil blacklist manager")
@@ -132,12 +123,12 @@ func TestCheckDomain_NilManager(t *testing.T) {
 	}
 }
 
-func TestCheck_ProUser_WithSimulationResult(t *testing.T) {
+func TestCheck_WithSimulationResult(t *testing.T) {
 	blMgr := blacklist.NewManager(nil)
 	// No real simulator — just test that report structure is correct
 	guard := NewGuard(blMgr, nil)
 
-	report := guard.Check(context.Background(), true, "0xsafe", "ethereum", "", simulation.TxParams{
+	report := guard.Check(context.Background(), "0xsafe", "ethereum", "", simulation.TxParams{
 		From: "0xSender", To: "0xReceiver", Value: "0x0",
 	})
 
@@ -156,12 +147,12 @@ func newGuardWithBlacklistedAddr(addr string) *Guard {
 	return NewGuard(blMgr, nil)
 }
 
-func TestCheck_FreeUserStillGetsBlacklist(t *testing.T) {
+func TestCheck_BlacklistHitSetsRequiresAcknowledge(t *testing.T) {
 	addr := "0x000000000000000000000000000000000000dead"
 	g := newGuardWithBlacklistedAddr(addr)
-	r := g.Check(context.Background(), false, addr, "ethereum", "", simulation.TxParams{To: addr})
+	r := g.Check(context.Background(), addr, "ethereum", "", simulation.TxParams{To: addr})
 	if r.BlacklistMatch == nil {
-		t.Fatal("Free user must still get the blacklist match (blacklist is free)")
+		t.Fatal("must get the blacklist match (blacklist is free)")
 	}
 	if !r.RequiresAcknowledge {
 		t.Error("a blacklist hit must set RequiresAcknowledge")
@@ -173,20 +164,8 @@ func TestCheck_FreeUserStillGetsBlacklist(t *testing.T) {
 
 func TestCheck_SafeAddrNoAcknowledge(t *testing.T) {
 	g := NewGuard(blacklist.NewManager(nil), nil)
-	r := g.Check(context.Background(), false, "0x1111111111111111111111111111111111111111", "ethereum", "", simulation.TxParams{})
+	r := g.Check(context.Background(), "0x1111111111111111111111111111111111111111", "ethereum", "", simulation.TxParams{})
 	if r.RequiresAcknowledge {
 		t.Error("a non-blacklisted address must NOT require acknowledge")
-	}
-}
-
-func TestCheck_ProRequiredMeansSimulationSkipped(t *testing.T) {
-	addr := "0x000000000000000000000000000000000000dead"
-	g := newGuardWithBlacklistedAddr(addr)
-	r := g.Check(context.Background(), false, addr, "ethereum", "", simulation.TxParams{To: addr})
-	if !r.ProRequired {
-		t.Error("Free user → ProRequired true (simulation gated)")
-	}
-	if r.BlacklistMatch == nil {
-		t.Error("ProRequired must NOT suppress the blacklist result")
 	}
 }

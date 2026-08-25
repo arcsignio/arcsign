@@ -8,6 +8,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { useSessionStore } from '@/stores/sessionStore';
+import { PasswordInput } from '@/components/PasswordInput';
 import {
   setProviderConfig,
   listProviderConfigs,
@@ -245,8 +246,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
 
           <div className="form-group">
             <label>{t('provider.apiKey')}</label>
-            <input
-              type="password"
+            <PasswordInput
               value={formData.apiKey}
               onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
               placeholder={t('provider.apiKeyPlaceholder')}

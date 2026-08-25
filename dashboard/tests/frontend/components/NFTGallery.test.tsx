@@ -9,11 +9,6 @@ vi.mock('@/services/tauri-api', () => ({
   },
 }));
 
-// Mock useMembership hook
-vi.mock('@/hooks/useMembership', () => ({
-  useMembership: vi.fn(),
-}));
-
 // Mock LoadingSpinner
 vi.mock('@/components/LoadingSpinner', () => ({
   LoadingSpinner: () => <div data-testid="loading-spinner">Loading...</div>,
@@ -25,14 +20,7 @@ vi.mock('@/utils/chainIcons', () => ({
   getChainFallbackIcon: vi.fn(() => ''),
 }));
 
-// Mock contracts constant
-vi.mock('@/constants/contracts', () => ({
-  ACTIVE_NETWORK: { nftContract: '0xNFTContract', explorer: 'https://bscscan.com' },
-  APPROVE_SELECTOR: '0x095ea7b3',
-}));
-
 import tauriApi from '@/services/tauri-api';
-import { useMembership } from '@/hooks/useMembership';
 
 import { NFTGallery } from '@/components/NFTGallery';
 
@@ -41,7 +29,6 @@ const defaultProps = {
   password: 'pw',
   usbPath: '/dev/usb0',
   sessionToken: 'token',
-  bscAddress: '0xbscaddr',
 };
 
 const mockNFTs = [
@@ -81,14 +68,6 @@ function setupDefaultMocks() {
   (tauriApi.getNFTs as any).mockImplementation(() =>
     Promise.resolve({ nfts: [] })
   );
-  (useMembership as any).mockReturnValue({
-    status: null,
-    isLoading: false,
-    error: null,
-    isPro: false,
-    walletLimit: 1,
-    refresh: vi.fn(),
-  });
 }
 
 describe('NFTGallery', () => {
@@ -124,30 +103,6 @@ describe('NFTGallery', () => {
     unmount();
   });
 
-  it('renders membership NFT when user is Pro', async () => {
-    (useMembership as any).mockReturnValue({
-      status: {
-        isPro: true,
-        nftCount: 1,
-        tokenIds: [99],
-        expirations: [],
-        daysRemaining: 365,
-        walletLimit: 10,
-      },
-      isLoading: false,
-      error: null,
-      isPro: true,
-      walletLimit: 10,
-      refresh: vi.fn(),
-    });
-
-    const { unmount } = render(<NFTGallery {...defaultProps} />);
-    await waitFor(() => {
-      expect(screen.getAllByText(/ArcSign Pro/).length).toBeGreaterThanOrEqual(1);
-    });
-    unmount();
-  });
-
   it('displays NFTs after loading', async () => {
     (tauriApi.getNFTs as any).mockImplementation(() =>
       Promise.resolve({ nfts: mockNFTs })
@@ -157,18 +112,6 @@ describe('NFTGallery', () => {
       expect(screen.getByText('Cool Cat #1')).toBeInTheDocument();
       expect(screen.getByText('Poly NFT #42')).toBeInTheDocument();
     });
-    unmount();
-  });
-
-  it('does not show membership NFT when user is not Pro', async () => {
-    (tauriApi.getNFTs as any).mockImplementation(() =>
-      Promise.resolve({ nfts: mockNFTs })
-    );
-    const { unmount } = render(<NFTGallery {...defaultProps} />);
-    await waitFor(() => {
-      expect(screen.getByText('Cool Cat #1')).toBeInTheDocument();
-    });
-    expect(screen.queryByText(/ArcSign Pro/)).not.toBeInTheDocument();
     unmount();
   });
 
@@ -253,7 +196,6 @@ describe('NFTGallery', () => {
     expect(screen.getByText('nftGallery.tokenType')).toBeInTheDocument();
     expect(screen.getByText('nftGallery.tokenId')).toBeInTheDocument();
     expect(screen.getByText('nftGallery.contract')).toBeInTheDocument();
-    // Description shown for non-Pro NFTs
     expect(screen.getByText('A cool cat')).toBeInTheDocument();
     unmount();
   });
@@ -352,43 +294,6 @@ describe('NFTGallery', () => {
     unmount();
   });
 
-  // --- Pro membership detail view ---
-
-  it('shows PRO badge and membership details in detail view for Pro NFTs', async () => {
-    const user = userEvent.setup();
-    (useMembership as any).mockReturnValue({
-      status: {
-        isPro: true,
-        nftCount: 1,
-        tokenIds: [99],
-        expirations: [],
-        daysRemaining: 365,
-        walletLimit: 10,
-      },
-      isLoading: false,
-      error: null,
-      isPro: true,
-      walletLimit: 10,
-      refresh: vi.fn(),
-    });
-
-    const { unmount } = render(<NFTGallery {...defaultProps} />);
-    await waitFor(() => {
-      expect(screen.getAllByText(/ArcSign Pro/).length).toBeGreaterThanOrEqual(1);
-    });
-
-    // Click the Pro NFT card
-    await user.click(screen.getByText('ArcSign Pro #99'));
-
-    // Detail view should show PRO badge, days remaining, wallet quota
-    expect(screen.getByText('PRO')).toBeInTheDocument();
-    expect(screen.getByText('nftGallery.daysRemaining')).toBeInTheDocument();
-    expect(screen.getByText('nftGallery.walletQuota')).toBeInTheDocument();
-    // Explorer link for Pro NFTs
-    expect(screen.getByText('nftGallery.viewOnExplorer')).toBeInTheDocument();
-    unmount();
-  });
-
   // --- Mouse hover events on NFT cards ---
 
   it('applies hover styles on mouseEnter and resets on mouseLeave', async () => {
@@ -405,10 +310,10 @@ describe('NFTGallery', () => {
     const card = cardText.closest('div[style*="cursor: pointer"]')!;
 
     fireEvent.mouseEnter(card);
-    expect(card.style.transform).toBe('translateY(-2px)');
+    expect((card as HTMLElement).style.transform).toBe('translateY(-2px)');
 
     fireEvent.mouseLeave(card);
-    expect(card.style.transform).toBe('translateY(0)');
+    expect((card as HTMLElement).style.transform).toBe('translateY(0)');
     unmount();
   });
 
@@ -436,38 +341,6 @@ describe('NFTGallery', () => {
       expect(screen.getByText('Cool Cat #1')).toBeInTheDocument();
     });
     expect(screen.getByText('1 NFT')).toBeInTheDocument();
-    unmount();
-  });
-
-  // --- Error with fallback membership NFTs still rendering ---
-
-  it('shows error message but still renders membership NFTs when API fails and user is Pro', async () => {
-    (tauriApi.getNFTs as any).mockImplementation(() =>
-      Promise.reject(new Error('API down'))
-    );
-    (useMembership as any).mockReturnValue({
-      status: {
-        isPro: true,
-        nftCount: 1,
-        tokenIds: [5],
-        expirations: [],
-        daysRemaining: 100,
-        walletLimit: 10,
-      },
-      isLoading: false,
-      error: null,
-      isPro: true,
-      walletLimit: 10,
-      refresh: vi.fn(),
-    });
-
-    const { unmount } = render(<NFTGallery {...defaultProps} />);
-    await waitFor(() => {
-      // Membership NFT should still render even though API failed
-      expect(screen.getAllByText(/ArcSign Pro/).length).toBeGreaterThanOrEqual(1);
-    });
-    // The error state with retry should NOT show because allNfts.length > 0
-    expect(screen.queryByText('nftGallery.retry')).not.toBeInTheDocument();
     unmount();
   });
 

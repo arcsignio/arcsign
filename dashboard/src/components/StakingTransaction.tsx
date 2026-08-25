@@ -16,8 +16,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import tauriApi, { type AppError, type BuildTransactionResponse } from "@/services/tauri-api";
 import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useSignGate } from "@/hooks/useSignGate";
-import { useIsPro } from "@/stores/dashboardStore";
 import type { SendableToken } from "./SendTransaction";
 import type { StakingStep, StakableAsset, StakingProvider } from "@/types/defi";
 import {
@@ -113,7 +113,6 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
 }) => {
   void _walletHasPassphrase;
   const { t } = useTranslation();
-  const isPro = useIsPro();
 
   // Selected staking option (combines asset + provider)
   const [selectedOption, setSelectedOption] = useState<StakingOption | null>(null);
@@ -214,9 +213,8 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
       data: encoder(amountSmallest),
       usbPath,
       sessionToken,
-      isPro,
     };
-  }, [selectedOption, selectedAssetAddress, amount, usbPath, sessionToken, isPro]);
+  }, [selectedOption, selectedAssetAddress, amount, usbPath, sessionToken]);
   const gate = useSignGate(gateParams);
 
   // Calculate estimated output (1:1 for most liquid staking)
@@ -690,8 +688,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         <label className="block text-sm font-medium text-gray-700 mb-2">
           {t('staking.walletPassword')}
         </label>
-        <input
-          type="password"
+        <PasswordInput
           value={walletPassword}
           onChange={(e) => setWalletPassword(e.target.value)}
           placeholder={t('staking.passwordPlaceholder')}

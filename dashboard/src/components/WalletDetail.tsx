@@ -26,7 +26,6 @@ import { getChainIconUrl, getChainFallbackIcon, isChainSupported, isChainEnabled
 import { aggregateTokens, type AggregatedToken } from "@/utils/aggregateTokens";
 import { ChainAllocationTreemap, buildChainAllocation } from "@/components/ChainAllocationTreemap";
 import { NETWORK_TO_CHAIN_MAP } from "@/utils/tokenWhitelist";
-import { isWalletLocked } from "@/utils/walletLock";
 import ReceiveAddressModal from "@/components/ReceiveAddressModal";
 import { SessionsManagerModal } from "@/components/WalletConnect/SessionsManagerModal";
 import { ExportBackup } from "@/components/ExportBackup";
@@ -100,11 +99,6 @@ export function WalletDetail({
   // Transaction History state
   const [showHistory, setShowHistory] = useState(false);
   const [historyAddress, setHistoryAddress] = useState("");
-  // BSC address for membership NFT lookup
-  const bscAddress = useMemo(() =>
-    walletAddresses.find(a => a.symbol === 'BNB' && !a.is_testnet)?.address,
-    [walletAddresses]
-  );
   // Address List modal state (for Copy Address feature)
   const [showAddressList, setShowAddressList] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
@@ -833,21 +827,13 @@ export function WalletDetail({
           }}
         >
           {(() => {
-            // Check if wallet is locked
-            const walletIsLocked = isWalletLocked(wallet.id);
-            const lockedTooltip = t('wallet.walletLocked', 'Wallet is locked due to membership limit. Please upgrade to unlock.');
-
             return [
             {
               icon: "↑",
               label: t('walletDetail.send'),
-              tooltip: walletIsLocked ? lockedTooltip : t('walletDetail.sendTooltip'),
-              disabled: walletIsLocked,
+              tooltip: t('walletDetail.sendTooltip'),
+              disabled: false,
               onClick: () => {
-                if (walletIsLocked) {
-                  alert(lockedTooltip);
-                  return;
-                }
                 console.log("💸 [Send] Button clicked, available tokens:", availableTokensForSend.length);
                 if (availableTokensForSend.length > 0) {
                   setShowSendTransaction(true);
@@ -863,11 +849,7 @@ export function WalletDetail({
               disabled: false,  // Receive is always enabled
               onClick: () => setShowAddressList(true),
             },
-            { icon: "🔄", label: t('walletDetail.swap'), tooltip: walletIsLocked ? lockedTooltip : t('walletDetail.swapTooltip'), disabled: walletIsLocked, onClick: () => {
-                if (walletIsLocked) {
-                  alert(lockedTooltip);
-                  return;
-                }
+            { icon: "🔄", label: t('walletDetail.swap'), tooltip: t('walletDetail.swapTooltip'), disabled: false, onClick: () => {
                 console.log("🔄 [Swap] Button clicked, available tokens:", availableTokensForSend.length);
                 if (availableTokensForSend.length > 0) {
                   setShowSwapTransaction(true);
@@ -1503,7 +1485,6 @@ export function WalletDetail({
           password={passwordRef.current}
           usbPath={usbPath}
           sessionToken={getSessionToken() || undefined}
-          bscAddress={bscAddress}
         />
       )}
 
@@ -1514,7 +1495,6 @@ export function WalletDetail({
           password={passwordRef.current}
           usbPath={usbPath}
           sessionToken={getSessionToken() || undefined}
-          bscAddress={bscAddress}
         />
       )}
 

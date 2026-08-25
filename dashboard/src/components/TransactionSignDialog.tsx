@@ -13,6 +13,7 @@ import type { PendingTransactionInfo } from '@/services/tauri-api';
 import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
 import type { DecodedIntent } from '@/services/clearsign/types';
 import { ClearSignSummary } from '@/components/ClearSignSummary';
+import { PasswordInput } from '@/components/PasswordInput';
 import { chainIdToNetwork } from '@/services/clearsign/chainIdToNetwork';
 import { useSignGate } from '@/hooks/useSignGate';
 import { useDashboardStore } from '@/stores/dashboardStore';
@@ -40,9 +41,8 @@ export function TransactionSignDialog({
   const [usbConnected, setUsbConnected] = useState(false);
   const [intent, setIntent] = useState<DecodedIntent | null>(null);
 
-  // Read usbPath, isPro, and sessionToken from Zustand stores
+  // Read usbPath and sessionToken from Zustand stores
   const usbPath = useDashboardStore((state) => state.usbPath) ?? '';
-  const isPro = useDashboardStore((state) => state.membership.isPro);
   const onlineDecodingEnabled = useDashboardStore((s) => s.onlineDecodingEnabled);
   const sessionToken = useSessionStore((state) => state.token) ?? '';
 
@@ -60,7 +60,6 @@ export function TransactionSignDialog({
           data: transaction.data,
           usbPath,
           sessionToken,
-          isPro,
         }
       : null,
   );
@@ -268,9 +267,8 @@ export function TransactionSignDialog({
           <label htmlFor="sign-password" className="block text-sm font-medium text-gray-700 mb-1">
             Wallet Password
           </label>
-          <input
+          <PasswordInput
             id="sign-password"
-            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter your wallet password"

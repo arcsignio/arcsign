@@ -24,12 +24,6 @@ mod models;
 mod websocket;  // WebSocket server for mint-page integration
 
 use commands::app::{is_first_time_setup, initialize_app, unlock_app};
-use commands::membership::{
-    check_membership, check_all_memberships, get_membership_tier, can_create_wallet, get_wallet_limit,
-    get_device_membership_status, get_device_membership_status_with_token,
-    add_device_membership_binding, remove_device_membership_binding,
-    sync_membership_binding_with_token, remove_membership_binding_with_token,
-};
 use commands::security::{
     clear_sensitive_memory, disable_screenshot_protection, enable_screenshot_protection,
 };
@@ -74,15 +68,6 @@ fn main() {
     tracing_subscriber::fmt::init();
 
     tracing::info!("=== arcSign Dashboard Starting ===");
-
-    // Open-source verification: log official addresses every startup.
-    // Anyone running an unmodified official ArcSign binary should see these
-    // exact values. Forks that change them produce different binary hashes —
-    // verify against https://github.com/arcsignio/arcsign/blob/master/OFFICIAL_ADDRESSES.md
-    tracing::info!("Official ArcSign contracts (BSC mainnet, chain 56):");
-    tracing::info!("  Pro NFT       : 0x02EA7B4870Aa0553EF357Af6475727f1E01c7b2F");
-    tracing::info!("  Referral      : 0x69A7aa10e11958e79988553f1722a703F7411457");
-    tracing::info!("  Swap Referrer : 0x2e26cbD533Ac3E98d3B650c7f89406EbB6f2f634");
 
     // T068: Check feature flag
     if !USE_FFI {
@@ -372,19 +357,6 @@ fn main() {
             check_swap_allowance,
             get_native_token_address,
             get_swap_tokens,
-            // Membership commands (NFT verification)
-            check_membership,
-            check_all_memberships,
-            get_membership_tier,
-            can_create_wallet,
-            get_wallet_limit,
-            // Device membership commands (USB identity binding)
-            get_device_membership_status,
-            get_device_membership_status_with_token,
-            add_device_membership_binding,
-            remove_device_membership_binding,
-            sync_membership_binding_with_token,
-            remove_membership_binding_with_token,
             // WebSocket commands (pending transactions from mint-page)
             get_pending_transaction,
             respond_to_transaction,

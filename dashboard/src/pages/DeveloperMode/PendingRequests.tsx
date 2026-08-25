@@ -11,6 +11,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DevSignRequest, DevSession, DevMessageSignRequest } from '@/types/developer';
+import { PasswordInput } from '@/components/PasswordInput';
 
 interface PendingRequestsProps {
   requests: DevSignRequest[];
@@ -335,8 +336,7 @@ export default {
                   {/* Password Input */}
                   <div className="password-section">
                     <label>{t('developer.enterPassword', 'Enter wallet password to sign')}</label>
-                    <input
-                      type="password"
+                    <PasswordInput
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Wallet password"
@@ -463,8 +463,7 @@ export default {
                   {!canAutoSign && (
                     <div className="password-section">
                       <label>{t('developer.enterPassword', 'Enter wallet password to sign')}</label>
-                      <input
-                        type="password"
+                      <PasswordInput
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Wallet password"

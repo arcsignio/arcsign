@@ -15,9 +15,9 @@ import {
   normalizeMnemonic,
 } from "@/validation/mnemonic";
 import tauriApi, { type AppError } from "@/services/tauri-api";
-import { useDashboardStore, useWalletLimitInfo } from "@/stores/dashboardStore";
+import { useDashboardStore } from "@/stores/dashboardStore";
 import { ConfirmationDialog } from "./ConfirmationDialog";
-import { ProUpgradeDialog } from "./ProUpgradeDialog";
+import { PasswordInput } from "@/components/PasswordInput";
 
 interface WalletImportProps {
   usbPath: string;
@@ -39,11 +39,9 @@ export const WalletImport: React.FC<WalletImportProps> = ({
   const [importError, setImportError] = useState<string | null>(null);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [mnemonicValue, setMnemonicValue] = useState("");
 
   const { addWallet } = useDashboardStore();
-  const walletLimitInfo = useWalletLimitInfo();
 
   // Create i18n-aware validation schema
   const walletImportSchema = useMemo(() => createWalletImportSchema(t), [t, i18n.language]);
@@ -85,12 +83,6 @@ export const WalletImport: React.FC<WalletImportProps> = ({
    * Handle form submission
    */
   const onSubmit = async (data: WalletImportFormData) => {
-    // Check wallet limit before importing
-    if (!walletLimitInfo.canCreate) {
-      setShowUpgradePrompt(true);
-      return;
-    }
-
     setIsImporting(true);
     setImportError(null);
 
@@ -186,41 +178,6 @@ export const WalletImport: React.FC<WalletImportProps> = ({
     <div className="wallet-import">
       <h2 className="text-2xl font-semibold mb-6">{t('wallet.importWallet')}</h2>
 
-      {/* Wallet Limit Info */}
-      <div style={{
-        padding: '0.75rem 1rem',
-        marginBottom: '1rem',
-        borderRadius: '8px',
-        backgroundColor: walletLimitInfo.canCreate ? '#e8f5e9' : '#fff3e0',
-        border: `1px solid ${walletLimitInfo.canCreate ? '#4caf50' : '#ff9800'}`,
-        fontSize: '0.9rem'
-      }}>
-        <span style={{ fontWeight: 500 }}>
-          {walletLimitInfo.canCreate
-            ? t('wallet.walletsCount', { current: walletLimitInfo.current, limit: walletLimitInfo.limit, tier: walletLimitInfo.isPro ? t('membership.pro') : t('membership.free') })
-            : t('wallet.limitReachedCount', { current: walletLimitInfo.current, limit: walletLimitInfo.limit })
-          }
-        </span>
-        {!walletLimitInfo.canCreate && (
-          <button
-            type="button"
-            onClick={() => setShowUpgradePrompt(true)}
-            style={{
-              marginLeft: '1rem',
-              padding: '0.25rem 0.75rem',
-              backgroundColor: '#f0b90b',
-              color: '#000',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 600
-            }}
-          >
-            {walletLimitInfo.isPro ? t('membership.getMoreNfts') : t('actions.upgrade')}
-          </button>
-        )}
-      </div>
-
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Mnemonic Input (T071, T072) */}
         <div>
@@ -263,8 +220,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
           >
             {t('security.walletPassword')} *
           </label>
-          <input
-            type="password"
+          <PasswordInput
             id="password"
             {...register("password")}
             className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
@@ -289,8 +245,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
           >
             {t('security.confirmPassword')} *
           </label>
-          <input
-            type="password"
+          <PasswordInput
             id="confirmPassword"
             {...register("confirmPassword")}
             className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
@@ -334,8 +289,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
               >
                 {t('security.passphrase')}
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 id="passphrase"
                 {...register("passphrase")}
                 className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
@@ -458,19 +412,6 @@ export const WalletImport: React.FC<WalletImportProps> = ({
         confirmVariant="danger"
         onConfirm={confirmCancel}
         onCancel={cancelCancelAction}
-      />
-
-      {/* Upgrade to Pro Prompt Dialog */}
-      <ProUpgradeDialog
-        isOpen={showUpgradePrompt}
-        currentWallets={walletLimitInfo.current}
-        walletLimit={walletLimitInfo.limit}
-        isPro={walletLimitInfo.isPro}
-        onUpgrade={() => {
-          setShowUpgradePrompt(false);
-          window.open('https://arcsign.io/mint', '_blank');
-        }}
-        onClose={() => setShowUpgradePrompt(false)}
       />
     </div>
   );

@@ -1,20 +1,18 @@
 /**
  * Token Approvals Management Component
  * Displays active ERC-20 token approvals and allows revocation
- * Feature: Token Approvals Management (v1.3 Dashboard)
- *
- * Free: view + single revoke
- * Pro: view + batch revoke
+ * (single or batch) for everyone.
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useTokenApprovals } from "@/hooks/useTokenApprovals";
-import { useMembership } from "@/hooks/useMembership";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { APPROVE_SELECTOR } from "@/constants/contracts";
 import tauriApi from "@/services/tauri-api";
 import type { ApprovalEntry } from "@/types/approvals";
+
+// ERC-20 approve(address,uint256) selector — used to build revoke calldata.
+const APPROVE_SELECTOR = "0x095ea7b3";
 
 // Network ID → ChainAdapter chainId mapping
 const NETWORK_TO_CHAIN_ID: Record<string, string> = {
@@ -76,7 +74,6 @@ interface TokenApprovalsProps {
   password: string;
   usbPath: string;
   sessionToken?: string;
-  bscAddress?: string;
 }
 
 export function TokenApprovals({
@@ -84,7 +81,6 @@ export function TokenApprovals({
   password,
   usbPath,
   sessionToken,
-  bscAddress,
 }: TokenApprovalsProps) {
   const { t } = useTranslation();
   const { approvals, isLoading, error, refresh } = useTokenApprovals(
@@ -93,8 +89,6 @@ export function TokenApprovals({
     usbPath,
     sessionToken
   );
-
-  const { isPro } = useMembership(bscAddress || null);
 
   const [filterNetwork, setFilterNetwork] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -222,10 +216,8 @@ export function TokenApprovals({
     [walletId, password, usbPath, sessionToken, refresh, t]
   );
 
-  // Batch revoke (Pro only)
+  // Batch revoke
   const handleBatchRevoke = useCallback(async () => {
-    if (!isPro) return;
-
     const toRevoke = filteredApprovals.filter((a) =>
       selectedIds.has(getApprovalId(a))
     );
@@ -293,7 +285,7 @@ export function TokenApprovals({
     });
 
     setTimeout(() => refresh(), 2000);
-  }, [isPro, filteredApprovals, selectedIds, walletId, password, usbPath, sessionToken, refresh, t]);
+  }, [filteredApprovals, selectedIds, walletId, password, usbPath, sessionToken, refresh, t]);
 
   // ========================================================================
   // Render
@@ -483,8 +475,8 @@ export function TokenApprovals({
         </div>
       )}
 
-      {/* Batch controls (Pro only) */}
-      {isPro && filteredApprovals.length > 1 && (
+      {/* Batch controls */}
+      {filteredApprovals.length > 1 && (
         <div
           style={{
             display: "flex",
@@ -533,39 +525,6 @@ export function TokenApprovals({
         </div>
       )}
 
-      {/* Pro badge for batch feature */}
-      {!isPro && filteredApprovals.length > 1 && (
-        <div
-          style={{
-            margin: "0 1.5rem 0.75rem",
-            padding: "0.5rem 0.75rem",
-            fontSize: "0.75rem",
-            color: "#64748b",
-            background: "rgba(100, 116, 139, 0.05)",
-            borderRadius: "8px",
-            border: "1px solid rgba(100, 116, 139, 0.1)",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-          }}
-        >
-          <span
-            style={{
-              fontSize: "0.625rem",
-              fontWeight: "700",
-              color: "#f59e0b",
-              background: "rgba(245, 158, 11, 0.1)",
-              padding: "0.1rem 0.4rem",
-              borderRadius: "4px",
-              letterSpacing: "0.05em",
-            }}
-          >
-            PRO
-          </span>
-          {t("tokenApprovals.batchRevokeProOnly")}
-        </div>
-      )}
-
       {/* Result message */}
       {revokeResult && (
         <div
@@ -609,21 +568,19 @@ export function TokenApprovals({
                 transition: "all 0.15s ease",
               }}
             >
-              {/* Checkbox (Pro only) */}
-              {isPro && (
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => toggleSelect(id)}
-                  style={{
-                    width: "16px",
-                    height: "16px",
-                    accentColor: "#0d9488",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                  }}
-                />
-              )}
+              {/* Checkbox */}
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => toggleSelect(id)}
+                style={{
+                  width: "16px",
+                  height: "16px",
+                  accentColor: "#0d9488",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              />
 
               {/* Token info */}
               <div style={{ flex: 1, minWidth: 0 }}>

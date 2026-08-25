@@ -29,11 +29,6 @@ should have to.**
   tag, run `make build-reproducible`, and the SHA-256 should match
   the published `SHA256SUMS`. If it doesn't, something was tampered with.
   See [`docs/reproducible-builds.md`](docs/reproducible-builds.md).
-- Every official on-chain address (Pro NFT, Referral, swap referrer) is
-  a compile-time constant — printed at startup, documented at
-  [`OFFICIAL_ADDRESSES.md`](OFFICIAL_ADDRESSES.md), and verifiable
-  against BscScan.
-
 Apache 2.0 licensed. Fork-friendly with a small trademark policy — see
 [`TRADEMARK.md`](TRADEMARK.md).
 
@@ -49,12 +44,13 @@ Apache 2.0 licensed. Fork-friendly with a small trademark policy — see
 - **DEX swap aggregator** — OpenOcean + KyberSwap parallel quotes,
   picks the best route automatically.
 - **Token approvals manager** — view and revoke ERC-20 approvals across
-  the EVM chains. Pro users get batch revoke.
+  the EVM chains, including batch revoke.
 - **NFT gallery** — cross-chain ERC-721 / ERC-1155 display.
 - **DeFi positions** — liquid staking (stETH, ankrETH, ankrBNB) with
   real-time APY.
 - **WalletConnect** — sign transactions from cold storage.
-- **Pro membership** — optional 30 USDT/year NFT for advanced features.
+- **Free, no tiers** — every feature is available to every user, no
+  paywall, no upgrade prompts.
 
 ## Architecture
 
@@ -77,8 +73,8 @@ runs in JavaScript.
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Tauri shell (Rust)  —  src-tauri/src/commands/  (15 command files)   │
-│  wallet · transaction · swap · provider · membership · usb · auth ·   │
-│  security · walletconnect · websocket · app …                         │
+│  wallet · transaction · swap · provider · usb · auth · security ·     │
+│  walletconnect · websocket · app …                                    │
 │                         ffi/bindings.rs  →  libloading                │
 └───────────────────────────────┬───────────────────────────────────────┘
                                 │  C FFI  (CString in / CString out, JSON)
@@ -88,7 +84,7 @@ runs in JavaScript.
 │                                                                       │
 │  internal/lib/  FFI exports, split by domain:                         │
 │    exports_wallet · _transaction · _swap · _signing · _address ·      │
-│    _provider · _membership · _app · _dev                              │
+│    _provider · _app · _dev                                            │
 │                                                                       │
 │  internal/  core logic:  wallet (BIP39/44 HD) · crypto · security ·   │
 │             services · provider (on-chain reads)                      │
@@ -110,8 +106,7 @@ runs in JavaScript.
    path.
 3. `ChainAdapter` (`src/chainadapter/`) gives one interface over **Bitcoin + 7
    EVM chains** (Ethereum, Polygon, Arbitrum, Optimism, Base, BSC, Avalanche).
-4. Zustand stores hold UI state; `analytics.ts` sends tier heartbeats to a
-   Cloudflare Worker.
+4. Zustand stores hold UI state.
 
 ### Cross-chain swaps
 
@@ -267,8 +262,6 @@ TL;DR:
 - Open an issue first for any non-trivial change (>50 lines).
 - All commits must be signed off with DCO: `git commit -s -m "..."`.
 - Tests required for non-trivial changes.
-- Changes to `internal/wallet/constants.go` (official addresses) are
-  auto-blocked and require explicit maintainer review.
 
 Good first issues are tagged [`good-first-issue`](https://github.com/arcsignio/arcsign/issues?q=is%3Aissue+is%3Aopen+label%3Agood-first-issue).
 Translation contributions are welcome but please open a coordination

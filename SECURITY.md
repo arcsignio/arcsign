@@ -139,11 +139,10 @@ official ArcSign binary — the bug may not exist in the official source.
 - Compare your binary's SHA-256 to the `SHA256SUMS` file attached to the
   matching GitHub Release at
   `https://github.com/arcsignio/arcsign/releases`.
-- On startup, the Dashboard logs three official addresses (Pro NFT,
-  Referral, Swap Referrer). They must match
-  [`OFFICIAL_ADDRESSES.md`](OFFICIAL_ADDRESSES.md).
+- Optionally rebuild from source and confirm the hash matches — see
+  [`docs/reproducible-builds.md`](docs/reproducible-builds.md).
 
-If either check fails, you may be running a malicious fork —
+If the hash doesn't match, you may be running a malicious fork —
 **that itself is worth reporting** (separately from any other bug).
 
 ## Dependency vulnerability scanning

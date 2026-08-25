@@ -16,9 +16,8 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }
 
 // Zustand store mocks — provide default values used by the security effect
 vi.mock('@/stores/dashboardStore', () => ({
-  useDashboardStore: (sel: (s: { usbPath: string | null; membership: { isPro: boolean } }) => unknown) =>
-    sel({ usbPath: '/dev/disk2', membership: { isPro: false } }),
-  useIsPro: () => false,
+  useDashboardStore: (sel: (s: { usbPath: string | null; onlineDecodingEnabled: boolean }) => unknown) =>
+    sel({ usbPath: '/dev/disk2', onlineDecodingEnabled: false }),
 }));
 
 vi.mock('@/stores/sessionStore', () => ({

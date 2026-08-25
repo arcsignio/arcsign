@@ -9,6 +9,7 @@ import {
 import type { SwapQuoteResponse } from "@/services/tauri-api";
 import type { SendableToken } from "@/components/SendTransaction";
 import type { ToToken } from "@/components/swap/types";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export type { ToToken };
 
@@ -121,8 +122,7 @@ export const SwapConfirm: React.FC<SwapConfirmProps> = ({
 
       <div className="form-group">
         <label>{t('swap.walletPassword')}</label>
-        <input
-          type="password"
+        <PasswordInput
           placeholder={t('swap.enterWalletPassword')}
           value={walletPassword}
           onChange={(e) => onPasswordChange(e.target.value)}

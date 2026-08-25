@@ -72,14 +72,6 @@ Only these channels are official:
 
 Any other channel claiming to be ArcSign is not official.
 
-## On-chain identity
-
-Official ArcSign contracts and addresses are pinned at compile-time and
-documented in [`OFFICIAL_ADDRESSES.md`](OFFICIAL_ADDRESSES.md).
-
-If your binary uses different addresses, it is not official — see the
-verification methods in that file.
-
 ## Questions
 
 Email `hello@arcsign.io` for trademark questions or licensing requests.

@@ -128,9 +128,7 @@ export function ClearSignSummary({
         </div>
       ))}
 
-      {/* Security report — Plan A: security not passed; Plan B (txguard) passes it in.
-          The blacklist match + warnings show for EVERYONE (proRequired only means the
-          Pro-gated simulation preview was skipped, not that the blacklist check ran). */}
+      {/* Security report — Plan A: security not passed; Plan B (txguard) passes it in. */}
       {security && (
         <div
           style={{
@@ -166,9 +164,7 @@ export function ClearSignSummary({
               </span>
             </div>
           )}
-          {/* Simulation preview is Pro-only — gate it on !proRequired so Free users
-              still see the blacklist warning above but not the skipped simulation. */}
-          {!security.proRequired && security.simulation?.assetChanges?.length ? (
+          {security.simulation?.assetChanges?.length ? (
             <div style={{ marginTop: "0.35rem" }}>
               <div style={{ color: "#64748b" }}>{t("clearSign.simulatedChanges")}</div>
               {security.simulation.assetChanges.map((c, i) => (

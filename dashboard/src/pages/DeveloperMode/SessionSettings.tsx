@@ -10,6 +10,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DevSession } from '@/types/developer';
+import { PasswordInput } from "@/components/PasswordInput";
 
 interface SessionSettingsProps {
   session: DevSession | null;
@@ -149,8 +150,7 @@ export function SessionSettings({ session, onStartSession, onEndSession }: Sessi
             <p>{t('developer.passwordForSession', 'Enter your wallet password to start a 30-minute auto-signing session.')}</p>
 
             <form onSubmit={handlePasswordSubmit}>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"

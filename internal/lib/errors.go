@@ -24,7 +24,6 @@ const (
 	// Resource errors (404/409-style)
 	ErrWalletNotFound       ErrorCode = "WALLET_NOT_FOUND"        // Wallet does not exist
 	ErrWalletAlreadyExists  ErrorCode = "WALLET_ALREADY_EXISTS"   // Wallet name collision
-	ErrWalletLocked         ErrorCode = "WALLET_LOCKED"           // Wallet is locked due to limit exceeded
 
 	// System errors (500-style)
 	ErrStorageError     ErrorCode = "STORAGE_ERROR"     // USB I/O failure
@@ -48,10 +47,6 @@ const (
 	// App config errors
 	ErrAppConfigLoad ErrorCode = "APP_CONFIG_LOAD_FAILED" // Failed to load app_config.enc
 	ErrAppConfigSave ErrorCode = "APP_CONFIG_SAVE_FAILED" // Failed to save app_config.enc
-
-	// Membership errors
-	ErrMembershipInvalid  ErrorCode = "MEMBERSHIP_INVALID"   // Membership validation failed
-	ErrMembershipNotFound ErrorCode = "MEMBERSHIP_NOT_FOUND" // Membership binding not found
 
 	// Backup errors
 	ErrBackupInvalid   ErrorCode = "BACKUP_INVALID"   // .arcsign file format or version error
@@ -129,8 +124,6 @@ func GetUserFriendlyMessage(code ErrorCode) string {
 		return "Wallet not found. Please ensure the USB drive is connected and contains your wallet."
 	case ErrWalletAlreadyExists:
 		return "A wallet with this recovery phrase already exists on the USB drive."
-	case ErrWalletLocked:
-		return "This wallet is locked because you have exceeded your wallet limit. Please upgrade your membership or remove some wallets to unlock."
 	case ErrStorageError:
 		return "Storage device not accessible. Please ensure your USB drive is properly connected."
 	case ErrEncryptionError:
@@ -161,10 +154,6 @@ func GetUserFriendlyMessage(code ErrorCode) string {
 		return "Failed to load application configuration. Please ensure your USB drive is connected."
 	case ErrAppConfigSave:
 		return "Failed to save application configuration. Please ensure your USB drive is connected."
-	case ErrMembershipInvalid:
-		return "Membership validation failed. Please check your membership status."
-	case ErrMembershipNotFound:
-		return "Membership binding not found."
 	case ErrBackupInvalid:
 		return "Invalid backup file. Please select a valid .arcsign file."
 	case ErrBackupCorrupted:

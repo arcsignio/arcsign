@@ -13,12 +13,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/arcsignio/arcsign/internal/constants"
 	"github.com/arcsignio/arcsign/internal/security"
 	"golang.org/x/crypto/hkdf"
 )
@@ -98,13 +95,7 @@ type Session struct {
 
 	// Cached public data (loaded during login, no password needed after)
 	// These are non-sensitive and can be safely stored in memory
-	DeviceId     string              // UUID from app config
-	DeviceIdHash string              // keccak256(deviceId) for contract binding
-	Memberships  []MembershipBinding // NFT bindings (public data)
-
-	// Wallet lock status (calculated at login based on wallet limit)
-	// Locked wallets can view balance but cannot send transactions
-	LockedWalletIds []string // IDs of wallets that exceed the limit
+	DeviceId string // UUID from app config
 
 	// Encrypted provider key (for decrypting provider_config.enc)
 	// Encrypted using AES-256-GCM with HKDF-derived key
@@ -145,25 +136,10 @@ func (sm *SessionManager) CreateSession(usbPath, appPassword string) (*Session, 
 	}
 
 	// Extract public data to cache in session
-	var deviceId, deviceIdHash string
-	var memberships []MembershipBinding
+	var deviceId string
 	if appConfig.Identity != nil {
 		deviceId = appConfig.Identity.DeviceId
-		// Calculate keccak256 hash for contract binding
-		if deviceId != "" {
-			hash := crypto.Keccak256Hash([]byte(deviceId))
-			deviceIdHash = hash.Hex()
-		}
-		memberships = appConfig.Identity.Memberships
 	}
-
-	// Load wallet list from filesystem (more reliable than appConfig.Wallets)
-	// appConfig.Wallets may be out of sync if wallets were created before the config
-	walletsFromFS := loadWalletsFromFilesystem(usbPath)
-
-	// Calculate locked wallets based on wallet limit
-	// Wallets are sorted by CreatedAt, newest wallets get locked first
-	lockedWalletIds := calculateLockedWallets(walletsFromFS, len(memberships))
 
 	// Get current pepper version for encryption
 	pepperVersion, _ := getCurrentPepper()
@@ -185,9 +161,6 @@ func (sm *SessionManager) CreateSession(usbPath, appPassword string) (*Session, 
 		ExpiresAt:            now.Add(SessionMaxLifetime), // Absolute timeout: 24 hours
 		LastUsed:             now,                         // Track for idle timeout: 2 hours
 		DeviceId:             deviceId,
-		DeviceIdHash:         deviceIdHash,
-		Memberships:          memberships,
-		LockedWalletIds:      lockedWalletIds,
 		EncryptedProviderKey: encryptedProviderKey, // ✅ Store encrypted key
 		PepperVersion:        pepperVersion,         // ✅ Store pepper version for future rotation
 	}
@@ -355,55 +328,6 @@ func loadWalletsFromFilesystem(usbPath string) []WalletMetadata {
 	return wallets
 }
 
-// calculateLockedWallets determines which wallets should be locked based on the wallet limit.
-// Wallets are sorted by creation time (oldest first), and wallets beyond the limit are locked.
-func calculateLockedWallets(wallets []WalletMetadata, nftCount int) []string {
-	walletLimit := constants.WalletLimit(nftCount)
-	walletCount := len(wallets)
-
-	fmt.Printf("[calculateLockedWallets] nftCount=%d, walletLimit=%d, walletCount=%d\n",
-		nftCount, walletLimit, walletCount)
-
-	// No wallets need to be locked
-	if walletCount <= walletLimit {
-		fmt.Printf("[calculateLockedWallets] No locking needed: %d <= %d\n", walletCount, walletLimit)
-		return []string{}
-	}
-
-	// Sort wallets by CreatedAt (oldest first)
-	// We need to make a copy to avoid modifying the original slice
-	sortedWallets := make([]WalletMetadata, len(wallets))
-	copy(sortedWallets, wallets)
-	sort.Slice(sortedWallets, func(i, j int) bool {
-		return sortedWallets[i].CreatedAt.Before(sortedWallets[j].CreatedAt)
-	})
-
-	fmt.Printf("[calculateLockedWallets] Sorted wallets (oldest first):\n")
-	for i, w := range sortedWallets {
-		fmt.Printf("  [%d] id=%s, name=%s, createdAt=%s\n", i, w.ID, w.Name, w.CreatedAt.Format(time.RFC3339))
-	}
-
-	// Lock wallets beyond the limit (newest wallets get locked)
-	lockedIds := make([]string, 0, walletCount-walletLimit)
-	for i := walletLimit; i < walletCount; i++ {
-		fmt.Printf("[calculateLockedWallets] Locking wallet: %s\n", sortedWallets[i].ID)
-		lockedIds = append(lockedIds, sortedWallets[i].ID)
-	}
-
-	fmt.Printf("[calculateLockedWallets] Total locked: %d, IDs: %v\n", len(lockedIds), lockedIds)
-	return lockedIds
-}
-
-// IsWalletLocked checks if a wallet is in the locked list
-func (s *Session) IsWalletLocked(walletId string) bool {
-	for _, id := range s.LockedWalletIds {
-		if id == walletId {
-			return true
-		}
-	}
-	return false
-}
-
 // GetSessionByUSBPath returns a valid session for the given USB path, if one exists.
 // Returns nil if no valid session is found for the USB path.
 func (sm *SessionManager) GetSessionByUSBPath(usbPath string) *Session {
@@ -417,61 +341,6 @@ func (sm *SessionManager) GetSessionByUSBPath(usbPath string) *Session {
 		}
 	}
 	return nil
-}
-
-// RecalculateLockedWallets re-reads wallets from filesystem and updates the locked wallet list.
-// This should be called after wallet creation or deletion to keep the lock status current.
-func (sm *SessionManager) RecalculateLockedWallets(usbPath string) {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
-	now := time.Now()
-	for _, session := range sm.sessions {
-		if session.UsbPath == usbPath && now.Before(session.ExpiresAt) {
-			// Re-read wallets from filesystem
-			walletsFromFS := loadWalletsFromFilesystem(usbPath)
-
-			// Recalculate locked wallets based on current NFT count
-			nftCount := len(session.Memberships)
-			lockedIds := calculateLockedWallets(walletsFromFS, nftCount)
-
-			// Update session
-			session.LockedWalletIds = lockedIds
-
-			fmt.Printf("[RecalculateLockedWallets] Updated locked wallets for %s: %v\n", usbPath, lockedIds)
-			return
-		}
-	}
-}
-
-// UpdateMembershipsAndRecalculate updates session memberships and recalculates locked wallets.
-// This should be called after adding/removing membership bindings to keep the session in sync.
-func (sm *SessionManager) UpdateMembershipsAndRecalculate(usbPath string, memberships []MembershipBinding) {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
-	now := time.Now()
-	for _, session := range sm.sessions {
-		if session.UsbPath == usbPath && now.Before(session.ExpiresAt) {
-			// Update session memberships
-			session.Memberships = memberships
-
-			// Re-read wallets from filesystem
-			walletsFromFS := loadWalletsFromFilesystem(usbPath)
-
-			// Recalculate locked wallets based on NEW NFT count
-			nftCount := len(memberships)
-			lockedIds := calculateLockedWallets(walletsFromFS, nftCount)
-
-			// Update session locked wallets
-			session.LockedWalletIds = lockedIds
-
-			fmt.Printf("[UpdateMembershipsAndRecalculate] Updated memberships (count=%d) and locked wallets for %s: %v\n",
-				nftCount, usbPath, lockedIds)
-			return
-		}
-	}
-	fmt.Printf("[UpdateMembershipsAndRecalculate] No session found for %s\n", usbPath)
 }
 
 // ============================================================================

@@ -168,28 +168,6 @@ type GetNativeTokenAddressFn = unsafe extern "C" fn() -> *mut c_char;
 /// Function signature for GetSwapTokens: char* GetSwapTokens(char* params)
 type GetSwapTokensFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
-// Membership management function types
-/// Function signature for GetMembershipStatus: char* GetMembershipStatus(char* params)
-type GetMembershipStatusFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
-
-/// Function signature for GetDeviceMembershipStatusWithToken: char* GetDeviceMembershipStatusWithToken(char* params)
-/// Uses session token instead of password for authentication
-type GetDeviceMembershipStatusWithTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
-
-/// Function signature for AddMembershipBinding: char* AddMembershipBinding(char* params)
-type AddMembershipBindingFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
-
-/// Function signature for RemoveMembershipBinding: char* RemoveMembershipBinding(char* params)
-type RemoveMembershipBindingFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
-
-/// Function signature for SyncMembershipBindingWithToken: char* SyncMembershipBindingWithToken(char* params)
-/// Uses session token instead of password for authentication
-type SyncMembershipBindingWithTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
-
-/// Function signature for RemoveMembershipBindingWithToken: char* RemoveMembershipBindingWithToken(char* params)
-/// Uses session token instead of password for authentication
-type RemoveMembershipBindingWithTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
-
 // Session management function types
 /// Function signature for CreateSessionToken: char* CreateSessionToken(char* params)
 type CreateSessionTokenFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
@@ -320,13 +298,6 @@ pub struct WalletLibrary {
     check_swap_allowance: Symbol<'static, CheckSwapAllowanceFn>,
     get_native_token_address: Symbol<'static, GetNativeTokenAddressFn>,
     get_swap_tokens: Symbol<'static, GetSwapTokensFn>,
-    // Membership management function symbols
-    get_membership_status: Symbol<'static, GetMembershipStatusFn>,
-    get_device_membership_status_with_token: Symbol<'static, GetDeviceMembershipStatusWithTokenFn>,
-    add_membership_binding: Symbol<'static, AddMembershipBindingFn>,
-    remove_membership_binding: Symbol<'static, RemoveMembershipBindingFn>,
-    sync_membership_binding_with_token: Symbol<'static, SyncMembershipBindingWithTokenFn>,
-    remove_membership_binding_with_token: Symbol<'static, RemoveMembershipBindingWithTokenFn>,
     // Session management function symbols
     create_session_token: Symbol<'static, CreateSessionTokenFn>,
     validate_session_token: Symbol<'static, ValidateSessionTokenFn>,
@@ -607,31 +578,6 @@ impl WalletLibrary {
                 .get(b"GetSwapTokens")
                 .map_err(|e| format!("GetSwapTokens symbol not found: {}", e))?;
 
-            // Load Membership management symbols
-            let get_membership_status: Symbol<GetMembershipStatusFn> = lib
-                .get(b"GetMembershipStatus")
-                .map_err(|e| format!("GetMembershipStatus symbol not found: {}", e))?;
-
-            let get_device_membership_status_with_token: Symbol<GetDeviceMembershipStatusWithTokenFn> = lib
-                .get(b"GetDeviceMembershipStatusWithToken")
-                .map_err(|e| format!("GetDeviceMembershipStatusWithToken symbol not found: {}", e))?;
-
-            let add_membership_binding: Symbol<AddMembershipBindingFn> = lib
-                .get(b"AddMembershipBinding")
-                .map_err(|e| format!("AddMembershipBinding symbol not found: {}", e))?;
-
-            let remove_membership_binding: Symbol<RemoveMembershipBindingFn> = lib
-                .get(b"RemoveMembershipBinding")
-                .map_err(|e| format!("RemoveMembershipBinding symbol not found: {}", e))?;
-
-            let sync_membership_binding_with_token: Symbol<SyncMembershipBindingWithTokenFn> = lib
-                .get(b"SyncMembershipBindingWithToken")
-                .map_err(|e| format!("SyncMembershipBindingWithToken symbol not found: {}", e))?;
-
-            let remove_membership_binding_with_token: Symbol<RemoveMembershipBindingWithTokenFn> = lib
-                .get(b"RemoveMembershipBindingWithToken")
-                .map_err(|e| format!("RemoveMembershipBindingWithToken symbol not found: {}", e))?;
-
             // Load Session management symbols
             let create_session_token: Symbol<CreateSessionTokenFn> = lib
                 .get(b"CreateSessionToken")
@@ -735,12 +681,6 @@ impl WalletLibrary {
             let check_swap_allowance: Symbol<'static, CheckSwapAllowanceFn> = std::mem::transmute(check_swap_allowance);
             let get_native_token_address: Symbol<'static, GetNativeTokenAddressFn> = std::mem::transmute(get_native_token_address);
             let get_swap_tokens: Symbol<'static, GetSwapTokensFn> = std::mem::transmute(get_swap_tokens);
-            let get_membership_status: Symbol<'static, GetMembershipStatusFn> = std::mem::transmute(get_membership_status);
-            let get_device_membership_status_with_token: Symbol<'static, GetDeviceMembershipStatusWithTokenFn> = std::mem::transmute(get_device_membership_status_with_token);
-            let add_membership_binding: Symbol<'static, AddMembershipBindingFn> = std::mem::transmute(add_membership_binding);
-            let remove_membership_binding: Symbol<'static, RemoveMembershipBindingFn> = std::mem::transmute(remove_membership_binding);
-            let sync_membership_binding_with_token: Symbol<'static, SyncMembershipBindingWithTokenFn> = std::mem::transmute(sync_membership_binding_with_token);
-            let remove_membership_binding_with_token: Symbol<'static, RemoveMembershipBindingWithTokenFn> = std::mem::transmute(remove_membership_binding_with_token);
             let create_session_token: Symbol<'static, CreateSessionTokenFn> = std::mem::transmute(create_session_token);
             let validate_session_token: Symbol<'static, ValidateSessionTokenFn> = std::mem::transmute(validate_session_token);
             let revoke_session_token: Symbol<'static, RevokeSessionTokenFn> = std::mem::transmute(revoke_session_token);
@@ -806,12 +746,6 @@ impl WalletLibrary {
                 check_swap_allowance,
                 get_native_token_address,
                 get_swap_tokens,
-                get_membership_status,
-                get_device_membership_status_with_token,
-                add_membership_binding,
-                remove_membership_binding,
-                sync_membership_binding_with_token,
-                remove_membership_binding_with_token,
                 create_session_token,
                 validate_session_token,
                 revoke_session_token,
@@ -1569,111 +1503,6 @@ impl WalletLibrary {
     /// ```
     pub fn get_swap_tokens(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.get_swap_tokens, params_json)
-    }
-
-    // ========================================================================
-    // Membership Management Operations
-    // ========================================================================
-
-    /// Get membership status including device identity and NFT bindings.
-    ///
-    /// Input JSON format:
-    /// ```json
-    /// {
-    ///   "usbPath": "/path/to/usb",
-    ///   "appPassword": "password"
-    /// }
-    /// ```
-    ///
-    /// Returns device ID, device ID hash (for contract binding), wallet limits,
-    /// and list of NFT membership bindings.
-    pub fn get_membership_status(&self, params_json: &str) -> Result<serde_json::Value, String> {
-        self.call_ffi_with_params(*self.get_membership_status, params_json)
-    }
-
-    /// Get device membership status using session token (no password required).
-    ///
-    /// This is the preferred method for checking membership after login,
-    /// as it uses the session token stored during authentication.
-    ///
-    /// Input JSON format:
-    /// ```json
-    /// {
-    ///   "token": "session-token-from-login"
-    /// }
-    /// ```
-    ///
-    /// Returns device ID, device ID hash (for contract binding), wallet limits,
-    /// and list of NFT membership bindings.
-    pub fn get_device_membership_status_with_token(&self, params_json: &str) -> Result<serde_json::Value, String> {
-        self.call_ffi_with_params(*self.get_device_membership_status_with_token, params_json)
-    }
-
-    /// Add a new NFT membership binding to this USB device.
-    ///
-    /// Call this after the user has bound their deviceId on the NFT contract.
-    ///
-    /// Input JSON format:
-    /// ```json
-    /// {
-    ///   "usbPath": "/path/to/usb",
-    ///   "appPassword": "password",
-    ///   "nftTokenId": "1",
-    ///   "nftContract": "0x...",
-    ///   "chainId": "bnb",
-    ///   "boundAddress": "0x...",
-    ///   "signature": "0x..."
-    /// }
-    /// ```
-    pub fn add_membership_binding(&self, params_json: &str) -> Result<serde_json::Value, String> {
-        self.call_ffi_with_params(*self.add_membership_binding, params_json)
-    }
-
-    /// Remove an NFT membership binding from this USB device.
-    ///
-    /// Input JSON format:
-    /// ```json
-    /// {
-    ///   "usbPath": "/path/to/usb",
-    ///   "appPassword": "password",
-    ///   "nftTokenId": "1",
-    ///   "nftContract": "0x..."
-    /// }
-    /// ```
-    pub fn remove_membership_binding(&self, params_json: &str) -> Result<serde_json::Value, String> {
-        self.call_ffi_with_params(*self.remove_membership_binding, params_json)
-    }
-
-    /// Sync a membership binding using session token (no password needed).
-    ///
-    /// Call this to sync on-chain bindings to USB storage.
-    ///
-    /// Input JSON format:
-    /// ```json
-    /// {
-    ///   "token": "session-token",
-    ///   "nftTokenId": "1",
-    ///   "nftContract": "0x...",
-    ///   "chainId": "bnb",
-    ///   "boundAddress": "0x..."
-    /// }
-    /// ```
-    pub fn sync_membership_binding_with_token(&self, params_json: &str) -> Result<serde_json::Value, String> {
-        self.call_ffi_with_params(*self.sync_membership_binding_with_token, params_json)
-    }
-
-    /// Remove a membership binding using session token (no password needed).
-    ///
-    /// Input JSON format:
-    /// ```json
-    /// {
-    ///   "token": "session-token",
-    ///   "nftTokenId": "1",
-    ///   "nftContract": "0x..."
-    /// }
-    /// ```
-    pub fn remove_membership_binding_with_token(&self, params_json: &str) -> Result<serde_json::Value, String> {
-        self.call_ffi_with_params(*self.remove_membership_binding_with_token, params_json)
     }
 
     /// Create a new session token after validating credentials.

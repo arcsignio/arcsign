@@ -1,6 +1,6 @@
 // Package txguard provides a unified transaction security check entry point.
-// It combines blacklist checking (free, runs for everyone) and transaction
-// simulation (Pro only — needs an Alchemy key). The danger judgment
+// It combines blacklist checking (runs for everyone) and transaction
+// simulation (runs when an Alchemy key is available). The danger judgment
 // (RequiresAcknowledge) is computed here, not the frontend.
 package txguard
 
@@ -20,12 +20,11 @@ const (
 
 // SecurityReport is the complete security assessment for a transaction.
 type SecurityReport struct {
-	ProRequired    bool                       `json:"proRequired"`
-	BlacklistMatch *blacklist.BlacklistMatch   `json:"blacklistMatch,omitempty"`
-	Simulation     *simulation.SimulationResult `json:"simulation,omitempty"`
-	Warnings       []blacklist.Warning         `json:"warnings"`
-	RiskLevel      string                      `json:"riskLevel"`
-	RequiresAcknowledge bool                   `json:"requiresAcknowledge"`
+	BlacklistMatch      *blacklist.BlacklistMatch    `json:"blacklistMatch,omitempty"`
+	Simulation          *simulation.SimulationResult `json:"simulation,omitempty"`
+	Warnings            []blacklist.Warning          `json:"warnings"`
+	RiskLevel           string                       `json:"riskLevel"`
+	RequiresAcknowledge bool                         `json:"requiresAcknowledge"`
 }
 
 // Guard is the unified transaction security checker.
@@ -43,10 +42,9 @@ func NewGuard(blMgr *blacklist.Manager, sim *simulation.Simulator) *Guard {
 }
 
 // Check performs security checks on a transaction.
-// The blacklist check runs for EVERYONE (free, zero-cost, embedded seed).
-// Transaction simulation is Pro-only (needs an Alchemy key, has cost), so
-// ProRequired now means ONLY "simulation didn't run", not "report invalid".
-func (g *Guard) Check(ctx context.Context, isPro bool, toAddress string, chainID string, alchemyKey string, tx simulation.TxParams) *SecurityReport {
+// The blacklist check runs for everyone (zero-cost, embedded seed).
+// Simulation runs whenever an Alchemy key is available.
+func (g *Guard) Check(ctx context.Context, toAddress string, chainID string, alchemyKey string, tx simulation.TxParams) *SecurityReport {
 	report := &SecurityReport{
 		Warnings:  make([]blacklist.Warning, 0),
 		RiskLevel: RiskSafe,
@@ -65,10 +63,8 @@ func (g *Guard) Check(ctx context.Context, isPro bool, toAddress string, chainID
 		}
 	}
 
-	// 2. Transaction simulation — Pro only (needs Alchemy key, has cost).
-	// ProRequired now means ONLY "simulation didn't run", not "report invalid".
-	report.ProRequired = !isPro
-	if isPro && g.simulator != nil && alchemyKey != "" {
+	// 2. Transaction simulation — runs whenever an Alchemy key is available.
+	if g.simulator != nil && alchemyKey != "" {
 		simResult, err := g.simulator.SimulateTransaction(ctx, chainID, alchemyKey, tx)
 		if err == nil && simResult != nil {
 			report.Simulation = simResult

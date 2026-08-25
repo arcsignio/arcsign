@@ -1,9 +1,0 @@
-{
-  "network": "bscTestnet",
-  "chainId": 97,
-  "arcSignProAddress": "0x401b0D7D9Ae46fDF75d92d8F218b1F15Dd2DFEc1",
-  "usdtAddress": "0x337610d27c682E347C9cD60BD4b3b107C9d34dDd",
-  "treasuryAddress": "0x2e26cbd533ac3e98d3b650c7f89406ebb6f2f634",
-  "deployedAt": "2025-12-26T00:47:19.822Z",
-  "deployer": "0x2e26cbD533Ac3E98d3B650c7f89406EbB6f2f634"
-}

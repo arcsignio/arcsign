@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import tauriApi, { type AppError, type AppConfig } from "@/services/tauri-api";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { PasswordInput } from "@/components/PasswordInput";
 
 interface AppUnlockProps {
   usbPath: string;
@@ -142,8 +143,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
 
             <div className="form-group">
               <label htmlFor="password">{t("appUnlock.masterPassword")}</label>
-              <input
-                type="password"
+              <PasswordInput
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -157,8 +157,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
               <label htmlFor="confirm-password">
                 {t("appUnlock.confirmPassword")}
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 id="confirm-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -194,8 +193,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
               <label htmlFor="unlock-password">
                 {t("appUnlock.masterPassword")}
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 id="unlock-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

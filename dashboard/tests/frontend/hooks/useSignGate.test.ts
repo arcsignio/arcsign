@@ -8,7 +8,7 @@ vi.mock('@/services/tauri-api', async (orig) => ({
   checkTransactionSecurity: vi.fn(),
 }));
 
-const params = { from: '0xa', to: '0xbad', chainId: '1', value: '0x0', data: '0x', usbPath: '/d', sessionToken: 't', isPro: false };
+const params = { from: '0xa', to: '0xbad', chainId: '1', value: '0x0', data: '0x', usbPath: '/d', sessionToken: 't' };
 
 beforeEach(() => vi.clearAllMocks());
 

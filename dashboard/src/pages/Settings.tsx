@@ -23,10 +23,6 @@ interface SettingItem {
   icon: React.ReactNode;
 }
 
-const IconShield = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-);
-
 const IconLink = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
 );
@@ -44,12 +40,6 @@ const IconDownload = () => (
 );
 
 const SETTING_ITEMS: SettingItem[] = [
-  {
-    id: 'membership',
-    titleKey: 'settings.membershipTitle',
-    descriptionKey: 'settings.membershipDescription',
-    icon: <IconShield />,
-  },
   {
     id: 'api-settings',
     titleKey: 'settings.apiSettingsTitle',
@@ -76,7 +66,6 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
   const { t } = useTranslation();
   const [appVersion, setAppVersion] = useState('...');
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
-  const isPro = useDashboardStore((s) => s.membership.isPro);
   const onlineDecodingEnabled = useDashboardStore((s) => s.onlineDecodingEnabled);
   const setOnlineDecodingEnabled = useDashboardStore((s) => s.setOnlineDecodingEnabled);
   const usbPath = useDashboardStore((s) => s.usbPath);
@@ -201,18 +190,16 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
           <span className="setting-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
         </button>
         <button
-          className={`setting-item ${!isPro ? 'setting-item-disabled' : ''}`}
-          onClick={() => isPro && onNavigate('export-all-backups')}
-          disabled={!isPro}
+          className="setting-item"
+          onClick={() => onNavigate('export-all-backups')}
         >
           <span className="setting-icon backup-icon"><IconDownload /></span>
           <div className="setting-content">
             <h3 className="setting-title">
               {t('backup.exportAllTitle')}
-              <span className="pro-badge">PRO</span>
             </h3>
             <p className="setting-description">
-              {isPro ? t('backup.exportAllDescription') : t('backup.exportAllProOnly')}
+              {t('backup.exportAllDescription')}
             </p>
           </div>
           <span className="setting-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>

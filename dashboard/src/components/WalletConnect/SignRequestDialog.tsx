@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import type { SignatureRequestParams } from '@/services/walletconnect/request-handler';
 import { ClearSignSummary } from '@/components/ClearSignSummary';
 import { isHighRiskSign } from '@/services/clearsign/riskGate';
+import { PasswordInput } from "@/components/PasswordInput";
 
 interface SignRequestDialogProps {
   isOpen: boolean;
@@ -286,9 +287,8 @@ export const SignRequestDialog: React.FC<SignRequestDialogProps> = ({
           <label htmlFor="wallet-password" className="block text-sm font-medium text-gray-700 mb-1">
             {t('walletConnect.walletPassword')}
           </label>
-          <input
+          <PasswordInput
             id="wallet-password"
-            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={handleKeyDown}

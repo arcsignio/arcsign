@@ -747,10 +747,9 @@ export interface BuildTransactionParams {
   usbPath: string;
   sessionToken?: string;  // ✅ Session token for provider config access (low-risk)
   appPassword?: string;   // DEPRECATED: For backward compatibility
-  isPro?: boolean;        // Pro membership status (enables security checks)
 }
 
-/** Security report from TxGuard (Pro feature) */
+/** Security report from TxGuard */
 export interface SecurityAssetChange {
   assetType: string;   // NATIVE, ERC20, ERC721
   changeType: string;  // TRANSFER, APPROVE
@@ -763,7 +762,6 @@ export interface SecurityAssetChange {
 }
 
 export interface SecurityReport {
-  proRequired: boolean;
   blacklistMatch?: {
     value: string;
     source: string;
@@ -793,7 +791,6 @@ export interface CheckTransactionSecurityParams {
   usbPath: string;
   sessionToken?: string;
   appPassword?: string;
-  isPro: boolean;
 }
 
 export async function checkTransactionSecurity(
@@ -809,7 +806,6 @@ export async function checkTransactionSecurity(
       usbPath: params.usbPath,
       sessionToken: params.sessionToken ?? "",
       appPassword: params.appPassword ?? "",
-      isPro: params.isPro,
     });
   } catch (error) {
     throw parseError(error);
@@ -918,7 +914,7 @@ export interface BuildTransactionResponse {
   signingPayload: string;  // Base64 encoded payload to sign
   humanReadable: string;   // JSON representation for audit
   buildTimestamp: string;  // ISO timestamp
-  security?: SecurityReport; // Security report (Pro: full, Free: proRequired=true)
+  security?: SecurityReport; // Security report (blacklist check + simulation preview)
 }
 
 export interface SignTransactionParams {
@@ -1031,7 +1027,6 @@ export async function buildTransaction(
         usbPath: params.usbPath,
         sessionToken: params.sessionToken,  // ✅ Use session token
         appPassword: params.appPassword,    // DEPRECATED: Fallback
-        isPro: params.isPro || false,       // Pro membership for security checks
       },
     });
     console.log("🔧 [tauri-api] buildTransaction response:", result);
@@ -1291,7 +1286,6 @@ export interface GetSwapQuoteParams {
   fromAddress: string;
   slippage?: number; // Default 0.5 (0.5%)
   provider?: string; // DEX provider: "openocean" | "kyberswap"
-  isPro?: boolean; // Pro user: best route, no fee
   usbPath: string;
   sessionToken?: string;  // ✅ PREFERRED: Session token
   appPassword?: string;   // DEPRECATED: Backward compatibility
@@ -1326,7 +1320,6 @@ export interface BuildSwapTransactionParams {
   fromAddress: string;
   slippage?: number;
   provider?: string; // DEX provider: "openocean" | "kyberswap"
-  isPro?: boolean; // Pro user: best route, no fee
   usbPath: string;
   sessionToken?: string;  // ✅ PREFERRED: Session token
   appPassword?: string;   // DEPRECATED: Backward compatibility
@@ -1403,7 +1396,6 @@ export async function getSwapQuote(
         fromAddress: params.fromAddress,
         slippage: params.slippage ?? 0.5,
         provider: params.provider || "openocean",
-        isPro: params.isPro ?? false,
         usbPath: params.usbPath,
         sessionToken: params.sessionToken,  // ✅ Use session token
         appPassword: params.appPassword,    // DEPRECATED: Fallback
@@ -1439,7 +1431,6 @@ export async function buildSwapTransaction(
           fromAddress: params.fromAddress,
           slippage: params.slippage ?? 0.5,
           provider: params.provider || "openocean",
-          isPro: params.isPro ?? false,
           usbPath: params.usbPath,
           sessionToken: params.sessionToken,  // ✅ Use session token
           appPassword: params.appPassword,    // DEPRECATED: Fallback
@@ -1942,17 +1933,6 @@ export const tauriApi = {
   signMessage,
   signTypedData,
 
-  // Membership (NFT verification)
-  checkAllMemberships,
-
-  // USB Device Membership (Device Binding System)
-  getDeviceMembershipStatus,
-  getDeviceMembershipStatusWithToken,
-  addDeviceMembershipBinding,
-  removeDeviceMembershipBinding,
-  syncMembershipBindingWithToken,
-  removeMembershipBindingWithToken,
-
   // Session Management
   createSession,
   validateSession,
@@ -1978,292 +1958,6 @@ export const tauriApi = {
   endDevSession,
 };
 
-/**
- * Individual token info
- */
-export interface TokenInfo {
-  /** Token ID */
-  tokenId: number;
-  /** Whether this token is bound to the queried device */
-  isBound: boolean;
-  /** Device hash this token is bound to (0x00...00 if not bound) */
-  boundDeviceHash: string;
-}
-
-/**
- * NFT count and token info for a single address
- */
-export interface AddressNftCount {
-  address: string;
-  nftCount: number;
-  boundCount: number;
-  /** Detailed token info */
-  tokens: TokenInfo[];
-}
-
-/**
- * Aggregated membership status response
- */
-export interface AggregatedMembershipStatus {
-  /** Total NFTs owned across all addresses (regardless of binding) */
-  totalNftCount: number;
-  /** Total NFTs bound to this device */
-  boundNftCount: number;
-  /** Whether user has valid Pro membership (requires device binding) */
-  isPro: boolean;
-  daysRemaining: number;
-  /** Wallet limit based on BOUND NFTs: 1 + (boundNftCount * 3) */
-  walletLimit: number;
-  addressNftCounts: AddressNftCount[];
-  /** Whether device hash was provided for binding check */
-  bindingRequired: boolean;
-}
-
-/**
- * Check membership NFT count across ALL BSC addresses
- * @param addresses List of BSC wallet addresses to check
- * @param deviceHash Optional device hash for binding verification. If provided, only bound NFTs count as Pro.
- */
-export async function checkAllMemberships(
-  addresses: string[],
-  deviceHash?: string
-): Promise<AggregatedMembershipStatus> {
-  try {
-    return await invoke<AggregatedMembershipStatus>("check_all_memberships", {
-      input: { addresses, deviceHash },
-    });
-  } catch (error) {
-    throw parseError(error);
-  }
-}
-
-// ============================================================================
-// USB Device Membership (Device Binding System)
-// ============================================================================
-
-/**
- * NFT membership binding info for a specific token
- */
-export interface MembershipBindingInfo {
-  nftTokenId: string;
-  nftContract: string;
-  chainId: string;
-  boundAddress: string;
-  boundAt: number;
-  isValid: boolean;
-  lastVerified: number;
-}
-
-/**
- * Device membership status from USB storage
- */
-export interface DeviceMembershipStatus {
-  deviceId: string;           // Unique device ID (UUID) stored on USB
-  deviceIdHash: string;       // keccak256(deviceId) for contract binding
-  walletLimit: number;        // Maximum wallets allowed (3 free + 5 per NFT)
-  walletCount: number;        // Current number of wallets
-  canCreateWallet: boolean;   // Whether user can create more wallets
-  memberships: MembershipBindingInfo[]; // List of NFT membership bindings
-  lockedWalletIds: string[];  // IDs of wallets locked due to exceeding limit
-}
-
-/**
- * Get device membership status from USB storage
- * Returns device ID, device ID hash (for contract binding), wallet limits, and NFT bindings
- */
-export async function getDeviceMembershipStatus(params: {
-  usbPath: string;
-  appPassword: string;
-}): Promise<DeviceMembershipStatus> {
-  console.log("🔐 [tauri-api] getDeviceMembershipStatus called");
-
-  try {
-    const result = await invoke<DeviceMembershipStatus>(
-      "get_device_membership_status",
-      {
-        input: {
-          usbPath: params.usbPath,
-          appPassword: params.appPassword,
-        },
-      }
-    );
-    console.log("🔐 [tauri-api] getDeviceMembershipStatus response:", {
-      deviceId: result.deviceId,
-      walletLimit: result.walletLimit,
-      walletCount: result.walletCount,
-      bindingsCount: result.memberships.length,
-    });
-    return result;
-  } catch (error) {
-    console.error("🔴 [tauri-api] getDeviceMembershipStatus error:", error);
-    throw parseError(error);
-  }
-}
-
-/**
- * Get device membership status using session token
- * This is the preferred API - no password needed, uses session token
- */
-export async function getDeviceMembershipStatusWithToken(params: {
-  token: string;
-}): Promise<DeviceMembershipStatus> {
-  console.log("🔐 [tauri-api] getDeviceMembershipStatusWithToken called");
-
-  try {
-    const result = await invoke<DeviceMembershipStatus>(
-      "get_device_membership_status_with_token",
-      {
-        input: {
-          token: params.token,
-        },
-      }
-    );
-    console.log("🔐 [tauri-api] getDeviceMembershipStatusWithToken response:", {
-      deviceId: result.deviceId,
-      walletLimit: result.walletLimit,
-      walletCount: result.walletCount,
-      bindingsCount: result.memberships.length,
-    });
-    return result;
-  } catch (error) {
-    console.error("🔴 [tauri-api] getDeviceMembershipStatusWithToken error:", error);
-    throw parseError(error);
-  }
-}
-
-/**
- * Add NFT membership binding to USB device
- * Call this after user has bound deviceId on the NFT contract
- */
-export async function addDeviceMembershipBinding(params: {
-  usbPath: string;
-  appPassword: string;
-  nftTokenId: string;
-  nftContract: string;
-  chainId: string;
-  boundAddress: string;
-  signature: string;
-}): Promise<void> {
-  console.log("🔐 [tauri-api] addDeviceMembershipBinding called:", {
-    nftTokenId: params.nftTokenId,
-    nftContract: params.nftContract,
-    chainId: params.chainId,
-  });
-
-  try {
-    await invoke("add_device_membership_binding", {
-      input: {
-        usbPath: params.usbPath,
-        appPassword: params.appPassword,
-        nftTokenId: params.nftTokenId,
-        nftContract: params.nftContract,
-        chainId: params.chainId,
-        boundAddress: params.boundAddress,
-        signature: params.signature,
-      },
-    });
-    console.log("🔐 [tauri-api] addDeviceMembershipBinding success");
-  } catch (error) {
-    console.error("🔴 [tauri-api] addDeviceMembershipBinding error:", error);
-    throw parseError(error);
-  }
-}
-
-/**
- * Remove NFT membership binding from USB device
- */
-export async function removeDeviceMembershipBinding(params: {
-  usbPath: string;
-  appPassword: string;
-  nftTokenId: string;
-  nftContract: string;
-}): Promise<void> {
-  console.log("🔐 [tauri-api] removeDeviceMembershipBinding called:", {
-    nftTokenId: params.nftTokenId,
-    nftContract: params.nftContract,
-  });
-
-  try {
-    await invoke("remove_device_membership_binding", {
-      input: {
-        usbPath: params.usbPath,
-        appPassword: params.appPassword,
-        nftTokenId: params.nftTokenId,
-        nftContract: params.nftContract,
-      },
-    });
-    console.log("🔐 [tauri-api] removeDeviceMembershipBinding success");
-  } catch (error) {
-    console.error("🔴 [tauri-api] removeDeviceMembershipBinding error:", error);
-    throw parseError(error);
-  }
-}
-
-/**
- * Sync NFT membership binding to USB using session token
- * Used to sync on-chain binding state to USB storage without requiring password
- * Call this when on-chain binding exists but USB doesn't have it
- */
-export async function syncMembershipBindingWithToken(params: {
-  token: string;
-  nftTokenId: string;
-  nftContract: string;
-  chainId: string;
-  boundAddress: string;
-}): Promise<void> {
-  console.log("🔐 [tauri-api] syncMembershipBindingWithToken called:", {
-    nftTokenId: params.nftTokenId,
-    chainId: params.chainId,
-    boundAddress: params.boundAddress,
-  });
-
-  try {
-    await invoke("sync_membership_binding_with_token", {
-      input: {
-        token: params.token,
-        nftTokenId: params.nftTokenId,
-        nftContract: params.nftContract,
-        chainId: params.chainId,
-        boundAddress: params.boundAddress,
-      },
-    });
-    console.log("🔐 [tauri-api] syncMembershipBindingWithToken success");
-  } catch (error) {
-    console.error("🔴 [tauri-api] syncMembershipBindingWithToken error:", error);
-    throw parseError(error);
-  }
-}
-
-/**
- * Remove NFT membership binding from USB using session token
- * Used when on-chain binding no longer exists (NFT transferred, unbind, etc.)
- */
-export async function removeMembershipBindingWithToken(params: {
-  token: string;
-  nftTokenId: string;
-  nftContract: string;
-}): Promise<void> {
-  console.log("🔐 [tauri-api] removeMembershipBindingWithToken called:", {
-    nftTokenId: params.nftTokenId,
-    nftContract: params.nftContract,
-  });
-
-  try {
-    await invoke("remove_membership_binding_with_token", {
-      input: {
-        token: params.token,
-        nftTokenId: params.nftTokenId,
-        nftContract: params.nftContract,
-      },
-    });
-    console.log("🔐 [tauri-api] removeMembershipBindingWithToken success");
-  } catch (error) {
-    console.error("🔴 [tauri-api] removeMembershipBindingWithToken error:", error);
-    throw parseError(error);
-  }
-}
-
-// ============================================================
 // Session Management API
 // ============================================================
 

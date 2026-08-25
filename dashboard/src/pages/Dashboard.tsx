@@ -10,8 +10,6 @@ import {
   useDashboardStore,
   useSelectedWallet,
   useHasWallets,
-  useWalletLimitInfo,
-  useLockedWalletIds,
 } from "@/stores/dashboardStore";
 import tauriApi, { type AppError, type PendingTransactionInfo, type PairingPrompt } from "@/services/tauri-api";
 import { WalletCreate } from "@/components/WalletCreate";
@@ -21,10 +19,8 @@ import { ExportBackup } from "@/components/ExportBackup";
 import { ExportAllBackups } from "@/components/ExportAllBackups";
 import { ImportAllBackups } from "@/components/ImportAllBackups";
 import { AddressList } from "@/components/AddressList";
-import { ReferralBanner } from "@/components/ReferralBanner";
 import { ProviderSettings } from "@/components/ProviderSettings";
 import { Settings } from "@/pages/Settings";
-import { MembershipSettings } from "@/pages/MembershipSettings";
 import { DeveloperMode } from "@/pages/DeveloperMode";
 import { WalletDetail } from "@/components/WalletDetail";
 import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
@@ -32,7 +28,6 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { DeleteWalletDialog } from "@/components/DeleteWalletDialog";
 import { TransactionSignDialog } from "@/components/TransactionSignDialog";
 import { PairingDialog } from "@/components/PairingDialog";
-import { MembershipBadge } from "@/components/MembershipBadge";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -40,13 +35,9 @@ import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useTranslation } from "react-i18next";
 import type { Address } from "@/types/address";
 import type { Wallet } from "@/types/wallet";
+import { PasswordInput } from "@/components/PasswordInput";
 
-type View = "list" | "create" | "import" | "import-backup" | "import-all-backups" | "export-backup-select" | "export-all-backups" | "addresses" | "settings" | "api-settings" | "membership" | "detail" | "developer";
-
-import { ACTIVE_NETWORK } from '@/constants/contracts';
-
-const NFT_CONTRACT = ACTIVE_NETWORK.nftContract;
-const CHAIN_ID = ACTIVE_NETWORK.chainName;
+type View = "list" | "create" | "import" | "import-backup" | "import-all-backups" | "export-backup-select" | "export-all-backups" | "addresses" | "settings" | "api-settings" | "detail" | "developer";
 
 /** Wallet item for export backup selection */
 function ExportWalletItem({ wallet, usbPath }: { wallet: Wallet; usbPath: string }) {
@@ -139,15 +130,11 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
     setUsbPath,
     selectWallet,
     selectedWalletId,
-    membership,
   } = useDashboardStore();
 
   const selectedWallet = useSelectedWallet();
   const hasWallets = useHasWallets();
-  const walletLimitInfo = useWalletLimitInfo();
-  const lockedWalletIds = useLockedWalletIds();
 
-  const { setMembership } = useDashboardStore();
   const { getToken } = useSessionStore();
 
   // Auto-logout after 15 minutes of inactivity (SEC-006, T092)
@@ -425,117 +412,6 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
         // Auto-select first wallet if none selected
         if (walletList.length > 0 && !selectedWalletId) {
           selectWallet(walletList[0].id);
-        }
-
-        // Load membership status with locked wallet IDs using session token
-        const sessionToken = getToken();
-        if (sessionToken) {
-          try {
-            const membershipStatus = await tauriApi.getDeviceMembershipStatusWithToken({ token: sessionToken });
-
-            // Sync on-chain binding state with USB storage
-            // This ensures Pro status is always up-to-date with chain state
-            if (membershipStatus.deviceIdHash && bscAddresses.length > 0) {
-              try {
-                console.log("🔄 [Dashboard] Syncing on-chain membership state...");
-
-                // Get on-chain status for all BSC addresses
-                const onChainStatus = await tauriApi.checkAllMemberships(
-                  bscAddresses,
-                  membershipStatus.deviceIdHash
-                );
-
-                let needsRefresh = false;
-
-                // Sync: Add bindings that are on-chain but not in USB
-                for (const addrInfo of onChainStatus.addressNftCounts) {
-                  for (const token of addrInfo.tokens || []) {
-                    // Check if this token is bound to our device on-chain
-                    const isOnChainBound = token.boundDeviceHash?.toLowerCase() === membershipStatus.deviceIdHash.toLowerCase();
-
-                    if (isOnChainBound) {
-                      // Check if this binding exists in USB
-                      const existsInUsb = membershipStatus.memberships.some(
-                        m => m.nftTokenId === String(token.tokenId)
-                      );
-
-                      if (!existsInUsb) {
-                        console.log(`🔄 [Dashboard] Syncing token ${token.tokenId} binding to USB`);
-                        try {
-                          await tauriApi.syncMembershipBindingWithToken({
-                            token: sessionToken,
-                            nftTokenId: String(token.tokenId),
-                            nftContract: NFT_CONTRACT,
-                            chainId: CHAIN_ID,
-                            boundAddress: addrInfo.address,
-                          });
-                          needsRefresh = true;
-                        } catch (syncErr) {
-                          console.warn(`Failed to sync token ${token.tokenId}:`, syncErr);
-                        }
-                      }
-                    }
-                  }
-                }
-
-                // Remove: Delete USB bindings that no longer exist on-chain
-                for (const usbBinding of membershipStatus.memberships) {
-                  // Find the address info for this binding
-                  const onChainAddr = onChainStatus.addressNftCounts.find(
-                    a => a.address.toLowerCase() === usbBinding.boundAddress.toLowerCase()
-                  );
-
-                  // Check if this token is still bound to our device on-chain
-                  const stillBound = onChainAddr?.tokens?.some(
-                    t => String(t.tokenId) === usbBinding.nftTokenId &&
-                        t.boundDeviceHash?.toLowerCase() === membershipStatus.deviceIdHash.toLowerCase()
-                  );
-
-                  if (!stillBound) {
-                    console.log(`🔄 [Dashboard] Removing stale binding for token ${usbBinding.nftTokenId}`);
-                    try {
-                      await tauriApi.removeMembershipBindingWithToken({
-                        token: sessionToken,
-                        nftTokenId: usbBinding.nftTokenId,
-                        nftContract: usbBinding.nftContract,
-                      });
-                      needsRefresh = true;
-                    } catch (removeErr) {
-                      console.warn(`Failed to remove token ${usbBinding.nftTokenId}:`, removeErr);
-                    }
-                  }
-                }
-
-                // If we made any changes, reload membership status
-                if (needsRefresh) {
-                  console.log("🔄 [Dashboard] Reloading membership status after sync");
-                  const updatedStatus = await tauriApi.getDeviceMembershipStatusWithToken({ token: sessionToken });
-                  setMembership({
-                    walletLimit: updatedStatus.walletLimit,
-                    nftCount: updatedStatus.memberships.length,
-                    isPro: updatedStatus.memberships.length > 0,
-                    lockedWalletIds: updatedStatus.lockedWalletIds || [],
-                  });
-                  console.log("✅ [Dashboard] Membership sync complete");
-                  return;
-                }
-              } catch (syncErr) {
-                console.warn("Failed to sync on-chain membership:", syncErr);
-                // Non-critical - continue with USB membership info
-              }
-            }
-
-            // Set membership from USB if no sync needed
-            setMembership({
-              walletLimit: membershipStatus.walletLimit,
-              nftCount: membershipStatus.memberships.length,
-              isPro: membershipStatus.memberships.length > 0,
-              lockedWalletIds: membershipStatus.lockedWalletIds || [],
-            });
-          } catch (membershipErr) {
-            console.warn("Failed to load membership status:", membershipErr);
-            // Non-critical error - continue without membership info
-          }
         }
       } catch (err) {
         const error = err as AppError;
@@ -817,8 +693,6 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
   const handleSettingsNavigate = (view: string) => {
     if (view === "api-settings") {
       setCurrentView("api-settings");
-    } else if (view === "membership") {
-      setCurrentView("membership");
     } else if (view === "developer") {
       setCurrentView("developer");
     } else if (view === "export-backup-select") {
@@ -860,18 +734,6 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
             onCancel={() => setCurrentView("settings")}
           />
         )}
-      </div>
-    );
-  }
-
-  // Show membership settings
-  if (currentView === "membership") {
-    return (
-      <div className="dashboard">
-        <MembershipSettings
-          onBack={() => setCurrentView("settings")}
-          usbPath={usbPath || ""}
-        />
       </div>
     );
   }
@@ -921,7 +783,6 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
             <h1>{t("dashboard.title")}</h1>
             <span className="header-tagline">Secure Multi-Chain Wallet</span>
           </div>
-          <MembershipBadge onClick={() => setCurrentView("membership")} />
         </div>
         <div className="header-actions">
           <LanguageSwitcher variant="toggle" />
@@ -945,8 +806,6 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
           <button
             onClick={handleCreateWallet}
             className="primary-button"
-            disabled={!walletLimitInfo.canCreate}
-            title={!walletLimitInfo.canCreate ? `${t('wallet.walletLimitReached')} (${walletLimitInfo.current}/${walletLimitInfo.limit})` : undefined}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{display:'inline',verticalAlign:'middle',marginRight:4}}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             {t('wallet.createWallet')}
@@ -954,27 +813,21 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
           <button
             onClick={handleImportWallet}
             className="secondary-button"
-            disabled={!walletLimitInfo.canCreate}
-            title={!walletLimitInfo.canCreate ? `${t('wallet.walletLimitReached')} (${walletLimitInfo.current}/${walletLimitInfo.limit})` : undefined}
           >
             {t('wallet.importWallet')}
           </button>
           <button
             onClick={() => setCurrentView("import-backup")}
             className="secondary-button"
-            disabled={!walletLimitInfo.canCreate}
-            title={!walletLimitInfo.canCreate ? `${t('wallet.walletLimitReached')} (${walletLimitInfo.current}/${walletLimitInfo.limit})` : undefined}
           >
             {t('backup.importTitle')}
           </button>
-          {membership.isPro && (
-            <button
-              onClick={() => setCurrentView("import-all-backups")}
-              className="secondary-button"
-            >
-              {t('backup.importAllTitle')}
-            </button>
-          )}
+          <button
+            onClick={() => setCurrentView("import-all-backups")}
+            className="secondary-button"
+          >
+            {t('backup.importAllTitle')}
+          </button>
         </div>
       </header>
 
@@ -1007,23 +860,20 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
         </div>
       ) : (
         <div className="wallet-list">
-          <ReferralBanner onGoToMembership={() => setCurrentView('membership')} />
           <h2>{t("dashboard.yourWallets")}</h2>
           <div className="wallets-grid">
             {wallets.map((wallet) => {
-              const isLocked = lockedWalletIds.includes(wallet.id);
               return (
                 <div
                   key={wallet.id}
                   className={`wallet-card ${
                     selectedWalletId === wallet.id ? "selected" : ""
-                  } ${isLocked ? "locked" : ""}`}
+                  }`}
                   onClick={() => handleWalletSelect(wallet.id)}
                 >
                   <div className="wallet-card-header">
                     <h3>
                       {wallet.name}
-                      {isLocked && <span className="lock-icon" title={t("dashboard.walletLockedTitle")}><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{display:'inline',verticalAlign:'middle'}}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" fill="none" stroke="currentColor" strokeWidth="2"/><path d="M7 11V7a5 5 0 0110 0v4" fill="none" stroke="currentColor" strokeWidth="2"/></svg></span>}
                     </h3>
                     <button
                       className="delete-wallet-button"
@@ -1034,11 +884,6 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                     </button>
                   </div>
-                  {isLocked && (
-                    <div className="locked-banner">
-                      <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:'inline',verticalAlign:'middle',marginRight:4}}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>{t("dashboard.walletLocked")}</span>
-                    </div>
-                  )}
                   <div className="wallet-info">
                     <p>
                       <strong>{t("wallet.created")}:</strong>{" "}
@@ -1106,8 +951,7 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
               >
                 {t("dashboard.password")}
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 id="address-password"
                 value={passwordForAddresses}
                 onChange={(e) => setPasswordForAddresses(e.target.value)}

@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/arcsignio/arcsign/internal/rpc"
-	"github.com/arcsignio/arcsign/internal/wallet"
 	"github.com/arcsignio/arcsign/src/swap"
 )
 
@@ -127,7 +126,6 @@ func GetSwapQuote(params *C.char) (result *C.char) {
 		FromAddress      string  `json:"fromAddress"`
 		Slippage         float64 `json:"slippage"`
 		Provider         string  `json:"provider"`     // DEX provider: "openocean" | "kyberswap"
-		IsPro            bool    `json:"isPro"`         // Pro user: best route, no fee
 		USBPath          string  `json:"usbPath"`
 		SessionToken     string  `json:"sessionToken"` // PREFERRED: Session token (optional for read-only API)
 		AppPassword      string  `json:"appPassword"`  // DEPRECATED
@@ -172,7 +170,7 @@ func GetSwapQuote(params *C.char) (result *C.char) {
 	}
 	debugLog(fmt.Sprintf("GetSwapQuote: Using gas price %s wei for chain %s", gasPrice.String(), input.ChainID))
 
-	// Build quote params with fee config
+	// Build quote params — no referrer fee, all users get the same best-route quote.
 	quoteParams := &swap.QuoteParams{
 		Provider:         swap.Provider(input.Provider),
 		ChainID:          chainIDToInt(input.ChainID),
@@ -182,18 +180,6 @@ func GetSwapQuote(params *C.char) (result *C.char) {
 		FromAddress:      input.FromAddress,
 		Slippage:         input.Slippage,
 		GasPrice:         gasPrice,
-		IsPro:            input.IsPro,
-	}
-
-	// Free users: add referrer fee config (0.1% via OpenOcean referrer mechanism).
-	// Receiver is the official ArcSign Treasury (an EOA, not a contract), so it can
-	// hold any ERC20 the swap router pays in. See internal/wallet/constants.go and
-	// OFFICIAL_ADDRESSES.md for verification.
-	if !input.IsPro {
-		quoteParams.Fee = &swap.FeeConfig{
-			ReferrerAddress: wallet.ArcSignSwapReferrer,
-			FeeRate:         wallet.ArcSignSwapReferrerFeeRate,
-		}
 	}
 
 	// Get quote
@@ -269,7 +255,6 @@ func BuildSwapTransaction(params *C.char) (result *C.char) {
 		FromAddress      string  `json:"fromAddress"`
 		Slippage         float64 `json:"slippage"`
 		Provider         string  `json:"provider"`     // DEX provider: "openocean" | "kyberswap"
-		IsPro            bool    `json:"isPro"`         // Pro user: best route, no fee
 		USBPath          string  `json:"usbPath"`
 		SessionToken     string  `json:"sessionToken"` // PREFERRED: Session token (optional for read-only API)
 		AppPassword      string  `json:"appPassword"`  // DEPRECATED
@@ -314,7 +299,7 @@ func BuildSwapTransaction(params *C.char) (result *C.char) {
 	}
 	debugLog(fmt.Sprintf("BuildSwapTransaction: Using gas price %s wei for chain %s", gasPrice.String(), input.ChainID))
 
-	// Build quote params with fee config
+	// Build quote params — no referrer fee, all users get the same best-route quote.
 	quoteParams := &swap.QuoteParams{
 		Provider:         swap.Provider(input.Provider),
 		ChainID:          chainIDToInt(input.ChainID),
@@ -324,18 +309,6 @@ func BuildSwapTransaction(params *C.char) (result *C.char) {
 		FromAddress:      input.FromAddress,
 		Slippage:         input.Slippage,
 		GasPrice:         gasPrice,
-		IsPro:            input.IsPro,
-	}
-
-	// Free users: add referrer fee config (0.1% via OpenOcean referrer mechanism).
-	// Receiver is the official ArcSign Treasury (an EOA, not a contract), so it can
-	// hold any ERC20 the swap router pays in. See internal/wallet/constants.go and
-	// OFFICIAL_ADDRESSES.md for verification.
-	if !input.IsPro {
-		quoteParams.Fee = &swap.FeeConfig{
-			ReferrerAddress: wallet.ArcSignSwapReferrer,
-			FeeRate:         wallet.ArcSignSwapReferrerFeeRate,
-		}
 	}
 
 	// Build swap transaction

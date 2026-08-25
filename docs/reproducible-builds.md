@@ -131,9 +131,6 @@ byte-for-byte): just rebuild with the same Go major version.
 - ❌ The full Tauri Dashboard `.app` / `.exe` / `.AppImage` bundle —
   Tauri's bundling step uses non-deterministic compression (lzma, dmg).
   We hash the pre-bundle Rust binary and the Go dylib instead.
-- ❌ Smart contracts: solc bytecode is reproducible per solc version,
-  but verification flows through BscScan source-verify, not this doc.
-  See `contracts/deployments/`.
 
 ## Reporting reproducibility issues
 

@@ -8,7 +8,6 @@ pub mod auth;
 pub mod dev_history;
 pub mod dev_session;
 pub mod dev_settings;
-pub mod membership;
 pub mod provider;
 pub mod security;
 pub mod swap;

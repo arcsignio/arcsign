@@ -40,11 +40,6 @@ vi.mock("@/hooks/useSignGate", () => ({
   }),
 }));
 
-// Mock walletLock utility — no real USB store in tests
-vi.mock("@/utils/walletLock", () => ({
-  isWalletLocked: vi.fn().mockReturnValue(false),
-}));
-
 // Mock swapService so handleExecuteApproval tests can drive executeApproval outcomes
 // without going through the real Tauri API layer.
 vi.mock("@/services/swapService", () => ({
@@ -96,7 +91,6 @@ const baseParams = {
   availableTokens: [ethToken, usdcToken],
   usbPath: "/usb",
   sessionToken: "tok",
-  isPro: false,
 };
 
 // ── tests ─────────────────────────────────────────────────────────────────────

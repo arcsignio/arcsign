@@ -16,6 +16,7 @@ import SwapTransaction from "@/components/SwapTransaction";
 import StakingTransaction from "@/components/StakingTransaction";
 import { AddressBook } from "@/components/AddressBook";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export interface WalletDetailViewsProps {
   // ── Password prompt ──────────────────────────────────────────────────────
@@ -223,8 +224,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
               >
                 🔑
               </span>
-              <input
-                type="password"
+              <PasswordInput
                 id="password"
                 value={tempPassword}
                 onChange={(e) => setTempPassword(e.target.value)}
@@ -447,8 +447,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
               >
                 🔑
               </span>
-              <input
-                type="password"
+              <PasswordInput
                 id="passphrase"
                 value={passphrase}
                 onChange={(e) => setPassphrase(e.target.value)}
