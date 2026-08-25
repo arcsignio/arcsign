@@ -154,7 +154,7 @@ export function useWalletData({ wallet, usbPath }: UseWalletDataParams) {
         console.error("❌ Invalid tokens data:", response?.tokens);
       }
 
-      setTokens(response.tokens);
+      setTokens(response.tokens ?? []);
       setTotalUsd(response.totalUsd);
       setUnavailableProviders(response.unavailableProviders || []);
       setShowPasswordPrompt(false);
@@ -240,7 +240,7 @@ export function useWalletData({ wallet, usbPath }: UseWalletDataParams) {
           enrichNativeTokens(response.tokens);
         }
 
-        setTokens(response.tokens);
+        setTokens(response.tokens ?? []);
         setTotalUsd(response.totalUsd);
 
         // Set wallet context for WalletConnect signing operations
@@ -303,7 +303,7 @@ export function useWalletData({ wallet, usbPath }: UseWalletDataParams) {
         enrichNativeTokens(response.tokens);
       }
 
-      setTokens(response.tokens);
+      setTokens(response.tokens ?? []);
       setTotalUsd(response.totalUsd);
     } catch (err) {
       const error = err as AppError;

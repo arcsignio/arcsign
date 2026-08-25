@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/arcsignio/arcsign/internal/rpc"
@@ -105,5 +106,26 @@ func TestNodeRealDegradedCapability(t *testing.T) {
 	}
 	if d, ok := NewNodeRealWDP("k").(DegradedProvider); !ok || d.IsDegraded() {
 		t.Error("keyed NodeReal should report IsDegraded() == false")
+	}
+}
+
+// TestSelfHostedBalancesNeverReturnsNil guards the crash where an empty wallet
+// produced a nil slice, marshalled to JSON `null`, and blew up the frontend on
+// `tokens.length`. An empty result must serialize as `[]`.
+func TestSelfHostedBalancesNeverReturnsNil(t *testing.T) {
+	got := GetSelfHostedTokenBalancesWithExtra(nil, nil)
+	if got == nil {
+		t.Fatal("nil slice marshals to JSON null and crashes the frontend; want empty slice")
+	}
+	if len(got) != 0 {
+		t.Errorf("no addresses queried, want 0 tokens, got %d", len(got))
+	}
+
+	b, err := json.Marshal(got)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if string(b) != "[]" {
+		t.Errorf("empty balances must serialize as [], got %s", b)
 	}
 }
