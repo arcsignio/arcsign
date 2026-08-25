@@ -177,7 +177,9 @@
     "enterStrongPassword": "輸入強密碼（12 個字元以上）",
     "useBip39Passphrase": "使用 BIP39 密碼（第 25 個詞）",
     "enterBip39Passphrase": "輸入 BIP39 密碼（選填）",
-    "passphraseImportWarning": "如果您的原始錢包使用了密碼，您必須在此輸入完全相同的密碼。"
+    "passphraseImportWarning": "如果您的原始錢包使用了密碼，您必須在此輸入完全相同的密碼。",
+    "showPassword": "顯示密碼",
+    "hidePassword": "隱藏密碼"
   },
   "mnemonic": {
     "mnemonic": "助記詞",

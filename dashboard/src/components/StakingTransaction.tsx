@@ -16,6 +16,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import tauriApi, { type AppError, type BuildTransactionResponse } from "@/services/tauri-api";
 import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useSignGate } from "@/hooks/useSignGate";
 import type { SendableToken } from "./SendTransaction";
 import type { StakingStep, StakableAsset, StakingProvider } from "@/types/defi";
@@ -687,8 +688,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         <label className="block text-sm font-medium text-gray-700 mb-2">
           {t('staking.walletPassword')}
         </label>
-        <input
-          type="password"
+        <PasswordInput
           value={walletPassword}
           onChange={(e) => setWalletPassword(e.target.value)}
           placeholder={t('staking.passwordPlaceholder')}

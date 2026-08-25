@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { fromSmallestUnit, shortenAddress } from "@/utils/swapFormat";
 import type { SendableToken } from "@/components/SendTransaction";
 import type { SwapQuoteResponse } from "@/services/tauri-api";
+import { PasswordInput } from "@/components/PasswordInput";
 
 interface ApprovalViewProps {
   mode: "approve" | "approvalPassword";
@@ -170,8 +171,7 @@ export const ApprovalView: React.FC<ApprovalViewProps> = ({
 
       <div className="form-group">
         <label>{t('swap.walletPassword')}</label>
-        <input
-          type="password"
+        <PasswordInput
           value={walletPassword}
           onChange={(e) => onPasswordChange(e.target.value)}
           placeholder={t('swap.enterWalletPassword')}

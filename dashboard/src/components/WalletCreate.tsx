@@ -17,6 +17,7 @@ import tauriApi, { type UsbDevice, type AppError } from '@/services/tauri-api';
 import type { WalletCreateResponse } from '@/types/wallet';
 import { MnemonicDisplay } from './MnemonicDisplay';
 import { ConfirmationDialog } from './ConfirmationDialog';
+import { PasswordInput } from '@/components/PasswordInput';
 
 interface WalletCreateProps {
   onCancel?: () => void;
@@ -211,9 +212,8 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
         {/* Password */}
         <div className="form-group">
           <label htmlFor="password">{t('security.password')} *</label>
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             placeholder={t('security.atLeast12Chars')}
             {...register('password')}
           />
@@ -224,9 +224,8 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
         {/* Confirm Password */}
         <div className="form-group">
           <label htmlFor="confirmPassword">{t('security.confirmPassword')} *</label>
-          <input
+          <PasswordInput
             id="confirmPassword"
-            type="password"
             placeholder={t('security.reenterPassword')}
             {...register('confirmPassword')}
           />
@@ -238,9 +237,8 @@ export function WalletCreate({ onCancel, onSuccess }: WalletCreateProps = {}) {
         {/* BIP39 Passphrase (Optional) */}
         <div className="form-group">
           <label htmlFor="passphrase">{t('security.bip39Passphrase')}</label>
-          <input
+          <PasswordInput
             id="passphrase"
-            type="password"
             placeholder={t('security.passphraseOptional')}
             {...register('passphrase')}
           />

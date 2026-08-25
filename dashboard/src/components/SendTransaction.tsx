@@ -15,6 +15,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { AddressBook } from "@/components/AddressBook";
 import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useSignGate } from "@/hooks/useSignGate";
 import { getNativeToken, getNetworkKey } from "@/constants/nativeTokens";
 import tauriApi, {
@@ -870,8 +871,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           </p>
 
           <div className="form-group">
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Enter wallet password"
               value={walletPassword}
               onChange={(e) => setWalletPassword(e.target.value)}

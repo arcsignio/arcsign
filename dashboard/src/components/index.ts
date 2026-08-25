@@ -13,6 +13,7 @@ export { ConfirmationDialog } from './ConfirmationDialog';
 export { LoadingSpinner } from './LoadingSpinner';
 export { LibraryCrashDialog } from './LibraryCrashDialog';
 export { AppUnlock } from './AppUnlock';
+export { PasswordInput } from './PasswordInput';
 export { ProviderSettings } from './ProviderSettings';
 export { TransactionSignDialog } from './TransactionSignDialog';
 export { ErrorBoundary, withErrorBoundary } from './ErrorBoundary';

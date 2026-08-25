@@ -35,6 +35,7 @@ import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useTranslation } from "react-i18next";
 import type { Address } from "@/types/address";
 import type { Wallet } from "@/types/wallet";
+import { PasswordInput } from "@/components/PasswordInput";
 
 type View = "list" | "create" | "import" | "import-backup" | "import-all-backups" | "export-backup-select" | "export-all-backups" | "addresses" | "settings" | "api-settings" | "detail" | "developer";
 
@@ -950,8 +951,7 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
               >
                 {t("dashboard.password")}
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 id="address-password"
                 value={passwordForAddresses}
                 onChange={(e) => setPasswordForAddresses(e.target.value)}

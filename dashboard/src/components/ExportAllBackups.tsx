@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 import tauriApi from '@/services/tauri-api';
+import { PasswordInput } from '@/components/PasswordInput';
 
 interface ExportAllBackupsProps {
   usbPath: string;
@@ -93,8 +94,7 @@ export const ExportAllBackups: React.FC<ExportAllBackupsProps> = ({
         {/* Password input */}
         <div className="export-all-field">
           <label>{t('backup.enterPassword')}</label>
-          <input
-            type="password"
+          <PasswordInput
             className="export-all-input"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

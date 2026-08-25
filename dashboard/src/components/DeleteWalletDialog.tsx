@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Wallet } from "@/types/wallet";
+import { PasswordInput } from "@/components/PasswordInput";
 
 interface DeleteWalletDialogProps {
   wallet: Wallet | null;
@@ -90,8 +91,7 @@ export function DeleteWalletDialog({
             >
               {t('deleteWallet.enterPassword')}
             </label>
-            <input
-              type="password"
+            <PasswordInput
               id="delete-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

@@ -17,6 +17,7 @@ import {
 import tauriApi, { type AppError } from "@/services/tauri-api";
 import { useDashboardStore } from "@/stores/dashboardStore";
 import { ConfirmationDialog } from "./ConfirmationDialog";
+import { PasswordInput } from "@/components/PasswordInput";
 
 interface WalletImportProps {
   usbPath: string;
@@ -219,8 +220,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
           >
             {t('security.walletPassword')} *
           </label>
-          <input
-            type="password"
+          <PasswordInput
             id="password"
             {...register("password")}
             className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
@@ -245,8 +245,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
           >
             {t('security.confirmPassword')} *
           </label>
-          <input
-            type="password"
+          <PasswordInput
             id="confirmPassword"
             {...register("confirmPassword")}
             className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
@@ -290,8 +289,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({
               >
                 {t('security.passphrase')}
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 id="passphrase"
                 {...register("passphrase")}
                 className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${

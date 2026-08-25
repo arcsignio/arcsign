@@ -177,7 +177,9 @@
     "enterStrongPassword": "Enter a strong password (12+ characters)",
     "useBip39Passphrase": "Use BIP39 Passphrase (25th word)",
     "enterBip39Passphrase": "Enter BIP39 passphrase (optional)",
-    "passphraseImportWarning": "If your original wallet used a passphrase, you must enter the exact same passphrase here."
+    "passphraseImportWarning": "If your original wallet used a passphrase, you must enter the exact same passphrase here.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "mnemonic": {
     "mnemonic": "Mnemonic",
