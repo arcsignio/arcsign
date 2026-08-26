@@ -6,6 +6,7 @@ import { KNOWN_ABIS, MAX_UINT256, MAX_UINT160 } from "./knownAbis";
 import { resolveTokenLabel } from "./tokenLabel";
 import { networkToChainId } from "./chainIdToNetwork";
 import { fetchContractAbi } from "./sourcifyClient";
+import { intentFromDescriptor } from "./resolveDescriptor";
 
 function shortAddr(a: string): string {
   return a && a.length > 12 ? `${a.slice(0, 6)}...${a.slice(-4)}` : a;
@@ -66,7 +67,65 @@ async function renderSwap(network: string, s: SwapShape, raw: string): Promise<D
 // Decode a transaction's calldata into a human-readable intent using ONLY the
 // curated local ABIs (viem, offline). Empty data + value → native send. Unknown
 // selectors → unreadable (caller shows a warning + raw hex). Never throws.
+/**
+ * Decode a transaction for the signing screen.
+ *
+ * Resolution order:
+ *   1. ERC-7730 descriptor — the protocol author's own description of what each
+ *      parameter means. Preferred because an ABI only gives types and names,
+ *      not semantics.
+ *   2. Existing local/Sourcify ABI decoding.
+ *   3. "Unreadable" warning with the raw hex.
+ *
+ * A descriptor failure of any kind falls through to step 2 — it never blocks
+ * signing, and it never suppresses a risk badge: risks are always computed by
+ * the ABI decoder below and carried onto the descriptor result.
+ */
 export async function decodeCalldata(
+  network: string,
+  to: string,
+  data: string | undefined,
+  value: string | undefined,
+  options?: { onlineEnabled?: boolean; usb?: { usbPath: string; sessionToken: string } },
+): Promise<DecodedIntent> {
+  const base = await decodeCalldataLocal(network, to, data, value, options);
+
+  // Only try a descriptor when there is calldata to describe and the local
+  // decode produced something structured to reuse (selector + decoded args).
+  if (!data || data === "0x" || !base.readable) return base;
+
+  const chainId = networkToChainId(network);
+  if (chainId === undefined) return base;
+
+  const decoded = decodedArgsFor(base);
+  if (!decoded) return base;
+
+  const enriched = await intentFromDescriptor({
+    chainId,
+    to,
+    selector: data.slice(0, 10),
+    decoded,
+    raw: base.raw,
+    usbPath: options?.usb?.usbPath,
+    sessionToken: options?.usb?.sessionToken,
+    risks: base.risks,
+  });
+
+  return enriched ?? base;
+}
+
+/**
+ * The params the local decoder produced, keyed by label, so a descriptor can
+ * address them by path. Returns null when there is nothing to map.
+ */
+function decodedArgsFor(intent: DecodedIntent): Record<string, unknown> | null {
+  if (!intent.params.length) return null;
+  const out: Record<string, unknown> = {};
+  for (const p of intent.params) out[p.label] = p.value;
+  return out;
+}
+
+async function decodeCalldataLocal(
   network: string,
   to: string,
   data: string | undefined,

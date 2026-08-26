@@ -245,7 +245,9 @@
     "developerModeTitle": "開發者模式",
     "developerModeDescription": "簽署 Hardhat/Foundry 交易，無需暴露私鑰",
     "onboardingTitle": "使用導引",
-    "onboardingDescription": "重新查看 ArcSign 介紹與安全指南"
+    "onboardingDescription": "重新查看 ArcSign 介紹與安全指南",
+    "descriptorsTitle": "交易描述資料",
+    "descriptorsDescription": "管理用來解釋交易內容的描述資料"
   },
   "provider": {
     "title": "API 提供者設定",
@@ -1116,5 +1118,17 @@
     "button": "清除 ABI 快取",
     "done": "已清除 ABI 快取",
     "failed": "無法清除 ABI 快取"
+  },
+  "descriptors": {
+    "title": "交易描述資料",
+    "intro": "由協定作者發布的描述資料，讓 ArcSign 能顯示交易實際在做什麼，而非原始合約資料。",
+    "version": "版本",
+    "count": "描述筆數",
+    "builtIn": "內建",
+    "update": "更新",
+    "updating": "更新中…",
+    "networkNotice": "更新會連線至 GitHub 下載最新描述資料，不會傳送任何與你錢包相關的資訊。",
+    "updateDone": "已更新——目前有 {{count}} 筆描述。",
+    "updateFailed": "更新失敗："
   }
 }
