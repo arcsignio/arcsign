@@ -1,5 +1,5 @@
 import { decodeFunctionData, formatUnits } from "viem";
-import type { AbiFunction } from "viem";
+import type { AbiFunction, AbiParameter } from "viem";
 import type { DecodedIntent, ClearSignRisk, DecodedParam } from "./types";
 import { detectSwapFromAbi } from "./detectSwap";
 import { KNOWN_ABIS, MAX_UINT256, MAX_UINT160 } from "./knownAbis";
@@ -97,7 +97,7 @@ export async function decodeCalldata(
   const chainId = networkToChainId(network);
   if (chainId === undefined) return base;
 
-  const decoded = decodedArgsFor(base);
+  const decoded = decodeArgsByAbiName(data);
   if (!decoded) return base;
 
   const enriched = await intentFromDescriptor({
@@ -115,14 +115,53 @@ export async function decodeCalldata(
 }
 
 /**
- * The params the local decoder produced, keyed by label, so a descriptor can
- * address them by path. Returns null when there is nothing to map.
+ * Decode calldata into a map keyed by the contract's own parameter names.
+ *
+ * ERC-7730 field paths address arguments the way the ABI names them
+ * ("params.amountIn", "recipient"), NOT the way our UI labels them
+ * ("Amount to Send"). Keying by label would never match a descriptor path, so
+ * this decodes independently and maps by `inputs[i].name`.
+ *
+ * Tuple arguments become nested objects so dotted paths resolve, and bigint
+ * values become decimal strings because that is what the Go formatter parses.
+ * Returns null when no known ABI decodes this calldata.
  */
-function decodedArgsFor(intent: DecodedIntent): Record<string, unknown> | null {
-  if (!intent.params.length) return null;
-  const out: Record<string, unknown> = {};
-  for (const p of intent.params) out[p.label] = p.value;
-  return out;
+function decodeArgsByAbiName(data: string): Record<string, unknown> | null {
+  for (const abi of KNOWN_ABIS) {
+    try {
+      const { functionName, args } = decodeFunctionData({ abi, data: data as `0x${string}` });
+      const fn = (abi as readonly { type?: string; name?: string; inputs?: readonly AbiParameter[] }[])
+        .find((f) => f.type === "function" && f.name === functionName);
+      if (!fn?.inputs?.length || !args) return null;
+
+      const out: Record<string, unknown> = {};
+      (args as readonly unknown[]).forEach((arg, i) => {
+        const input = fn.inputs![i];
+        if (!input?.name) return;
+        out[input.name] = normalizeArg(arg, input);
+      });
+      return Object.keys(out).length ? out : null;
+    } catch {
+      // try the next ABI
+    }
+  }
+  return null;
+}
+
+/** Shape one decoded argument for the descriptor resolver. */
+function normalizeArg(arg: unknown, input: AbiParameter): unknown {
+  const components = (input as { components?: readonly AbiParameter[] }).components;
+  if (components?.length && typeof arg === "object" && arg !== null) {
+    const nested: Record<string, unknown> = {};
+    components.forEach((c, i) => {
+      if (!c.name) return;
+      const v = Array.isArray(arg) ? (arg as unknown[])[i] : (arg as Record<string, unknown>)[c.name];
+      nested[c.name] = normalizeArg(v, c);
+    });
+    return nested;
+  }
+  // bigint -> decimal string: the Go side parses amounts as base-10 strings.
+  return typeof arg === "bigint" ? arg.toString() : arg;
 }
 
 async function decodeCalldataLocal(
