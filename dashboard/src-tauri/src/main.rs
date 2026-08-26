@@ -38,6 +38,7 @@ use commands::swap::{
 };
 use commands::usb::detect_usb;
 use commands::wallet::{create_wallet, import_wallet, list_wallets, load_addresses, rename_wallet, delete_wallet, export_backup, import_backup, export_all_backups, import_all_backups, get_token_balances, get_nfts, add_touched_token, get_token_approvals, check_transaction_security, check_typed_data_security, check_message_security, get_cached_abi, set_cached_abi, clear_abi_cache, list_contacts, add_contact, update_contact, delete_contact, set_transaction_label, get_transaction_labels, delete_transaction_label, validate_passphrase, update_websocket_accounts, update_websocket_usb_path, AddressCache};
+use commands::clearsign::{resolve_descriptor, update_descriptors, get_descriptor_status};
 use commands::provider::{set_provider_config, get_provider_config, list_provider_configs, delete_provider_config, get_asset_transfers};
 use commands::websocket_commands::{
     get_pending_transaction, respond_to_transaction, cancel_pending_transaction,
@@ -309,6 +310,11 @@ fn main() {
             export_all_backups,
             import_all_backups,
             get_token_balances,
+
+            // ERC-7730 clear-signing descriptors (display only, never a safety gate)
+            resolve_descriptor,
+            update_descriptors,
+            get_descriptor_status,
             get_nfts,
             add_touched_token,
             get_token_approvals,

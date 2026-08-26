@@ -102,6 +102,15 @@ type UnlockAppFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 /// Function signature for GetTokenBalances: char* GetTokenBalances(char* params)
 type GetTokenBalancesFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
+/// Function signature for ResolveDescriptor: char* ResolveDescriptor(char* params)
+type ResolveDescriptorFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for UpdateDescriptors: char* UpdateDescriptors(char* params)
+type UpdateDescriptorsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
+/// Function signature for GetDescriptorStatus: char* GetDescriptorStatus(char* params)
+type GetDescriptorStatusFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
+
 /// Function signature for GetNFTs: char* GetNFTs(char* params)
 type GetNFTsFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
@@ -262,6 +271,10 @@ pub struct WalletLibrary {
     unlock_app: Symbol<'static, UnlockAppFn>,
     // Token balance query function symbols
     get_token_balances: Symbol<'static, GetTokenBalancesFn>,
+    // ERC-7730 clear-signing descriptor symbols (display only, never a safety gate)
+    resolve_descriptor: Symbol<'static, ResolveDescriptorFn>,
+    update_descriptors: Symbol<'static, UpdateDescriptorsFn>,
+    get_descriptor_status: Symbol<'static, GetDescriptorStatusFn>,
     // NFT query function symbols
     get_nfts: Symbol<'static, GetNFTsFn>,
     // Touched-token (table B) write function symbol
@@ -488,6 +501,18 @@ impl WalletLibrary {
                 .get(b"GetTokenBalances")
                 .map_err(|e| format!("GetTokenBalances symbol not found: {}", e))?;
 
+            let resolve_descriptor: Symbol<ResolveDescriptorFn> = lib
+                .get(b"ResolveDescriptor")
+                .map_err(|e| format!("ResolveDescriptor symbol not found: {}", e))?;
+
+            let update_descriptors: Symbol<UpdateDescriptorsFn> = lib
+                .get(b"UpdateDescriptors")
+                .map_err(|e| format!("UpdateDescriptors symbol not found: {}", e))?;
+
+            let get_descriptor_status: Symbol<GetDescriptorStatusFn> = lib
+                .get(b"GetDescriptorStatus")
+                .map_err(|e| format!("GetDescriptorStatus symbol not found: {}", e))?;
+
             let get_nfts: Symbol<GetNFTsFn> = lib
                 .get(b"GetNFTs")
                 .map_err(|e| format!("GetNFTs symbol not found: {}", e))?;
@@ -693,6 +718,9 @@ impl WalletLibrary {
             let dev_session_sign: Symbol<'static, DevSessionSignFn> = std::mem::transmute(dev_session_sign);
             let get_dev_session: Symbol<'static, GetDevSessionFn> = std::mem::transmute(get_dev_session);
             let end_dev_session: Symbol<'static, EndDevSessionFn> = std::mem::transmute(end_dev_session);
+            let resolve_descriptor: Symbol<'static, ResolveDescriptorFn> = std::mem::transmute(resolve_descriptor);
+            let update_descriptors: Symbol<'static, UpdateDescriptorsFn> = std::mem::transmute(update_descriptors);
+            let get_descriptor_status: Symbol<'static, GetDescriptorStatusFn> = std::mem::transmute(get_descriptor_status);
 
             Ok(WalletLibrary {
                 lib: Arc::new(lib),
@@ -722,6 +750,9 @@ impl WalletLibrary {
                 initialize_app,
                 unlock_app,
                 get_token_balances,
+                resolve_descriptor,
+                update_descriptors,
+                get_descriptor_status,
                 get_nfts,
                 add_touched_token,
                 get_token_approvals,
@@ -1288,6 +1319,25 @@ impl WalletLibrary {
     /// ```
     pub fn get_token_balances(&self, params_json: &str) -> Result<serde_json::Value, String> {
         self.call_ffi_with_params(*self.get_token_balances, params_json)
+    }
+
+    /// Render calldata through its ERC-7730 descriptor. Returns `data: null`
+    /// when no descriptor matches — that is the normal case, not an error, and
+    /// the frontend then keeps its existing calldata decoding.
+    pub fn resolve_descriptor(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.resolve_descriptor, params_json)
+    }
+
+    /// Download the latest descriptor set and store it encrypted on the USB.
+    /// This is the only code path here that touches the network, and it runs
+    /// only when the user explicitly asks for an update.
+    pub fn update_descriptors(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.update_descriptors, params_json)
+    }
+
+    /// Report the active descriptor set's version and size.
+    pub fn get_descriptor_status(&self, params_json: &str) -> Result<serde_json::Value, String> {
+        self.call_ffi_with_params(*self.get_descriptor_status, params_json)
     }
 
     /// Get NFTs owned by a wallet across multiple chains using Alchemy API.

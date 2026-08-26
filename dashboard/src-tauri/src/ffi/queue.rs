@@ -221,6 +221,21 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Render calldata through its ERC-7730 descriptor (display only)
+    ResolveDescriptor {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Download and store the latest ERC-7730 descriptor set
+    UpdateDescriptors {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
+    /// Report the active descriptor set's version and size
+    GetDescriptorStatus {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
     /// Get NFTs owned by a wallet
     GetNFTs {
         params_json: String,
@@ -594,6 +609,21 @@ impl WalletQueue {
                 }
                 WalletCommand::GetTokenBalances { params_json, respond_to } => {
                     let result = library.get_token_balances(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::ResolveDescriptor { params_json, respond_to } => {
+                    let result = library.resolve_descriptor(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::UpdateDescriptors { params_json, respond_to } => {
+                    let result = library.update_descriptors(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::GetDescriptorStatus { params_json, respond_to } => {
+                    let result = library.get_descriptor_status(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -1186,6 +1216,61 @@ impl WalletQueue {
         self.metrics.record_enqueue();
         self.sender
             .send(WalletCommand::GetTokenBalances {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Render calldata through its ERC-7730 descriptor (display only).
+    pub async fn resolve_descriptor(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::ResolveDescriptor {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+    /// Download and store the latest ERC-7730 descriptor set.
+    pub async fn update_descriptors(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::UpdateDescriptors {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+    /// Report the active descriptor set's version and size.
+    pub async fn get_descriptor_status(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::GetDescriptorStatus {
                 params_json,
                 respond_to: sender,
             })
@@ -2070,6 +2155,21 @@ impl LazyWalletQueue {
     /// Enumerate all wallets on USB
     pub async fn list_wallets(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().list_wallets(params_json).await
+    }
+
+    /// Render calldata through its ERC-7730 descriptor (display only).
+    pub async fn resolve_descriptor(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().resolve_descriptor(params_json).await
+    }
+
+    /// Download and store the latest ERC-7730 descriptor set.
+    pub async fn update_descriptors(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().update_descriptors(params_json).await
+    }
+
+    /// Report the active descriptor set's version and size.
+    pub async fn get_descriptor_status(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().get_descriptor_status(params_json).await
     }
 
     /// Set blockchain provider configuration

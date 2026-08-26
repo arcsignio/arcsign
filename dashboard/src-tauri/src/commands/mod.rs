@@ -4,6 +4,7 @@
  */
 
 pub mod app;
+pub mod clearsign;
 pub mod auth;
 pub mod dev_history;
 pub mod dev_session;
