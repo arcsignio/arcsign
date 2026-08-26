@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { invoke } from '@tauri-apps/api/core';
+import { encodeFunctionData } from 'viem';
 import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
+import { uniV3RouterAbi } from '@/services/clearsign/knownAbis';
 
 const mockInvoke = vi.mocked(invoke);
 beforeEach(() => mockInvoke.mockReset());
@@ -32,19 +34,35 @@ describe('decodeCalldata feeds the descriptor ABI-named args', () => {
   it('sends tuple arguments as nested objects so dotted paths resolve', async () => {
     mockInvoke.mockResolvedValue(null);
 
-    // Uniswap V3 exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))
-    // Verified indirectly: a tuple arg must arrive as an object, not an array,
-    // otherwise a path like "params.amountIn" cannot resolve.
-    const data =
-      '0xa9059cbb' +
-      '000000000000000000000000' + 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' +
-      '0000000000000000000000000000000000000000000000000000000000000001';
+    // Uniswap V3 exactInputSingle(( tokenIn, tokenOut, fee, recipient,
+    // amountIn, amountOutMinimum, sqrtPriceLimitX96 )) — a real tuple arg.
+    // A descriptor path like "params.amountIn" only resolves if the tuple
+    // arrives as a nested object rather than a positional array.
+    const data = encodeFunctionData({
+      abi: uniV3RouterAbi,
+      functionName: 'exactInputSingle',
+      args: [{
+        tokenIn: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        tokenOut: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        fee: 3000,
+        recipient: '0xcccccccccccccccccccccccccccccccccccccccc',
+        deadline: 1900000000n,
+        amountIn: 1500000n,
+        amountOutMinimum: 900n,
+        sqrtPriceLimitX96: 0n,
+      }],
+    });
 
-    await decodeCalldata('eth-mainnet', '0xtoken', data, undefined);
+    await decodeCalldata('eth-mainnet', '0xrouter', data, undefined);
     const call = mockInvoke.mock.calls.find(c => c[0] === 'resolve_descriptor');
+    expect(call, 'resolve_descriptor should have been invoked').toBeTruthy();
+
     const decoded = (call![1] as any).input.decoded;
-    // Flat args stay flat; the shape is a plain object keyed by name.
-    expect(typeof decoded).toBe('object');
-    expect(Array.isArray(decoded)).toBe(false);
+    const params = decoded.params as Record<string, unknown>;
+    expect(params, 'tuple arg must be present under its parameter name').toBeTruthy();
+    expect(Array.isArray(params)).toBe(false);
+    // Nested field addressable by name, bigint rendered as a decimal string.
+    expect(params.amountIn).toBe('1500000');
+    expect(params.tokenIn).toMatch(/^0x[aA]{40}$/);
   });
 });

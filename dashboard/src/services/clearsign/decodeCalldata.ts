@@ -109,6 +109,7 @@ export async function decodeCalldata(
     usbPath: options?.usb?.usbPath,
     sessionToken: options?.usb?.sessionToken,
     risks: base.risks,
+    tokens: await tokenMetadataFor(network, to, decoded),
   });
 
   return enriched ?? base;
@@ -132,7 +133,7 @@ function decodeArgsByAbiName(data: string): Record<string, unknown> | null {
       const { functionName, args } = decodeFunctionData({ abi, data: data as `0x${string}` });
       const fn = (abi as readonly { type?: string; name?: string; inputs?: readonly AbiParameter[] }[])
         .find((f) => f.type === "function" && f.name === functionName);
-      if (!fn?.inputs?.length || !args) return null;
+      if (!fn?.inputs?.length || !args) continue; // try the next ABI
 
       const out: Record<string, unknown> = {};
       (args as readonly unknown[]).forEach((arg, i) => {
@@ -140,12 +141,58 @@ function decodeArgsByAbiName(data: string): Record<string, unknown> | null {
         if (!input?.name) return;
         out[input.name] = normalizeArg(arg, input);
       });
-      return Object.keys(out).length ? out : null;
+      if (Object.keys(out).length) return out;
+      // Decoded, but no named parameters to key by — another ABI may name them.
     } catch {
       // try the next ABI
     }
   }
   return null;
+}
+
+/**
+ * Resolve symbol/decimals for every address-shaped value in the decoded args,
+ * plus the target contract itself.
+ *
+ * A descriptor's `tokenAmount` field names the token via a `tokenPath` pointing
+ * at one of these addresses. Without this metadata the backend can only render
+ * "1000000 (unknown token)" — correct but useless — so supplying it is what
+ * turns a raw integer into "1.0 USDC".
+ */
+async function tokenMetadataFor(
+  network: string,
+  to: string,
+  decoded: Record<string, unknown>,
+): Promise<Array<{ address: string; symbol: string; decimals: number }>> {
+  const addresses = new Set<string>([to.toLowerCase()]);
+  collectAddresses(decoded, addresses);
+
+  const resolved = await Promise.all(
+    [...addresses].map(async (address) => {
+      try {
+        const label = await resolveTokenLabel(network, address);
+        return label.known ? { address, symbol: label.symbol, decimals: label.decimals } : null;
+      } catch {
+        return null; // metadata is a nicety; never fail the decode over it
+      }
+    }),
+  );
+  return resolved.filter((t): t is { address: string; symbol: string; decimals: number } => t !== null);
+}
+
+/** Gather every 20-byte hex value reachable in the decoded args. */
+function collectAddresses(value: unknown, out: Set<string>): void {
+  if (typeof value === "string") {
+    if (/^0x[0-9a-fA-F]{40}$/.test(value)) out.add(value.toLowerCase());
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const v of value) collectAddresses(v, out);
+    return;
+  }
+  if (value && typeof value === "object") {
+    for (const v of Object.values(value)) collectAddresses(v, out);
+  }
 }
 
 /** Shape one decoded argument for the descriptor resolver. */

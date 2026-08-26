@@ -132,11 +132,3 @@ func ParseDescriptor(raw []byte) (*Descriptor, error) {
 	return &d, nil
 }
 
-// SelectorFor returns the 4-byte selector registered for a given function
-// signature key in this descriptor's display.formats, or "" if absent.
-func (d *Descriptor) SelectorFor(signature string) string {
-	if f, ok := d.Display.Formats[signature]; ok && f != nil {
-		return f.Selector
-	}
-	return ""
-}

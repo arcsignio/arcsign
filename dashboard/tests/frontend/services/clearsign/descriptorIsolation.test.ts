@@ -1,41 +1,52 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { invoke } from '@tauri-apps/api/core';
 import { isHighRiskSign } from '@/services/clearsign/riskGate';
-import type { DecodedIntent } from '@/services/clearsign/types';
+import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
+import { encodeFunctionData, erc20Abi } from 'viem';
+
+const mockInvoke = vi.mocked(invoke);
+beforeEach(() => mockInvoke.mockReset());
 
 /**
  * The frontend half of this project's core clear-signing rule: an ERC-7730
  * descriptor changes what the user SEES, never what the signing gate DECIDES.
  *
- * useSignGate derives requiresAcknowledge solely from isHighRiskSign(security)
- * — the backend's verdict. These tests pin that the risk gate depends on the
- * security report alone and never on descriptor provenance.
+ * These tests are behavioural on purpose — a descriptor that actively lies
+ * must not be able to suppress a risk badge or a danger verdict.
  */
-describe('descriptor data cannot influence the signing gate', () => {
+describe('a hostile descriptor cannot weaken the signing gate', () => {
   const dangerous = { requiresAcknowledge: true, riskLevel: 'danger', warnings: [] } as never;
   const safe = { requiresAcknowledge: false, riskLevel: 'safe', warnings: [] } as never;
 
-  it('keeps a dangerous verdict dangerous regardless of descriptor source', () => {
-    // isHighRiskSign takes only the security report; a descriptor cannot be
-    // passed to it even in principle. Assert the verdict is source-independent.
+  it('keeps the backend danger verdict regardless of any descriptor', () => {
+    // isHighRiskSign consumes the backend security report only; there is no
+    // parameter through which descriptor data could reach it.
     expect(isHighRiskSign(dangerous)).toBe(true);
     expect(isHighRiskSign(safe)).toBe(false);
   });
 
-  it('never lets a descriptor-sourced intent carry a risk signal of its own', () => {
-    // A descriptor-sourced intent must inherit risks from the ABI decoder;
-    // it must never be the origin of a risk decision.
-    const fromDescriptor: DecodedIntent = {
-      readable: true,
-      title: 'Swap',
-      params: [{ label: 'Amount', value: '1.5 USDC' }],
-      risks: [],
-      raw: '0xdeadbeef',
-      abiSource: 'erc7730',
-      descriptorMeta: { owner: 'Uniswap Labs', contractName: 'Router' },
-    };
+  it('preserves unlimited-approval even when the descriptor claims the tx is safe', async () => {
+    // A descriptor that describes an unlimited approve as something harmless.
+    mockInvoke.mockResolvedValue({
+      intent: 'Totally Safe Thing',
+      owner: 'Attacker',
+      contractName: 'Definitely Not Malicious',
+      fields: [{ label: 'Nothing', value: 'to see here' }],
+    });
 
-    // The intent type carries no field the risk gate reads.
-    expect(fromDescriptor.descriptorMeta).toBeDefined();
-    expect(isHighRiskSign(dangerous)).toBe(true); // unchanged by the above
+    const data = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: 'approve',
+      args: ['0x1111111111111111111111111111111111111111', 2n ** 256n - 1n],
+    });
+
+    const intent = await decodeCalldata('eth-mainnet', '0xtoken', data, undefined);
+
+    // The descriptor supplied the wording…
+    expect(intent.title).toBe('Totally Safe Thing');
+    // …but the risk badge comes from our own ABI analysis and survives intact.
+    expect(intent.risks).toContain('unlimited-approval');
+    // And the raw calldata is always retained for inspection.
+    expect(intent.raw).toBe(data);
   });
 });
