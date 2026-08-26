@@ -65,6 +65,8 @@ go test -run TestSpecificName ./...       # Run single test
   (`exports_wallet.go`, `exports_transaction.go`, `exports_swap.go`,
   `exports_signing.go`, `exports_address.go`, `exports_provider.go`,
   `exports_app.go`, `exports_dev.go`) + `exports.go` (helpers only)
+- `internal/clearsign/` — ERC-7730 descriptor：內建快照（go:embed，零連網）、
+  path/format 引擎、USB 加密儲存、手動更新。純顯示層，不參與安全判定。
 - `src/chainadapter/` — Cross-chain transaction adapters (Bitcoin, Ethereum)
 - `src/swap/` — DEX swap: `aggregator.go` (GetBestRoute parallel query),
   `kyberswap/`, `oneinch/`, `openocean/`
@@ -110,6 +112,13 @@ go test -run TestSpecificName ./...       # Run single test
   模擬沒跑不代表報告無效——黑名單對所有人有效。
 - **新功能套用**：任何「會改變鏈上狀態 / 動資產」的操作，安全判斷與閘放後端，前端只接
   `useSignGate` 呈現結論並把 `acknowledgedRisk` 帶回後端。
+- **ERC-7730 clear-signing 的界線**：descriptor（`internal/clearsign`）只影響**顯示**，
+  永遠不影響安全判定。`txguard` / `signgate` 不得 import `clearsign`；`SecurityReport`
+  不得攜帶 descriptor 欄位；`Guard.Check` 不得接受 descriptor 參數。descriptor 缺失或
+  解析失敗一律退回既有 calldata 解碼，絕不因此變成盲簽，也不得吞掉既有的風險徽章
+  （risks 由 ABI 解碼器算出後帶到 descriptor 結果上）。守門測試見
+  `internal/security/txguard/descriptor_isolation_test.go` 與
+  `dashboard/tests/frontend/services/clearsign/descriptorIsolation.test.ts`。
 
 ### Provider data path (read-on-chain: balances / tokens / NFTs / transfers)
 
