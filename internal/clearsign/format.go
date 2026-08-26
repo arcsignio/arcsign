@@ -81,6 +81,12 @@ func formatTokenAmount(
 ) (string, bool) {
 	amountStr := fmt.Sprintf("%v", v)
 
+	// A nil lookup is a legitimate way for a caller to say "no token metadata
+	// available"; treat it as an unknown token rather than dereferencing it.
+	if lookup == nil {
+		return amountStr + " (unknown token)", true
+	}
+
 	tokenPath, _ := params["tokenPath"].(string)
 	if tokenPath == "" {
 		return amountStr + " (unknown token)", true

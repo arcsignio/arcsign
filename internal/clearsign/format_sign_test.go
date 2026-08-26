@@ -7,7 +7,11 @@ import "testing"
 // The latter is the dangerous one: at a glance it reads as a tiny POSITIVE
 // amount on a signing screen.
 func TestFormatUnitsNegativeIsWellFormed(t *testing.T) {
-	cases := []struct{ raw string; dp int; want string }{
+	cases := []struct {
+		raw  string
+		dp   int
+		want string
+	}{
 		{"-1500000", 6, "-1.5"},
 		{"-1", 6, "-0.000001"},
 		{"-2000000", 6, "-2"},
@@ -30,5 +34,19 @@ func TestFormatUnitsRejectsHexInput(t *testing.T) {
 		if got := formatUnits(raw, 6); got != raw {
 			t.Errorf("formatUnits(%q, 6) = %q, want the input returned verbatim", raw, got)
 		}
+	}
+}
+
+// TestFormatTokenAmountNilLookup guards the exported API: a nil TokenLookup is
+// a natural way to say "no token metadata", and must not panic.
+func TestFormatTokenAmountNilLookup(t *testing.T) {
+	params := map[string]any{"tokenPath": "t"}
+	resolve := func(string) (any, bool) { return "0xabc", true }
+	got, ok := FormatValue("1500000", "tokenAmount", params, resolve, nil)
+	if !ok {
+		t.Fatal("nil lookup should degrade to unknown token, not fail")
+	}
+	if got != "1500000 (unknown token)" {
+		t.Errorf("got %q", got)
 	}
 }

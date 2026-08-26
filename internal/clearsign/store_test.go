@@ -126,3 +126,17 @@ func TestStoreLoadReturnsCopy(t *testing.T) {
 		t.Error("Load must return a copy; caller mutation leaked into the store")
 	}
 }
+
+// TestStoreSaveAfterCloseFails guards against silently re-encrypting under an
+// empty password once Close has zeroed it — that would write a file the real
+// password can never open.
+func TestStoreSaveAfterCloseFails(t *testing.T) {
+	s, err := NewDescriptorStore(filepath.Join(t.TempDir(), "d.enc"), "pw")
+	if err != nil {
+		t.Fatalf("new store: %v", err)
+	}
+	s.Close()
+	if err := s.Save([]byte(`{"descriptors":[]}`)); err == nil {
+		t.Error("Save after Close must fail rather than re-key with an empty password")
+	}
+}

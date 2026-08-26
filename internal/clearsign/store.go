@@ -68,6 +68,13 @@ func (s *DescriptorStore) Save(snapshot []byte) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	// Refuse to write after Close. The password has been zeroed by then, so a
+	// Save would silently re-encrypt under an empty key and produce a file the
+	// real password can no longer open — silent data loss.
+	if len(s.password) == 0 {
+		return fmt.Errorf("clearsign: descriptor store is closed")
+	}
+
 	encrypted, err := crypto.Encrypt(snapshot, string(s.password))
 	if err != nil {
 		return fmt.Errorf("clearsign: encrypt descriptor store: %w", err)
