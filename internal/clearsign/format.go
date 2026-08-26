@@ -101,20 +101,35 @@ func formatTokenAmount(
 // math/big exclusively — float64 would lose precision on amounts beyond
 // 2^53 and silently misrender large token balances.
 func formatUnits(raw string, decimals int) string {
-	n, ok := new(big.Int).SetString(strings.TrimPrefix(raw, "0x"), 10)
+	// Parse strictly as decimal. A "0x" prefix is NOT stripped: hex would be
+	// silently misread as decimal ("0x1234" -> 1234 instead of 4660), quietly
+	// showing the wrong amount on the signing screen. Unparseable input is
+	// returned verbatim so the caller sees raw data rather than a wrong number.
+	n, ok := new(big.Int).SetString(raw, 10)
 	if !ok {
 		return raw
 	}
 	if decimals <= 0 {
 		return n.String()
 	}
+
+	// Work on the magnitude and re-attach the sign. big.Int.QuoRem gives a
+	// remainder with the DIVIDEND's sign, so signing the parts separately
+	// produces malformed output ("-1.-5", or "0.0000-1" — which reads as a
+	// tiny positive amount at a glance).
+	sign := ""
+	if n.Sign() < 0 {
+		sign = "-"
+	}
+	abs := new(big.Int).Abs(n)
+
 	denom := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)
-	q, r := new(big.Int).QuoRem(n, denom, new(big.Int))
+	q, r := new(big.Int).QuoRem(abs, denom, new(big.Int))
 	if r.Sign() == 0 {
-		return q.String()
+		return sign + q.String()
 	}
 	frac := strings.TrimRight(fmt.Sprintf("%0*s", decimals, r.String()), "0")
-	return q.String() + "." + frac
+	return sign + q.String() + "." + frac
 }
 
 func formatDate(raw string) (string, bool) {
