@@ -56,8 +56,16 @@ func sliceHex(v any, fromStr, toStr string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	body := strings.TrimPrefix(s, "0x")
-	if len(body)%2 != 0 {
+	// Require a real 0x-prefixed hex string. Length alone is not enough: without
+	// the prefix check, TrimPrefix is a no-op on non-hex input and a slice of
+	// arbitrary characters would be returned with ok=true — the caller would
+	// then display a fabricated "address" instead of falling back to the
+	// existing decoder.
+	if !strings.HasPrefix(s, "0x") {
+		return "", false
+	}
+	body := s[2:]
+	if len(body)%2 != 0 || !isHex(body) {
 		return "", false
 	}
 	n := len(body) / 2
@@ -89,4 +97,15 @@ func normalizeIndex(i, n int) int {
 		return n + i
 	}
 	return i
+}
+
+// isHex reports whether s consists solely of hex digits.
+func isHex(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
+			return false
+		}
+	}
+	return true
 }
