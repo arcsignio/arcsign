@@ -110,3 +110,48 @@ describe('formatDigest', () => {
     expect(() => formatDigest('')).not.toThrow();
   });
 });
+
+import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
+import { decodeTypedData } from '@/services/clearsign/decodeTypedData';
+import { invoke } from '@tauri-apps/api/core';
+import { vi, beforeEach } from 'vitest';
+
+const mockInvoke = vi.mocked(invoke);
+beforeEach(() => mockInvoke.mockReset());
+
+describe('decoders attach a digest', () => {
+  it('attaches a calldata digest to a readable transaction', async () => {
+    mockInvoke.mockResolvedValue(null); // no descriptor
+    const r = await decodeCalldata('eth-mainnet', '0xtoken', TRANSFER_CALLDATA, undefined);
+    expect(r.digest?.kind).toBe('calldata');
+    expect(r.digest?.primary).toBe(TRANSFER_DIGEST);
+  });
+
+  it('attaches a digest even when the transaction is unreadable', async () => {
+    mockInvoke.mockResolvedValue(null);
+    // A selector no ABI knows — the case a digest exists to cover.
+    const r = await decodeCalldata('eth-mainnet', '0xunknown', '0xdeadbeef', undefined);
+    expect(r.readable).toBe(false);
+    expect(r.digest?.primary).toBeTruthy();
+  });
+
+  it('attaches all three digests to typed data', () => {
+    const r = decodeTypedData(TYPED as never);
+    expect(r.digest?.kind).toBe('eip712');
+    expect(r.digest?.primary).toBe(
+      '0xe59fab42a8b6f6d81b22a4df6997b1afe473b1fb4e124597ede3ad6baa607505',
+    );
+    expect(r.digest?.detail?.domainHash).toBe(
+      '0x866a5aba21966af95d6c7ab78eb2b2fc913915c28be3b9aa07cc04ff903e3f28',
+    );
+    expect(r.digest?.detail?.messageHash).toBe(
+      '0x4f1bf464cdc42b37c401c5495e143d702931d30213ee69c500f8847a36d75903',
+    );
+  });
+
+  it('omits the digest for typed data it cannot hash, without throwing', () => {
+    const r = decodeTypedData({ primaryType: 'X' } as never);
+    expect(() => r).not.toThrow();
+    expect(r.digest).toBeUndefined();
+  });
+});
