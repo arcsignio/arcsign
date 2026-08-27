@@ -1091,7 +1091,11 @@
     "selectAll": "Select All",
     "deselectAll": "Deselect All",
     "success": "succeeded",
-    "failed": "failed"
+    "failed": "failed",
+    "confirmRevoke": "Review before revoking",
+    "confirmBatchRevoke": "Review {{count}} revokes before signing",
+    "confirmRevokeButton": "Confirm & Sign",
+    "batchAcknowledge": "One or more of these spenders is high risk. I understand and want to revoke anyway."
   },
   "clearSign": {
     "unreadableTitle": "Cannot read this transaction",

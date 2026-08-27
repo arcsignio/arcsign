@@ -90,6 +90,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     tokenSearchQuery,
     tokensByNetwork,
     review,
+    approvalReview,
   } = state;
   const {
     setFromToken,
@@ -260,6 +261,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
           walletPassword={walletPassword}
           isLoading={isLoading}
           error={error}
+          approvalReview={approvalReview}
           onSetUnlimited={(v) => setIsUnlimitedApproval(v)}
           onApprovalAmountChange={(v) => setApprovalAmount(v)}
           onApprove={handleApprove}

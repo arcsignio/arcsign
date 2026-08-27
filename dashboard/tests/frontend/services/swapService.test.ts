@@ -14,7 +14,7 @@ vi.mock("@/services/tauri-api", () => ({
 }));
 
 import * as api from "@/services/tauri-api";
-import { fetchSwapTokens, fetchQuote, buildSwap, executeApproval, executeSwap } from "@/services/swapService";
+import { fetchSwapTokens, fetchQuote, buildSwap, fetchApproval, executeApproval, executeSwap } from "@/services/swapService";
 
 describe("swapService.fetchSwapTokens", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -88,7 +88,25 @@ describe("swapService.buildSwap", () => {
   });
 });
 
-const apprParams = { chainId: "ethereum", walletId: "w1", fromToken: erc20, spenderAddress: "0xrouter", approvalAmountWei: "1000000", walletPassword: "pw", preValidatedPassphrase: "", usbPath: "/u", sessionToken: "t" };
+describe("swapService.fetchApproval", () => {
+  beforeEach(() => vi.clearAllMocks());
+  it("passes params through to getSwapApproval and returns its result", async () => {
+    (api.getSwapApproval as any).mockResolvedValue({ to: "0xtoken", data: "0xapprovecalldata", value: "0", gasPrice: "1" });
+    const p = { chainId: "ethereum", tokenAddress: "0xtoken", spenderAddress: "0xrouter", approvalAmountWei: "1000000", usbPath: "/u", sessionToken: "t" };
+    const out = await fetchApproval(p);
+    expect(api.getSwapApproval).toHaveBeenCalledWith({
+      chainId: "ethereum", tokenAddress: "0xtoken", spenderAddress: "0xrouter",
+      amount: "1000000", usbPath: "/u", sessionToken: "t",
+    });
+    expect(out).toEqual({ to: "0xtoken", data: "0xapprovecalldata", value: "0", gasPrice: "1" });
+  });
+});
+
+// executeApproval no longer calls getSwapApproval itself — the caller (useSwapFlow)
+// fetches it once via fetchApproval and passes the SAME result in, so the review
+// screen and the signed transaction are guaranteed to see identical calldata.
+const approvalData = { to: "0xtoken", data: "0xapprovecalldata", value: "0", gasPrice: "1" };
+const apprParams = { chainId: "ethereum", walletId: "w1", fromToken: erc20, approvalData, walletPassword: "pw", preValidatedPassphrase: "", usbPath: "/u", sessionToken: "t" };
 
 describe("swapService.executeApproval", () => {
   // Fake timers so the 3s poll sleep costs no real wall-clock time. The loop is
@@ -99,8 +117,7 @@ describe("swapService.executeApproval", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it("runs getApproval→build→sign→broadcast→poll and returns the tx hash on confirmation", async () => {
-    (api.getSwapApproval as any).mockResolvedValue({ to: "0xtoken", data: "0xapprovecalldata" });
+  it("runs build→sign→broadcast→poll on the given approvalData and returns the tx hash on confirmation", async () => {
     (api.buildTransaction as any).mockResolvedValue({ unsigned: "0xbuilt" });
     (api.signTransaction as any).mockResolvedValue("0xsigned");
     (api.broadcastTransaction as any).mockResolvedValue({ txHash: "0xapprovalhash" });
@@ -112,6 +129,9 @@ describe("swapService.executeApproval", () => {
     const hash = await promise;
     expect(hash).toBe("0xapprovalhash");
 
+    // getSwapApproval must NOT be called again — the pre-fetched approvalData is reused verbatim.
+    expect(api.getSwapApproval).not.toHaveBeenCalled();
+
     // SAFETY: signTransaction params byte-identical to the handler
     expect(api.signTransaction).toHaveBeenCalledWith({
       chainId: "ethereum", walletId: "w1", password: "pw", passphrase: "",
@@ -122,7 +142,6 @@ describe("swapService.executeApproval", () => {
   });
 
   it("throws APPROVAL_FAILED when status is failed", async () => {
-    (api.getSwapApproval as any).mockResolvedValue({ to: "0xtoken", data: "0xd" });
     (api.buildTransaction as any).mockResolvedValue({ unsigned: "0xbuilt" });
     (api.signTransaction as any).mockResolvedValue("0xsigned");
     (api.broadcastTransaction as any).mockResolvedValue({ txHash: "0xh" });

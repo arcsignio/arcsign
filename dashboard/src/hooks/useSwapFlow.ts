@@ -18,6 +18,7 @@ import {
   type BuildSwapTransactionResponse,
   type AppError,
   type SwapTokenInfo,
+  type GetSwapApprovalResponse,
 } from "@/services/tauri-api";
 import type { SendableToken } from "@/components/SendTransaction";
 import type { ToToken } from "@/components/swap/types";
@@ -84,6 +85,10 @@ export function useSwapFlow({
   const [isUnlimitedApproval, setIsUnlimitedApproval] = useState(false);
   const [currentAllowance, setCurrentAllowance] = useState<string | null>(null); // Current on-chain allowance
   const [approvalTxHash, setApprovalTxHash] = useState<string | null>(null);
+  // The approve() calldata, fetched once the user has committed to an approval
+  // amount (handleApprove). Reused verbatim by handleExecuteApproval so the
+  // review screen and the actually-signed transaction are guaranteed identical.
+  const [approvalTxData, setApprovalTxData] = useState<GetSwapApprovalResponse | null>(null);
 
   // Transaction state
   const [step, setStep] = useState<SwapStep>("selectFrom");
@@ -126,6 +131,23 @@ export function useSwapFlow({
           chainId,
           value: swapTx.txData.value || "0",
           data: swapTx.txData.data || "",
+          usbPath,
+          sessionToken,
+        }
+      : null,
+  );
+
+  // Same sign-gate, for the ERC-20 approve() step. approvalTxData is fetched
+  // in handleApprove once the user has committed to an amount — before that,
+  // there is no real calldata to review (see useSwapFlow module docs).
+  const approvalReview = useSignReview(
+    approvalTxData && fromToken
+      ? {
+          from: fromToken.fromAddress,
+          to: approvalTxData.to,
+          chainId,
+          value: approvalTxData.value || "0",
+          data: approvalTxData.data,
           usbPath,
           sessionToken,
         }
@@ -355,19 +377,62 @@ export function useSwapFlow({
     }
   };
 
-  // Handle approval - navigate to approval password step
+  // Handle approval - the user has now committed to an amount / unlimited
+  // choice on the approve screen. Fetch the real approve() calldata *now*
+  // (amount is only settled at this point, not when the "approve" step was
+  // first entered) so the next screen has something real to review before
+  // signing, then navigate to the password step.
   const handleApprove = async () => {
-    // Navigate to approval password step to get user's password for signing approval tx
-    setStep("approvalPassword");
+    if (!fromToken || !quote || !swapTx) {
+      setError(t('swap.missingTokenOrQuote'));
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      let approvalAmountWei = "";
+      if (!isUnlimitedApproval && approvalAmount) {
+        approvalAmountWei = toSmallestUnit(approvalAmount, fromToken.decimals);
+      }
+
+      // Use swapTx.txData.to as the spender (DEX router address)
+      // Note: quote.approvalAddress may be empty for some DEX providers (e.g., OpenOcean)
+      // The swap transaction's "to" field is the DEX router that needs approval
+      const spenderAddress = quote.approvalAddress || swapTx.txData.to;
+
+      const data = await swapService.fetchApproval({
+        chainId,
+        tokenAddress: fromToken.tokenAddress,
+        spenderAddress,
+        approvalAmountWei,
+        usbPath,
+        sessionToken,
+      });
+      setApprovalTxData(data);
+      setStep("approvalPassword");
+    } catch (err) {
+      const appErr = err as AppError;
+      setError(appErr.message || t('swap.failedToApprove'));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Execute the approval transaction (sign and broadcast)
   const handleExecuteApproval = async () => {
+    // Action-level guard: refuse to sign a backend-flagged danger until the
+    // user ticks the acknowledgment checkbox (mirrors the button's disabled prop).
+    if (approvalReview.requiresAcknowledge && !approvalReview.acknowledged) {
+      return;
+    }
+
     if (!walletPassword) {
       setError(t('swap.pleaseEnterPassword'));
       return;
     }
-    if (!fromToken || !quote || !swapTx) {
+    if (!fromToken || !approvalTxData) {
       setError(t('swap.missingTokenOrQuote'));
       return;
     }
@@ -378,27 +443,11 @@ export function useSwapFlow({
     setApprovalTxHash(null);
 
     try {
-      // Determine approval amount: unlimited or specific amount
-      let approvalAmountWei = "";
-      if (!isUnlimitedApproval && approvalAmount) {
-        approvalAmountWei = toSmallestUnit(approvalAmount, fromToken.decimals);
-        console.log(`🔐 Getting approval for specific amount: ${approvalAmount} (${approvalAmountWei} wei)`);
-      } else {
-        console.log("🔐 Getting unlimited approval...");
-      }
-
-      // Use swapTx.txData.to as the spender (DEX router address)
-      // Note: quote.approvalAddress may be empty for some DEX providers (e.g., OpenOcean)
-      // The swap transaction's "to" field is the DEX router that needs approval
-      const spenderAddress = quote.approvalAddress || swapTx.txData.to;
-      console.log(`🔐 Spender address: ${spenderAddress}`);
-
       const approvalTxHash = await swapService.executeApproval({
         chainId,
         walletId,
         fromToken,
-        spenderAddress,
-        approvalAmountWei,
+        approvalData: approvalTxData,
         walletPassword,
         preValidatedPassphrase: preValidatedPassphrase || "",
         usbPath,
@@ -410,6 +459,7 @@ export function useSwapFlow({
       // Success! Now proceed to swap password step
       console.log("✅ Approval complete, proceeding to swap...");
       setWalletPassword(""); // Clear password for security, user will re-enter for swap
+      setApprovalTxData(null);
       setStep("password");
 
     } catch (err) {
@@ -492,6 +542,7 @@ export function useSwapFlow({
     setQuote(null);
     setSwapTx(null);
     setTxHash(null);
+    setApprovalTxData(null);
   };
 
   // Group tokens by network
@@ -537,6 +588,7 @@ export function useSwapFlow({
       swappableTokens,
       tokensByNetwork,
       review,
+      approvalReview,
     },
     actions: {
       setFromToken,

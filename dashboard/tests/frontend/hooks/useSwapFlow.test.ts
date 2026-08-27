@@ -48,6 +48,7 @@ vi.mock("@/services/swapService", () => ({
   fetchSwapTokens: vi.fn().mockResolvedValue({ tokens: [] }),
   fetchQuote: vi.fn().mockResolvedValue({}),
   buildSwap: vi.fn().mockResolvedValue({ swapTx: { txData: { to: "0xrouter", value: "0", data: "0x" } }, allowance: { needsApproval: false, current: null } }),
+  fetchApproval: vi.fn().mockResolvedValue({ to: "0xtoken", data: "0xapprovecalldata", value: "0", gasPrice: "1" }),
   executeApproval: vi.fn().mockResolvedValue("0xapprovalhash"),
   executeSwap: vi.fn().mockResolvedValue("0xswaphash"),
 }));
@@ -349,6 +350,11 @@ describe("useSwapFlow — handleExecuteApproval APPROVAL_TIMEOUT i18n mapping", 
       swapTx: { txData: { to: "0xrouter", value: "0", data: "0xcalldata" } },
       allowance: { needsApproval: true, current: "0" },
     });
+    // vitest.config.ts sets mockReset: true, which wipes the module-level
+    // mockResolvedValue on every test — re-arm it explicitly here.
+    (swapService.fetchApproval as ReturnType<typeof vi.fn>).mockResolvedValue({
+      to: "0xtoken", data: "0xapprovecalldata", value: "0", gasPrice: "1",
+    });
 
     const { result } = renderHook(() => useSwapFlow(baseParams));
 
@@ -382,10 +388,14 @@ describe("useSwapFlow — handleExecuteApproval APPROVAL_TIMEOUT i18n mapping", 
     });
     expect(result.current.state.step).toBe("approve");
 
-    // 4. Enter password and proceed to approvalPassword step.
+    // 4. Click approve — fetches the approve() calldata (mocked fetchApproval)
+    // and advances to approvalPassword. Then enter the password.
+    await act(async () => {
+      await result.current.actions.handleApprove();
+    });
+    expect(result.current.state.step).toBe("approvalPassword");
     act(() => {
       result.current.actions.setWalletPassword("test-password");
-      result.current.actions.setStep("approvalPassword");
     });
 
     // 5. Execute approval — should reject and map APPROVAL_TIMEOUT → i18n key.
@@ -397,5 +407,79 @@ describe("useSwapFlow — handleExecuteApproval APPROVAL_TIMEOUT i18n mapping", 
     expect(result.current.state.error).toBe("swap.approvalTimeout");
     // After a timeout the hook returns the user to the approve step to retry.
     expect(result.current.state.step).toBe("approve");
+  });
+});
+
+describe("useSwapFlow — handleApprove fetches approval calldata before signing", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  async function driveToApprove(result: { current: ReturnType<typeof useSwapFlow> }) {
+    (swapService.buildSwap as ReturnType<typeof vi.fn>).mockResolvedValue({
+      swapTx: { txData: { to: "0xrouter", value: "0", data: "0xcalldata" } },
+      allowance: { needsApproval: true, current: "0" },
+    });
+    // vitest.config.ts sets mockReset: true, which wipes the module-level
+    // mockResolvedValue on every test — re-arm it explicitly here.
+    (swapService.fetchApproval as ReturnType<typeof vi.fn>).mockResolvedValue({
+      to: "0xtoken", data: "0xapprovecalldata", value: "0", gasPrice: "1",
+    });
+    (swapService.executeApproval as ReturnType<typeof vi.fn>).mockResolvedValue("0xapprovalhash");
+    act(() => { result.current.actions.handleSelectFromToken(usdcToken); });
+    act(() => {
+      result.current.actions.handleSelectToToken({
+        address: ethToken.tokenAddress || "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        symbol: ethToken.tokenSymbol,
+        name: ethToken.tokenName,
+        decimals: ethToken.decimals,
+      });
+    });
+    act(() => {
+      result.current.actions.setQuote({
+        fromToken: usdcToken.tokenAddress,
+        toToken: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        fromTokenAmount: "1000000",
+        toTokenAmount: "300000000000000000",
+        estimatedGas: "200000",
+        provider: "openocean",
+        approvalAddress: "0xrouter",
+      } as any);
+    });
+    await act(async () => { await result.current.actions.handleBuildSwapTx(); });
+  }
+
+  it("does not fetch approval calldata merely by entering the approve step", async () => {
+    const { result } = renderHook(() => useSwapFlow(baseParams));
+    await driveToApprove(result);
+    expect(result.current.state.step).toBe("approve");
+    expect(swapService.fetchApproval).not.toHaveBeenCalled();
+    expect(result.current.state.approvalReview.security).toBeUndefined();
+  });
+
+  it("fetches approval calldata via handleApprove once the user commits, and advances to approvalPassword", async () => {
+    const { result } = renderHook(() => useSwapFlow(baseParams));
+    await driveToApprove(result);
+
+    await act(async () => { await result.current.actions.handleApprove(); });
+
+    expect(swapService.fetchApproval).toHaveBeenCalledWith(
+      expect.objectContaining({ chainId: "ethereum", tokenAddress: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", spenderAddress: "0xrouter" }),
+    );
+    expect(result.current.state.step).toBe("approvalPassword");
+  });
+
+  it("handleExecuteApproval reuses the fetched approvalData instead of re-fetching", async () => {
+    const { result } = renderHook(() => useSwapFlow(baseParams));
+    await driveToApprove(result);
+    await act(async () => { await result.current.actions.handleApprove(); });
+
+    act(() => { result.current.actions.setWalletPassword("pw"); });
+    await act(async () => { await result.current.actions.handleExecuteApproval(); });
+
+    expect(swapService.fetchApproval).toHaveBeenCalledTimes(1);
+    expect(swapService.executeApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        approvalData: { to: "0xtoken", data: "0xapprovecalldata", value: "0", gasPrice: "1" },
+      }),
+    );
   });
 });

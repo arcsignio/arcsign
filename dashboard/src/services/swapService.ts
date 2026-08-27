@@ -12,6 +12,7 @@ import {
   type GetSwapTokensResponse,
   type SwapQuoteResponse,
   type BuildSwapTransactionResponse,
+  type GetSwapApprovalResponse,
 } from "@/services/tauri-api";
 import type { SendableToken } from "@/components/SendTransaction";
 
@@ -89,19 +90,36 @@ const POLL_INTERVAL_MS = 3000;
 const POLL_MAX_ATTEMPTS = 20;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export async function executeApproval(p: {
-  chainId: string; walletId: string; fromToken: SendableToken; spenderAddress: string;
-  approvalAmountWei: string; walletPassword: string; preValidatedPassphrase: string;
-  usbPath: string; sessionToken: string;
-}): Promise<string> {
-  const approvalData = await getSwapApproval({
+/**
+ * Fetch the ERC-20 approve() calldata for a given spender/amount.
+ *
+ * Split out from executeApproval so the caller (useSwapFlow) can fetch this
+ * once the user has committed to an approval amount, hand it to the sign
+ * review screen, and reuse the SAME result when actually signing — the
+ * reviewed calldata and the signed calldata must be identical, not just
+ * "recomputed the same way twice".
+ */
+export function fetchApproval(p: {
+  chainId: string; tokenAddress: string; spenderAddress: string;
+  approvalAmountWei: string; usbPath: string; sessionToken: string;
+}): Promise<GetSwapApprovalResponse> {
+  return getSwapApproval({
     chainId: p.chainId,
-    tokenAddress: p.fromToken.tokenAddress,
+    tokenAddress: p.tokenAddress,
     spenderAddress: p.spenderAddress,
     amount: p.approvalAmountWei, // "" = unlimited
     usbPath: p.usbPath,
     sessionToken: p.sessionToken,
   });
+}
+
+export async function executeApproval(p: {
+  chainId: string; walletId: string; fromToken: SendableToken;
+  approvalData: GetSwapApprovalResponse;
+  walletPassword: string; preValidatedPassphrase: string;
+  usbPath: string; sessionToken: string;
+}): Promise<string> {
+  const { approvalData } = p;
 
   const built = await buildTransaction({
     chainId: p.chainId,

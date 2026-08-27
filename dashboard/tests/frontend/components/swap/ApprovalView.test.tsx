@@ -139,6 +139,53 @@ describe("ApprovalView — mode=approvalPassword", () => {
     walletPassword: "",
   };
 
+  // ── approvalReview: sign gate for the approve() calldata ──────────────────
+
+  it("renders nothing extra when approvalReview is absent (calldata not fetched yet)", () => {
+    render(<ApprovalView mode="approvalPassword" {...passwordProps} walletPassword="secret" />);
+    // No review block, and the button is enabled purely on walletPassword.
+    const btn = document.querySelector(".primary-button") as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+  });
+
+  it("disables the primary button when approvalReview requires acknowledgment and it isn't given", () => {
+    render(
+      <ApprovalView
+        mode="approvalPassword"
+        {...passwordProps}
+        walletPassword="secret"
+        approvalReview={{
+          security: undefined,
+          requiresAcknowledge: true,
+          acknowledged: false,
+          setAcknowledged: vi.fn(),
+          intent: undefined,
+        }}
+      />,
+    );
+    const btn = document.querySelector(".primary-button") as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+  });
+
+  it("enables the primary button once approvalReview is acknowledged", () => {
+    render(
+      <ApprovalView
+        mode="approvalPassword"
+        {...passwordProps}
+        walletPassword="secret"
+        approvalReview={{
+          security: undefined,
+          requiresAcknowledge: true,
+          acknowledged: true,
+          setAcknowledged: vi.fn(),
+          intent: undefined,
+        }}
+      />,
+    );
+    const btn = document.querySelector(".primary-button") as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+  });
+
   it("renders password form heading", () => {
     render(<ApprovalView mode="approvalPassword" {...passwordProps} />);
     expect(document.querySelector(".password-form")).toBeTruthy();

@@ -4,6 +4,8 @@ import { fromSmallestUnit, shortenAddress } from "@/utils/swapFormat";
 import type { SendableToken } from "@/components/SendTransaction";
 import type { SwapQuoteResponse } from "@/services/tauri-api";
 import { PasswordInput } from "@/components/PasswordInput";
+import { SignReview } from "@/components/SignReview";
+import type { SignReview as SignReviewData } from "@/hooks/useSignReview";
 
 interface ApprovalViewProps {
   mode: "approve" | "approvalPassword";
@@ -17,6 +19,13 @@ interface ApprovalViewProps {
   walletPassword: string;
   isLoading: boolean;
   error: string | null | undefined;
+  /**
+   * Sign review for the approve() calldata. Only populated once handleApprove
+   * has fetched the real to/data (this screen has no calldata to review
+   * beforehand — see useSwapFlow.handleApprove). Undefined on the "approve"
+   * mode render (amount not yet committed); present on "approvalPassword".
+   */
+  approvalReview?: SignReviewData;
   onSetUnlimited: (v: boolean) => void;
   onApprovalAmountChange: (v: string) => void;
   onApprove: () => void;
@@ -37,6 +46,7 @@ export const ApprovalView: React.FC<ApprovalViewProps> = ({
   walletPassword,
   isLoading,
   error,
+  approvalReview,
   onSetUnlimited,
   onApprovalAmountChange,
   onApprove,
@@ -138,12 +148,14 @@ export const ApprovalView: React.FC<ApprovalViewProps> = ({
 
         {error && <div className="error-message">{error}</div>}
 
-        <button className="primary-button" onClick={onApprove}>
-          {isUnlimitedApproval
-            ? t('swap.approveUnlimited', { symbol: fromToken.tokenSymbol })
-            : t('swap.approveAmount', { amount: approvalAmount || amount, symbol: fromToken.tokenSymbol })}
+        <button className="primary-button" onClick={onApprove} disabled={isLoading}>
+          {isLoading
+            ? t('swap.processing')
+            : isUnlimitedApproval
+              ? t('swap.approveUnlimited', { symbol: fromToken.tokenSymbol })
+              : t('swap.approveAmount', { amount: approvalAmount || amount, symbol: fromToken.tokenSymbol })}
         </button>
-        <button className="secondary-button" onClick={onCancel}>
+        <button className="secondary-button" onClick={onCancel} disabled={isLoading}>
           {t('actions.cancel')}
         </button>
       </div>
@@ -179,12 +191,23 @@ export const ApprovalView: React.FC<ApprovalViewProps> = ({
         />
       </div>
 
+      {/* Full pre-signature review: what the approve() call does, what's
+          risky, consent, digest. Only rendered once the calldata has been
+          fetched (useSwapFlow.handleApprove) — this screen has nothing to
+          review before that. */}
+      {approvalReview && <SignReview review={approvalReview} />}
+
       {error && <div className="error-message">{error}</div>}
 
       <button
         className="primary-button"
         onClick={onExecuteApproval}
-        disabled={isLoading || !walletPassword}
+        disabled={
+          isLoading ||
+          !walletPassword ||
+          (approvalReview?.requiresAcknowledge && !approvalReview.acknowledged)
+        }
+        style={approvalReview?.requiresAcknowledge ? { background: "#dc2626", boxShadow: "none" } : undefined}
       >
         {isLoading ? t('swap.processing') : t('swap.signAndApprove', { symbol: fromToken.tokenSymbol })}
       </button>
