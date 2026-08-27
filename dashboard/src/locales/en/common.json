@@ -1105,7 +1105,16 @@
     "blacklistHit": "Target is on a blocklist",
     "simulatedChanges": "Simulated balance changes",
     "ackRisk": "I understand the risk and still want to sign",
-    "abiUnverified": "ABI from a not-fully-verified source"
+    "abiUnverified": "ABI from a not-fully-verified source",
+    "digestCalldata": "Calldata Digest",
+    "digestEip712": "EIP-712 Digest",
+    "digestHint": "Verify this on another device before signing.",
+    "digestCopy": "Copy",
+    "digestCopied": "Copied",
+    "digestShowDetail": "Show domain / message hash",
+    "digestHideDetail": "Hide domain / message hash",
+    "digestDomainHash": "Domain Hash",
+    "digestMessageHash": "Message Hash"
   },
   "onlineDecoding": {
     "label": "Online transaction decoding",
