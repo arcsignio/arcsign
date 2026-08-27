@@ -1,5 +1,5 @@
 import { decodeFunctionData, formatUnits } from "viem";
-import type { AbiFunction, AbiParameter } from "viem";
+import type { Abi, AbiFunction, AbiParameter } from "viem";
 import type { DecodedIntent, ClearSignRisk, DecodedParam } from "./types";
 import { detectSwapFromAbi } from "./detectSwap";
 import { KNOWN_ABIS, MAX_UINT256, MAX_UINT160 } from "./knownAbis";
@@ -88,16 +88,18 @@ export async function decodeCalldata(
   value: string | undefined,
   options?: { onlineEnabled?: boolean; usb?: { usbPath: string; sessionToken: string } },
 ): Promise<DecodedIntent> {
-  const base = await decodeCalldataLocal(network, to, data, value, options);
+  const usedAbi: UsedAbiSlot = {};
+  const base = await decodeCalldataLocal(network, to, data, value, options, usedAbi);
 
-  // Only try a descriptor when there is calldata to describe and the local
-  // decode produced something structured to reuse (selector + decoded args).
-  if (!data || data === "0x" || !base.readable) return base;
+  // A descriptor is worth trying whenever there is calldata — including when
+  // the local decode failed, which is exactly the case a registry descriptor
+  // is most likely to rescue.
+  if (!data || data === "0x") return base;
 
   const chainId = networkToChainId(network);
   if (chainId === undefined) return base;
 
-  const decoded = decodeArgsByAbiName(data);
+  const decoded = decodeArgsForDescriptor(data, usedAbi.abi);
   if (!decoded) return base;
 
   const enriched = await intentFromDescriptor({
@@ -127,8 +129,24 @@ export async function decodeCalldata(
  * values become decimal strings because that is what the Go formatter parses.
  * Returns null when no known ABI decodes this calldata.
  */
-function decodeArgsByAbiName(data: string): Record<string, unknown> | null {
-  for (const abi of KNOWN_ABIS) {
+function decodeArgsForDescriptor(
+  data: string,
+  sourcifyAbi: Abi | undefined,
+): Record<string, unknown> | null {
+  const local = decodeArgsByAbiName(data, KNOWN_ABIS);
+  if (local) return local;
+
+  // The curated ABI list covers ~51 functions; the registry describes far more.
+  // Reuse the ABI the local decoder already fetched (no second network call) so
+  // a descriptor can still apply to a contract we have no built-in ABI for.
+  return sourcifyAbi ? decodeArgsByAbiName(data, [sourcifyAbi]) : null;
+}
+
+function decodeArgsByAbiName(
+  data: string,
+  abis: readonly Abi[],
+): Record<string, unknown> | null {
+  for (const abi of abis) {
     try {
       const { functionName, args } = decodeFunctionData({ abi, data: data as `0x${string}` });
       const fn = (abi as readonly { type?: string; name?: string; inputs?: readonly AbiParameter[] }[])
@@ -211,12 +229,17 @@ function normalizeArg(arg: unknown, input: AbiParameter): unknown {
   return typeof arg === "bigint" ? arg.toString() : arg;
 }
 
+/** Carries the Sourcify ABI the local decoder fetched, so the descriptor path
+ *  can reuse it instead of fetching the same contract twice. */
+interface UsedAbiSlot { abi?: Abi }
+
 async function decodeCalldataLocal(
   network: string,
   to: string,
   data: string | undefined,
   value: string | undefined,
   options?: { onlineEnabled?: boolean; usb?: { usbPath: string; sessionToken: string } },
+  usedAbi?: UsedAbiSlot,
 ): Promise<DecodedIntent> {
   const raw = data ?? "0x";
 
@@ -246,6 +269,7 @@ async function decodeCalldataLocal(
     if (chainId !== undefined) {
       const fetched = await fetchContractAbi(chainId, to, options.usb);
       if (fetched) {
+        if (usedAbi) usedAbi.abi = fetched.abi;
         try {
           const { functionName, args } = decodeFunctionData({ abi: fetched.abi, data: data as `0x${string}` });
           const matchedFn = (fetched.abi as readonly { type?: string; name?: string }[]).find(
