@@ -4,6 +4,7 @@ import { SwapConfirm } from "@/components/swap/SwapConfirm";
 import type { ToToken } from "@/components/swap/SwapConfirm";
 import type { SendableToken } from "@/components/SendTransaction";
 import type { SwapQuoteResponse } from "@/services/tauri-api";
+import type { SignReview } from "@/hooks/useSignReview";
 
 const fromToken: SendableToken = {
   fromAddress: "0xabc",
@@ -38,6 +39,26 @@ const swapQuote: SwapQuoteResponse = {
   approvalAddress: "",
 };
 
+// Builds a review fixture. `security` must be set to something ClearSignSummary
+// will render (and isHighRiskSign will read) when a checkbox is expected —
+// SignReview renders null when neither intent nor security is present.
+function makeReview(overrides: Partial<SignReview> = {}): SignReview {
+  return {
+    security: undefined,
+    requiresAcknowledge: false,
+    acknowledged: false,
+    setAcknowledged: vi.fn(),
+    intent: undefined,
+    ...overrides,
+  };
+}
+
+const dangerSecurity = {
+  riskLevel: "danger",
+  warnings: [],
+  requiresAcknowledge: true,
+};
+
 describe("SwapConfirm", () => {
   it("renders the confirm swap heading and from/to amounts", () => {
     render(
@@ -49,9 +70,7 @@ describe("SwapConfirm", () => {
         routeChanged={false}
         walletPassword=""
         isLoading={false}
-        requiresAcknowledge={false}
-        acknowledged={false}
-        onAcknowledgeChange={() => {}}
+        review={makeReview()}
         onPasswordChange={() => {}}
         onConfirm={() => {}}
       />,
@@ -74,9 +93,7 @@ describe("SwapConfirm", () => {
         routeChanged={false}
         walletPassword="secret"
         isLoading={false}
-        requiresAcknowledge={true}
-        acknowledged={false}
-        onAcknowledgeChange={() => {}}
+        review={makeReview({ requiresAcknowledge: true, acknowledged: false, security: dangerSecurity })}
         onPasswordChange={() => {}}
         onConfirm={() => {}}
       />,
@@ -95,9 +112,7 @@ describe("SwapConfirm", () => {
         routeChanged={false}
         walletPassword="secret"
         isLoading={false}
-        requiresAcknowledge={true}
-        acknowledged={true}
-        onAcknowledgeChange={() => {}}
+        review={makeReview({ requiresAcknowledge: true, acknowledged: true, security: dangerSecurity })}
         onPasswordChange={() => {}}
         onConfirm={() => {}}
       />,
@@ -106,8 +121,8 @@ describe("SwapConfirm", () => {
     expect(btn.disabled).toBe(false);
   });
 
-  it("fires onAcknowledgeChange when the acknowledgment checkbox is toggled", () => {
-    const onAcknowledgeChange = vi.fn();
+  it("fires setAcknowledged when the acknowledgment checkbox is toggled", () => {
+    const setAcknowledged = vi.fn();
     render(
       <SwapConfirm
         fromToken={fromToken}
@@ -117,9 +132,7 @@ describe("SwapConfirm", () => {
         routeChanged={false}
         walletPassword=""
         isLoading={false}
-        requiresAcknowledge={true}
-        acknowledged={false}
-        onAcknowledgeChange={onAcknowledgeChange}
+        review={makeReview({ requiresAcknowledge: true, acknowledged: false, security: dangerSecurity, setAcknowledged })}
         onPasswordChange={() => {}}
         onConfirm={() => {}}
       />,
@@ -127,7 +140,7 @@ describe("SwapConfirm", () => {
     const checkbox = document.querySelector("input[type='checkbox']") as HTMLInputElement;
     expect(checkbox).toBeTruthy();
     fireEvent.click(checkbox);
-    expect(onAcknowledgeChange).toHaveBeenCalledOnce();
+    expect(setAcknowledged).toHaveBeenCalledOnce();
   });
 
   it("fires onPasswordChange when typing in the password input", () => {
@@ -141,9 +154,7 @@ describe("SwapConfirm", () => {
         routeChanged={false}
         walletPassword=""
         isLoading={false}
-        requiresAcknowledge={false}
-        acknowledged={false}
-        onAcknowledgeChange={() => {}}
+        review={makeReview()}
         onPasswordChange={onPasswordChange}
         onConfirm={() => {}}
       />,
@@ -163,9 +174,7 @@ describe("SwapConfirm", () => {
         routeChanged={true}
         walletPassword=""
         isLoading={false}
-        requiresAcknowledge={false}
-        acknowledged={false}
-        onAcknowledgeChange={() => {}}
+        review={makeReview()}
         onPasswordChange={() => {}}
         onConfirm={() => {}}
       />,
@@ -183,14 +192,13 @@ describe("SwapConfirm", () => {
         routeChanged={false}
         walletPassword=""
         isLoading={false}
-        requiresAcknowledge={false}
-        acknowledged={false}
-        onAcknowledgeChange={() => {}}
+        review={makeReview()}
         onPasswordChange={() => {}}
         onConfirm={() => {}}
       />,
     );
-    // SignGateAcknowledge renders null when requiresAcknowledge=false
+    // SignReview / ClearSignSummary render no checkbox when requiresAcknowledge=false
+    // and there's no intent/security to show (SignReview returns null entirely).
     expect(document.querySelector("input[type='checkbox']")).toBeNull();
   });
 });

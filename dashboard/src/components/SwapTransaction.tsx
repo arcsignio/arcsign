@@ -89,7 +89,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
     loadingTokens,
     tokenSearchQuery,
     tokensByNetwork,
-    gate,
+    review,
   } = state;
   const {
     setFromToken,
@@ -290,9 +290,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
           routeChanged={swapRouteChanged(quote, swapTx.quote)}
           walletPassword={walletPassword}
           isLoading={isLoading}
-          requiresAcknowledge={gate.requiresAcknowledge}
-          acknowledged={gate.acknowledged}
-          onAcknowledgeChange={(checked) => gate.setAcknowledged(checked)}
+          review={review}
           onPasswordChange={(v) => setWalletPassword(v)}
           onConfirm={handleSignAndBroadcast}
         />

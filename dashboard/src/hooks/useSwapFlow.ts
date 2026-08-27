@@ -2,17 +2,17 @@
  * useSwapFlow — state machine for the SwapTransaction feature.
  *
  * Extracted verbatim from SwapTransaction.tsx (Task 4 of the swap decomposition).
- * Holds every useState / useEffect / useCallback / plain handler + the useSignGate
+ * Holds every useState / useEffect / useCallback / plain handler + the useSignReview
  * call. Behavior is IDENTICAL to the pre-extraction component — this is a pure
  * mechanical move. The render layer reads state.* and calls actions.*.
  *
- * SAFETY: the useSignGate derivation, the handleSignAndBroadcast gate check, and
+ * SAFETY: the useSignReview derivation, the handleSignAndBroadcast gate check, and
  * the acknowledgedRisk plumbing are copied byte-for-byte. Do not alter them.
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useSignGate } from "@/hooks/useSignGate";
+import { useSignReview } from "@/hooks/useSignReview";
 import {
   type SwapQuoteResponse,
   type BuildSwapTransactionResponse,
@@ -118,7 +118,7 @@ export function useSwapFlow({
   // on-chain target (router) + calldata. Runs the txguard security check,
   // surfaces the backend's requiresAcknowledge conclusion, and holds the
   // acknowledgment checkbox state. Null until the swap tx is assembled.
-  const gate = useSignGate(
+  const review = useSignReview(
     swapTx && fromToken
       ? {
           from: fromToken.fromAddress,
@@ -433,7 +433,7 @@ export function useSwapFlow({
   const handleSignAndBroadcast = async () => {
     // Action-level guard: refuse to sign a backend-flagged danger until the user
     // ticks the acknowledgment checkbox (mirrors the button's disabled prop).
-    if (gate.requiresAcknowledge && !gate.acknowledged) {
+    if (review.requiresAcknowledge && !review.acknowledged) {
       return;
     }
 
@@ -460,7 +460,7 @@ export function useSwapFlow({
           swapTx,
           walletPassword,
           preValidatedPassphrase: preValidatedPassphrase || "",
-          acknowledgedRisk: gate.acknowledged,
+          acknowledgedRisk: review.acknowledged,
           usbPath,
           sessionToken,
         },
@@ -536,7 +536,7 @@ export function useSwapFlow({
       chainId,
       swappableTokens,
       tokensByNetwork,
-      gate,
+      review,
     },
     actions: {
       setFromToken,

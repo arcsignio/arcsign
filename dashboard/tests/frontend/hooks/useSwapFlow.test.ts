@@ -3,8 +3,9 @@
  *
  * Focus: synchronous step changes that require no real network.
  * The tauri-api default export is mocked so async side-effects resolve
- * immediately (or are simply never triggered). useSignGate is mocked
- * because it calls checkTransactionSecurity, which needs a real USB path.
+ * immediately (or are simply never triggered). useSignReview is mocked
+ * because it calls checkTransactionSecurity/decodeCalldata, which need a
+ * real USB path and network access.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -29,14 +30,15 @@ vi.mock("@/services/tauri-api", () => ({
   checkTransactionSecurity: vi.fn().mockResolvedValue({ proRequired: false, warnings: [], riskLevel: "safe", requiresAcknowledge: false }),
 }));
 
-// Mock useSignGate so the hook renders without a real USB/backend call.
-// Real return shape from useSignGate.ts: { security, requiresAcknowledge, acknowledged, setAcknowledged }
-vi.mock("@/hooks/useSignGate", () => ({
-  useSignGate: () => ({
+// Mock useSignReview so the hook renders without a real USB/backend call.
+// Real return shape from useSignReview.ts: { security, requiresAcknowledge, acknowledged, setAcknowledged, intent }
+vi.mock("@/hooks/useSignReview", () => ({
+  useSignReview: () => ({
     security: undefined,
     requiresAcknowledge: false,
     acknowledged: false,
     setAcknowledged: vi.fn(),
+    intent: undefined,
   }),
 }));
 
