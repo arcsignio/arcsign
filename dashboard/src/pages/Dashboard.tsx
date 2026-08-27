@@ -19,6 +19,8 @@ import { ExportBackup } from "@/components/ExportBackup";
 import { ExportAllBackups } from "@/components/ExportAllBackups";
 import { ImportAllBackups } from "@/components/ImportAllBackups";
 import { AddressList } from "@/components/AddressList";
+import { DescriptorSettings } from "@/components/DescriptorSettings";
+import { useAppPassword } from "@/contexts/AppPasswordContext";
 import { ProviderSettings } from "@/components/ProviderSettings";
 import { Settings } from "@/pages/Settings";
 import { DeveloperMode } from "@/pages/DeveloperMode";
@@ -37,7 +39,7 @@ import type { Address } from "@/types/address";
 import type { Wallet } from "@/types/wallet";
 import { PasswordInput } from "@/components/PasswordInput";
 
-type View = "list" | "create" | "import" | "import-backup" | "import-all-backups" | "export-backup-select" | "export-all-backups" | "addresses" | "settings" | "api-settings" | "detail" | "developer";
+type View = "list" | "create" | "import" | "import-backup" | "import-all-backups" | "export-backup-select" | "export-all-backups" | "addresses" | "settings" | "api-settings" | "descriptors" | "detail" | "developer";
 
 /** Wallet item for export backup selection */
 function ExportWalletItem({ wallet, usbPath }: { wallet: Wallet; usbPath: string }) {
@@ -690,6 +692,8 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
   }
 
   // Handle settings navigation
+  const { getSessionToken } = useAppPassword();
+
   const handleSettingsNavigate = (view: string) => {
     if (view === "api-settings") {
       setCurrentView("api-settings");
@@ -699,6 +703,8 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
       setCurrentView("export-backup-select");
     } else if (view === "export-all-backups") {
       setCurrentView("export-all-backups");
+    } else if (view === "descriptors") {
+      setCurrentView("descriptors");
     } else if (view === "onboarding") {
       useOnboardingStore.getState().triggerOnboarding();
     }
@@ -739,6 +745,18 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
   }
 
   // Show API provider settings view
+  if (currentView === "descriptors") {
+    return (
+      <div className="dashboard">
+        <DescriptorSettings
+          usbPath={usbPath ?? ""}
+          sessionToken={getSessionToken() ?? undefined}
+          onBack={() => setCurrentView("settings")}
+        />
+      </div>
+    );
+  }
+
   if (currentView === "api-settings") {
     return (
       <div className="dashboard">

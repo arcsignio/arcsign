@@ -245,7 +245,9 @@
     "developerModeTitle": "Developer Mode",
     "developerModeDescription": "Sign Hardhat/Foundry transactions without exposing private keys",
     "onboardingTitle": "Onboarding Guide",
-    "onboardingDescription": "Review the ArcSign introduction and security guide"
+    "onboardingDescription": "Review the ArcSign introduction and security guide",
+    "descriptorsTitle": "Transaction descriptions",
+    "descriptorsDescription": "Manage the data used to explain what a transaction does"
   },
   "provider": {
     "title": "API Provider Settings",
@@ -1116,5 +1118,17 @@
     "button": "Clear ABI cache",
     "done": "ABI cache cleared",
     "failed": "Could not clear the ABI cache"
+  },
+  "descriptors": {
+    "title": "Transaction descriptions",
+    "intro": "Descriptions published by protocol authors let ArcSign show what a transaction actually does, instead of raw contract data.",
+    "version": "Version",
+    "count": "Descriptions",
+    "builtIn": "built-in",
+    "update": "Update",
+    "updating": "Updating…",
+    "networkNotice": "Updating connects to GitHub to download the latest descriptions. Nothing is sent about your wallet.",
+    "updateDone": "Updated — {{count}} descriptions available.",
+    "updateFailed": "Update failed:"
   }
 }

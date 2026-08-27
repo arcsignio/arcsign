@@ -80,8 +80,36 @@ export function ClearSignSummary({
             color: "#0f172a",
           }}
         >
-          <div style={{ fontWeight: 700, color: "#0f766e", marginBottom: "0.4rem" }}>
-            {intent.title}
+          <div
+            style={{
+              fontWeight: 700,
+              color: "#0f766e",
+              marginBottom: "0.4rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <span>{intent.title}</span>
+            {/* Provenance only: naming the protocol that published this
+                description. It carries no security meaning — the risk badges
+                and blacklist warnings below are computed independently. */}
+            {intent.abiSource === "erc7730" && intent.descriptorMeta && (
+              <span
+                title={intent.descriptorMeta.contractName}
+                style={{
+                  fontWeight: 600,
+                  fontSize: "0.7rem",
+                  padding: "0.1rem 0.4rem",
+                  borderRadius: "4px",
+                  background: "#ccfbf1",
+                  color: "#0f766e",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {intent.descriptorMeta.owner}
+              </span>
+            )}
           </div>
           {intent.params.map((p, i) => (
             <div

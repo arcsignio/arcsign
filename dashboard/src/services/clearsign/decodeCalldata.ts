@@ -1,11 +1,12 @@
 import { decodeFunctionData, formatUnits } from "viem";
-import type { AbiFunction } from "viem";
+import type { Abi, AbiFunction, AbiParameter } from "viem";
 import type { DecodedIntent, ClearSignRisk, DecodedParam } from "./types";
 import { detectSwapFromAbi } from "./detectSwap";
 import { KNOWN_ABIS, MAX_UINT256, MAX_UINT160 } from "./knownAbis";
 import { resolveTokenLabel } from "./tokenLabel";
 import { networkToChainId } from "./chainIdToNetwork";
 import { fetchContractAbi } from "./sourcifyClient";
+import { intentFromDescriptor } from "./resolveDescriptor";
 
 function shortAddr(a: string): string {
   return a && a.length > 12 ? `${a.slice(0, 6)}...${a.slice(-4)}` : a;
@@ -66,12 +67,179 @@ async function renderSwap(network: string, s: SwapShape, raw: string): Promise<D
 // Decode a transaction's calldata into a human-readable intent using ONLY the
 // curated local ABIs (viem, offline). Empty data + value → native send. Unknown
 // selectors → unreadable (caller shows a warning + raw hex). Never throws.
+/**
+ * Decode a transaction for the signing screen.
+ *
+ * Resolution order:
+ *   1. ERC-7730 descriptor — the protocol author's own description of what each
+ *      parameter means. Preferred because an ABI only gives types and names,
+ *      not semantics.
+ *   2. Existing local/Sourcify ABI decoding.
+ *   3. "Unreadable" warning with the raw hex.
+ *
+ * A descriptor failure of any kind falls through to step 2 — it never blocks
+ * signing, and it never suppresses a risk badge: risks are always computed by
+ * the ABI decoder below and carried onto the descriptor result.
+ */
 export async function decodeCalldata(
   network: string,
   to: string,
   data: string | undefined,
   value: string | undefined,
   options?: { onlineEnabled?: boolean; usb?: { usbPath: string; sessionToken: string } },
+): Promise<DecodedIntent> {
+  const usedAbi: UsedAbiSlot = {};
+  const base = await decodeCalldataLocal(network, to, data, value, options, usedAbi);
+
+  // A descriptor is worth trying whenever there is calldata — including when
+  // the local decode failed, which is exactly the case a registry descriptor
+  // is most likely to rescue.
+  if (!data || data === "0x") return base;
+
+  const chainId = networkToChainId(network);
+  if (chainId === undefined) return base;
+
+  const decoded = decodeArgsForDescriptor(data, usedAbi.abi);
+  if (!decoded) return base;
+
+  const enriched = await intentFromDescriptor({
+    chainId,
+    to,
+    selector: data.slice(0, 10),
+    decoded,
+    raw: base.raw,
+    usbPath: options?.usb?.usbPath,
+    sessionToken: options?.usb?.sessionToken,
+    risks: base.risks,
+    tokens: await tokenMetadataFor(network, to, decoded),
+  });
+
+  return enriched ?? base;
+}
+
+/**
+ * Decode calldata into a map keyed by the contract's own parameter names.
+ *
+ * ERC-7730 field paths address arguments the way the ABI names them
+ * ("params.amountIn", "recipient"), NOT the way our UI labels them
+ * ("Amount to Send"). Keying by label would never match a descriptor path, so
+ * this decodes independently and maps by `inputs[i].name`.
+ *
+ * Tuple arguments become nested objects so dotted paths resolve, and bigint
+ * values become decimal strings because that is what the Go formatter parses.
+ * Returns null when no known ABI decodes this calldata.
+ */
+function decodeArgsForDescriptor(
+  data: string,
+  sourcifyAbi: Abi | undefined,
+): Record<string, unknown> | null {
+  const local = decodeArgsByAbiName(data, KNOWN_ABIS);
+  if (local) return local;
+
+  // The curated ABI list covers ~51 functions; the registry describes far more.
+  // Reuse the ABI the local decoder already fetched (no second network call) so
+  // a descriptor can still apply to a contract we have no built-in ABI for.
+  return sourcifyAbi ? decodeArgsByAbiName(data, [sourcifyAbi]) : null;
+}
+
+function decodeArgsByAbiName(
+  data: string,
+  abis: readonly Abi[],
+): Record<string, unknown> | null {
+  for (const abi of abis) {
+    try {
+      const { functionName, args } = decodeFunctionData({ abi, data: data as `0x${string}` });
+      const fn = (abi as readonly { type?: string; name?: string; inputs?: readonly AbiParameter[] }[])
+        .find((f) => f.type === "function" && f.name === functionName);
+      if (!fn?.inputs?.length || !args) continue; // try the next ABI
+
+      const out: Record<string, unknown> = {};
+      (args as readonly unknown[]).forEach((arg, i) => {
+        const input = fn.inputs![i];
+        if (!input?.name) return;
+        out[input.name] = normalizeArg(arg, input);
+      });
+      if (Object.keys(out).length) return out;
+      // Decoded, but no named parameters to key by — another ABI may name them.
+    } catch {
+      // try the next ABI
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve symbol/decimals for every address-shaped value in the decoded args,
+ * plus the target contract itself.
+ *
+ * A descriptor's `tokenAmount` field names the token via a `tokenPath` pointing
+ * at one of these addresses. Without this metadata the backend can only render
+ * "1000000 (unknown token)" — correct but useless — so supplying it is what
+ * turns a raw integer into "1.0 USDC".
+ */
+async function tokenMetadataFor(
+  network: string,
+  to: string,
+  decoded: Record<string, unknown>,
+): Promise<Array<{ address: string; symbol: string; decimals: number }>> {
+  const addresses = new Set<string>([to.toLowerCase()]);
+  collectAddresses(decoded, addresses);
+
+  const resolved = await Promise.all(
+    [...addresses].map(async (address) => {
+      try {
+        const label = await resolveTokenLabel(network, address);
+        return label.known ? { address, symbol: label.symbol, decimals: label.decimals } : null;
+      } catch {
+        return null; // metadata is a nicety; never fail the decode over it
+      }
+    }),
+  );
+  return resolved.filter((t): t is { address: string; symbol: string; decimals: number } => t !== null);
+}
+
+/** Gather every 20-byte hex value reachable in the decoded args. */
+function collectAddresses(value: unknown, out: Set<string>): void {
+  if (typeof value === "string") {
+    if (/^0x[0-9a-fA-F]{40}$/.test(value)) out.add(value.toLowerCase());
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const v of value) collectAddresses(v, out);
+    return;
+  }
+  if (value && typeof value === "object") {
+    for (const v of Object.values(value)) collectAddresses(v, out);
+  }
+}
+
+/** Shape one decoded argument for the descriptor resolver. */
+function normalizeArg(arg: unknown, input: AbiParameter): unknown {
+  const components = (input as { components?: readonly AbiParameter[] }).components;
+  if (components?.length && typeof arg === "object" && arg !== null) {
+    const nested: Record<string, unknown> = {};
+    components.forEach((c, i) => {
+      if (!c.name) return;
+      const v = Array.isArray(arg) ? (arg as unknown[])[i] : (arg as Record<string, unknown>)[c.name];
+      nested[c.name] = normalizeArg(v, c);
+    });
+    return nested;
+  }
+  // bigint -> decimal string: the Go side parses amounts as base-10 strings.
+  return typeof arg === "bigint" ? arg.toString() : arg;
+}
+
+/** Carries the Sourcify ABI the local decoder fetched, so the descriptor path
+ *  can reuse it instead of fetching the same contract twice. */
+interface UsedAbiSlot { abi?: Abi }
+
+async function decodeCalldataLocal(
+  network: string,
+  to: string,
+  data: string | undefined,
+  value: string | undefined,
+  options?: { onlineEnabled?: boolean; usb?: { usbPath: string; sessionToken: string } },
+  usedAbi?: UsedAbiSlot,
 ): Promise<DecodedIntent> {
   const raw = data ?? "0x";
 
@@ -101,6 +269,7 @@ export async function decodeCalldata(
     if (chainId !== undefined) {
       const fetched = await fetchContractAbi(chainId, to, options.usb);
       if (fetched) {
+        if (usedAbi) usedAbi.abi = fetched.abi;
         try {
           const { functionName, args } = decodeFunctionData({ abi: fetched.abi, data: data as `0x${string}` });
           const matchedFn = (fetched.abi as readonly { type?: string; name?: string }[]).find(

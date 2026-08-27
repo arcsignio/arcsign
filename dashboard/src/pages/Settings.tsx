@@ -47,6 +47,12 @@ const SETTING_ITEMS: SettingItem[] = [
     icon: <IconLink />,
   },
   {
+    id: 'descriptors',
+    titleKey: 'settings.descriptorsTitle',
+    descriptionKey: 'settings.descriptorsDescription',
+    icon: <IconBook />,
+  },
+  {
     id: 'onboarding',
     titleKey: 'settings.onboardingTitle',
     descriptionKey: 'settings.onboardingDescription',
