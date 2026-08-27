@@ -155,3 +155,23 @@ describe('decoders attach a digest', () => {
     expect(r.digest).toBeUndefined();
   });
 });
+
+describe('calldataDigest rejects silent normalisation', () => {
+  // A digest attests to "exactly the bytes about to be signed". Stripping stray
+  // characters would make corrupted input indistinguishable from clean input.
+  it('does not collide malformed input with well-formed calldata', () => {
+    expect(calldataDigest('a9-05-9c-bb')).not.toBe(calldataDigest('0xa9059cbb'));
+    expect(calldataDigest('zz1234')).not.toBe(calldataDigest('0x1234'));
+    expect(calldataDigest('0xa9059cbb ')).not.toBe(calldataDigest('0xa9059cbb'));
+  });
+
+  it('still returns a digest for malformed input rather than failing', () => {
+    // This is the fallback layer: it must always produce something.
+    expect(calldataDigest('not hex at all')).toMatch(/^0x[0-9a-f]{64}$/);
+  });
+
+  it('leaves the verified vectors unchanged', () => {
+    expect(calldataDigest(TRANSFER_CALLDATA)).toBe(TRANSFER_DIGEST);
+    expect(calldataDigest('0x00')).not.toBe(calldataDigest('0x0000'));
+  });
+});

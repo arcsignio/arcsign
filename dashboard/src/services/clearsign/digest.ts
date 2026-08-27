@@ -106,11 +106,27 @@ export function formatDigest(hex: string): string {
   return (body.match(/.{4}/g) ?? []).join(" ");
 }
 
-/** Strip 0x, drop non-hex characters, and pad to an even length. */
+/**
+ * Strip 0x and pad to an even length, preserving every character.
+ *
+ * Malformed input is hashed as UTF-8 bytes rather than having its stray
+ * characters silently removed. Stripping them would make "a9-05-9c-bb" and
+ * "0xa9059cbb" produce the SAME digest — and a fingerprint whose whole purpose
+ * is "exactly the bytes about to be signed" must not report corrupted input as
+ * identical to clean input. A garbled string still yields a digest (this is the
+ * fallback layer and must never fail), just a visibly different one.
+ */
 function normalizeHex(data: unknown): string {
   if (typeof data !== "string") return "";
-  const body = (data.startsWith("0x") ? data.slice(2) : data).replace(/[^0-9a-fA-F]/g, "");
-  return body.length % 2 === 0 ? body : `0${body}`;
+  const body = data.startsWith("0x") ? data.slice(2) : data;
+  if (/^[0-9a-fA-F]*$/.test(body)) {
+    return body.length % 2 === 0 ? body : `0${body}`;
+  }
+  // Not hex: hash the raw characters so the digest reflects what was actually
+  // received instead of a cleaned-up version of it.
+  return Array.from(new TextEncoder().encode(body))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function isUsableTypedData(typed: unknown): typed is Required<TypedDataLike> {
