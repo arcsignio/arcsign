@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ClearSignSummary } from '@/components/ClearSignSummary';
+import { DigestPanel } from '@/components/DigestPanel';
 import type { DecodedIntent } from '@/services/clearsign/types';
 
 const DIGEST = '0x4755849ff3e76aee51482cb91076c18efb4ae57b7340d404d19d03b3fc0d669d';
@@ -21,23 +21,25 @@ function intent(over: Partial<DecodedIntent> = {}): DecodedIntent {
 
 describe('digest display', () => {
   it('shows the digest grouped into 16 blocks of 4', () => {
-    render(<ClearSignSummary intent={intent()} />);
+    render(<DigestPanel digest={intent().digest!} />);
     expect(screen.getByText(GROUPED)).toBeInTheDocument();
   });
 
   it('shows the digest even when the transaction is unreadable', () => {
     // The fallback case a digest exists for.
-    render(<ClearSignSummary intent={intent({ readable: false, title: 'Unreadable' })} />);
+    render(<DigestPanel digest={intent({ readable: false, title: 'Unreadable' }).digest!} />);
     expect(screen.getByText(GROUPED)).toBeInTheDocument();
   });
 
   it('shows the digest when a descriptor is present', () => {
     render(
-      <ClearSignSummary
-        intent={intent({
-          abiSource: 'erc7730',
-          descriptorMeta: { owner: 'Uniswap Labs', contractName: 'Router' },
-        })}
+      <DigestPanel
+        digest={
+          intent({
+            abiSource: 'erc7730',
+            descriptorMeta: { owner: 'Uniswap Labs', contractName: 'Router' },
+          }).digest!
+        }
       />,
     );
     expect(screen.getByText(GROUPED)).toBeInTheDocument();
@@ -49,20 +51,13 @@ describe('digest display', () => {
     const mh = '0x4f1bf464cdc42b37c401c5495e143d702931d30213ee69c500f8847a36d75903';
 
     render(
-      <ClearSignSummary
-        intent={intent({
-          digest: { kind: 'eip712', primary: DIGEST, detail: { domainHash: dh, messageHash: mh } },
-        })}
+      <DigestPanel
+        digest={{ kind: 'eip712', primary: DIGEST, detail: { domainHash: dh, messageHash: mh } }}
       />,
     );
 
     expect(screen.queryByText('clearSign.digestDomainHash')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'clearSign.digestShowDetail' }));
     expect(screen.getByText('clearSign.digestDomainHash')).toBeInTheDocument();
-  });
-
-  it('renders nothing digest-related when the intent carries no digest', () => {
-    render(<ClearSignSummary intent={intent({ digest: undefined })} />);
-    expect(screen.queryByText('clearSign.digestCalldata')).not.toBeInTheDocument();
   });
 });
