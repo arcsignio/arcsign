@@ -912,6 +912,8 @@ export interface BuildTransactionResponse {
   amount: string;          // Amount in Wei
   fee: string;             // Estimated fee in Wei
   signingPayload: string;  // Base64 encoded payload to sign
+  /** Contract calldata this tx carries ("" for a plain native transfer). */
+  data: string;
   humanReadable: string;   // JSON representation for audit
   buildTimestamp: string;  // ISO timestamp
   security?: SecurityReport; // Security report (blacklist check + simulation preview)

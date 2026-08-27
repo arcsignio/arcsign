@@ -314,7 +314,9 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           to: unsignedTx.to,
           chainId,
           value: unsignedTx.amount,
-          data: "",
+          // The real calldata, not "": an ERC-20 transfer must decode as one
+          // and its digest must cover the bytes actually being signed.
+          data: unsignedTx.data ?? "",
           usbPath,
           sessionToken,
         }

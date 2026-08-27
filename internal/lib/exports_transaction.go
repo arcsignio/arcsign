@@ -234,6 +234,11 @@ func BuildTransaction(params *C.char) (result *C.char) {
 		"amount":          unsigned.Amount.String(),
 		"fee":             unsigned.Fee.String(),
 		"signingPayload":  signingPayloadB64,
+		// The contract calldata this transaction will carry ("" for a plain
+		// native transfer). The frontend needs it to decode the transaction and
+		// to compute the ERC-8213 digest over the exact bytes being signed —
+		// without it, an ERC-20 transfer is indistinguishable from an empty one.
+		"data":            txData,
 		"humanReadable":   unsigned.HumanReadable,
 		"buildTimestamp":  time.Now().Format(time.RFC3339),
 		"chainSpecific":   unsigned.ChainSpecific, // Critical for transaction reconstruction during signing
