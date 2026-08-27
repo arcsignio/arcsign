@@ -14,10 +14,23 @@ import { useTranslation } from "react-i18next";
 import { formatDigest } from "@/services/clearsign/digest";
 import type { DecodedIntent } from "@/services/clearsign/types";
 
-export function DigestPanel({ digest }: { digest: NonNullable<DecodedIntent["digest"]> }) {
+export function DigestPanel({
+  digest,
+  raw,
+}: {
+  digest: NonNullable<DecodedIntent["digest"]>;
+  /** The bytes the digest covers, so the user can recompute it elsewhere. */
+  raw?: string;
+}) {
   const { t } = useTranslation();
   const [showDetail, setShowDetail] = useState(false);
+  const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // A digest is only useful if its input can be obtained. Offer the raw bytes
+  // regardless of whether decoding succeeded — a readable transaction is
+  // precisely the one worth verifying on a second device.
+  const hasRaw = Boolean(raw && raw !== "0x");
 
   return (
     <div
@@ -69,6 +82,32 @@ export function DigestPanel({ digest }: { digest: NonNullable<DecodedIntent["dig
       <div style={{ marginTop: "0.25rem", fontSize: "0.7rem" }}>
         {t("clearSign.digestHint")}
       </div>
+
+      {hasRaw && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowRaw((v) => !v)}
+            style={{
+              marginTop: "0.4rem", border: "none", background: "transparent",
+              color: "#0f766e", cursor: "pointer", fontSize: "0.7rem", padding: 0,
+            }}
+          >
+            {showRaw ? t("clearSign.hideRaw") : t("clearSign.showRaw")}
+          </button>
+
+          {showRaw && (
+            <div
+              style={{
+                marginTop: "0.4rem", fontFamily: "monospace",
+                wordBreak: "break-all", lineHeight: 1.5, color: "#475569",
+              }}
+            >
+              {raw}
+            </div>
+          )}
+        </>
+      )}
 
       {digest.detail && (
         <>

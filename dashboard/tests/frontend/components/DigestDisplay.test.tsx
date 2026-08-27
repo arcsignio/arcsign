@@ -61,3 +61,24 @@ describe('digest display', () => {
     expect(screen.getByText('clearSign.digestDomainHash')).toBeInTheDocument();
   });
 });
+
+describe('raw calldata disclosure', () => {
+  const RAW = '0xa9059cbb000000000000000000000000c998eb0000000000000000000000000000a35530';
+
+  // A digest exists to be recomputed elsewhere, and that needs the input bytes.
+  // Hiding the calldata whenever decoding succeeds makes cross-device
+  // verification impossible for exactly the transactions worth verifying.
+  it('lets the user reveal the raw calldata even when the transaction decodes', async () => {
+    const user = userEvent.setup();
+    render(<DigestPanel digest={{ kind: 'calldata', primary: DIGEST }} raw={RAW} />);
+
+    expect(screen.queryByText(RAW)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'clearSign.showRaw' }));
+    expect(screen.getByText(RAW)).toBeInTheDocument();
+  });
+
+  it('omits the disclosure when there is no calldata to show', () => {
+    render(<DigestPanel digest={{ kind: 'calldata', primary: DIGEST }} raw="0x" />);
+    expect(screen.queryByRole('button', { name: 'clearSign.showRaw' })).not.toBeInTheDocument();
+  });
+});

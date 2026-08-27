@@ -27,7 +27,9 @@ export function SignReview({ review }: { review: SignReviewData }) {
         acknowledged={review.acknowledged}
         onAcknowledgeChange={review.setAcknowledged}
       />
-      {review.intent?.digest && <DigestPanel digest={review.intent.digest} />}
+      {review.intent?.digest && (
+        <DigestPanel digest={review.intent.digest} raw={review.intent.raw} />
+      )}
     </>
   );
 }
