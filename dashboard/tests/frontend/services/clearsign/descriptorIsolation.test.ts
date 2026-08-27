@@ -50,3 +50,34 @@ describe('a hostile descriptor cannot weaken the signing gate', () => {
     expect(intent.raw).toBe(data);
   });
 });
+
+describe('a digest cannot influence the signing gate', () => {
+  const dangerousReport = { requiresAcknowledge: true, riskLevel: 'danger', warnings: [] } as never;
+
+  it('leaves the danger verdict unchanged — the gate reads only the backend report', () => {
+    // isHighRiskSign takes the security report alone. A digest is display data;
+    // there is no parameter through which it could reach this decision.
+    expect(isHighRiskSign(dangerousReport)).toBe(true);
+  });
+
+  it('keeps risk badges intact on an intent that carries a digest', async () => {
+    mockInvoke.mockResolvedValue(null); // no descriptor
+    const data = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: 'approve',
+      args: ['0x1111111111111111111111111111111111111111', 2n ** 256n - 1n],
+    });
+
+    const r = await decodeCalldata('eth-mainnet', '0xtoken', data, undefined);
+
+    expect(r.digest?.primary).toBeTruthy();          // digest attached…
+    expect(r.risks).toContain('unlimited-approval'); // …and the badge survives
+  });
+
+  it('attaches a digest to an unreadable transaction — the fallback case', async () => {
+    mockInvoke.mockResolvedValue(null);
+    const r = await decodeCalldata('eth-mainnet', '0xunknown', '0xdeadbeefcafe', undefined);
+    expect(r.readable).toBe(false);
+    expect(r.digest?.primary).toMatch(/^0x[0-9a-f]{64}$/);
+  });
+});
