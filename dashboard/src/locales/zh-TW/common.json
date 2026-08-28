@@ -208,13 +208,14 @@
     "enterBip39Hint": "輸入您的 BIP39 助記詞（12 或 24 個詞，以空格分隔）"
   },
   "errors": {
+    "deleteWalletFailed": "刪除錢包失敗",
     "genericError": "發生錯誤，請重試。",
-    "networkError": "網路錯誤，請檢查您的連線。",
-    "invalidPassword": "密碼無效",
-    "invalidMnemonic": "助記詞無效",
-    "walletNotFound": "找不到錢包",
     "insufficientFunds": "餘額不足",
-    "transactionFailed": "交易失敗"
+    "invalidMnemonic": "助記詞無效",
+    "invalidPassword": "密碼無效",
+    "networkError": "網路錯誤，請檢查您的連線。",
+    "transactionFailed": "交易失敗",
+    "walletNotFound": "找不到錢包"
   },
   "validation": {
     "passwordMinLength": "密碼必須至少 12 個字元",
@@ -545,21 +546,27 @@
     "featureUsbColdStorage": "USB 冷儲存"
   },
   "deleteWallet": {
-    "title": "刪除錢包",
-    "warningCannotUndo": "警告：此操作無法撤銷！",
     "aboutToDelete": "您即將永久刪除：",
-    "id": "ID",
-    "beforeDeleting": "刪除前請確認：",
+    "appPasswordPlaceholder": "解鎖 ArcSign 的密碼",
     "backupMnemonic": "確保您已備份助記詞",
-    "verifyNoAssets": "確認此錢包中沒有任何資產",
+    "beforeDeleting": "刪除前請確認：",
     "dataWillBeDeleted": "所有錢包資料將被永久刪除",
+    "deleteButton": "刪除錢包",
+    "deleting": "刪除中...",
+    "enterAppPassword": "輸入您的 app 密碼",
     "enterPassword": "輸入錢包密碼",
+    "forceModeAssetsLost": "這會將錢包從此裝置移除。錢包內的資產仍在鏈上，但將永久無法取用——解開它們的密碼已經遺失，而加密備份檔需要的正是同一把密碼。",
+    "forceModeTitle": "使用 app 密碼刪除",
+    "forgotPassword": "忘記錢包密碼？",
+    "id": "ID",
     "passwordPlaceholder": "輸入錢包密碼",
-    "typeToConfirm": "輸入",
+    "title": "刪除錢包",
     "toConfirm": "以確認",
     "typePlaceholder": "輸入 DELETE",
-    "deleting": "刪除中...",
-    "deleteButton": "刪除錢包"
+    "typeToConfirm": "輸入",
+    "useWalletPassword": "改用錢包密碼",
+    "verifyNoAssets": "確認此錢包中沒有任何資產",
+    "warningCannotUndo": "警告：此操作無法撤銷！"
   },
   "libraryCrash": {
     "title": "嚴重程式庫錯誤",

@@ -176,6 +176,11 @@ pub enum WalletCommand {
         params_json: String,
         respond_to: OneshotSender<Result<serde_json::Value, String>>,
     },
+    /// Delete a wallet using the app password, for a forgotten wallet password
+    ForceDeleteWallet {
+        params_json: String,
+        respond_to: OneshotSender<Result<serde_json::Value, String>>,
+    },
     /// Enumerate all wallets on USB
     ListWallets {
         params_json: String,
@@ -564,6 +569,11 @@ impl WalletQueue {
                 }
                 WalletCommand::DeleteWallet { params_json, respond_to } => {
                     let result = library.delete_wallet(&params_json);
+                    let _ = respond_to.send(result);
+                    metrics.record_dequeue(operation_start.elapsed());
+                }
+                WalletCommand::ForceDeleteWallet { params_json, respond_to } => {
+                    let result = library.force_delete_wallet(&params_json);
                     let _ = respond_to.send(result);
                     metrics.record_dequeue(operation_start.elapsed());
                 }
@@ -1045,6 +1055,25 @@ impl WalletQueue {
         self.metrics.record_enqueue();
         self.sender
             .send(WalletCommand::DeleteWallet {
+                params_json,
+                respond_to: sender,
+            })
+            .map_err(|_| "Queue channel closed".to_string())?;
+
+        tokio::task::spawn_blocking(move || {
+            receiver.recv().map_err(|_| "Response channel closed".to_string())?
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    /// Delete a wallet with the app password when its own password is lost.
+    pub async fn force_delete_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
+        let (sender, receiver) = oneshot();
+
+        self.metrics.record_enqueue();
+        self.sender
+            .send(WalletCommand::ForceDeleteWallet {
                 params_json,
                 respond_to: sender,
             })
@@ -2150,6 +2179,11 @@ impl LazyWalletQueue {
     /// Delete a wallet from storage
     pub async fn delete_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
         self.get_or_init().delete_wallet(params_json).await
+    }
+
+    /// Delete a wallet with the app password when its own password is lost
+    pub async fn force_delete_wallet(&self, params_json: String) -> Result<serde_json::Value, String> {
+        self.get_or_init().force_delete_wallet(params_json).await
     }
 
     /// Enumerate all wallets on USB

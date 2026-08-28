@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -353,6 +354,124 @@ func TestDeleteWallet_EmptyWalletID(t *testing.T) {
 	err := svc.DeleteWallet("", validPassword)
 	if err == nil {
 		t.Fatal("DeleteWallet should fail with empty wallet ID")
+	}
+}
+
+// --- ForceDeleteWallet Tests ---
+//
+// ForceDeleteWallet exists for a forgotten wallet password, so every test here
+// deliberately never supplies one. Authorisation (the app password) lives in
+// the FFI layer; what this layer must guarantee is that the typed name is
+// checked against stored data and that nothing is removed when it does not
+// match.
+
+func TestForceDeleteWallet_CorrectName(t *testing.T) {
+	tmpDir := t.TempDir()
+	svc := NewWalletService(tmpDir)
+
+	created, _, err := svc.CreateWallet("forget-me", validPassword, 12, false, "")
+	if err != nil {
+		t.Fatalf("CreateWallet failed: %v", err)
+	}
+
+	walletDir := filepath.Join(tmpDir, created.ID)
+	if _, err := os.Stat(walletDir); os.IsNotExist(err) {
+		t.Fatal("wallet directory should exist before deletion")
+	}
+
+	if err := svc.ForceDeleteWallet(created.ID, "forget-me"); err != nil {
+		t.Fatalf("ForceDeleteWallet failed: %v", err)
+	}
+
+	if _, err := os.Stat(walletDir); !os.IsNotExist(err) {
+		t.Error("wallet directory should be removed after force deletion")
+	}
+}
+
+func TestForceDeleteWallet_WrongNameKeepsWallet(t *testing.T) {
+	tmpDir := t.TempDir()
+	svc := NewWalletService(tmpDir)
+
+	created, _, err := svc.CreateWallet("keep-me", validPassword, 12, false, "")
+	if err != nil {
+		t.Fatalf("CreateWallet failed: %v", err)
+	}
+
+	err = svc.ForceDeleteWallet(created.ID, "keep-m")
+	if !errors.Is(err, utils.ErrConfirmationMismatch) {
+		t.Fatalf("expected ErrConfirmationMismatch, got %v", err)
+	}
+
+	walletDir := filepath.Join(tmpDir, created.ID)
+	if _, err := os.Stat(walletDir); os.IsNotExist(err) {
+		t.Error("wallet directory must survive a mismatched confirmation name")
+	}
+}
+
+// The name is what stops a user deleting the wallet next to the one they
+// meant, so a near-miss must not pass: no trimming, no case folding.
+func TestForceDeleteWallet_NameMatchIsExact(t *testing.T) {
+	for _, confirm := range []string{"Exact Name ", " Exact Name", "exact name", "EXACT NAME", ""} {
+		t.Run("confirm="+confirm, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			svc := NewWalletService(tmpDir)
+
+			created, _, err := svc.CreateWallet("Exact Name", validPassword, 12, false, "")
+			if err != nil {
+				t.Fatalf("CreateWallet failed: %v", err)
+			}
+
+			if err := svc.ForceDeleteWallet(created.ID, confirm); err == nil {
+				t.Fatalf("ForceDeleteWallet accepted non-exact name %q", confirm)
+			}
+
+			if _, err := os.Stat(filepath.Join(tmpDir, created.ID)); os.IsNotExist(err) {
+				t.Errorf("wallet was deleted on non-exact name %q", confirm)
+			}
+		})
+	}
+}
+
+func TestForceDeleteWallet_UnknownWalletID(t *testing.T) {
+	svc := newTestService(t)
+
+	if err := svc.ForceDeleteWallet("no-such-wallet", "whatever"); err == nil {
+		t.Fatal("ForceDeleteWallet should fail for a wallet that does not exist")
+	}
+}
+
+func TestForceDeleteWallet_EmptyWalletID(t *testing.T) {
+	svc := newTestService(t)
+
+	if err := svc.ForceDeleteWallet("", "whatever"); err == nil {
+		t.Fatal("ForceDeleteWallet should fail with empty wallet ID")
+	}
+}
+
+// Deleting one wallet must not touch its neighbours — the directory removal is
+// path-based, and a wallet ID is attacker-influenced input elsewhere.
+func TestForceDeleteWallet_LeavesOtherWalletsIntact(t *testing.T) {
+	tmpDir := t.TempDir()
+	svc := NewWalletService(tmpDir)
+
+	doomed, _, err := svc.CreateWallet("doomed", validPassword, 12, false, "")
+	if err != nil {
+		t.Fatalf("CreateWallet failed: %v", err)
+	}
+	survivor, _, err := svc.CreateWallet("survivor", validPassword, 12, false, "")
+	if err != nil {
+		t.Fatalf("CreateWallet failed: %v", err)
+	}
+
+	if err := svc.ForceDeleteWallet(doomed.ID, "doomed"); err != nil {
+		t.Fatalf("ForceDeleteWallet failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(tmpDir, survivor.ID)); os.IsNotExist(err) {
+		t.Error("unrelated wallet was deleted")
+	}
+	if _, err := svc.LoadWallet(survivor.ID); err != nil {
+		t.Errorf("surviving wallet should still load: %v", err)
 	}
 }
 

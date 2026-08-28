@@ -528,6 +528,39 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
     }
   };
 
+  // Force delete: authorised by the app password rather than the wallet's own,
+  // for the case where the wallet password is lost and the wallet would
+  // otherwise be stuck on the USB permanently.
+  const handleForceConfirmDelete = async (
+    appPassword: string,
+    confirmName: string,
+  ) => {
+    if (!walletToDelete || !usbPath) {
+      setDeleteError(t("dashboard.missingRequiredInfo"));
+      return;
+    }
+
+    setIsDeletingWallet(true);
+    setDeleteError(null);
+
+    try {
+      await tauriApi.forceDeleteWallet({
+        wallet_id: walletToDelete.id,
+        app_password: appPassword,
+        confirm_name: confirmName,
+        usb_path: usbPath,
+      });
+
+      setWalletToDelete(null);
+      handleReload();
+    } catch (err) {
+      const error = err as AppError;
+      setDeleteError(error.message || t("errors.deleteWalletFailed"));
+    } finally {
+      setIsDeletingWallet(false);
+    }
+  };
+
   // Cancel delete wallet
   const handleCancelDelete = () => {
     setWalletToDelete(null);
@@ -1019,6 +1052,7 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
         isOpen={!!walletToDelete}
         onClose={handleCancelDelete}
         onConfirm={handleConfirmDelete}
+        onForceConfirm={handleForceConfirmDelete}
         isDeleting={isDeletingWallet}
         error={deleteError}
       />

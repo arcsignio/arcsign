@@ -550,8 +550,58 @@ func (s *WalletService) DeleteWallet(walletID string, password string) error {
 		return fmt.Errorf("incorrect password: %w", err)
 	}
 
-	// 4. Create audit log entry before deletion
-	// This creates a permanent record of the deletion
+	// 4-6. Audit, then remove the directory.
+	return s.removeWalletDir(walletID, wallet.Name, "WALLET_DELETE")
+}
+
+// ForceDeleteWallet deletes a wallet WITHOUT its password, for the case that
+// makes the normal path impossible: the user has forgotten it. Without this,
+// a forgotten password makes the wallet undeletable forever — the directory
+// stays on the USB and the list keeps showing an entry nobody can open.
+//
+// This does NOT weaken wallet secrecy. The password protects the mnemonic,
+// which is encrypted at rest; deleting the ciphertext never decrypts it. What
+// the caller destroys is exactly what they could already destroy by deleting
+// the directory in a file manager — this path just does it consistently and
+// leaves an audit record.
+//
+// SECURITY: authorisation lives in the FFI layer (ForceDeleteWallet in
+// internal/lib), which verifies the app password under the shared app rate
+// limiter before calling this. The confirmation name is checked HERE, not
+// only in the UI, so a caller reaching the FFI directly still cannot delete
+// the wrong wallet by passing a mismatched name.
+//
+// Parameters:
+//   - walletID: UUID of the wallet to delete
+//   - confirmName: must equal the wallet's stored name, exactly
+func (s *WalletService) ForceDeleteWallet(walletID string, confirmName string) error {
+	if walletID == "" {
+		return utils.ErrWalletNotFound
+	}
+
+	wallet, err := s.LoadWallet(walletID)
+	if err != nil {
+		return fmt.Errorf("wallet not found: %w", err)
+	}
+
+	// Typing the name is the only thing standing between "delete the wallet I
+	// meant" and "delete the one above it". Compare against the stored name,
+	// never against a name supplied by the same caller.
+	if confirmName != wallet.Name {
+		return utils.ErrConfirmationMismatch
+	}
+
+	return s.removeWalletDir(walletID, wallet.Name, "WALLET_FORCE_DELETE")
+}
+
+// removeWalletDir writes an audit entry, then deletes the wallet directory.
+// Shared by both delete paths so a change to either (audit format, removal
+// semantics) cannot silently apply to only one of them.
+func (s *WalletService) removeWalletDir(walletID, walletName, operation string) error {
+	// Audit first: the log lives inside the directory about to be removed, so
+	// this record survives only in whatever the audit logger has already
+	// flushed elsewhere. Best-effort — a failed audit must not strand a
+	// wallet the user explicitly asked to delete.
 	auditPath := filepath.Join(s.storagePath, walletID, "audit.log")
 	auditLogger, err := audit.NewAuditLogger(auditPath)
 	if err == nil {
@@ -559,20 +609,17 @@ func (s *WalletService) DeleteWallet(walletID string, password string) error {
 			ID:        walletID + "-delete-" + fmt.Sprintf("%d", time.Now().Unix()),
 			WalletID:  walletID,
 			Timestamp: time.Now(),
-			Operation: "WALLET_DELETE",
+			Operation: operation,
 			Status:    "SUCCESS",
 		}
 		_ = auditLogger.LogOperation(entry)
 	}
 
-	// 5. Delete entire wallet directory
 	walletDir := filepath.Join(s.storagePath, walletID)
-	err = os.RemoveAll(walletDir)
-	if err != nil {
+	if err := os.RemoveAll(walletDir); err != nil {
 		return fmt.Errorf("failed to delete wallet directory: %w", err)
 	}
 
-	// 6. Success - wallet and all data permanently deleted
-	fmt.Printf("Wallet %s (%s) deleted successfully\n", wallet.Name, walletID)
+	fmt.Printf("Wallet %s (%s) deleted successfully (%s)\n", walletName, walletID, operation)
 	return nil
 }

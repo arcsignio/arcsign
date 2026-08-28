@@ -199,6 +199,33 @@ export async function deleteWallet(params: {
 }
 
 /**
+ * Delete a wallet whose own password has been forgotten, authorising with the
+ * app password instead.
+ *
+ * Both gates live in Go: the app password is verified under the same rate
+ * limiter as unlock, and `confirm_name` is compared against the wallet's
+ * stored name. The dialog's disabled Delete button is UX, not a gate — a
+ * mismatched name is rejected by the backend regardless.
+ */
+export async function forceDeleteWallet(params: {
+  wallet_id: string;
+  app_password: string;
+  confirm_name: string;
+  usb_path: string;
+}): Promise<void> {
+  try {
+    await invoke<void>("force_delete_wallet", {
+      walletId: params.wallet_id,
+      appPassword: params.app_password,
+      confirmName: params.confirm_name,
+      usbPath: params.usb_path,
+    });
+  } catch (error) {
+    throw parseError(error);
+  }
+}
+
+/**
  * Backup Management
  */
 
@@ -1878,6 +1905,7 @@ export const tauriApi = {
   listWallets,
   renameWallet,
   deleteWallet,
+  forceDeleteWallet,
   exportBackup,
   importBackup,
   exportAllBackups,

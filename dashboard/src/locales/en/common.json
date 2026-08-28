@@ -208,13 +208,14 @@
     "enterBip39Hint": "Enter your BIP39 mnemonic phrase (12 or 24 words, space-separated)"
   },
   "errors": {
+    "deleteWalletFailed": "Failed to delete wallet",
     "genericError": "Something went wrong. Please try again.",
-    "networkError": "Network error. Please check your connection.",
-    "invalidPassword": "Invalid password",
-    "invalidMnemonic": "Invalid mnemonic phrase",
-    "walletNotFound": "Wallet not found",
     "insufficientFunds": "Insufficient funds",
-    "transactionFailed": "Transaction failed"
+    "invalidMnemonic": "Invalid mnemonic phrase",
+    "invalidPassword": "Invalid password",
+    "networkError": "Network error. Please check your connection.",
+    "transactionFailed": "Transaction failed",
+    "walletNotFound": "Wallet not found"
   },
   "validation": {
     "passwordMinLength": "Password must be at least 12 characters long",
@@ -545,21 +546,27 @@
     "featureUsbColdStorage": "USB Cold Storage"
   },
   "deleteWallet": {
-    "title": "Delete Wallet",
-    "warningCannotUndo": "Warning: This action cannot be undone!",
     "aboutToDelete": "You are about to permanently delete:",
-    "id": "ID",
-    "beforeDeleting": "Before deleting:",
+    "appPasswordPlaceholder": "The password that unlocks ArcSign",
     "backupMnemonic": "Make sure you have backed up your mnemonic phrase",
-    "verifyNoAssets": "Verify you don't have any assets in this wallet",
+    "beforeDeleting": "Before deleting:",
     "dataWillBeDeleted": "All wallet data will be permanently deleted",
+    "deleteButton": "Delete Wallet",
+    "deleting": "Deleting...",
+    "enterAppPassword": "Enter your app password",
     "enterPassword": "Enter Wallet Password",
+    "forceModeAssetsLost": "This removes the wallet from this device. Any assets it holds stay on-chain and become permanently unreachable — the password that unlocks them is gone, and the encrypted backup needs that same password.",
+    "forceModeTitle": "Deleting with the app password",
+    "forgotPassword": "Forgot the wallet password?",
+    "id": "ID",
     "passwordPlaceholder": "Enter wallet password",
-    "typeToConfirm": "Type",
+    "title": "Delete Wallet",
     "toConfirm": "to confirm",
     "typePlaceholder": "Type DELETE",
-    "deleting": "Deleting...",
-    "deleteButton": "Delete Wallet"
+    "typeToConfirm": "Type",
+    "useWalletPassword": "Use the wallet password instead",
+    "verifyNoAssets": "Verify you don't have any assets in this wallet",
+    "warningCannotUndo": "Warning: This action cannot be undone!"
   },
   "libraryCrash": {
     "title": "Critical Library Error",

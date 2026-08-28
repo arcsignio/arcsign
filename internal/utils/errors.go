@@ -21,6 +21,12 @@ var (
 
 	// ErrDecryptionFailed is returned when mnemonic decryption fails (wrong password or corrupted data)
 	ErrDecryptionFailed = errors.New("decryption failed - wrong password or corrupted wallet data")
+
+	// ErrConfirmationMismatch is returned when a destructive operation's typed
+	// confirmation (e.g. the wallet name) does not match. A distinct sentinel
+	// so the FFI layer can map it to its own error code instead of matching on
+	// message text — the user needs "that name is wrong", not "bad password".
+	ErrConfirmationMismatch = errors.New("confirmation does not match")
 )
 
 // BIP39 errors

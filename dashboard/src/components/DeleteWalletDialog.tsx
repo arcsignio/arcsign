@@ -13,6 +13,12 @@ interface DeleteWalletDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (password: string) => Promise<void>;
+  /**
+   * Delete using the app password, for a wallet whose own password is lost.
+   * The confirmation string here is the wallet NAME, not "DELETE" — the
+   * backend compares it against stored data, so it has to be the real name.
+   */
+  onForceConfirm: (appPassword: string, confirmName: string) => Promise<void>;
   isDeleting: boolean;
   error: string | null;
 }
@@ -22,29 +28,47 @@ export function DeleteWalletDialog({
   isOpen,
   onClose,
   onConfirm,
+  onForceConfirm,
   isDeleting,
   error,
 }: DeleteWalletDialogProps) {
   const { t } = useTranslation();
   const [password, setPassword] = useState("");
   const [confirmText, setConfirmText] = useState("");
+  const [forceMode, setForceMode] = useState(false);
 
   if (!isOpen || !wallet) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (confirmText.toUpperCase() === "DELETE" && password) {
+    if (!canDelete) return;
+
+    if (forceMode) {
+      await onForceConfirm(password, confirmText);
+    } else {
       await onConfirm(password);
-      // Reset form on success
-      if (!error) {
-        setPassword("");
-        setConfirmText("");
-      }
+    }
+    // Reset form on success
+    if (!error) {
+      setPassword("");
+      setConfirmText("");
     }
   };
 
-  const canDelete =
-    password.length >= 12 && confirmText.toUpperCase() === "DELETE";
+  // Switching modes clears both fields: the confirmation string means
+  // something different in each ("DELETE" vs the wallet name), and a password
+  // typed for one is not the password the other wants.
+  const switchMode = (force: boolean) => {
+    setForceMode(force);
+    setPassword("");
+    setConfirmText("");
+  };
+
+  // UX only. The backend re-checks the app password and the typed name, so a
+  // user who bypasses this button still cannot delete the wrong wallet.
+  const canDelete = forceMode
+    ? password.length > 0 && confirmText === wallet.name
+    : password.length >= 12 && confirmText.toUpperCase() === "DELETE";
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -83,19 +107,36 @@ export function DeleteWalletDialog({
           </div>
         )}
 
+        {forceMode && (
+          <div className="mb-6 p-4 bg-orange-50 border border-orange-300 rounded-md">
+            <p className="text-sm text-orange-900 font-semibold mb-2">
+              {t('deleteWallet.forceModeTitle')}
+            </p>
+            <p className="text-sm text-orange-800">
+              {t('deleteWallet.forceModeAssetsLost')}
+            </p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label
               htmlFor="delete-password"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              {t('deleteWallet.enterPassword')}
+              {forceMode
+                ? t('deleteWallet.enterAppPassword')
+                : t('deleteWallet.enterPassword')}
             </label>
             <PasswordInput
               id="delete-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={t('deleteWallet.passwordPlaceholder')}
+              placeholder={
+                forceMode
+                  ? t('deleteWallet.appPasswordPlaceholder')
+                  : t('deleteWallet.passwordPlaceholder')
+              }
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
               disabled={isDeleting}
               autoFocus
@@ -107,14 +148,28 @@ export function DeleteWalletDialog({
               htmlFor="delete-confirm"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              {t('deleteWallet.typeToConfirm')} <span className="font-mono font-bold">DELETE</span> {t('deleteWallet.toConfirm')}
+              {forceMode ? (
+                <>
+                  {t('deleteWallet.typeToConfirm')}{' '}
+                  <span className="font-mono font-bold">{wallet.name}</span>{' '}
+                  {t('deleteWallet.toConfirm')}
+                </>
+              ) : (
+                <>
+                  {t('deleteWallet.typeToConfirm')}{' '}
+                  <span className="font-mono font-bold">DELETE</span>{' '}
+                  {t('deleteWallet.toConfirm')}
+                </>
+              )}
             </label>
             <input
               type="text"
               id="delete-confirm"
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
-              placeholder={t('deleteWallet.typePlaceholder')}
+              placeholder={
+                forceMode ? wallet.name : t('deleteWallet.typePlaceholder')
+              }
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 font-mono"
               disabled={isDeleting}
             />
@@ -135,6 +190,22 @@ export function DeleteWalletDialog({
               className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
             >
               {isDeleting ? t('deleteWallet.deleting') : t('deleteWallet.deleteButton')}
+            </button>
+          </div>
+
+          {/* The way out of a forgotten wallet password. Offered only after the
+              user is already here, so the normal password path stays the
+              obvious one and nobody reaches for the app password by default. */}
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => switchMode(!forceMode)}
+              disabled={isDeleting}
+              className="text-sm text-gray-500 hover:text-gray-700 underline disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {forceMode
+                ? t('deleteWallet.useWalletPassword')
+                : t('deleteWallet.forgotPassword')}
             </button>
           </div>
         </form>

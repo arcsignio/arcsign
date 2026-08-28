@@ -12,14 +12,17 @@ import "C"
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"strings"
 	"time"
 
+	"github.com/arcsignio/arcsign/internal/app"
 	"github.com/arcsignio/arcsign/internal/security"
 	"github.com/arcsignio/arcsign/internal/services/backup"
 	"github.com/arcsignio/arcsign/internal/services/wallet"
+	"github.com/arcsignio/arcsign/internal/utils"
 )
 
 //export CreateWallet
@@ -898,6 +901,130 @@ func DeleteWallet(params *C.char) (result *C.char) {
 		"deletedAt": time.Now().Format(time.RFC3339),
 	}
 
+	response := NewSuccessResponse(data)
+	jsonBytes, _ := json.Marshal(response)
+	return C.CString(string(jsonBytes))
+}
+
+//export ForceDeleteWallet
+// ForceDeleteWallet deletes a wallet using the APP password instead of the
+// wallet's own password. It exists for the one case the normal path cannot
+// serve: the user has forgotten the wallet password, which would otherwise
+// leave the wallet on the USB permanently, listed but unopenable.
+//
+// Security:
+//   - Requires the app password — the same secret that unlocks the whole
+//     device, verified through the same app.VerifyAppPassword used at unlock.
+//   - Shares appRateLimiter with UnlockApp. This is deliberate: without it,
+//     this export would be an unthrottled oracle for guessing the app
+//     password, and attempts spent here would not count against unlock.
+//   - Requires the wallet's exact name as typed confirmation, checked in the
+//     service layer against stored data — not in the UI, which can be bypassed.
+//
+// This cannot expose funds. The mnemonic stays encrypted under the wallet
+// password throughout; deleting ciphertext never decrypts it. The wallet's
+// assets remain unreachable — deleting the entry does not, and cannot,
+// recover them.
+//
+// Input JSON: {
+//   "walletId": "uuid",
+//   "appPassword": "app-unlock-password",  // REQUIRED
+//   "confirmName": "My Wallet",            // REQUIRED: must equal wallet name
+//   "usbPath": "/path/to/usb"
+// }
+//
+// Returns: {"success": true, "data": {"walletId": "...", "deletedAt": "..."}}
+func ForceDeleteWallet(params *C.char) (result *C.char) {
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			response := NewErrorResponse(ErrLibraryPanic, GetUserFriendlyMessage(ErrLibraryPanic))
+			jsonBytes, _ := json.Marshal(response)
+			result = C.CString(string(jsonBytes))
+		}
+	}()
+
+	paramsJSON, err := safeGoString(params)
+	if err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Input size exceeds limit")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	var input struct {
+		WalletID    string `json:"walletId"`
+		AppPassword string `json:"appPassword"`
+		ConfirmName string `json:"confirmName"`
+		USBPath     string `json:"usbPath"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &input); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, GetUserFriendlyMessage(ErrInvalidInput))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Security: clear the app password as soon as this returns.
+	defer zeroString(&input.AppPassword)
+
+	if err := ValidateUSBPath(input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidInput, "Invalid storage path")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	if input.WalletID == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Wallet ID is required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	if input.AppPassword == "" {
+		response := NewErrorResponse(ErrInvalidInput, "App password is required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+	if input.ConfirmName == "" {
+		response := NewErrorResponse(ErrInvalidInput, "Confirmation name is required")
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Rate limit BEFORE verifying, sharing UnlockApp's limiter so this path
+	// cannot be used to make extra guesses at the app password.
+	if !appRateLimiter.AllowAttempt(input.USBPath) {
+		remaining := appRateLimiter.GetRemainingAttempts(input.USBPath)
+		response := NewErrorResponse(ErrRateLimitExceeded,
+			fmt.Sprintf("Too many failed attempts. Please wait before trying again. (%d attempts remaining)", remaining))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Gate 1: the app password. Constant-time by way of VerifyAppPassword.
+	if err := app.VerifyAppPassword(input.AppPassword, input.USBPath); err != nil {
+		response := NewErrorResponse(ErrInvalidPassword, GetUserFriendlyMessage(ErrInvalidPassword))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	// Correct app password: stop counting this device's attempts, exactly as
+	// a successful unlock does.
+	appRateLimiter.ResetWallet(input.USBPath)
+
+	// Gate 2: the typed wallet name, compared against stored data inside the
+	// service. Deletion happens only if both gates pass.
+	svc := wallet.NewWalletService(input.USBPath)
+	if err := svc.ForceDeleteWallet(input.WalletID, input.ConfirmName); err != nil {
+		code := MapWalletError(err)
+		if errors.Is(err, utils.ErrConfirmationMismatch) {
+			code = ErrInvalidInput
+		}
+		response := NewErrorResponse(code, GetUserFriendlyMessage(code))
+		jsonBytes, _ := json.Marshal(response)
+		return C.CString(string(jsonBytes))
+	}
+
+	data := map[string]interface{}{
+		"walletId":  input.WalletID,
+		"deletedAt": time.Now().Format(time.RFC3339),
+	}
 	response := NewSuccessResponse(data)
 	jsonBytes, _ := json.Marshal(response)
 	return C.CString(string(jsonBytes))

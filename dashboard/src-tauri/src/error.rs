@@ -82,6 +82,10 @@ pub enum ErrorCode {
     // Input errors
     InvalidInput,
 
+    // Throttling: distinct from InvalidPassword so the UI can say "wait"
+    // rather than inviting another guess that will also be rejected.
+    RateLimitExceeded,
+
     // Internal errors
     InternalError,
     SerializationError,
@@ -184,6 +188,7 @@ impl AppError {
             ErrorCode::InvalidWalletId => "Invalid wallet identifier.",
 
             ErrorCode::InvalidPassword => "Password does not meet security requirements.",
+            ErrorCode::RateLimitExceeded => "Too many failed attempts. Please wait before trying again.",
             ErrorCode::PasswordTooWeak => "Password must be at least 12 characters with uppercase, lowercase, and numbers.",
             ErrorCode::PasswordMismatch => "Passwords do not match.",
 
@@ -231,6 +236,7 @@ impl AppError {
             "INVALID_INPUT" => ErrorCode::FfiInvalidInput,
             "INVALID_MNEMONIC" => ErrorCode::InvalidMnemonic,
             "INVALID_PASSWORD" => ErrorCode::InvalidPassword,
+            "RATE_LIMIT_EXCEEDED" => ErrorCode::RateLimitExceeded,
             "INVALID_BLOCKCHAIN" => ErrorCode::FfiInvalidBlockchain,
 
             // Resource errors

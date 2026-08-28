@@ -965,6 +965,96 @@ pub async fn delete_wallet(
     Ok(())
 }
 
+/// Force-delete a wallet using the app password instead of the wallet's own.
+///
+/// This is the escape hatch for a forgotten wallet password, which otherwise
+/// leaves the wallet on the USB forever — visible in the list, impossible to
+/// open or remove.
+///
+/// The real gates are in Go (`ForceDeleteWallet` in internal/lib): app password
+/// verification under the shared app rate limiter, plus an exact match on the
+/// wallet name checked against stored data. Nothing here is load-bearing for
+/// security; this layer only shapes the request and maps errors.
+#[tauri::command]
+pub async fn force_delete_wallet(
+    queue: State<'_, LazyWalletQueue>,
+    wallet_id: String,
+    app_password: String,
+    confirm_name: String,
+    usb_path: String,
+) -> Result<(), String> {
+    let start = Instant::now();
+
+    // Deliberately NOT validate_password(): that enforces the complexity rules
+    // for *choosing* a password. The app password already exists, and running
+    // creation rules over it would reject valid ones set under older rules.
+    if app_password.is_empty() {
+        return Err(AppError::new(
+            ErrorCode::InvalidPassword,
+            "App password is required",
+        )
+        .into());
+    }
+    if wallet_id.trim().is_empty() {
+        return Err(AppError::new(ErrorCode::InvalidWalletId, "Wallet ID cannot be empty").into());
+    }
+    if confirm_name.is_empty() {
+        return Err(AppError::new(
+            ErrorCode::InvalidInput,
+            "Type the wallet name to confirm deletion",
+        )
+        .into());
+    }
+
+    let params = json!({
+        "walletId": wallet_id,
+        "appPassword": app_password,
+        "confirmName": confirm_name,
+        "usbPath": usb_path,
+    });
+
+    let params_json =
+        serde_json::to_string(&params).map_err(|e| format!("Failed to serialize params: {}", e))?;
+
+    queue
+        .force_delete_wallet(params_json)
+        .await
+        .map_err(|e| {
+            if e.contains("RATE_LIMIT_EXCEEDED") {
+                AppError::new(
+                    ErrorCode::RateLimitExceeded,
+                    "Too many failed attempts. Please wait before trying again.",
+                )
+            } else if e.contains("INVALID_PASSWORD") {
+                AppError::new(ErrorCode::InvalidPassword, "Incorrect app password")
+            } else if e.contains("WALLET_NOT_FOUND") || e.contains("not found") {
+                AppError::new(ErrorCode::WalletNotFound, "Wallet not found on USB")
+            } else if e.contains("INVALID_INPUT") {
+                // Go maps a mismatched confirmation name to INVALID_INPUT.
+                AppError::new(
+                    ErrorCode::InvalidInput,
+                    "The name you typed does not match this wallet",
+                )
+            } else if e.contains("USB_NOT_FOUND") {
+                AppError::new(ErrorCode::UsbNotFound, "USB device not found")
+            } else {
+                AppError::with_details(
+                    ErrorCode::CliExecutionFailed,
+                    "Failed to delete wallet",
+                    e,
+                )
+            }
+        })?;
+
+    tracing::info!(
+        "Wallet force-deleted with app password: {} (took {:?})",
+        wallet_id,
+        start.elapsed()
+    );
+
+    Ok(())
+}
+
 /// Export wallet as encrypted .arcsign backup file
 /// No password required — mnemonic.enc inside is already AES-256-GCM encrypted
 #[tauri::command]
