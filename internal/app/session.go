@@ -7,12 +7,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -162,7 +159,7 @@ func (sm *SessionManager) CreateSession(usbPath, appPassword string) (*Session, 
 		LastUsed:             now,                         // Track for idle timeout: 2 hours
 		DeviceId:             deviceId,
 		EncryptedProviderKey: encryptedProviderKey, // ✅ Store encrypted key
-		PepperVersion:        pepperVersion,         // ✅ Store pepper version for future rotation
+		PepperVersion:        pepperVersion,        // ✅ Store pepper version for future rotation
 	}
 
 	// Store session
@@ -262,72 +259,6 @@ func generateSecureToken() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-// loadWalletsFromFilesystem reads wallet metadata directly from the filesystem.
-// This is more reliable than appConfig.Wallets which may be out of sync.
-// Wallet directories are stored directly in the USB root as UUID folders containing wallet.json
-func loadWalletsFromFilesystem(usbPath string) []WalletMetadata {
-	wallets := make([]WalletMetadata, 0)
-
-	fmt.Printf("[loadWalletsFromFilesystem] Reading wallets from USB root: %s\n", usbPath)
-
-	entries, err := os.ReadDir(usbPath)
-	if err != nil {
-		fmt.Printf("[loadWalletsFromFilesystem] Error reading directory: %v\n", err)
-		return wallets // Return empty list if directory doesn't exist
-	}
-
-	fmt.Printf("[loadWalletsFromFilesystem] Found %d entries in USB root\n", len(entries))
-
-	for _, entry := range entries {
-		// Skip non-directories and hidden directories (starting with .)
-		if !entry.IsDir() || len(entry.Name()) == 0 || entry.Name()[0] == '.' {
-			continue
-		}
-
-		walletID := entry.Name()
-		metaPath := filepath.Join(usbPath, walletID, "wallet.json")
-
-		// Check if wallet.json exists - this confirms it's a wallet directory
-		data, err := os.ReadFile(metaPath)
-		if err != nil {
-			// Not a wallet directory, skip silently
-			continue
-		}
-
-		fmt.Printf("[loadWalletsFromFilesystem] Found wallet directory: %s\n", walletID)
-
-		// Parse wallet metadata to get CreatedAt
-		var walletMeta struct {
-			ID        string    `json:"id"`
-			Name      string    `json:"name"`
-			CreatedAt time.Time `json:"createdAt"`
-		}
-		if err := json.Unmarshal(data, &walletMeta); err != nil {
-			fmt.Printf("[loadWalletsFromFilesystem] Error parsing JSON for %s: %v, using fallback\n", walletID, err)
-			// If parsing fails, use directory info time as fallback
-			info, _ := entry.Info()
-			wallets = append(wallets, WalletMetadata{
-				ID:        walletID,
-				Name:      walletID,
-				CreatedAt: info.ModTime(),
-			})
-			continue
-		}
-
-		fmt.Printf("[loadWalletsFromFilesystem] Loaded wallet: id=%s, name=%s, createdAt=%s\n",
-			walletMeta.ID, walletMeta.Name, walletMeta.CreatedAt.Format(time.RFC3339))
-
-		wallets = append(wallets, WalletMetadata{
-			ID:        walletMeta.ID,
-			Name:      walletMeta.Name,
-			CreatedAt: walletMeta.CreatedAt,
-		})
-	}
-
-	fmt.Printf("[loadWalletsFromFilesystem] Total wallets loaded: %d\n", len(wallets))
-	return wallets
-}
-
 // GetSessionByUSBPath returns a valid session for the given USB path, if one exists.
 // Returns nil if no valid session is found for the USB path.
 func (sm *SessionManager) GetSessionByUSBPath(usbPath string) *Session {
@@ -375,9 +306,9 @@ func deriveKeyFromToken(token string, pepperVersion int) ([]byte, error) {
 	info := fmt.Sprintf("session-key-v%d", pepperVersion)
 	hkdfReader := hkdf.New(
 		sha256.New,
-		tokenHash[:],     // IKM: hashed token (32 bytes)
-		[]byte(pepper),   // Salt: versioned server pepper (prevents offline attacks)
-		[]byte(info),     // Info: version-specific context (prevents cross-version attacks)
+		tokenHash[:],   // IKM: hashed token (32 bytes)
+		[]byte(pepper), // Salt: versioned server pepper (prevents offline attacks)
+		[]byte(info),   // Info: version-specific context (prevents cross-version attacks)
 	)
 
 	// Extract 32 bytes for AES-256 key
