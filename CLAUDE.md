@@ -119,6 +119,12 @@ go test -run TestSpecificName ./...       # Run single test
   （risks 由 ABI 解碼器算出後帶到 descriptor 結果上）。守門測試見
   `internal/security/txguard/descriptor_isolation_test.go` 與
   `dashboard/tests/frontend/services/clearsign/descriptorIsolation.test.ts`。
+- **ERC-8213 digest 的界線**：digest（`services/clearsign/digest.ts`）是**事實陳述**，
+  不是安全判定。簽章畫面永遠顯示，但**不得染任何語意顏色**（紅/綠/黃）——染色會暗示
+  app 已代為驗證，而真正的驗證必須在**另一台裝置**上獨立計算比對。digest 的存在與否
+  不得影響 `requiresAcknowledge` 或風險徽章。顯示一律完整 64 字元分 16 組，
+  **不得截斷**：只比對頭尾會把偽造難度從 2^256 降到可行範圍。畸形輸入不得被靜默
+  正規化成與合法 calldata 相同的 digest。
 
 ### Provider data path (read-on-chain: balances / tokens / NFTs / transfers)
 

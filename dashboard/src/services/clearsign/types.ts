@@ -21,4 +21,15 @@ export interface DecodedIntent {
     owner: string;        // protocol that published the descriptor, e.g. "Uniswap Labs"
     contractName: string; // e.g. "Uniswap v3 Router 2"
   };
+  /**
+   * ERC-8213 fingerprint of the exact bytes being signed. Always present for
+   * transactions and typed data. A statement of fact for cross-device
+   * verification — never a verdict, and never an input to any safety gate.
+   */
+  digest?: {
+    kind: "calldata" | "eip712";
+    primary: string;
+    /** EIP-712 only: the two halves, shown behind a disclosure. */
+    detail?: { domainHash: string; messageHash: string };
+  };
 }

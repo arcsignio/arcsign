@@ -1105,7 +1105,16 @@
     "blacklistHit": "目標在黑名單中",
     "simulatedChanges": "模擬餘額變化",
     "ackRisk": "我了解此交易有風險，仍要簽署",
-    "abiUnverified": "ABI 來自未完全驗證來源"
+    "abiUnverified": "ABI 來自未完全驗證來源",
+    "digestCalldata": "Calldata 指紋",
+    "digestEip712": "EIP-712 指紋",
+    "digestHint": "簽章前可在另一台裝置上獨立計算比對。",
+    "digestCopy": "複製",
+    "digestCopied": "已複製",
+    "digestShowDetail": "顯示 domain / message hash",
+    "digestHideDetail": "隱藏 domain / message hash",
+    "digestDomainHash": "Domain Hash",
+    "digestMessageHash": "Message Hash"
   },
   "onlineDecoding": {
     "label": "線上交易解碼",

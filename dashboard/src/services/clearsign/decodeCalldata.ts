@@ -7,6 +7,7 @@ import { resolveTokenLabel } from "./tokenLabel";
 import { networkToChainId } from "./chainIdToNetwork";
 import { fetchContractAbi } from "./sourcifyClient";
 import { intentFromDescriptor } from "./resolveDescriptor";
+import { calldataDigest } from "./digest";
 
 function shortAddr(a: string): string {
   return a && a.length > 12 ? `${a.slice(0, 6)}...${a.slice(-4)}` : a;
@@ -94,13 +95,13 @@ export async function decodeCalldata(
   // A descriptor is worth trying whenever there is calldata — including when
   // the local decode failed, which is exactly the case a registry descriptor
   // is most likely to rescue.
-  if (!data || data === "0x") return base;
+  if (!data || data === "0x") return withDigest(base, data);
 
   const chainId = networkToChainId(network);
-  if (chainId === undefined) return base;
+  if (chainId === undefined) return withDigest(base, data);
 
   const decoded = decodeArgsForDescriptor(data, usedAbi.abi);
-  if (!decoded) return base;
+  if (!decoded) return withDigest(base, data);
 
   const enriched = await intentFromDescriptor({
     chainId,
@@ -114,7 +115,19 @@ export async function decodeCalldata(
     tokens: await tokenMetadataFor(network, to, decoded),
   });
 
-  return enriched ?? base;
+  return withDigest(enriched ?? base, data);
+}
+
+/**
+ * Attach the ERC-8213 fingerprint. Applied to every returned intent — including
+ * unreadable ones, which is precisely when a user most needs something they can
+ * verify on another device.
+ */
+function withDigest(intent: DecodedIntent, data: string | undefined): DecodedIntent {
+  return {
+    ...intent,
+    digest: { kind: "calldata", primary: calldataDigest(data ?? "0x") },
+  };
 }
 
 /**
