@@ -109,7 +109,7 @@ describe('AddressBook', () => {
     });
 
     render(<AddressBook {...defaultProps} />);
-    await user.type(screen.getByPlaceholderText('addressBook.searchPlaceholder'), 'Alice');
+    await user.type(screen.getByPlaceholderText('addressBook.search'), 'Alice');
 
     expect(screen.getByText('Alice')).toBeInTheDocument();
     expect(screen.queryByText('Bob')).not.toBeInTheDocument();
@@ -149,8 +149,8 @@ describe('AddressBook', () => {
 
     await user.click(screen.getByText(/addressBook\.addContact/));
 
-    await user.type(screen.getByPlaceholderText('addressBook.placeholderName'), 'Charlie');
-    await user.type(screen.getByPlaceholderText('addressBook.placeholderAddress'), '0xcharlie123');
+    await user.type(screen.getByPlaceholderText('addressBook.namePlaceholder'), 'Charlie');
+    await user.type(screen.getByPlaceholderText('addressBook.addressPlaceholder'), '0xcharlie123');
 
     // Save button in add mode shows "addressBook.addContact"
     const saveBtn = screen.getByRole('button', { name: 'addressBook.addContact' });
@@ -221,5 +221,58 @@ describe('AddressBook', () => {
 
     render(<AddressBook {...defaultProps} />);
     expect(screen.getByText('addressBook.loading')).toBeInTheDocument();
+  });
+
+  // An address book that HAS contacts but shows none after filtering is not
+  // empty. Telling that user to "add your first contact" is wrong, and the
+  // two states previously shared one message.
+  it('distinguishes no-search-results from a genuinely empty book', async () => {
+    const user = userEvent.setup();
+    (useContacts as any).mockReturnValue({
+      contacts: mockContacts,
+      isLoading: false,
+      error: null,
+      loadContacts: mockLoadContacts,
+      addContact: mockAddContact,
+      updateContact: mockUpdateContact,
+      deleteContact: mockDeleteContact,
+    });
+
+    render(<AddressBook {...defaultProps} />);
+    await user.type(
+      screen.getByPlaceholderText('addressBook.search'),
+      'NoSuchContact',
+    );
+
+    expect(screen.getByText('addressBook.noResults')).toBeInTheDocument();
+    expect(screen.queryByText('addressBook.emptyTitle')).not.toBeInTheDocument();
+  });
+
+  it('announces the copy result to screen readers', async () => {
+    // userEvent.setup() installs its own navigator.clipboard stub.
+    const user = userEvent.setup();
+    (useContacts as any).mockReturnValue({
+      contacts: mockContacts,
+      isLoading: false,
+      error: null,
+      loadContacts: mockLoadContacts,
+      addContact: mockAddContact,
+      updateContact: mockUpdateContact,
+      deleteContact: mockDeleteContact,
+    });
+
+    render(<AddressBook {...defaultProps} />);
+
+    // The checkmark swap is purely visual; without a live region a screen
+    // reader user gets no confirmation that the copy happened.
+    expect(screen.queryByText('addressBook.copied')).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getAllByTitle('addressBook.copyAddress')[0],
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('addressBook.copied')).toBeInTheDocument();
+    });
   });
 });

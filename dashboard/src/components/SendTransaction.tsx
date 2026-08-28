@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { AddressBook } from "@/components/AddressBook";
 import { SignReview } from "@/components/SignReview";
 import { PasswordInput } from "@/components/PasswordInput";
@@ -277,6 +278,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
   onBack,
   onSuccess,
 }) => {
+  const { t } = useTranslation();
+
   // Token selection state
   const [selectedToken, setSelectedToken] = useState<SendableToken | null>(null);
 
@@ -688,7 +691,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
               <button
                 type="button"
                 onClick={() => setShowContactPicker(true)}
-                title="Select from Address Book"
+                title={t("addressBook.selectFromContacts")}
+                aria-label={t("addressBook.selectFromContacts")}
                 style={{
                   background: "#f0fdfa",
                   border: "1px solid #99f6e4",

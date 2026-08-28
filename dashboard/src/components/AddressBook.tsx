@@ -244,7 +244,7 @@ export function AddressBook({
           <input
             type="text"
             className="ab-search-input"
-            placeholder={t("addressBook.searchPlaceholder")}
+            placeholder={t("addressBook.search")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -298,8 +298,17 @@ export function AddressBook({
             <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
           </svg>
-          <h3>{t("addressBook.emptyTitle")}</h3>
-          <p>{t("addressBook.emptyMessage")}</p>
+          {/* Contacts exist but none match — a filtered-out list is not an
+              empty address book, and telling the user to add their first
+              contact when they already have some is actively misleading. */}
+          {contacts.length > 0 ? (
+            <p>{t("addressBook.noResults")}</p>
+          ) : (
+            <>
+              <h3>{t("addressBook.emptyTitle")}</h3>
+              <p>{t("addressBook.emptyMessage")}</p>
+            </>
+          )}
         </div>
       )}
 
@@ -342,7 +351,11 @@ export function AddressBook({
                 )}
                 <button
                   className="ab-action-btn ab-copy-btn"
-                  title={t("addressBook.copyAddress")}
+                  title={
+                    copiedId === contact.id
+                      ? t("addressBook.copied")
+                      : t("addressBook.copyAddress")
+                  }
                   onClick={() => handleCopy(contact)}
                 >
                   {copiedId === contact.id ? (
@@ -355,6 +368,11 @@ export function AddressBook({
                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                     </svg>
                   )}
+                  {/* The checkmark swap is silent to a screen reader, and a
+                      changed title attribute is not announced either. */}
+                  <span className="ab-sr-only" aria-live="polite">
+                    {copiedId === contact.id ? t("addressBook.copied") : ""}
+                  </span>
                 </button>
                 <button
                   className="ab-action-btn ab-edit-btn"
@@ -403,30 +421,30 @@ export function AddressBook({
             {formError && <div className="ab-form-error">{formError}</div>}
 
             <label className="ab-label">
-              {t("addressBook.labelName")}
+              {t("addressBook.name")}
               <input
                 type="text"
                 className="ab-input"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                placeholder={t("addressBook.placeholderName")}
+                placeholder={t("addressBook.namePlaceholder")}
                 autoFocus
               />
             </label>
 
             <label className="ab-label">
-              {t("addressBook.labelAddress")}
+              {t("addressBook.address")}
               <input
                 type="text"
                 className="ab-input ab-input-mono"
                 value={formAddress}
                 onChange={(e) => setFormAddress(e.target.value)}
-                placeholder={t("addressBook.placeholderAddress")}
+                placeholder={t("addressBook.addressPlaceholder")}
               />
             </label>
 
             <label className="ab-label">
-              {t("addressBook.labelChain")}
+              {t("addressBook.chain")}
               <select
                 className="ab-input"
                 value={formSymbol}
@@ -441,12 +459,12 @@ export function AddressBook({
             </label>
 
             <label className="ab-label">
-              {t("addressBook.labelNotes")}
+              {t("addressBook.notes")}
               <textarea
                 className="ab-textarea"
                 value={formNotes}
                 onChange={(e) => setFormNotes(e.target.value)}
-                placeholder={t("addressBook.placeholderNotes")}
+                placeholder={t("addressBook.notesPlaceholder")}
                 rows={3}
               />
             </label>
@@ -495,7 +513,7 @@ export function AddressBook({
               </svg>
             </div>
             <h3 id="ab-delete-title" className="ab-modal-title">
-              {t("addressBook.deleteTitle")}
+              {t("addressBook.deleteContact")}
             </h3>
             <p className="ab-delete-msg">
               {t("addressBook.deleteMessage", { name: deleteTarget.name })}
@@ -523,6 +541,21 @@ export function AddressBook({
       )}
 
       <style>{`
+        /* Visible to screen readers only — clip rather than display:none,
+           which would remove the node from the accessibility tree and stop
+           aria-live announcements. */
+        .ab-sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
+        }
+
         /* ===== Root / Layout ===== */
         .ab-root {
           padding: 20px;
