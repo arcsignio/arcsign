@@ -13,6 +13,13 @@
 #   4. BIP39 example passphrases used in CLI tests.
 #   5. Analytics HMAC namespace constant (intentionally client-visible).
 #   6. Generic test fixture matches in *_test.go / *.test.tsx / research.md.
+#   7. The embedded ERC-7730 descriptor snapshot. It is a verbatim copy of the
+#      public Ethereum Foundation clear-signing registry: public contract
+#      addresses and ABI parameter names only. The 40-hex addresses trip the
+#      generic-api-key rule on entropy alone (137 findings, all addresses such
+#      as WBTC 0x2260FAC5…; "secretHash" is an ABI parameter of Garden
+#      Finance's atomic swap, not a credential). Regenerated wholesale by
+#      UpdateDescriptors, so it cannot carry hand-written secrets.
 
 [extend]
 useDefault = true
@@ -27,6 +34,7 @@ paths = [
   '''.*_test\.go''',
   '''.*\.test\.tsx?''',
   '''specs/.*/research\.md''',
+  '''internal/clearsign/data/snapshot\.json''',
 ]
 
 regexes = [
