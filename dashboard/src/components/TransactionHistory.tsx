@@ -286,10 +286,10 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
     <div className="transaction-history">
       <header className="history-header">
         <button onClick={onBack} className="back-button">
-          <span className="back-arrow">&larr;</span> Back
+          <span className="back-arrow">&larr;</span> {t("actions.back")}
         </button>
         <div className="header-info">
-          <h2>Transaction History</h2>
+          <h2>{t("transaction.history")}</h2>
           <p className="address-info">
             {shortenAddress(address)}
           </p>
@@ -361,7 +361,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
       {error && (
         <div className="error-message">
           <p>{error}</p>
-          <button onClick={fetchAllChainTransfers}>Retry</button>
+          <button onClick={fetchAllChainTransfers}>{t("addressBook.retry")}</button>
         </div>
       )}
 
@@ -486,7 +486,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                       rel="noopener noreferrer"
                       className="explorer-link"
                     >
-                      View on Explorer &rarr;
+                      {t("sendTransaction.viewOnExplorer")}
                     </a>
                   </div>
                 </div>
@@ -499,7 +499,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
       {isLoading && transfers.length === 0 && loadingChains.length === 0 && (
         <div className="loading-state">
           <div className="loading-spinner" />
-          <p>Loading transaction history...</p>
+          <p>{t("sendTransaction.loadingTransactionHistory")}</p>
         </div>
       )}
 

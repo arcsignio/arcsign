@@ -133,7 +133,7 @@ export const PairingModal: React.FC<PairingModalProps> = ({
             <button
               onClick={handleClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
-              aria-label="Close"
+              aria-label={t('actions.close')}
             >
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path

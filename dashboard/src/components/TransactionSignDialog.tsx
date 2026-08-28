@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import type { PendingTransactionInfo } from '@/services/tauri-api';
 import { SignReview } from '@/components/SignReview';
@@ -32,6 +33,7 @@ export function TransactionSignDialog({
   onConfirm,
   onReject,
 }: TransactionSignDialogProps) {
+  const { t } = useTranslation();
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,12 +99,12 @@ export function TransactionSignDialog({
     }
 
     if (!password) {
-      setError('Please enter your password');
+      setError(t("walletConnect.enterPassword"));
       return;
     }
 
     if (!usbConnected) {
-      setError('Please insert your USB device');
+      setError(t("sendTransaction.pleaseInsertUsb"));
       return;
     }
 
@@ -114,7 +116,7 @@ export function TransactionSignDialog({
       // pass acknowledgedRisk to the backend (which gates blacklisted targets).
       await onConfirm(transaction!.request_id, password, acknowledged);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to sign transaction');
+      setError(e instanceof Error ? e.message : t("developer.errors.signFailed"));
       setIsLoading(false);
     }
     // Note: Don't reset isLoading here - the parent component will close the dialog
@@ -162,7 +164,7 @@ export function TransactionSignDialog({
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h2 id="sign-dialog-title" className="text-xl font-bold text-gray-900">
-            Confirm Transaction
+            {t("sendTransaction.confirmTransaction")}
           </h2>
           <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
             {getChainName(transaction.chain_id)}
@@ -181,20 +183,20 @@ export function TransactionSignDialog({
           {/* Wallet */}
           {walletName && (
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Wallet</span>
+              <span className="text-gray-500">{t("wallet.wallet")}</span>
               <span className="font-medium text-gray-800">{walletName}</span>
             </div>
           )}
 
           {/* From */}
           <div className="flex justify-between text-sm">
-            <span className="text-gray-500">From</span>
+            <span className="text-gray-500">{t("transaction.from")}</span>
             <span className="font-mono text-gray-800">{shortAddress(transaction.from)}</span>
           </div>
 
           {/* To */}
           <div className="flex justify-between text-sm">
-            <span className="text-gray-500">To</span>
+            <span className="text-gray-500">{t("transaction.to")}</span>
             <span className="font-mono text-gray-800">{shortAddress(transaction.to)}</span>
           </div>
 
@@ -206,16 +208,16 @@ export function TransactionSignDialog({
           {/* Value (if not zero) */}
           {transaction.value && transaction.value !== '0x0' && transaction.value !== '0' && (
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Value</span>
+              <span className="text-gray-500">{t("developer.requestDetails.value")}</span>
               <span className="font-mono text-gray-800">{transaction.value} wei</span>
             </div>
           )}
 
           {/* Action type */}
           <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Action</span>
+            <span className="text-gray-500">{t("sendTransaction.action")}</span>
             <span className={`font-medium ${transaction.broadcast ? 'text-green-600' : 'text-teal-600'}`}>
-              {transaction.broadcast ? 'Sign & Broadcast' : 'Sign Only'}
+              {transaction.broadcast ? t("sendTransaction.signAndBroadcast") : t("sendTransaction.signOnly")}
             </span>
           </div>
         </div>
@@ -226,26 +228,26 @@ export function TransactionSignDialog({
         }`}>
           <div className={`w-3 h-3 rounded-full ${usbConnected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'}`} />
           <span className={`text-sm ${usbConnected ? 'text-green-700' : 'text-yellow-700'}`}>
-            {usbConnected ? 'USB Device Connected' : 'Please insert your USB device'}
+            {usbConnected ? t("sendTransaction.usbConnected") : t("sendTransaction.pleaseInsertUsb")}
           </span>
           <button
             onClick={checkUsbConnection}
             className="ml-auto text-sm text-gray-500 hover:text-gray-700"
           >
-            Refresh
+            {t("tokenApprovals.refresh")}
           </button>
         </div>
 
         {/* Password Input */}
         <div className="mb-4">
           <label htmlFor="sign-password" className="block text-sm font-medium text-gray-700 mb-1">
-            Wallet Password
+            {t("walletConnect.walletPassword")}
           </label>
           <PasswordInput
             id="sign-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter your wallet password"
+            placeholder={t("walletConnect.enterWalletPassword")}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
             disabled={isLoading}
             autoFocus
@@ -266,7 +268,7 @@ export function TransactionSignDialog({
             disabled={isLoading}
             className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
-            Reject
+            {t("common.reject")}
           </button>
           <button
             onClick={handleConfirm}
@@ -275,14 +277,13 @@ export function TransactionSignDialog({
               highRisk ? 'bg-red-600 hover:bg-red-700' : 'bg-teal-600 hover:bg-teal-700'
             }`}
           >
-            {isLoading ? 'Signing...' : 'Sign Transaction'}
+            {isLoading ? t("walletConnect.signing") : t("sendTransaction.signTransaction")}
           </button>
         </div>
 
         {/* Security Notice */}
         <p className="mt-4 text-xs text-gray-500 text-center">
-          This transaction was requested by an external application.
-          Always verify the details before signing.
+          {t("sendTransaction.externalAppNotice")}
         </p>
       </div>
     </div>

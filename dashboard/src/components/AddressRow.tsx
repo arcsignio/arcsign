@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Address } from '@/types/address';
 import { getChainIconUrl, getChainFallbackIcon, isChainSupported } from '@/utils/chainIcons';
 
@@ -85,6 +86,7 @@ const ChainIcon: React.FC<{ symbol: string; size?: number }> = ({ symbol, size =
  * Displays a single blockchain address with metadata and logo
  */
 export const AddressRow: React.FC<AddressRowProps> = ({ address, style, onCopy, onReceive }) => {
+  const { t } = useTranslation();
   const categoryColor = categoryColors[address.category] || categoryColors.specialized;
   const isSupported = isChainSupported(address.symbol);
 
@@ -105,7 +107,7 @@ export const AddressRow: React.FC<AddressRowProps> = ({ address, style, onCopy, 
           <span className="font-semibold text-gray-900">{address.symbol}</span>
           {isSupported && (
             <span className="px-1.5 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">
-              Active
+              {t('provider.active')}
             </span>
           )}
         </div>
@@ -140,7 +142,7 @@ export const AddressRow: React.FC<AddressRowProps> = ({ address, style, onCopy, 
           <button
             onClick={() => onCopy(address.address, address.symbol)}
             className="p-2 text-gray-500 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
-            title="Copy address"
+            title={t('address.copyAddress')}
             data-testid="copy-button"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -154,7 +156,7 @@ export const AddressRow: React.FC<AddressRowProps> = ({ address, style, onCopy, 
           <button
             onClick={() => onReceive(address)}
             className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-            title="Receive"
+            title={t('address.receive')}
             data-testid="receive-button"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

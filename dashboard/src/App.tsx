@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dashboard } from '@/pages/Dashboard';
 import { AppUnlock } from '@/components/AppUnlock';
 import { AppPasswordProvider, useAppPassword } from '@/contexts/AppPasswordContext';
@@ -22,6 +23,7 @@ import { useUpdateChecker } from '@/hooks/useUpdateChecker';
 import tauriApi, { type AppError, type AppConfig } from '@/services/tauri-api';
 
 function AppContent() {
+  const { t } = useTranslation();
   const { isUnlocked, unlock, getSessionToken } = useAppPassword();
   const walletConnect = useWalletConnect();
   const shouldShowOnboarding = useShouldShowOnboarding();
@@ -150,13 +152,13 @@ function AppContent() {
       <div className="app-error">
         <div className="error-container">
           <img src="/logo.png" alt="ArcSign" className="error-logo" />
-          <h1>USB Drive Required</h1>
-          <p>{usbError || 'No USB drive detected. Please connect a USB drive to get started.'}</p>
+          <h1>{t('app.usbDriveRequired')}</h1>
+          <p>{usbError || t('app.noUsbDriveDetected')}</p>
           <button
             onClick={() => window.location.reload()}
             className="retry-button"
           >
-            Retry Detection
+            {t('app.retryDetection')}
           </button>
         </div>
 

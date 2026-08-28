@@ -153,7 +153,7 @@ export function SessionSettings({ session, onStartSession, onEndSession }: Sessi
               <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
+                placeholder={t('security.password')}
                 autoFocus
                 className="password-input"
               />

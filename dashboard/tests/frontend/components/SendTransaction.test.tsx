@@ -132,8 +132,8 @@ describe('SendTransaction', () => {
   it('renders token selection step with available tokens', () => {
     render(<SendTransaction {...defaultProps} />);
 
-    expect(screen.getByText('Select Token to Send')).toBeInTheDocument();
-    expect(screen.getByText('Choose which asset you want to send')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.selectTokenTitle')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.selectTokenDescription')).toBeInTheDocument();
 
     // Token symbols visible
     expect(screen.getByText('ETH')).toBeInTheDocument();
@@ -157,8 +157,8 @@ describe('SendTransaction', () => {
       <SendTransaction {...defaultProps} availableTokens={[]} />
     );
 
-    expect(screen.getByText('No tokens with balance available to send')).toBeInTheDocument();
-    expect(screen.getByText('Go Back')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.noTokensAvailable')).toBeInTheDocument();
+    expect(screen.getByText('swap.goBack')).toBeInTheDocument();
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -177,7 +177,7 @@ describe('SendTransaction', () => {
     await user.click(ethTokenBtn!);
 
     // Should now be on the input step
-    expect(screen.getByText('To Address')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.toAddress')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('0x...')).toBeInTheDocument();
   });
 
@@ -196,16 +196,16 @@ describe('SendTransaction', () => {
     await user.click(ethTokenBtn!);
 
     // Verify input fields present
-    expect(screen.getByText('From')).toBeInTheDocument();
-    expect(screen.getByText('To Address')).toBeInTheDocument();
+    expect(screen.getByText('transaction.from')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.toAddress')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('0x...')).toBeInTheDocument();
-    expect(screen.getByText('Amount (ETH)')).toBeInTheDocument();
+    expect(screen.getByText('transaction.amount (ETH)')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('0.0')).toBeInTheDocument();
     expect(screen.getByText('MAX')).toBeInTheDocument();
-    expect(screen.getByText('Continue')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.continue')).toBeInTheDocument();
 
     // Change button to go back to token selection
-    expect(screen.getByText('Change')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.change')).toBeInTheDocument();
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -227,24 +227,24 @@ describe('SendTransaction', () => {
     await user.type(screen.getByPlaceholderText('0.0'), '0.5');
 
     // Click Continue to build transaction
-    await user.click(screen.getByText('Continue'));
+    await user.click(screen.getByText('sendTransaction.continue'));
 
     // Wait for review step to appear
     await waitFor(() => {
-      expect(screen.getByText('Review Transaction')).toBeInTheDocument();
+      expect(screen.getByText('sendTransaction.reviewTransaction')).toBeInTheDocument();
     });
 
     // Review details
-    expect(screen.getByText('Network')).toBeInTheDocument();
-    expect(screen.getByText('Token')).toBeInTheDocument();
-    expect(screen.getByText('From')).toBeInTheDocument();
-    expect(screen.getByText('To')).toBeInTheDocument();
-    expect(screen.getByText('Amount')).toBeInTheDocument();
-    expect(screen.getByText('Estimated Fee')).toBeInTheDocument();
+    expect(screen.getByText('addToken.network')).toBeInTheDocument();
+    expect(screen.getByText('swap.token')).toBeInTheDocument();
+    expect(screen.getByText('transaction.from')).toBeInTheDocument();
+    expect(screen.getByText('transaction.to')).toBeInTheDocument();
+    expect(screen.getByText('transaction.amount')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.estimatedFee')).toBeInTheDocument();
 
     // Action buttons
-    expect(screen.getByText('Edit')).toBeInTheDocument();
-    expect(screen.getByText('Confirm & Sign')).toBeInTheDocument();
+    expect(screen.getByText('addressBook.edit')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.confirmAndSign')).toBeInTheDocument();
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -263,19 +263,19 @@ describe('SendTransaction', () => {
 
     await user.type(screen.getByPlaceholderText('0x...'), validRecipient);
     await user.type(screen.getByPlaceholderText('0.0'), '0.5');
-    await user.click(screen.getByText('Continue'));
+    await user.click(screen.getByText('sendTransaction.continue'));
 
     await waitFor(() => {
-      expect(screen.getByText('Confirm & Sign')).toBeInTheDocument();
+      expect(screen.getByText('sendTransaction.confirmAndSign')).toBeInTheDocument();
     });
 
-    await user.click(screen.getByText('Confirm & Sign'));
+    await user.click(screen.getByText('sendTransaction.confirmAndSign'));
 
     // Password step
-    expect(screen.getByText('Enter Wallet Password')).toBeInTheDocument();
-    expect(screen.getByText('Your password is required to sign this transaction securely.')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Enter wallet password')).toBeInTheDocument();
-    expect(screen.getByText('Sign & Send')).toBeInTheDocument();
+    expect(screen.getByText('dashboard.enterWalletPassword')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.passwordRequiredDescription')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('dashboard.enterWalletPasswordPlaceholder')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.signAndSend')).toBeInTheDocument();
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -308,26 +308,26 @@ describe('SendTransaction', () => {
 
     await user.type(screen.getByPlaceholderText('0x...'), validRecipient);
     await user.type(screen.getByPlaceholderText('0.0'), '0.5');
-    await user.click(screen.getByText('Continue'));
+    await user.click(screen.getByText('sendTransaction.continue'));
 
     await waitFor(() => {
-      expect(screen.getByText('Confirm & Sign')).toBeInTheDocument();
+      expect(screen.getByText('sendTransaction.confirmAndSign')).toBeInTheDocument();
     });
-    await user.click(screen.getByText('Confirm & Sign'));
+    await user.click(screen.getByText('sendTransaction.confirmAndSign'));
 
     // Enter password and sign
-    await user.type(screen.getByPlaceholderText('Enter wallet password'), 'mypassword');
-    await user.click(screen.getByText('Sign & Send'));
+    await user.type(screen.getByPlaceholderText('dashboard.enterWalletPasswordPlaceholder'), 'mypassword');
+    await user.click(screen.getByText('sendTransaction.signAndSend'));
 
     // Wait for success
     await waitFor(() => {
-      expect(screen.getByText('Transaction Submitted!')).toBeInTheDocument();
+      expect(screen.getByText('sendTransaction.transactionSubmitted')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Transaction Hash')).toBeInTheDocument();
-    expect(screen.getByText('View on Explorer →')).toBeInTheDocument();
-    expect(screen.getByText('Send Another')).toBeInTheDocument();
-    expect(screen.getByText('Done')).toBeInTheDocument();
+    expect(screen.getByText('transaction.hash')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.viewOnExplorer')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.sendAnother')).toBeInTheDocument();
+    expect(screen.getByText('staking.done')).toBeInTheDocument();
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -350,26 +350,26 @@ describe('SendTransaction', () => {
 
     await user.type(screen.getByPlaceholderText('0x...'), validRecipient);
     await user.type(screen.getByPlaceholderText('0.0'), '0.5');
-    await user.click(screen.getByText('Continue'));
+    await user.click(screen.getByText('sendTransaction.continue'));
 
     await waitFor(() => {
-      expect(screen.getByText('Confirm & Sign')).toBeInTheDocument();
+      expect(screen.getByText('sendTransaction.confirmAndSign')).toBeInTheDocument();
     });
-    await user.click(screen.getByText('Confirm & Sign'));
+    await user.click(screen.getByText('sendTransaction.confirmAndSign'));
 
-    await user.type(screen.getByPlaceholderText('Enter wallet password'), 'mypassword');
-    await user.click(screen.getByText('Sign & Send'));
+    await user.type(screen.getByPlaceholderText('dashboard.enterWalletPasswordPlaceholder'), 'mypassword');
+    await user.click(screen.getByText('sendTransaction.signAndSend'));
 
     // Wait for error step
     await waitFor(() => {
-      expect(screen.getByText('Transaction Failed')).toBeInTheDocument();
+      expect(screen.getByText('errors.transactionFailed')).toBeInTheDocument();
     });
 
     // Error message appears in both the error banner and the error-view paragraph
     const errorMessages = screen.getAllByText('Network congestion — please try again');
     expect(errorMessages.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Try Again')).toBeInTheDocument();
-    expect(screen.getByText('Cancel')).toBeInTheDocument();
+    expect(screen.getByText('swap.tryAgain')).toBeInTheDocument();
+    expect(screen.getByText('actions.cancel')).toBeInTheDocument();
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -380,7 +380,7 @@ describe('SendTransaction', () => {
     render(<SendTransaction {...defaultProps} />);
 
     // Step 1: Select token
-    expect(screen.getByText('Select Token to Send')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.selectTokenTitle')).toBeInTheDocument();
     const ethButtons = screen.getAllByRole('button');
     const ethTokenBtn = ethButtons.find(
       (btn) => btn.classList.contains('token-option') && btn.textContent?.includes('ETH')
@@ -390,26 +390,26 @@ describe('SendTransaction', () => {
     // Step 2: Input
     await user.type(screen.getByPlaceholderText('0x...'), validRecipient);
     await user.type(screen.getByPlaceholderText('0.0'), '0.5');
-    await user.click(screen.getByText('Continue'));
+    await user.click(screen.getByText('sendTransaction.continue'));
 
     // Step 3: Review
     await waitFor(() => {
-      expect(screen.getByText('Review Transaction')).toBeInTheDocument();
+      expect(screen.getByText('sendTransaction.reviewTransaction')).toBeInTheDocument();
     });
 
     // Verify buildTransaction was called
     expect(tauriApi.buildTransaction).toHaveBeenCalledTimes(1);
 
-    await user.click(screen.getByText('Confirm & Sign'));
+    await user.click(screen.getByText('sendTransaction.confirmAndSign'));
 
     // Step 4: Password
-    expect(screen.getByText('Enter Wallet Password')).toBeInTheDocument();
-    await user.type(screen.getByPlaceholderText('Enter wallet password'), 'mypassword');
-    await user.click(screen.getByText('Sign & Send'));
+    expect(screen.getByText('dashboard.enterWalletPassword')).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText('dashboard.enterWalletPasswordPlaceholder'), 'mypassword');
+    await user.click(screen.getByText('sendTransaction.signAndSend'));
 
     // Steps 5 & 6: Signing -> Broadcasting -> Success
     await waitFor(() => {
-      expect(screen.getByText('Transaction Submitted!')).toBeInTheDocument();
+      expect(screen.getByText('sendTransaction.transactionSubmitted')).toBeInTheDocument();
     });
 
     // Verify all API calls were made
@@ -429,7 +429,7 @@ describe('SendTransaction', () => {
       <SendTransaction {...defaultProps} availableTokens={[]} />
     );
 
-    await user.click(screen.getByText('Go Back'));
+    await user.click(screen.getByText('swap.goBack'));
     expect(defaultProps.onBack).toHaveBeenCalledTimes(1);
   });
 
@@ -454,7 +454,7 @@ describe('SendTransaction', () => {
     // Fill valid inputs
     await user.type(screen.getByPlaceholderText('0x...'), validRecipient);
     await user.type(screen.getByPlaceholderText('0.0'), '0.5');
-    await user.click(screen.getByText('Continue'));
+    await user.click(screen.getByText('sendTransaction.continue'));
 
     // Wait for error to appear in the error banner (not error step — build errors stay on input)
     await waitFor(() => {

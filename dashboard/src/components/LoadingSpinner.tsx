@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
@@ -23,6 +24,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   className = '',
   message,
 }) => {
+  const { t } = useTranslation();
   const sizeClasses = {
     sm: 'h-4 w-4',
     md: 'h-8 w-8',
@@ -36,7 +38,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
         <div className="logo-spinner" style={{ width: 64, height: 64, position: 'relative' }}>
           <img
             src="/logo.png"
-            alt="Loading"
+            alt={t('common.loading')}
             style={{
               width: 48,
               height: 48,
@@ -94,7 +96,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"
-        aria-label="Loading"
+        aria-label={t('common.loading')}
         style={{ color: '#2dd4bf' }}
       >
         <circle

@@ -119,9 +119,9 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
 
       <div className="unlock-container">
         <div className="unlock-header">
-          <img src="/logo.png" alt="ArcSign Logo" className="unlock-logo" />
+          <img src="/logo.png" alt="ArcSign" className="unlock-logo" />
           <h1>ArcSign</h1>
-          <p className="subtitle">Secure Multi-Chain Cold Wallet</p>
+          <p className="subtitle">{t('appUnlock.tagline')}</p>
         </div>
 
         {isFirstTime ? (

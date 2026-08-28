@@ -34,7 +34,7 @@ describe('SecurityReportPanel', () => {
     render(<SecurityReportPanel security={blacklistedDangerReport} />);
 
     // The OFAC blacklist verdict must be visible.
-    expect(screen.getByText('Blacklisted Address')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.blacklistedAddress')).toBeInTheDocument();
     expect(screen.getByText(/OFAC blacklist \(sanctioned\)/)).toBeInTheDocument();
     expect(
       screen.getByText('0x8589427373D6D84E98730D7795D8f6f8731FDA16'),
@@ -69,7 +69,7 @@ describe('SecurityReportPanel', () => {
     render(<SecurityReportPanel security={cleanReport} />);
 
     expect(
-      screen.getByText(/Address is not on any known blacklist/i),
+      screen.getByText('sendTransaction.notOnBlacklist'),
     ).toBeInTheDocument();
   });
 
@@ -95,6 +95,6 @@ describe('SecurityReportPanel', () => {
     };
     render(<SecurityReportPanel security={withSimulation} />);
 
-    expect(screen.getByText('Simulation Preview')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.simulationPreview')).toBeInTheDocument();
   });
 });

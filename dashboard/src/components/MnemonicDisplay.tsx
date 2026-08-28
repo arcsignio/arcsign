@@ -120,8 +120,8 @@ export function MnemonicDisplay({ mnemonic, onConfirm }: MnemonicDisplayProps) {
         <ul>
           <li>{t('mnemonicBackup.writeDown')}</li>
           <li>{t('mnemonicBackup.storeSecurely')}</li>
-          <li>{t('mnemonic.neverShare')}</li>
-          <li>{t('mnemonic.cannotRecover')}</li>
+          <li>{t('mnemonicBackup.neverShare')}</li>
+          <li>{t('mnemonicBackup.cannotRecover')}</li>
           <li>{t('mnemonicBackup.screenshotProtection')}</li>
         </ul>
       </div>

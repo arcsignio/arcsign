@@ -138,7 +138,7 @@ export function DevSettings({ settings, wallets, onSave }: DevSettingsProps) {
 
   return (
     <div className="dev-settings">
-      <h2>{t('developer.settings', 'Developer Settings')}</h2>
+      <h2>{t('developer.settingsTitle', 'Developer Settings')}</h2>
 
       <div className="settings-section">
         <h3>{t('developer.defaultWallet', 'Default Signing Wallet')}</h3>

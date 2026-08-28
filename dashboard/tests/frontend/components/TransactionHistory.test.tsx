@@ -99,15 +99,14 @@ describe('TransactionHistory', () => {
 
   it('renders title and back button', () => {
     render(<TransactionHistory {...defaultProps} />);
-    // Component uses hardcoded English strings
-    expect(screen.getByText(/Back/)).toBeInTheDocument();
-    expect(screen.getByText('Transaction History')).toBeInTheDocument();
+    expect(screen.getByText('actions.back')).toBeInTheDocument();
+    expect(screen.getByText('transaction.history')).toBeInTheDocument();
   });
 
   it('calls onBack when back button clicked', async () => {
     const user = userEvent.setup();
     render(<TransactionHistory {...defaultProps} />);
-    await user.click(screen.getByText(/Back/));
+    await user.click(screen.getByText('actions.back'));
     expect(defaultProps.onBack).toHaveBeenCalled();
   });
 

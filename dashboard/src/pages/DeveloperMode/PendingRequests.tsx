@@ -268,12 +268,12 @@ export default {
               {/* Request Summary */}
               <div className="request-summary">
                 <div className="summary-row full-width">
-                  <span className="label">Address:</span>
+                  <span className="label">{t('developer.requestDetails.address')}:</span>
                   <span className="value mono">{formatAddress(request.address)}</span>
                 </div>
                 {request.scriptName && (
                   <div className="summary-row full-width">
-                    <span className="label">Script:</span>
+                    <span className="label">{t('developer.requestDetails.script')}:</span>
                     <span className="value script">{request.scriptName}</span>
                   </div>
                 )}
@@ -304,7 +304,7 @@ export default {
                       {/* Domain Info */}
                       {request.typedData.domain && (
                         <div className="domain-info">
-                          <span className="domain-label">Domain:</span>
+                          <span className="domain-label">{t('developer.requestDetails.domain')}:</span>
                           <span className="domain-value">
                             {request.typedData.domain.name || 'Unknown'}
                             {request.typedData.domain.version && ` v${request.typedData.domain.version}`}
@@ -339,7 +339,7 @@ export default {
                     <PasswordInput
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Wallet password"
+                      placeholder={t('developer.passwordPlaceholder')}
                       disabled={isProcessing}
                     />
                   </div>
@@ -401,33 +401,33 @@ export default {
               {/* Request Summary */}
               <div className="request-summary">
                 <div className="summary-row">
-                  <span className="label">From:</span>
+                  <span className="label">{t('developer.requestDetails.from')}:</span>
                   <span className="value mono">{formatAddress(request.from)}</span>
                 </div>
                 {request.to && (
                   <div className="summary-row">
-                    <span className="label">To:</span>
+                    <span className="label">{t('developer.requestDetails.to')}:</span>
                     <span className="value mono">{formatAddress(request.to)}</span>
                   </div>
                 )}
                 <div className="summary-row">
-                  <span className="label">Value:</span>
+                  <span className="label">{t('developer.requestDetails.value')}:</span>
                   <span className="value">{formatValue(request.value, request.network)}</span>
                 </div>
                 <div className="summary-row">
-                  <span className="label">Nonce:</span>
+                  <span className="label">{t('developer.requestDetails.nonce')}:</span>
                   <span className="value">{request.nonce !== undefined ? request.nonce : 'N/A'}</span>
                 </div>
                 <div className="summary-row">
-                  <span className="label">Gas Limit:</span>
+                  <span className="label">{t('developer.requestDetails.gasLimit')}:</span>
                   <span className="value">{formatGasLimit(request.gas)}</span>
                 </div>
                 <div className="summary-row">
-                  <span className="label">Gas Price:</span>
+                  <span className="label">{t('developer.requestDetails.gasPrice')}:</span>
                   <span className="value">{formatGasPrice(request.maxFeePerGas || request.gasPrice)}</span>
                 </div>
                 <div className="summary-row full-width">
-                  <span className="label">Est. Cost:</span>
+                  <span className="label">{t('developer.requestDetails.estCost')}:</span>
                   <span className="value cost">{formatEstimatedCost(request)}</span>
                 </div>
               </div>
@@ -466,7 +466,7 @@ export default {
                       <PasswordInput
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Wallet password"
+                        placeholder={t('developer.passwordPlaceholder')}
                         disabled={isProcessing}
                       />
                     </div>

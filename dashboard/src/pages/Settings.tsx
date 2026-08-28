@@ -235,7 +235,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
           <div className="about-info">
             <h3 className="about-title">ArcSign</h3>
             <p className="about-version">v{appVersion}</p>
-            <p className="about-desc">Secure Multi-Chain HD Wallet</p>
+            <p className="about-desc">{t('app.tagline')}</p>
           </div>
           <div className="about-links">
             <a href="https://arcsign.io" target="_blank" rel="noopener noreferrer" className="about-link">arcsign.io</a>

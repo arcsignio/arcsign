@@ -125,7 +125,7 @@ describe('TransactionSignDialog — clear-signing integration', () => {
 
     // Dialog heading always visible immediately
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Confirm Transaction')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.confirmTransaction')).toBeInTheDocument();
 
     // decodeCalldata is async — title appears after the effect resolves
     expect(await screen.findByText('Transfer 100 USDC')).toBeInTheDocument();
@@ -195,7 +195,7 @@ describe('TransactionSignDialog — clear-signing integration', () => {
     );
 
     // Heading always present
-    expect(screen.getByText('Confirm Transaction')).toBeInTheDocument();
+    expect(screen.getByText('sendTransaction.confirmTransaction')).toBeInTheDocument();
     // summary title must NOT appear — give React a tick to settle
     await new Promise((r) => setTimeout(r, 0));
     expect(screen.queryByText('Transfer 100 USDC')).not.toBeInTheDocument();
@@ -235,7 +235,7 @@ describe('TransactionSignDialog — risk friction', () => {
     fireEvent.change(pw, { target: { value: 'pw' } });
 
     const checkbox = await screen.findByRole('checkbox');
-    const signBtn = screen.getByText('Sign Transaction').closest('button')!;
+    const signBtn = screen.getByText('sendTransaction.signTransaction').closest('button')!;
     expect(signBtn).toBeDisabled();
 
     checkbox.click();
@@ -251,7 +251,7 @@ describe('TransactionSignDialog — risk friction', () => {
     fireEvent.change(pw, { target: { value: 'pw' } });
 
     const checkbox = await screen.findByRole('checkbox');
-    const signBtn = screen.getByText('Sign Transaction').closest('button')!;
+    const signBtn = screen.getByText('sendTransaction.signTransaction').closest('button')!;
 
     // Disabled button blocks the click; the action-level guard in handleConfirm
     // is the backstop. Before acknowledgment the handler must not call onConfirm.
@@ -275,7 +275,7 @@ describe('TransactionSignDialog — risk friction', () => {
     fireEvent.change(pw, { target: { value: 'pw' } });
 
     const checkbox = await screen.findByRole('checkbox');
-    const signBtn = screen.getByText('Sign Transaction').closest('button')!;
+    const signBtn = screen.getByText('sendTransaction.signTransaction').closest('button')!;
     expect(signBtn).toBeDisabled();
 
     checkbox.click();

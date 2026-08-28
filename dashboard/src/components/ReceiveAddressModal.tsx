@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { QRCodeSVG } from 'qrcode.react';
 import type { Address } from '@/types/address';
 import { getChainIconUrl, getChainFallbackIcon } from '@/utils/chainIcons';
@@ -82,6 +83,7 @@ export const ReceiveAddressModal: React.FC<ReceiveAddressModalProps> = ({
   onClose,
   onCopy,
 }) => {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   // Check if this is an EVM-compatible chain
   const isEVMChain = EVM_CHAINS.has(address.symbol.toUpperCase());
@@ -126,7 +128,7 @@ export const ReceiveAddressModal: React.FC<ReceiveAddressModalProps> = ({
             <ChainIcon symbol={address.symbol} size={40} />
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
-                Receive {address.symbol}
+                {t('receiveModal.receiveSymbol', { symbol: address.symbol })}
               </h2>
               <p className="text-sm text-gray-500">{address.name}</p>
             </div>
@@ -156,7 +158,7 @@ export const ReceiveAddressModal: React.FC<ReceiveAddressModalProps> = ({
           {/* Address Display */}
           <div className="mt-6 w-full">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Your {address.symbol} Address
+              {t('address.yourAddress', { symbol: address.symbol })}
             </label>
             <div className="relative">
               <code className="block w-full p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono text-gray-800 break-all">
@@ -168,7 +170,7 @@ export const ReceiveAddressModal: React.FC<ReceiveAddressModalProps> = ({
           {/* Derivation Path */}
           <div className="mt-4 w-full">
             <p className="text-xs text-gray-500">
-              Derivation path: <code className="font-mono">{address.derivation_path}</code>
+              {t('address.derivationPath')}: <code className="font-mono">{address.derivation_path}</code>
             </p>
           </div>
         </div>
@@ -188,14 +190,14 @@ export const ReceiveAddressModal: React.FC<ReceiveAddressModalProps> = ({
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Copied!
+                {t('actions.copied')}
               </>
             ) : (
               <>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
-                Copy Address
+                {t('address.copyAddress')}
               </>
             )}
           </button>
@@ -203,7 +205,7 @@ export const ReceiveAddressModal: React.FC<ReceiveAddressModalProps> = ({
             onClick={onClose}
             className="px-6 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-100 transition-colors"
           >
-            Close
+            {t('actions.close')}
           </button>
         </div>
 
@@ -218,15 +220,17 @@ export const ReceiveAddressModal: React.FC<ReceiveAddressModalProps> = ({
               )}
             </svg>
             <span>
-              {isEVMChain ? (
-                <>
-                  This address can receive <strong>{address.symbol}</strong> and all tokens on the <strong>{getNetworkDisplayName(address.symbol)}</strong> network (ERC-20, NFTs, etc.).
-                </>
-              ) : (
-                <>
-                  Only send <strong>{address.symbol}</strong> to this address. Sending other cryptocurrencies may result in permanent loss.
-                </>
-              )}
+              {/* One key per sentence with interpolation, not concatenated
+                  fragments: Chinese puts the network before the noun it
+                  qualifies, so a translator needs the whole sentence to
+                  reorder. This matches how the rest of the locale file works
+                  (e.g. address.yourAddress: "Your {{symbol}} Address"). */}
+              {isEVMChain
+                ? t('receiveModal.evmWarning', {
+                    symbol: address.symbol,
+                    network: getNetworkDisplayName(address.symbol),
+                  })
+                : t('receiveModal.nonEvmWarning', { symbol: address.symbol })}
             </span>
           </p>
         </div>

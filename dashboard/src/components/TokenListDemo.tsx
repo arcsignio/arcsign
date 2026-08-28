@@ -4,6 +4,7 @@
  */
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   usePriorityTokens,
   useTopTokens,
@@ -12,6 +13,7 @@ import {
 import type { ChainKey } from "@/services/tokenList";
 
 export function TokenListDemo() {
+  const { t } = useTranslation();
   const [selectedChain, setSelectedChain] = useState<ChainKey>("ethereum");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -27,7 +29,7 @@ export function TokenListDemo() {
   return (
     <div style={{ padding: "2rem", maxWidth: "1200px", margin: "0 auto" }}>
       <h1 style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "2rem" }}>
-        Token List Demo
+        {t("tokenListDemo.title")}
       </h1>
 
       {/* Chain Selector */}
@@ -39,7 +41,7 @@ export function TokenListDemo() {
             fontWeight: "600",
           }}
         >
-          Select Chain:
+          {t("tokenListDemo.selectChain")}
         </label>
         <select
           value={selectedChain}
@@ -68,13 +70,13 @@ export function TokenListDemo() {
             fontWeight: "600",
           }}
         >
-          Search Token:
+          {t("tokenListDemo.searchToken")}
         </label>
         <input
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Enter token symbol (e.g., USDC)"
+          placeholder={t("tokenListDemo.searchPlaceholder")}
           style={{
             padding: "0.5rem",
             fontSize: "1rem",
@@ -84,7 +86,7 @@ export function TokenListDemo() {
             maxWidth: "400px",
           }}
         />
-        {searching && <span style={{ marginLeft: "1rem" }}>Searching...</span>}
+        {searching && <span style={{ marginLeft: "1rem" }}>{t("tokenListDemo.searching")}</span>}
       </div>
 
       {/* Search Results */}
@@ -149,7 +151,7 @@ export function TokenListDemo() {
           Priority Tokens
           {loadingPriority && (
             <span style={{ marginLeft: "1rem", fontSize: "0.875rem" }}>
-              Loading...
+              {t("common.loading")}
             </span>
           )}
         </h2>
@@ -160,7 +162,7 @@ export function TokenListDemo() {
             marginBottom: "1rem",
           }}
         >
-          Common tokens that are always displayed (USDT, USDC, ETH, etc.)
+          {t("tokenListDemo.commonTokensDesc")}
         </div>
         <div
           style={{
@@ -217,7 +219,7 @@ export function TokenListDemo() {
           {selectedChain.charAt(0).toUpperCase() + selectedChain.slice(1)}
           {loadingTop && (
             <span style={{ marginLeft: "1rem", fontSize: "0.875rem" }}>
-              Loading...
+              {t("common.loading")}
             </span>
           )}
         </h2>

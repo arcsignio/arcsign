@@ -106,22 +106,22 @@ export function SigningHistory({ history }: SigningHistoryProps) {
 
             <div className="history-details">
               <div className="detail-row">
-                <span className="label">Network:</span>
+                <span className="label">{t('developer.requestDetails.network')}:</span>
                 <span className="value">{item.network}</span>
               </div>
               <div className="detail-row">
-                <span className="label">From:</span>
+                <span className="label">{t('developer.requestDetails.from')}:</span>
                 <span className="value mono">{formatAddress(item.from)}</span>
               </div>
               {item.to && (
                 <div className="detail-row">
-                  <span className="label">To:</span>
+                  <span className="label">{t('developer.requestDetails.to')}:</span>
                   <span className="value mono">{formatAddress(item.to)}</span>
                 </div>
               )}
               {item.txHash && (
                 <div className="detail-row">
-                  <span className="label">Tx Hash:</span>
+                  <span className="label">{t('walletConnect.txHash')}:</span>
                   {(() => {
                     const explorerUrl = getBlockExplorerTxUrl(item.chainId, item.txHash);
                     return explorerUrl ? (
@@ -140,7 +140,7 @@ export function SigningHistory({ history }: SigningHistoryProps) {
                 </div>
               )}
               <div className="detail-row">
-                <span className="label">Script:</span>
+                <span className="label">{t('developer.requestDetails.script')}:</span>
                 <span className="value script">{item.scriptName || 'Unknown'}</span>
               </div>
             </div>

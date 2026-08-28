@@ -175,7 +175,7 @@ export const SessionApprovalDialog: React.FC<SessionApprovalDialogProps> = ({
             <button
               onClick={handleReject}
               className="text-gray-400 hover:text-gray-600 transition-colors ml-2"
-              aria-label="Reject"
+              aria-label={t('walletConnect.reject')}
             >
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
@@ -255,7 +255,7 @@ export const SessionApprovalDialog: React.FC<SessionApprovalDialogProps> = ({
                       <span className="text-gray-700">{getChainName(chain)}</span>
                       {requiredChains.includes(chain) && (
                         <span className="text-xs px-2 py-0.5 bg-teal-100 text-teal-700 rounded">
-                          Required
+                          {t('sendTransaction.required')}
                         </span>
                       )}
                     </li>

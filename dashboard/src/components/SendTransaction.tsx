@@ -167,6 +167,7 @@ function shortenAddress(address: string): string {
 export const SecurityReportPanel: React.FC<{
   security: SecurityReport;
 }> = ({ security }) => {
+  const { t } = useTranslation();
   const isDanger = security.riskLevel === 'danger';
   const isWarning = security.riskLevel === 'warning';
 
@@ -174,7 +175,7 @@ export const SecurityReportPanel: React.FC<{
     <div className={`security-panel ${isDanger ? 'security-panel-danger' : isWarning ? 'security-panel-warning' : 'security-panel-safe'}`}>
       <div className="security-header">
         <span className="security-icon">&#x1F6E1;</span>
-        <span className="security-title">Security Check</span>
+        <span className="security-title">{t("clearSign.securityHeading")}</span>
         <span className={`security-badge ${security.riskLevel}`}>
           {isDanger ? 'DANGER' : isWarning ? 'WARNING' : 'SAFE'}
         </span>
@@ -183,7 +184,7 @@ export const SecurityReportPanel: React.FC<{
       {/* Blacklist warning */}
       {security.blacklistMatch && (
         <div className="security-alert security-alert-danger">
-          <strong>Blacklisted Address</strong>
+          <strong>{t("sendTransaction.blacklistedAddress")}</strong>
           <p>Target address is on the {formatBlacklistSource(security.blacklistMatch.source)} blacklist ({security.blacklistMatch.category}).</p>
           <p className="security-alert-address">{security.blacklistMatch.value}</p>
         </div>
@@ -192,7 +193,7 @@ export const SecurityReportPanel: React.FC<{
       {/* Simulation warnings */}
       {security.warnings?.filter(w => w.type === 'SIMULATION_FAILED').map((w, i) => (
         <div key={i} className="security-alert security-alert-warning">
-          <strong>Simulation Warning</strong>
+          <strong>{t("sendTransaction.simulationWarning")}</strong>
           <p>{w.message}</p>
         </div>
       ))}
@@ -200,7 +201,7 @@ export const SecurityReportPanel: React.FC<{
       {/* Simulation results */}
       {security.simulation?.success && security.simulation.assetChanges?.length > 0 && (
         <div className="security-simulation">
-          <p className="security-sim-title">Simulation Preview</p>
+          <p className="security-sim-title">{t("sendTransaction.simulationPreview")}</p>
           {security.simulation.assetChanges.map((change, i) => {
             const isOutgoing = change.from.toLowerCase() !== change.to.toLowerCase() && change.changeType === 'TRANSFER';
             return (
@@ -215,7 +216,7 @@ export const SecurityReportPanel: React.FC<{
           {security.simulation.gasUsed && (
             <div className="security-sim-row gas">
               <span className="sim-direction">&#x26FD;</span>
-              <span className="sim-amount">Gas: {security.simulation.gasUsed}</span>
+              <span className="sim-amount">{t("sendTransaction.gasLabel")}: {security.simulation.gasUsed}</span>
             </div>
           )}
         </div>
@@ -223,7 +224,7 @@ export const SecurityReportPanel: React.FC<{
 
       {/* No blacklist match = address cleared the blacklist check. */}
       {!security.blacklistMatch && !isDanger && !isWarning && (
-        <p className="security-safe-text">Address is not on any known blacklist.</p>
+        <p className="security-safe-text">{t("sendTransaction.notOnBlacklist")}</p>
       )}
     </div>
   );
@@ -562,9 +563,9 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
     <div className="send-transaction">
       <header className="send-header">
         <button onClick={step === "select" ? onBack : () => setStep("select")} className="back-button">
-          <span>&larr;</span> Back
+          <span>&larr;</span> {t("actions.back")}
         </button>
-        <h2>Send {selectedToken ? selectedToken.tokenSymbol : "Token"}</h2>
+        <h2>{t("transaction.send")} {selectedToken ? selectedToken.tokenSymbol : t("swap.token")}</h2>
         {selectedToken && (
           <div className="chain-badge">
             <span className="chain-icon">{getNetworkIcon(selectedToken.network)}</span>
@@ -585,15 +586,15 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {/* Step 0: Token Selection */}
       {step === "select" && (
         <div className="token-select-form">
-          <h3>Select Token to Send</h3>
-          <p className="select-description">Choose which asset you want to send</p>
+          <h3>{t("sendTransaction.selectTokenTitle")}</h3>
+          <p className="select-description">{t("sendTransaction.selectTokenDescription")}</p>
 
           {availableTokens.length === 0 ? (
             <div className="no-tokens">
               <span className="no-tokens-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>
-              <p>No tokens with balance available to send</p>
+              <p>{t("sendTransaction.noTokensAvailable")}</p>
               <button className="secondary-button" onClick={onBack}>
-                Go Back
+                {t("swap.goBack")}
               </button>
             </div>
           ) : (
@@ -604,7 +605,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
                     <span className="network-icon">{getNetworkIcon(tokens[0].network)}</span>
                     <span className="network-name">{networkLabel}</span>
                     {tokens[0].network.includes("sepolia") && (
-                      <span className="testnet-badge">Testnet</span>
+                      <span className="testnet-badge">{t("sendTransaction.testnet")}</span>
                     )}
                   </div>
                   <div className="network-tokens">
@@ -625,7 +626,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
                           <span className="token-symbol">{token.tokenSymbol}</span>
                           <span className="token-name">{token.tokenName}</span>
                           {token.tokenAddress && (
-                            <span className="token-type">ERC-20</span>
+                            <span className="token-type">{t("transaction.erc20")}</span>
                           )}
                         </div>
                         <div className="token-balance">
@@ -660,17 +661,17 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
             <div className="token-details">
               <span className="token-symbol">{selectedToken.tokenSymbol}</span>
               <span className="token-balance-info">
-                Balance: {formatBalance(selectedToken.balance, selectedToken.decimals)} {selectedToken.tokenSymbol}
+                {t("sendTransaction.balance")}: {formatBalance(selectedToken.balance, selectedToken.decimals)} {selectedToken.tokenSymbol}
               </span>
             </div>
             <button className="change-token-btn" onClick={() => setStep("select")}>
-              Change
+              {t("sendTransaction.change")}
             </button>
           </div>
 
           {/* From Address */}
           <div className="form-group">
-            <label>From</label>
+            <label>{t("transaction.from")}</label>
             <div className="address-display">
               <span className="address-text">{shortenAddress(selectedToken.fromAddress)}</span>
             </div>
@@ -678,7 +679,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
           {/* To Address */}
           <div className="form-group">
-            <label>To Address</label>
+            <label>{t("sendTransaction.toAddress")}</label>
             <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
               <input
                 type="text"
@@ -709,7 +710,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
               </button>
             </div>
             {toAddress && !isValidAddress(toAddress) && (
-              <span className="field-error">Invalid Ethereum address</span>
+              <span className="field-error">{t("sendTransaction.invalidAddress")}</span>
             )}
           </div>
 
@@ -728,7 +729,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
           {/* Amount */}
           <div className="form-group">
-            <label>Amount ({selectedToken.tokenSymbol})</label>
+            <label>{t("transaction.amount")} ({selectedToken.tokenSymbol})</label>
             <div className="amount-input-wrapper">
               <input
                 type="text"
@@ -746,7 +747,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           {/* Fee Speed Selector */}
           {feeEstimate && (
             <div className="form-group">
-              <label>Transaction Speed</label>
+              <label>{t("sendTransaction.transactionSpeed")}</label>
               <div className="fee-selector">
                 {(["slow", "normal", "fast"] as FeeSpeed[]).map((speed) => {
                   // Map speed to backend fee fields
@@ -784,7 +785,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           {isERC20 && (
             <div className="erc20-notice">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              <span>This is an ERC-20 token. Gas fees will be paid in {nativeSymbol}.</span>
+              <span>{t("sendTransaction.erc20GasNotice", { symbol: nativeSymbol })}</span>
             </div>
           )}
 
@@ -794,7 +795,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
             onClick={handleBuildTransaction}
             disabled={isLoading || !isValidAddress(toAddress) || !isValidAmount(amount)}
           >
-            {isLoading ? "Building Transaction..." : "Continue"}
+            {isLoading ? t("sendTransaction.buildingTransaction") : t("sendTransaction.continue")}
           </button>
         </div>
       )}
@@ -802,44 +803,44 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {/* Step 2: Review Transaction */}
       {step === "review" && unsignedTx && selectedToken && (
         <div className="review-form">
-          <h3>Review Transaction</h3>
+          <h3>{t("sendTransaction.reviewTransaction")}</h3>
 
           <div className="review-details">
             <div className="review-row">
-              <span className="review-label">Network</span>
+              <span className="review-label">{t("addToken.network")}</span>
               <span className="review-value">
                 {getNetworkIcon(selectedToken.network)} {selectedToken.networkLabel}
               </span>
             </div>
             <div className="review-row">
-              <span className="review-label">Token</span>
+              <span className="review-label">{t("swap.token")}</span>
               <span className="review-value">
-                {selectedToken.tokenSymbol} {isERC20 && <span className="erc20-tag">(ERC-20)</span>}
+                {selectedToken.tokenSymbol} {isERC20 && <span className="erc20-tag">({t("transaction.erc20")})</span>}
               </span>
             </div>
             <div className="review-row">
-              <span className="review-label">From</span>
+              <span className="review-label">{t("transaction.from")}</span>
               <span className="review-value address">{shortenAddress(selectedToken.fromAddress)}</span>
             </div>
             <div className="review-row">
-              <span className="review-label">To</span>
+              <span className="review-label">{t("transaction.to")}</span>
               <span className="review-value address">{shortenAddress(toAddress)}</span>
             </div>
             <div className="review-row highlight">
-              <span className="review-label">Amount</span>
+              <span className="review-label">{t("transaction.amount")}</span>
               <span className="review-value amount">
                 {amount} {selectedToken.tokenSymbol}
               </span>
             </div>
             <div className="review-row">
-              <span className="review-label">Estimated Fee</span>
+              <span className="review-label">{t("sendTransaction.estimatedFee")}</span>
               <span className="review-value">
                 {formatEth(unsignedTx.fee)} {nativeSymbol}
               </span>
             </div>
             {!isERC20 && (
               <div className="review-row total">
-                <span className="review-label">Total</span>
+                <span className="review-label">{t("sendTransaction.total")}</span>
                 <span className="review-value">
                   {(parseFloat(amount) + parseFloat(unsignedTx.fee) / 1e18).toFixed(6)} {selectedToken.tokenSymbol}
                 </span>
@@ -854,14 +855,14 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
           <div className="review-actions">
             <button className="secondary-button" onClick={() => setStep("input")}>
-              Edit
+              {t("addressBook.edit")}
             </button>
             <button
               className="primary-button"
               onClick={() => setStep("password")}
               style={unsignedTx.security?.riskLevel === 'danger' ? { background: '#dc2626' } : undefined}
             >
-              {unsignedTx.security?.riskLevel === 'danger' ? 'I Understand the Risk — Continue' : 'Confirm & Sign'}
+              {unsignedTx.security?.riskLevel === 'danger' ? t("sendTransaction.understandRiskContinue") : t("sendTransaction.confirmAndSign")}
             </button>
           </div>
         </div>
@@ -871,14 +872,14 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {step === "password" && (
         <div className="password-form">
           <div className="password-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
-          <h3>Enter Wallet Password</h3>
+          <h3>{t("dashboard.enterWalletPassword")}</h3>
           <p className="password-description">
-            Your password is required to sign this transaction securely.
+            {t("sendTransaction.passwordRequiredDescription")}
           </p>
 
           <div className="form-group">
             <PasswordInput
-              placeholder="Enter wallet password"
+              placeholder={t("dashboard.enterWalletPasswordPlaceholder")}
               value={walletPassword}
               onChange={(e) => setWalletPassword(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSignTransaction()}
@@ -891,7 +892,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           {walletHasPassphrase && preValidatedPassphrase && (
             <div className="passphrase-validated">
               <span className="validated-icon">✓</span>
-              <span>BIP39 passphrase verified</span>
+              <span>{t("sendTransaction.passphraseVerified")}</span>
             </div>
           )}
 
@@ -900,7 +901,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
           <div className="password-actions">
             <button className="secondary-button" onClick={() => setStep("review")}>
-              Back
+              {t("actions.back")}
             </button>
             <button
               className="primary-button"
@@ -908,7 +909,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
               disabled={!walletPassword || isLoading || (review.requiresAcknowledge && !review.acknowledged)}
               style={review.requiresAcknowledge ? { background: "#dc2626", boxShadow: "none" } : undefined}
             >
-              Sign & Send
+              {t("sendTransaction.signAndSend")}
             </button>
           </div>
         </div>
@@ -918,8 +919,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {step === "signing" && (
         <div className="progress-view">
           <div className="progress-spinner" />
-          <h3>Signing Transaction...</h3>
-          <p>Please wait while your transaction is being signed.</p>
+          <h3>{t("sendTransaction.signingTransaction")}</h3>
+          <p>{t("sendTransaction.pleaseWaitSigning")}</p>
         </div>
       )}
 
@@ -927,8 +928,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {step === "broadcasting" && selectedToken && (
         <div className="progress-view">
           <div className="progress-spinner" />
-          <h3>Broadcasting Transaction...</h3>
-          <p>Submitting your transaction to the {selectedToken.networkLabel} network.</p>
+          <h3>{t("sendTransaction.broadcastingTransaction")}</h3>
+          <p>{t("sendTransaction.submittingToNetwork", { network: selectedToken.networkLabel })}</p>
         </div>
       )}
 
@@ -936,13 +937,13 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {step === "success" && broadcastResult && selectedToken && (
         <div className="success-view">
           <div className="success-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-          <h3>Transaction Submitted!</h3>
+          <h3>{t("sendTransaction.transactionSubmitted")}</h3>
           <p className="success-message">
-            Your transaction has been submitted to the {selectedToken.networkLabel} network.
+            {t("sendTransaction.submittedToNetwork", { network: selectedToken.networkLabel })}
           </p>
 
           <div className="tx-hash">
-            <span className="tx-label">Transaction Hash</span>
+            <span className="tx-label">{t("transaction.hash")}</span>
             <code className="tx-value">{shortenAddress(broadcastResult.txHash)}</code>
           </div>
 
@@ -953,13 +954,13 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
               rel="noopener noreferrer"
               className="explorer-link"
             >
-              View on Explorer →
+              {t("sendTransaction.viewOnExplorer")}
             </a>
             <button className="primary-button" onClick={handleReset}>
-              Send Another
+              {t("sendTransaction.sendAnother")}
             </button>
             <button className="secondary-button" onClick={onBack}>
-              Done
+              {t("staking.done")}
             </button>
           </div>
         </div>
@@ -969,14 +970,14 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {step === "error" && (
         <div className="error-view">
           <div className="error-icon-large"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
-          <h3>Transaction Failed</h3>
+          <h3>{t("errors.transactionFailed")}</h3>
           <p className="error-message">{error}</p>
           <div className="error-actions">
             <button className="secondary-button" onClick={handleReset}>
-              Try Again
+              {t("swap.tryAgain")}
             </button>
             <button className="secondary-button" onClick={onBack}>
-              Cancel
+              {t("actions.cancel")}
             </button>
           </div>
         </div>

@@ -1,12 +1,26 @@
 {
   "app": {
     "name": "ArcSign",
-    "tagline": "Secure Multi-Chain HD Wallet"
+    "tagline": "Secure Multi-Chain HD Wallet",
+    "usbDriveRequired": "USB Drive Required",
+    "noUsbDriveDetected": "No USB drive detected. Please connect a USB drive to get started.",
+    "retryDetection": "Retry Detection"
+  },
+  "addToken": {
+    "add": "Add token",
+    "adding": "Adding…",
+    "contractAddress": "Contract address",
+    "decimals": "Decimals",
+    "error": "Failed to add token",
+    "invalidAddress": "Enter a valid 0x… contract address",
+    "invalidDecimals": "Decimals must be 0–36",
+    "network": "Network",
+    "symbol": "Symbol",
+    "title": "Import token"
   },
   "nav": {
     "dashboard": "Dashboard",
     "settings": "Settings",
-    "membership": "Membership",
     "addresses": "Addresses",
     "transactions": "Transactions",
     "developerMode": "Developer"
@@ -43,7 +57,13 @@
     "save": "Save",
     "saving": "Saving...",
     "cancel": "Cancel",
-    "optional": "Optional"
+    "optional": "Optional",
+    "approve": "Approve",
+    "back": "Back",
+    "close": "Close",
+    "reject": "Reject",
+    "sign": "Sign",
+    "tryAgain": "Try Again"
   },
   "wallet": {
     "wallet": "Wallet",
@@ -64,16 +84,12 @@
     "addresses": "Addresses",
     "protectedWithPassphrase": "Protected with Passphrase",
     "walletLimit": "Wallet Limit",
-    "walletLimitReached": "Wallet limit reached",
-    "maxLimitReached": "⚠️ Maximum wallet limit reached (10 wallets). Please delete a wallet before creating a new one.",
     "approachingLimit": "⚠️ Approaching wallet limit: {{current}} of {{limit}} wallets created.",
     "currentUsage": "Current Usage",
     "nameCannotBeEmpty": "Wallet name cannot be empty",
     "nameTooLong": "Wallet name must be 50 characters or less",
     "renameFailed": "Failed to rename wallet",
     "createFailed": "Failed to create wallet",
-    "deviceLimitReached": "Device wallet limit reached ({{current}}/{{limit}}). Please upgrade to Pro or bind NFTs to this device in Settings → Membership.",
-    "limitReachedCount": "Wallet limit reached ({{current}}/{{limit}})",
     "checkingDeviceLimit": "Checking Device Limit...",
     "creatingWallet": "Creating Wallet...",
     "discardCreation": "Discard Wallet Creation?",
@@ -81,8 +97,6 @@
     "discardChanges": "Discard Changes",
     "continueEditing": "Continue Editing",
     "upgradePromptMessage": "You have reached your wallet limit ({{current}}/{{limit}}). {{suggestion}}",
-    "purchaseMoreNfts": "Purchase additional ArcSign Pro NFTs to increase your limit (+3 wallets per NFT).",
-    "upgradeToPro": "Upgrade to ArcSign Pro to increase your limit (+3 wallets per NFT).",
     "importFailed": "Failed to import wallet. Please try again.",
     "overwriteNotImplemented": "Overwrite functionality not yet implemented. Please use a different mnemonic.",
     "importing": "Importing...",
@@ -92,9 +106,7 @@
     "duplicateWalletConfirm": "Are you sure you want to continue?",
     "overwrite": "Overwrite",
     "discardImport": "Discard Wallet Import?",
-    "discardImportMessage": "You have unsaved changes. Are you sure you want to cancel? All entered information will be lost.",
-    "walletLocked": "Wallet is locked due to membership limit. Please upgrade to unlock.",
-    "walletLockedShort": "Wallet locked"
+    "discardImportMessage": "You have unsaved changes. Are you sure you want to cancel? All entered information will be lost."
   },
   "address": {
     "address": "Address",
@@ -141,7 +153,8 @@
     "hash": "Transaction Hash",
     "unknownToken": "Unknown Token",
     "unknownTokenWarning": "This token is not in the CoinGecko whitelist. Exercise caution.",
-    "tokenNotVerified": "Unverified"
+    "tokenNotVerified": "Unverified",
+    "erc20": "ERC-20"
   },
   "usb": {
     "usbDrive": "USB Drive",
@@ -403,7 +416,13 @@
     "sessionExpired": "Session expired. Please re-enter your password to continue.",
     "hideScamTokens": "Hide unknown tokens",
     "showScamTokens": "Show {{count}} unknown tokens",
-    "addressBook": "Address Book"
+    "addressBook": "Address Book",
+    "byChain": "By chain",
+    "copyContract": "Copy contract",
+    "hideZeroBalance": "Hide zero-balance tokens",
+    "importToken": "Import token",
+    "showZeroBalance": "Show {{count}} zero-balance tokens",
+    "manageSavedAddresses": "Manage saved addresses"
   },
   "addressBook": {
     "addContact": "Add Contact",
@@ -469,6 +488,7 @@
   "appUnlock": {
     "title": "ArcSign",
     "subtitle": "Secure Cold Wallet Management",
+    "tagline": "Secure Multi-Chain Cold Wallet",
     "checkingStatus": "Checking setup status...",
     "welcomeTitle": "Welcome to ArcSign",
     "welcomeDescription": "Create a master password to protect your wallet configuration and API settings. This password will be required each time you start the application.",
@@ -519,7 +539,10 @@
     "unlockWallet": "Unlock Wallet",
     "loggedOutInactivity": "You have been logged out due to inactivity.",
     "noWalletForAddress": "No wallet found for the specified address",
-    "missingRequiredInfo": "Missing required information"
+    "missingRequiredInfo": "Missing required information",
+    "tagline": "Secure Multi-Chain Wallet",
+    "featureDexSwap": "DEX Swap",
+    "featureUsbColdStorage": "USB Cold Storage"
   },
   "deleteWallet": {
     "title": "Delete Wallet",
@@ -727,40 +750,65 @@
     "minimumStakeRequired": "Minimum stake amount is {{min}} {{symbol}}"
   },
   "developer": {
-    "title": "Developer Mode",
-    "subtitle": "Smart Contract Development Tools",
+    "autoNetworks": "Auto-sign Networks",
+    "autoSignEnabled": "Auto-sign enabled for testnet",
     "connected": "Connected",
+    "defaultWallet": "Default Signing Wallet",
+    "defaultWalletDesc": "Auto-select this wallet when entering Developer Mode. Dev transactions from Hardhat will use this wallet automatically.",
     "disconnected": "Disconnected",
-    "selectWallet": "Select Wallet",
-    "selectWalletDescription": "Choose a wallet to use for signing developer transactions.",
-    "noWallets": "No wallets found. Please create a wallet first.",
+    "endSession": "End Session",
+    "enterApiKey": "Enter API key...",
     "enterPassword": "Enter Wallet Password",
     "enterPasswordDescription": "Enter the password for this wallet to continue.",
-    "passwordPlaceholder": "Wallet password",
-    "unlock": "Unlock",
-    "pendingRequests": "Pending Requests",
+    "explorerApiKeys": "Block Explorer API Keys",
+    "explorerApiKeysDesc": "These API keys are used for contract verification (hardhat verify). They do not require private keys - just register on each Block Explorer website to get one.",
+    "getApiKey": "Get API Key",
     "history": "History",
-    "sessionSettings": "Session Settings",
+    "howToUse": "How to use:",
+    "howToUseDesc1": "After saving your API key, you can use it in your hardhat.config.js:",
+    "howToUseDesc2": "Or copy the key and set it as an environment variable.",
+    "mainnetConfirm": "Mainnets: Always Confirm",
+    "mainnetConfirmDesc": "Ethereum, BSC, Polygon mainnet always require confirmation",
+    "manualLock": "Manual Lock",
+    "manualLockDesc": "You can end the session manually at any time",
+    "messageToSign": "Message to Sign",
+    "methodCall": "Method Call",
+    "noDefaultWallet": "— Select each time —",
+    "noHistory": "No Signing History",
+    "noHistoryDesc": "Your signed and rejected transactions will appear here.",
     "noRequests": "No pending signing requests",
+    "noRequestsDesc": "When you run a Hardhat script, signing requests will appear here.",
     "noRequestsHint": "Requests from Hardhat/Foundry scripts will appear here",
+    "noWallets": "No wallets found. Please create a wallet first.",
+    "passwordForSession": "Enter your wallet password to start a 30-minute auto-signing session.",
+    "passwordPlaceholder": "Wallet password",
+    "pendingDevTx": "Developer transaction waiting for approval. Please select a wallet to continue.",
+    "pendingRequests": "Pending Requests",
+    "quickStart": "Quick Start",
+    "rawData": "Raw Data",
+    "remaining": "Remaining",
+    "save": "Save",
+    "securityRules": "Security Rules",
+    "selectWallet": "Select Wallet",
+    "selectWalletDescription": "Choose a wallet to use for signing developer transactions.",
+    "sessionActive": "Session Active",
+    "sessionDesc": "Enable session mode to auto-sign testnet transactions without entering password each time.",
+    "sessionInactive": "Session Inactive",
+    "sessionSettings": "Session Settings",
+    "sessionTimeout": "Session Timeout: 30 mins",
+    "sessionTimeoutDesc": "Sessions automatically expire after 30 minutes of inactivity",
+    "settings": "Settings",
+    "settingsTitle": "Developer Settings",
+    "signCount": "Signatures",
+    "signingHistory": "Signing History",
+    "startSession": "Start Session",
+    "subtitle": "Smart Contract Development Tools",
+    "testnetAuto": "Testnets: Auto-sign",
+    "testnetAutoDesc": "Sepolia, Goerli, BSC Testnet will auto-sign when session is active",
+    "title": "Developer Mode",
+    "typedData": "Typed Data (EIP-712)",
+    "unlock": "Unlock",
     "waitingForScripts": "Waiting for requests from development scripts...",
-    "requestType": {
-      "deploy": "Deploy Contract",
-      "call": "Contract Call",
-      "sign": "Sign Message"
-    },
-    "requestDetails": {
-      "from": "From",
-      "to": "To",
-      "network": "Network",
-      "chainId": "Chain ID",
-      "script": "Script",
-      "gasEstimate": "Est. Gas",
-      "value": "Value",
-      "data": "Data",
-      "method": "Method",
-      "params": "Parameters"
-    },
     "actions": {
       "approve": "Approve & Sign",
       "reject": "Reject",
@@ -769,23 +817,10 @@
       "approved": "Approved",
       "rejected": "Rejected"
     },
-    "session": {
-      "title": "Session Authorization",
-      "description": "Enable session mode to auto-sign testnet transactions for 30 minutes",
-      "enable": "Enable Session",
-      "disable": "Disable Session",
-      "enabled": "Session Active",
-      "disabled": "Session Disabled",
-      "expiresIn": "Expires in",
-      "signCount": "Transactions signed",
-      "trustedNetworks": "Trusted Networks",
-      "securityRules": "Security Rules",
-      "rules": {
-        "testnetAutoSign": "Testnet transactions are auto-signed",
-        "mainnetConfirm": "Mainnet transactions always require confirmation",
-        "gasLimit": "Transactions exceeding gas limit require confirmation",
-        "timeLimit": "Session expires after 30 minutes"
-      }
+    "errors": {
+      "connectionFailed": "Failed to connect to WebSocket server",
+      "signFailed": "Failed to sign transaction",
+      "sessionExpired": "Session has expired"
     },
     "historySection": {
       "title": "Signing History",
@@ -814,10 +849,46 @@
       "placeholder": "Enter wallet password",
       "incorrect": "Incorrect password. Please try again."
     },
-    "errors": {
-      "connectionFailed": "Failed to connect to WebSocket server",
-      "signFailed": "Failed to sign transaction",
-      "sessionExpired": "Session has expired"
+    "requestDetails": {
+      "from": "From",
+      "to": "To",
+      "network": "Network",
+      "chainId": "Chain ID",
+      "script": "Script",
+      "gasEstimate": "Est. Gas",
+      "value": "Value",
+      "data": "Data",
+      "method": "Method",
+      "params": "Parameters",
+      "address": "Address",
+      "domain": "Domain",
+      "nonce": "Nonce",
+      "gasLimit": "Gas Limit",
+      "gasPrice": "Gas Price",
+      "estCost": "Est. Cost"
+    },
+    "requestType": {
+      "deploy": "Deploy Contract",
+      "call": "Contract Call",
+      "sign": "Sign Message"
+    },
+    "session": {
+      "title": "Session Authorization",
+      "description": "Enable session mode to auto-sign testnet transactions for 30 minutes",
+      "enable": "Enable Session",
+      "disable": "Disable Session",
+      "enabled": "Session Active",
+      "disabled": "Session Disabled",
+      "expiresIn": "Expires in",
+      "signCount": "Transactions signed",
+      "trustedNetworks": "Trusted Networks",
+      "securityRules": "Security Rules",
+      "rules": {
+        "testnetAutoSign": "Testnet transactions are auto-signed",
+        "mainnetConfirm": "Mainnet transactions always require confirmation",
+        "gasLimit": "Transactions exceeding gas limit require confirmation",
+        "timeLimit": "Session expires after 30 minutes"
+      }
     }
   },
   "walletConnect": {
@@ -898,7 +969,8 @@
     "signatureSuccess": "Signature Successful",
     "signatureFailed": "Signature Failed",
     "signaturePending": "Signing...",
-    "viewOnExplorer": "View on Explorer"
+    "viewOnExplorer": "View on Explorer",
+    "txHash": "TX Hash"
   },
   "onboarding": {
     "skip": "Skip for now",
@@ -1017,12 +1089,10 @@
     "exportAllDescription": "Export all wallets as a single encrypted .arcsign-bundle file",
     "exportAllConfirm": "Export All",
     "exportAllSuccess": "All wallets exported successfully. Store the bundle safely.",
-    "exportAllProOnly": "Pro members can export all wallets at once",
     "exportingAll": "Exporting all wallets...",
     "importAllTitle": "Import from Bundle",
     "importAllDescription": "Restore all wallets from an .arcsign-bundle file",
     "importAllSuccess": "Successfully imported {{count}} wallets.",
-    "importAllProOnly": "Pro members can import wallet bundles",
     "enterBundlePassword": "Enter the password used when this bundle was exported",
     "selectBundleFile": "Select .arcsign-bundle File",
     "invalidBundle": "Invalid .arcsign-bundle file.",
@@ -1152,5 +1222,69 @@
     "networkNotice": "Updating connects to GitHub to download the latest descriptions. Nothing is sent about your wallet.",
     "updateDone": "Updated — {{count}} descriptions available.",
     "updateFailed": "Update failed:"
+  },
+  "tokenListDemo": {
+    "title": "Token List Demo",
+    "selectChain": "Select Chain:",
+    "searchToken": "Search Token:",
+    "searchPlaceholder": "Enter token symbol (e.g., USDC)",
+    "searching": "Searching...",
+    "commonTokensDesc": "Common tokens that are always displayed (USDT, USDC, ETH, etc.)"
+  },
+  "receiveModal": {
+    "evmWarning": "This address can receive {{symbol}} and all tokens on the {{network}} network (ERC-20, NFTs, etc.).",
+    "nonEvmWarning": "Only send {{symbol}} to this address. Sending other cryptocurrencies may result in permanent loss.",
+    "receiveSymbol": "Receive {{symbol}}"
+  },
+  "errorBoundary": {
+    "appTitle": "Something went wrong",
+    "componentTitle": "This section encountered an error",
+    "unexpectedError": "An unexpected error occurred.",
+    "fundsSafe": "Your funds are safe. No transaction was sent."
+  },
+  "sendTransaction": {
+    "blacklistedAddress": "Blacklisted Address",
+    "simulationWarning": "Simulation Warning",
+    "simulationPreview": "Simulation Preview",
+    "gasLabel": "Gas",
+    "notOnBlacklist": "Address is not on any known blacklist.",
+    "selectTokenTitle": "Select Token to Send",
+    "selectTokenDescription": "Choose which asset you want to send",
+    "noTokensAvailable": "No tokens with balance available to send",
+    "testnet": "Testnet",
+    "balance": "Balance",
+    "change": "Change",
+    "toAddress": "To Address",
+    "invalidAddress": "Invalid Ethereum address",
+    "transactionSpeed": "Transaction Speed",
+    "erc20GasNotice": "This is an ERC-20 token. Gas fees will be paid in {{symbol}}.",
+    "buildingTransaction": "Building Transaction...",
+    "continue": "Continue",
+    "reviewTransaction": "Review Transaction",
+    "estimatedFee": "Estimated Fee",
+    "total": "Total",
+    "understandRiskContinue": "I Understand the Risk — Continue",
+    "confirmAndSign": "Confirm & Sign",
+    "passwordRequiredDescription": "Your password is required to sign this transaction securely.",
+    "passphraseVerified": "BIP39 passphrase verified",
+    "signAndSend": "Sign & Send",
+    "signingTransaction": "Signing Transaction...",
+    "pleaseWaitSigning": "Please wait while your transaction is being signed.",
+    "broadcastingTransaction": "Broadcasting Transaction...",
+    "submittingToNetwork": "Submitting your transaction to the {{network}} network.",
+    "transactionSubmitted": "Transaction Submitted!",
+    "submittedToNetwork": "Your transaction has been submitted to the {{network}} network.",
+    "viewOnExplorer": "View on Explorer →",
+    "sendAnother": "Send Another",
+    "loadingTransactionHistory": "Loading transaction history...",
+    "confirmTransaction": "Confirm Transaction",
+    "action": "Action",
+    "signAndBroadcast": "Sign & Broadcast",
+    "signOnly": "Sign Only",
+    "usbConnected": "USB Device Connected",
+    "pleaseInsertUsb": "Please insert your USB device",
+    "signTransaction": "Sign Transaction",
+    "externalAppNotice": "This transaction was requested by an external application. Always verify the details before signing.",
+    "required": "Required"
   }
 }

@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import i18n from '@/locales';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -58,18 +59,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         <div style={isApp ? styles.appContainer : styles.componentContainer}>
           <div style={isApp ? styles.appCard : styles.componentCard}>
             <h2 style={isApp ? styles.appTitle : styles.componentTitle}>
-              {isApp ? 'Something went wrong' : 'This section encountered an error'}
+              {isApp ? i18n.t('errorBoundary.appTitle') : i18n.t('errorBoundary.componentTitle')}
             </h2>
             <p style={styles.message}>
-              {this.state.error?.message || 'An unexpected error occurred.'}
+              {this.state.error?.message || i18n.t('errorBoundary.unexpectedError')}
             </p>
             {isApp && (
               <p style={styles.hint}>
-                Your funds are safe. No transaction was sent.
+                {i18n.t('errorBoundary.fundsSafe')}
               </p>
             )}
             <button onClick={this.handleReset} style={styles.button}>
-              Try Again
+              {i18n.t('common.tryAgain')}
             </button>
           </div>
         </div>

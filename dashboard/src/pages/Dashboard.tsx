@@ -270,7 +270,7 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
       // ✅ Use session token instead of appPassword (zero password storage)
       const sessionToken = getToken();
       if (!sessionToken) {
-        throw new Error(t("dashboard.sessionExpired"));
+        throw new Error(t("walletDetail.sessionExpired"));
       }
 
       // Convert hex value to decimal for our API
@@ -650,7 +650,7 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
             <div className="error-message">{t("dashboard.noUsbDetected")}</div>
           ) : wallets.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#6b7280', padding: 40 }}>
-              {t("dashboard.noWallets")}
+              {t("dashboard.noWalletsFound")}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -799,7 +799,7 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
           <img src="/logo.png" alt="ArcSign" className="header-logo" />
           <div className="header-brand">
             <h1>{t("dashboard.title")}</h1>
-            <span className="header-tagline">Secure Multi-Chain Wallet</span>
+            <span className="header-tagline">{t("dashboard.tagline")}</span>
           </div>
         </div>
         <div className="header-actions">
@@ -871,9 +871,9 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
           </button>
           <div className="empty-features">
             <span className="feature-tag">54+ Chains</span>
-            <span className="feature-tag">DEX Swap</span>
+            <span className="feature-tag">{t("dashboard.featureDexSwap")}</span>
             <span className="feature-tag">WalletConnect</span>
-            <span className="feature-tag">USB Cold Storage</span>
+            <span className="feature-tag">{t("dashboard.featureUsbColdStorage")}</span>
           </div>
         </div>
       ) : (

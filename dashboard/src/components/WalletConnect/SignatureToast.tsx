@@ -116,9 +116,9 @@ export function SignatureToast({ notification, onDismiss }: SignatureToastProps)
             </svg>
           )}
           <span className={`font-medium text-sm ${isSuccess ? 'text-green-800' : isPending ? 'text-teal-800' : 'text-red-800'}`}>
-            {isSuccess ? t('walletconnect.signatureSuccess', 'Signature Successful') :
-             isPending ? t('walletconnect.signaturePending', 'Signing...') :
-             t('walletconnect.signatureFailed', 'Signature Failed')}
+            {isSuccess ? t('walletConnect.signatureSuccess', 'Signature Successful') :
+             isPending ? t('walletConnect.signaturePending', 'Signing...') :
+             t('walletConnect.signatureFailed', 'Signature Failed')}
           </span>
         </div>
         <button
@@ -144,7 +144,7 @@ export function SignatureToast({ notification, onDismiss }: SignatureToastProps)
         {/* Transaction Hash */}
         {notification.txHash && (
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">TX Hash:</span>
+            <span className="text-gray-600">{t('walletConnect.txHash')}:</span>
             <div className="flex items-center gap-1">
               <code className="text-xs bg-gray-100 px-1 py-0.5 rounded text-gray-700">
                 {notification.txHash.slice(0, 10)}...{notification.txHash.slice(-8)}
@@ -155,7 +155,7 @@ export function SignatureToast({ notification, onDismiss }: SignatureToastProps)
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-teal-600 hover:text-teal-800"
-                  title={t('walletconnect.viewOnExplorer', 'View on Explorer')}
+                  title={t('walletConnect.viewOnExplorer', 'View on Explorer')}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />

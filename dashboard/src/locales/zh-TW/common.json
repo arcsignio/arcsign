@@ -1,12 +1,26 @@
 {
   "app": {
     "name": "ArcSign",
-    "tagline": "安全的多鏈 HD 錢包"
+    "tagline": "安全的多鏈 HD 錢包",
+    "usbDriveRequired": "需要 USB 隨身碟",
+    "noUsbDriveDetected": "未偵測到 USB 隨身碟。請連接 USB 隨身碟以開始使用。",
+    "retryDetection": "重新偵測"
+  },
+  "addToken": {
+    "add": "新增代幣",
+    "adding": "新增中…",
+    "contractAddress": "合約地址",
+    "decimals": "小數位數",
+    "error": "新增代幣失敗",
+    "invalidAddress": "請輸入有效的 0x… 合約地址",
+    "invalidDecimals": "小數位數必須介於 0–36",
+    "network": "網路",
+    "symbol": "符號",
+    "title": "匯入代幣"
   },
   "nav": {
     "dashboard": "儀表板",
     "settings": "設定",
-    "membership": "會員資格",
     "addresses": "地址",
     "transactions": "交易",
     "developerMode": "開發者"
@@ -43,7 +57,13 @@
     "save": "儲存",
     "saving": "儲存中...",
     "cancel": "取消",
-    "optional": "選填"
+    "optional": "選填",
+    "approve": "批准",
+    "back": "返回",
+    "close": "關閉",
+    "reject": "拒絕",
+    "sign": "簽署",
+    "tryAgain": "重試"
   },
   "wallet": {
     "wallet": "錢包",
@@ -64,16 +84,12 @@
     "addresses": "地址數量",
     "protectedWithPassphrase": "使用助記詞密碼保護",
     "walletLimit": "錢包上限",
-    "walletLimitReached": "已達錢包上限",
-    "maxLimitReached": "⚠️ 已達錢包上限（10 個錢包）。請先刪除一個錢包再建立新錢包。",
     "approachingLimit": "⚠️ 接近錢包上限：已建立 {{current}} / {{limit}} 個錢包。",
     "currentUsage": "目前使用量",
     "nameCannotBeEmpty": "錢包名稱不能為空",
     "nameTooLong": "錢包名稱不能超過 50 個字元",
     "renameFailed": "重新命名錢包失敗",
     "createFailed": "建立錢包失敗",
-    "deviceLimitReached": "裝置錢包上限已達（{{current}}/{{limit}}）。請升級至專業版或在設定 → 會員資格中綁定 NFT。",
-    "limitReachedCount": "已達錢包上限（{{current}}/{{limit}}）",
     "checkingDeviceLimit": "檢查裝置限制中...",
     "creatingWallet": "建立錢包中...",
     "discardCreation": "放棄建立錢包？",
@@ -81,8 +97,6 @@
     "discardChanges": "放棄變更",
     "continueEditing": "繼續編輯",
     "upgradePromptMessage": "您已達錢包上限（{{current}}/{{limit}}）。{{suggestion}}",
-    "purchaseMoreNfts": "購買更多 ArcSign Pro NFT 以增加上限（每個 NFT +3 個錢包）。",
-    "upgradeToPro": "升級至 ArcSign Pro 以增加上限（每個 NFT +3 個錢包）。",
     "importFailed": "匯入錢包失敗，請重試。",
     "overwriteNotImplemented": "覆寫功能尚未實作，請使用不同的助記詞。",
     "importing": "匯入中...",
@@ -92,9 +106,7 @@
     "duplicateWalletConfirm": "您確定要繼續嗎？",
     "overwrite": "覆寫",
     "discardImport": "放棄匯入錢包？",
-    "discardImportMessage": "您有未儲存的變更。確定要取消嗎？所有輸入的資訊將會遺失。",
-    "walletLocked": "此錢包已被鎖定，請升級會員以解鎖。",
-    "walletLockedShort": "錢包已鎖定"
+    "discardImportMessage": "您有未儲存的變更。確定要取消嗎？所有輸入的資訊將會遺失。"
   },
   "address": {
     "address": "地址",
@@ -141,7 +153,8 @@
     "hash": "交易哈希",
     "unknownToken": "未知代幣",
     "unknownTokenWarning": "此代幣不在 CoinGecko 白名單中，請謹慎操作。",
-    "tokenNotVerified": "未驗證"
+    "tokenNotVerified": "未驗證",
+    "erc20": "ERC-20"
   },
   "usb": {
     "usbDrive": "USB 隨身碟",
@@ -403,7 +416,13 @@
     "sessionExpired": "密碼已過期，請重新輸入密碼以繼續操作。",
     "hideScamTokens": "隱藏未知代幣",
     "showScamTokens": "顯示 {{count}} 個未知代幣",
-    "addressBook": "通訊錄"
+    "addressBook": "通訊錄",
+    "byChain": "依鏈",
+    "copyContract": "複製合約",
+    "hideZeroBalance": "隱藏零餘額代幣",
+    "importToken": "匯入代幣",
+    "showZeroBalance": "顯示 {{count}} 個零餘額代幣",
+    "manageSavedAddresses": "管理已儲存的地址"
   },
   "addressBook": {
     "addContact": "新增聯絡人",
@@ -469,6 +488,7 @@
   "appUnlock": {
     "title": "ArcSign",
     "subtitle": "安全冷錢包管理",
+    "tagline": "安全的多鏈冷錢包",
     "checkingStatus": "檢查設定狀態中...",
     "welcomeTitle": "歡迎使用 ArcSign",
     "welcomeDescription": "建立主密碼以保護您的錢包設定和 API 設定。每次啟動應用程式時都需要輸入此密碼。",
@@ -519,7 +539,10 @@
     "unlockWallet": "解鎖錢包",
     "loggedOutInactivity": "由於閒置過久，您已被登出。",
     "noWalletForAddress": "找不到此地址對應的錢包",
-    "missingRequiredInfo": "缺少必要資訊"
+    "missingRequiredInfo": "缺少必要資訊",
+    "tagline": "安全的多鏈錢包",
+    "featureDexSwap": "DEX 兌換",
+    "featureUsbColdStorage": "USB 冷儲存"
   },
   "deleteWallet": {
     "title": "刪除錢包",
@@ -727,40 +750,65 @@
     "minimumStakeRequired": "最低質押金額為 {{min}} {{symbol}}"
   },
   "developer": {
-    "title": "開發者模式",
-    "subtitle": "智能合約開發工具",
+    "autoNetworks": "自動簽署網路",
+    "autoSignEnabled": "測試網已啟用自動簽署",
     "connected": "已連線",
+    "defaultWallet": "預設簽署錢包",
+    "defaultWalletDesc": "進入開發者模式時自動選擇此錢包。來自 Hardhat 的開發交易將自動使用此錢包。",
     "disconnected": "未連線",
-    "selectWallet": "選擇錢包",
-    "selectWalletDescription": "選擇一個錢包用於簽署開發者交易。",
-    "noWallets": "未找到錢包。請先創建一個錢包。",
+    "endSession": "結束 Session",
+    "enterApiKey": "輸入 API 金鑰...",
     "enterPassword": "輸入錢包密碼",
     "enterPasswordDescription": "輸入此錢包的密碼以繼續。",
-    "passwordPlaceholder": "錢包密碼",
-    "unlock": "解鎖",
-    "pendingRequests": "待簽名請求",
+    "explorerApiKeys": "區塊瀏覽器 API 金鑰",
+    "explorerApiKeysDesc": "這些 API 金鑰用於合約驗證（hardhat verify）。不需要私鑰——只需在各區塊瀏覽器網站註冊即可取得。",
+    "getApiKey": "取得 API 金鑰",
     "history": "簽名紀錄",
-    "sessionSettings": "Session 設定",
+    "howToUse": "使用方式：",
+    "howToUseDesc1": "儲存 API 金鑰後，您可以在 hardhat.config.js 中使用它：",
+    "howToUseDesc2": "或複製金鑰並將其設為環境變數。",
+    "mainnetConfirm": "主網：始終需要確認",
+    "mainnetConfirmDesc": "Ethereum、BSC、Polygon 主網一律需要確認",
+    "manualLock": "手動鎖定",
+    "manualLockDesc": "您可以隨時手動結束 Session",
+    "messageToSign": "待簽署訊息",
+    "methodCall": "方法呼叫",
+    "noDefaultWallet": "— 每次選擇 —",
+    "noHistory": "尚無簽署紀錄",
+    "noHistoryDesc": "您已簽署和拒絕的交易會顯示在這裡。",
     "noRequests": "沒有待簽名的請求",
+    "noRequestsDesc": "當您執行 Hardhat 腳本時，簽署請求會顯示在這裡。",
     "noRequestsHint": "來自 Hardhat/Foundry 腳本的請求會顯示在這裡",
+    "noWallets": "未找到錢包。請先創建一個錢包。",
+    "passwordForSession": "輸入您的錢包密碼以開始 30 分鐘的自動簽署 Session。",
+    "passwordPlaceholder": "錢包密碼",
+    "pendingDevTx": "開發者交易正在等待批准，請選擇一個錢包以繼續。",
+    "pendingRequests": "待簽名請求",
+    "quickStart": "快速開始",
+    "rawData": "原始資料",
+    "remaining": "剩餘時間",
+    "save": "儲存",
+    "securityRules": "安全規則",
+    "selectWallet": "選擇錢包",
+    "selectWalletDescription": "選擇一個錢包用於簽署開發者交易。",
+    "sessionActive": "Session 進行中",
+    "sessionDesc": "啟用 Session 模式後，可自動簽署測試網交易，無需每次輸入密碼。",
+    "sessionInactive": "Session 未啟用",
+    "sessionSettings": "Session 設定",
+    "sessionTimeout": "Session 逾時：30 分鐘",
+    "sessionTimeoutDesc": "Session 在閒置 30 分鐘後自動過期",
+    "settings": "設定",
+    "settingsTitle": "開發者設定",
+    "signCount": "簽署次數",
+    "signingHistory": "簽署紀錄",
+    "startSession": "開始 Session",
+    "subtitle": "智能合約開發工具",
+    "testnetAuto": "測試網：自動簽署",
+    "testnetAutoDesc": "Sepolia、Goerli、BSC Testnet 在 Session 啟用時將自動簽署",
+    "title": "開發者模式",
+    "typedData": "Typed Data（EIP-712）",
+    "unlock": "解鎖",
     "waitingForScripts": "等待開發腳本的請求...",
-    "requestType": {
-      "deploy": "部署合約",
-      "call": "呼叫合約",
-      "sign": "簽署訊息"
-    },
-    "requestDetails": {
-      "from": "從",
-      "to": "至",
-      "network": "網路",
-      "chainId": "鏈 ID",
-      "script": "腳本",
-      "gasEstimate": "預估 Gas",
-      "value": "金額",
-      "data": "數據",
-      "method": "方法",
-      "params": "參數"
-    },
     "actions": {
       "approve": "批准並簽名",
       "reject": "拒絕",
@@ -769,23 +817,10 @@
       "approved": "已批准",
       "rejected": "已拒絕"
     },
-    "session": {
-      "title": "Session 授權",
-      "description": "啟用 Session 模式以在 30 分鐘內自動簽署測試網交易",
-      "enable": "啟用 Session",
-      "disable": "停用 Session",
-      "enabled": "Session 已啟用",
-      "disabled": "Session 已停用",
-      "expiresIn": "將於以下時間到期",
-      "signCount": "已簽署交易數",
-      "trustedNetworks": "信任的網路",
-      "securityRules": "安全規則",
-      "rules": {
-        "testnetAutoSign": "測試網交易自動簽署",
-        "mainnetConfirm": "主網交易始終需要確認",
-        "gasLimit": "超過 Gas 上限的交易需要確認",
-        "timeLimit": "Session 在 30 分鐘後過期"
-      }
+    "errors": {
+      "connectionFailed": "連接 WebSocket 伺服器失敗",
+      "signFailed": "簽署交易失敗",
+      "sessionExpired": "Session 已過期"
     },
     "historySection": {
       "title": "簽名紀錄",
@@ -814,10 +849,46 @@
       "placeholder": "輸入錢包密碼",
       "incorrect": "密碼錯誤，請重試。"
     },
-    "errors": {
-      "connectionFailed": "連接 WebSocket 伺服器失敗",
-      "signFailed": "簽署交易失敗",
-      "sessionExpired": "Session 已過期"
+    "requestDetails": {
+      "from": "從",
+      "to": "至",
+      "network": "網路",
+      "chainId": "鏈 ID",
+      "script": "腳本",
+      "gasEstimate": "預估 Gas",
+      "value": "金額",
+      "data": "數據",
+      "method": "方法",
+      "params": "參數",
+      "address": "地址",
+      "domain": "網域",
+      "nonce": "Nonce",
+      "gasLimit": "Gas 上限",
+      "gasPrice": "Gas 價格",
+      "estCost": "預估費用"
+    },
+    "requestType": {
+      "deploy": "部署合約",
+      "call": "呼叫合約",
+      "sign": "簽署訊息"
+    },
+    "session": {
+      "title": "Session 授權",
+      "description": "啟用 Session 模式以在 30 分鐘內自動簽署測試網交易",
+      "enable": "啟用 Session",
+      "disable": "停用 Session",
+      "enabled": "Session 已啟用",
+      "disabled": "Session 已停用",
+      "expiresIn": "將於以下時間到期",
+      "signCount": "已簽署交易數",
+      "trustedNetworks": "信任的網路",
+      "securityRules": "安全規則",
+      "rules": {
+        "testnetAutoSign": "測試網交易自動簽署",
+        "mainnetConfirm": "主網交易始終需要確認",
+        "gasLimit": "超過 Gas 上限的交易需要確認",
+        "timeLimit": "Session 在 30 分鐘後過期"
+      }
     }
   },
   "walletConnect": {
@@ -898,7 +969,8 @@
     "signatureSuccess": "簽名成功",
     "signatureFailed": "簽名失敗",
     "signaturePending": "簽名中...",
-    "viewOnExplorer": "在瀏覽器查看"
+    "viewOnExplorer": "在瀏覽器查看",
+    "txHash": "交易哈希"
   },
   "onboarding": {
     "skip": "稍後再說",
@@ -1017,12 +1089,10 @@
     "exportAllDescription": "將所有錢包匯出為單一加密 .arcsign-bundle 檔案",
     "exportAllConfirm": "匯出全部",
     "exportAllSuccess": "所有錢包匯出成功，請妥善保存。",
-    "exportAllProOnly": "Pro 會員可一鍵匯出所有錢包",
     "exportingAll": "正在匯出所有錢包...",
     "importAllTitle": "從 Bundle 匯入",
     "importAllDescription": "從 .arcsign-bundle 檔案還原所有錢包",
     "importAllSuccess": "成功匯入 {{count}} 個錢包。",
-    "importAllProOnly": "Pro 會員可一鍵匯入錢包 Bundle",
     "enterBundlePassword": "輸入匯出此 Bundle 時使用的密碼",
     "selectBundleFile": "選擇 .arcsign-bundle 檔案",
     "invalidBundle": "無效的 .arcsign-bundle 檔案。",
@@ -1152,5 +1222,69 @@
     "networkNotice": "更新會連線至 GitHub 下載最新描述資料，不會傳送任何與你錢包相關的資訊。",
     "updateDone": "已更新——目前有 {{count}} 筆描述。",
     "updateFailed": "更新失敗："
+  },
+  "tokenListDemo": {
+    "title": "代幣列表展示",
+    "selectChain": "選擇鏈：",
+    "searchToken": "搜尋代幣：",
+    "searchPlaceholder": "輸入代幣符號（例如 USDC）",
+    "searching": "搜尋中...",
+    "commonTokensDesc": "一律顯示的常見代幣（USDT、USDC、ETH 等）"
+  },
+  "receiveModal": {
+    "evmWarning": "此地址可接收 {{symbol}} 以及 {{network}} 網路上的所有代幣（ERC-20、NFT 等）。",
+    "nonEvmWarning": "請僅將 {{symbol}} 傳送至此地址，傳送其他加密貨幣可能導致永久遺失。",
+    "receiveSymbol": "接收 {{symbol}}"
+  },
+  "errorBoundary": {
+    "appTitle": "發生錯誤",
+    "componentTitle": "此區塊發生錯誤",
+    "unexpectedError": "發生非預期的錯誤。",
+    "fundsSafe": "您的資金是安全的，沒有交易被送出。"
+  },
+  "sendTransaction": {
+    "blacklistedAddress": "黑名單地址",
+    "simulationWarning": "模擬警告",
+    "simulationPreview": "模擬預覽",
+    "gasLabel": "Gas",
+    "notOnBlacklist": "此地址不在任何已知黑名單中。",
+    "selectTokenTitle": "選擇要發送的代幣",
+    "selectTokenDescription": "選擇您要發送的資產",
+    "noTokensAvailable": "沒有可發送的代幣餘額",
+    "testnet": "測試網",
+    "balance": "餘額",
+    "change": "更換",
+    "toAddress": "收款地址",
+    "invalidAddress": "無效的 Ethereum 地址",
+    "transactionSpeed": "交易速度",
+    "erc20GasNotice": "這是一個 ERC-20 代幣，Gas 費用將以 {{symbol}} 支付。",
+    "buildingTransaction": "建構交易中...",
+    "continue": "繼續",
+    "reviewTransaction": "檢視交易",
+    "estimatedFee": "預估手續費",
+    "total": "總計",
+    "understandRiskContinue": "我了解風險 — 繼續",
+    "confirmAndSign": "確認並簽署",
+    "passwordRequiredDescription": "您的密碼是安全簽署此交易所必需的。",
+    "passphraseVerified": "BIP39 密碼短語已驗證",
+    "signAndSend": "簽署並發送",
+    "signingTransaction": "簽署交易中...",
+    "pleaseWaitSigning": "請稍候，您的交易正在簽署中。",
+    "broadcastingTransaction": "廣播交易中...",
+    "submittingToNetwork": "正在將您的交易提交到 {{network}} 網路。",
+    "transactionSubmitted": "交易已提交！",
+    "submittedToNetwork": "您的交易已提交到 {{network}} 網路。",
+    "viewOnExplorer": "在區塊瀏覽器上查看 →",
+    "sendAnother": "再次發送",
+    "loadingTransactionHistory": "載入交易紀錄中...",
+    "confirmTransaction": "確認交易",
+    "action": "動作",
+    "signAndBroadcast": "簽署並廣播",
+    "signOnly": "僅簽署",
+    "usbConnected": "USB 裝置已連接",
+    "pleaseInsertUsb": "請插入您的 USB 裝置",
+    "signTransaction": "簽署交易",
+    "externalAppNotice": "此交易由外部應用程式請求。簽署前請務必確認所有詳情。",
+    "required": "必要"
   }
 }
