@@ -14,9 +14,9 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { AddressBook } from "@/components/AddressBook";
-import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
+import { SignReview } from "@/components/SignReview";
 import { PasswordInput } from "@/components/PasswordInput";
-import { useSignGate } from "@/hooks/useSignGate";
+import { useSignReview } from "@/hooks/useSignReview";
 import { getNativeToken, getNetworkKey } from "@/constants/nativeTokens";
 import tauriApi, {
   type BuildTransactionResponse,
@@ -307,14 +307,16 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
   // target (token contract for ERC-20, recipient for native). Runs the txguard
   // security check, surfaces the backend's requiresAcknowledge conclusion, and
   // holds the acknowledgment checkbox state. Null until the tx is assembled.
-  const gate = useSignGate(
+  const review = useSignReview(
     unsignedTx && selectedToken
       ? {
           from: unsignedTx.from,
           to: unsignedTx.to,
           chainId,
           value: unsignedTx.amount,
-          data: "",
+          // The real calldata, not "": an ERC-20 transfer must decode as one
+          // and its digest must cover the bytes actually being signed.
+          data: unsignedTx.data ?? "",
           usbPath,
           sessionToken,
         }
@@ -425,7 +427,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
   const handleSignTransaction = async () => {
     // Action-level guard: refuse to sign a backend-flagged danger until the user
     // ticks the acknowledgment checkbox (mirrors the button's disabled prop).
-    if (gate.requiresAcknowledge && !gate.acknowledged) {
+    if (review.requiresAcknowledge && !review.acknowledged) {
       return;
     }
 
@@ -453,7 +455,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         unsignedTx: unsignedTx,  // Pass the full BuildTransactionResponse
         usbPath,
         sessionToken,  // ✅ Session token for provider config access
-        acknowledgedRisk: gate.acknowledged,  // user acknowledged a backend-flagged danger
+        acknowledgedRisk: review.acknowledged,  // user acknowledged a backend-flagged danger
       });
       setSignedTx(result);
 
@@ -889,12 +891,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
             </div>
           )}
 
-          {/* High-risk acknowledgment — friction gate for backend-flagged dangers */}
-          <SignGateAcknowledge
-            requiresAcknowledge={gate.requiresAcknowledge}
-            acknowledged={gate.acknowledged}
-            onChange={gate.setAcknowledged}
-          />
+          {/* Full pre-signature review: what it does, what's risky, consent, digest */}
+          <SignReview review={review} />
 
           <div className="password-actions">
             <button className="secondary-button" onClick={() => setStep("review")}>
@@ -903,8 +901,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
             <button
               className="primary-button"
               onClick={handleSignTransaction}
-              disabled={!walletPassword || isLoading || (gate.requiresAcknowledge && !gate.acknowledged)}
-              style={gate.requiresAcknowledge ? { background: "#dc2626", boxShadow: "none" } : undefined}
+              disabled={!walletPassword || isLoading || (review.requiresAcknowledge && !review.acknowledged)}
+              style={review.requiresAcknowledge ? { background: "#dc2626", boxShadow: "none" } : undefined}
             >
               Sign & Send
             </button>

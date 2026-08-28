@@ -8,6 +8,8 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useTokenApprovals } from "@/hooks/useTokenApprovals";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { useSignReview } from "@/hooks/useSignReview";
+import { SignReview } from "@/components/SignReview";
 import tauriApi from "@/services/tauri-api";
 import type { ApprovalEntry } from "@/types/approvals";
 
@@ -100,6 +102,12 @@ export function TokenApprovals({
     message: string;
   } | null>(null);
 
+  // Confirmation gates: revoke no longer fires immediately on click. The user
+  // must review + (if the backend flags danger) acknowledge first.
+  const [pendingRevoke, setPendingRevoke] = useState<ApprovalEntry | null>(null);
+  const [pendingBatch, setPendingBatch] = useState<ApprovalEntry[] | null>(null);
+  const [batchAcknowledged, setBatchAcknowledged] = useState(false);
+
   // Load on mount
   useEffect(() => {
     refresh();
@@ -156,8 +164,27 @@ export function TokenApprovals({
     return APPROVE_SELECTOR + cleanSpender + zeroAmount;
   };
 
-  // Single revoke
-  const handleRevoke = useCallback(
+  // Single-revoke sign review: only built once a revoke is pending confirmation,
+  // since it needs the full to/data pair that buildRevokeData produces.
+  const singleReview = useSignReview(
+    pendingRevoke
+      ? {
+          from: pendingRevoke.ownerAddress,
+          to: pendingRevoke.tokenAddress,
+          chainId: NETWORK_TO_CHAIN_ID[pendingRevoke.network] || pendingRevoke.network,
+          value: "0",
+          data: buildRevokeData(pendingRevoke.spender),
+          usbPath,
+          sessionToken: sessionToken || "",
+        }
+      : null,
+  );
+
+  // Click "Revoke" opens the confirmation panel instead of signing immediately.
+  const handleRevoke = (approval: ApprovalEntry) => setPendingRevoke(approval);
+
+  // Actually build/sign/broadcast the revoke — only reachable from the confirm panel.
+  const executeRevoke = useCallback(
     async (approval: ApprovalEntry) => {
       const id = getApprovalId(approval);
       setRevokingId(id);
@@ -211,17 +238,37 @@ export function TokenApprovals({
         setRevokeResult({ type: "error", message: msg });
       } finally {
         setRevokingId(null);
+        setPendingRevoke(null);
       }
     },
     [walletId, password, usbPath, sessionToken, refresh, t]
   );
 
-  // Batch revoke
-  const handleBatchRevoke = useCallback(async () => {
-    const toRevoke = filteredApprovals.filter((a) =>
-      selectedIds.has(getApprovalId(a))
-    );
+  // Confirm button in the single-revoke panel: honors the acknowledge gate,
+  // then runs the actual sign/broadcast.
+  const confirmRevoke = useCallback(() => {
+    if (!pendingRevoke) return;
+    if (singleReview.requiresAcknowledge && !singleReview.acknowledged) return;
+    executeRevoke(pendingRevoke);
+  }, [pendingRevoke, singleReview.requiresAcknowledge, singleReview.acknowledged, executeRevoke]);
+
+  // Batch revoke: opens the confirmation panel. Actual execution is in executeBatchRevoke.
+  const handleBatchRevoke = () => {
+    const toRevoke = filteredApprovals.filter((a) => selectedIds.has(getApprovalId(a)));
     if (toRevoke.length === 0) return;
+    setBatchAcknowledged(false);
+    setPendingBatch(toRevoke);
+  };
+
+  // Any selected approval flagged red requires explicit acknowledgment —
+  // a single "looks fine" checkbox must not paper over one dangerous target.
+  const batchRequiresAcknowledge = (pendingBatch ?? []).some((a) => a.riskLevel === "red");
+
+  // Batch revoke execution — only reachable from the confirm panel.
+  const executeBatchRevoke = useCallback(async () => {
+    const toRevoke = pendingBatch;
+    if (!toRevoke || toRevoke.length === 0) return;
+    if (batchRequiresAcknowledge && !batchAcknowledged) return;
 
     setBatchRevoking(true);
     setBatchProgress({ current: 0, total: toRevoke.length });
@@ -275,6 +322,7 @@ export function TokenApprovals({
 
     setBatchRevoking(false);
     setSelectedIds(new Set());
+    setPendingBatch(null);
 
     const parts: string[] = [];
     if (successCount > 0) parts.push(`${successCount} ${t("tokenApprovals.success")}`);
@@ -285,7 +333,7 @@ export function TokenApprovals({
     });
 
     setTimeout(() => refresh(), 2000);
-  }, [filteredApprovals, selectedIds, walletId, password, usbPath, sessionToken, refresh, t]);
+  }, [pendingBatch, batchRequiresAcknowledge, batchAcknowledged, walletId, password, usbPath, sessionToken, refresh, t]);
 
   // ========================================================================
   // Render
@@ -387,6 +435,179 @@ export function TokenApprovals({
   // Data view
   return (
     <div style={{ padding: "0 0 1rem 0" }}>
+      {/* Single-revoke confirmation: reviews the revoke calldata before signing. */}
+      {pendingRevoke && (
+        <div
+          data-testid="revoke-confirm"
+          style={{
+            margin: "0 1.5rem 1rem",
+            padding: "1rem",
+            background: "rgba(241, 245, 249, 0.7)",
+            border: "1px solid rgba(226, 232, 240, 0.9)",
+            borderRadius: "12px",
+          }}
+        >
+          <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1e293b", marginBottom: "0.5rem" }}>
+            {t("tokenApprovals.confirmRevoke")}
+          </p>
+          <SignReview review={singleReview} />
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
+            <button
+              onClick={confirmRevoke}
+              disabled={
+                revokingId !== null ||
+                (singleReview.requiresAcknowledge && !singleReview.acknowledged)
+              }
+              style={{
+                padding: "0.4rem 1rem",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                background: "#ef4444",
+                color: "#fff",
+                border: "none",
+                borderRadius: "8px",
+                cursor: revokingId !== null ? "not-allowed" : "pointer",
+                opacity:
+                  revokingId !== null ||
+                  (singleReview.requiresAcknowledge && !singleReview.acknowledged)
+                    ? 0.5
+                    : 1,
+              }}
+            >
+              {revokingId !== null ? "..." : t("tokenApprovals.confirmRevokeButton")}
+            </button>
+            <button
+              onClick={() => setPendingRevoke(null)}
+              disabled={revokingId !== null}
+              style={{
+                padding: "0.4rem 1rem",
+                fontSize: "0.8rem",
+                background: "transparent",
+                color: "#64748b",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                cursor: "pointer",
+              }}
+            >
+              {t("actions.cancel")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Batch-revoke confirmation: lists each target + risk level, one shared checkbox. */}
+      {pendingBatch && (
+        <div
+          data-testid="batch-revoke-confirm"
+          style={{
+            margin: "0 1.5rem 1rem",
+            padding: "1rem",
+            background: "rgba(241, 245, 249, 0.7)",
+            border: "1px solid rgba(226, 232, 240, 0.9)",
+            borderRadius: "12px",
+          }}
+        >
+          <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1e293b", marginBottom: "0.5rem" }}>
+            {t("tokenApprovals.confirmBatchRevoke", { count: pendingBatch.length })}
+          </p>
+          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 0.75rem" }}>
+            {pendingBatch.map((a) => (
+              <li
+                key={getApprovalId(a)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  fontSize: "0.8rem",
+                  padding: "0.35rem 0",
+                  borderBottom: "1px solid rgba(226, 232, 240, 0.6)",
+                  color: "#334155",
+                }}
+              >
+                <span>
+                  {a.tokenSymbol || truncateAddress(a.tokenAddress)} →{" "}
+                  {truncateAddress(a.spender)}
+                </span>
+                {a.riskLevel && (
+                  <span
+                    style={{
+                      fontSize: "0.625rem",
+                      fontWeight: 700,
+                      color: riskColor(a.riskLevel),
+                      background: `${riskColor(a.riskLevel)}1a`,
+                      padding: "0.1rem 0.4rem",
+                      borderRadius: "4px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {t(`tokenApprovals.risk.${a.riskLevel}`)}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          {batchRequiresAcknowledge && (
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                fontSize: "0.8rem",
+                color: "#dc2626",
+                marginBottom: "0.75rem",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={batchAcknowledged}
+                onChange={(e) => setBatchAcknowledged(e.target.checked)}
+                style={{ accentColor: "#dc2626" }}
+              />
+              {t("tokenApprovals.batchAcknowledge")}
+            </label>
+          )}
+
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button
+              onClick={executeBatchRevoke}
+              disabled={batchRevoking || (batchRequiresAcknowledge && !batchAcknowledged)}
+              style={{
+                padding: "0.4rem 1rem",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                background: "#ef4444",
+                color: "#fff",
+                border: "none",
+                borderRadius: "8px",
+                cursor: batchRevoking ? "not-allowed" : "pointer",
+                opacity: batchRevoking || (batchRequiresAcknowledge && !batchAcknowledged) ? 0.5 : 1,
+              }}
+            >
+              {batchRevoking
+                ? `${t("tokenApprovals.processing")} ${batchProgress.current}/${batchProgress.total}`
+                : t("tokenApprovals.confirmRevokeButton")}
+            </button>
+            <button
+              onClick={() => setPendingBatch(null)}
+              disabled={batchRevoking}
+              style={{
+                padding: "0.4rem 1rem",
+                fontSize: "0.8rem",
+                background: "transparent",
+                color: "#64748b",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                cursor: "pointer",
+              }}
+            >
+              {t("actions.cancel")}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Summary bar */}
       <div
         style={{

@@ -81,3 +81,38 @@ describe('a digest cannot influence the signing gate', () => {
     expect(r.digest?.primary).toMatch(/^0x[0-9a-f]{64}$/);
   });
 });
+
+describe('SignReview does not change what the gate decides', () => {
+  it('derives requiresAcknowledge from the backend report alone', async () => {
+    const api = await import('@/services/tauri-api');
+    const { renderHook, waitFor } = await import('@testing-library/react');
+    const { useSignReview } = await import('@/hooks/useSignReview');
+
+    vi.spyOn(api, 'checkTransactionSecurity').mockResolvedValue({
+      requiresAcknowledge: true, riskLevel: 'danger', warnings: [],
+    } as never);
+    mockInvoke.mockResolvedValue(null);
+
+    const { result } = renderHook(() =>
+      useSignReview({
+        from: '0x1111111111111111111111111111111111111111',
+        to: '0x2222222222222222222222222222222222222222',
+        chainId: '1', value: '0',
+        data: encodeFunctionData({
+          abi: erc20Abi, functionName: 'approve',
+          args: ['0x3333333333333333333333333333333333333333', 2n ** 256n - 1n],
+        }),
+        usbPath: '/Volumes/arcsign', sessionToken: 'tok',
+      }),
+    );
+
+    await waitFor(() => expect(result.current.security).toBeDefined());
+
+    // Readability arrived…
+    expect(result.current.intent?.digest?.primary).toBeTruthy();
+    // …and the backend verdict is unchanged by its presence.
+    expect(result.current.requiresAcknowledge).toBe(true);
+    // …and the risk badge computed from the ABI survives.
+    expect(result.current.intent?.risks).toContain('unlimited-approval');
+  });
+});

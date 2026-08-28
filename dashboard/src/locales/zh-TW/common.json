@@ -1091,7 +1091,11 @@
     "selectAll": "全選",
     "deselectAll": "取消全選",
     "success": "成功",
-    "failed": "失敗"
+    "failed": "失敗",
+    "confirmRevoke": "簽署前請先確認",
+    "confirmBatchRevoke": "簽署前請先確認這 {{count}} 筆撤銷",
+    "confirmRevokeButton": "確認並簽署",
+    "batchAcknowledge": "這批當中至少有一個被授權方為高風險，我了解風險並仍要撤銷。"
   },
   "clearSign": {
     "unreadableTitle": "無法解讀此交易",

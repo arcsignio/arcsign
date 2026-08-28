@@ -125,6 +125,10 @@ go test -run TestSpecificName ./...       # Run single test
   不得影響 `requiresAcknowledge` 或風險徽章。顯示一律完整 64 字元分 16 組，
   **不得截斷**：只比對頭尾會把偽造難度從 2^256 降到可行範圍。畸形輸入不得被靜默
   正規化成與合法 calldata 相同的 digest。
+- **簽章前置資訊統一走 `useSignReview` + `<SignReview>`**：任何會請求簽章的畫面
+  都必須渲染 `<SignReview>`，不得自行呼叫 `decodeCalldata` 或自建 acknowledge
+  checkbox。安全判定仍由後端算、前端只讀；把可讀性與安全結論綁在同一個 hook 是
+  為了讓「接了閘卻忘了可讀性」不可能發生——那正是六個畫面同時缺少兩者的原因。
 
 ### Provider data path (read-on-chain: balances / tokens / NFTs / transfers)
 

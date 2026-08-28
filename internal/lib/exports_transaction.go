@@ -9,6 +9,7 @@ package main
 import "C"
 import (
 	"context"
+	"encoding/hex"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -212,10 +213,18 @@ func BuildTransaction(params *C.char) (result *C.char) {
 				txValue = vs
 			}
 		}
-		if d, ok := unsigned.ChainSpecific["data"]; ok {
-			if ds, ok := d.(string); ok {
-				txData = ds
+		// ChainSpecific["data"] is stored as []byte by the EVM builder, but may
+		// arrive as a hex string after a JSON round-trip. Asserting only one of
+		// the two silently yields empty calldata — which left both the security
+		// check and the clear-signing display blind to what the transaction
+		// actually calls.
+		switch d := unsigned.ChainSpecific["data"].(type) {
+		case []byte:
+			if len(d) > 0 {
+				txData = "0x" + hex.EncodeToString(d)
 			}
+		case string:
+			txData = d
 		}
 	}
 	securityReport := guard.Check(ctx, input.To, input.ChainID, alchemyAPIKey, simulation.TxParams{
@@ -234,6 +243,11 @@ func BuildTransaction(params *C.char) (result *C.char) {
 		"amount":          unsigned.Amount.String(),
 		"fee":             unsigned.Fee.String(),
 		"signingPayload":  signingPayloadB64,
+		// The contract calldata this transaction will carry ("" for a plain
+		// native transfer). The frontend needs it to decode the transaction and
+		// to compute the ERC-8213 digest over the exact bytes being signed —
+		// without it, an ERC-20 transfer is indistinguishable from an empty one.
+		"data":            txData,
 		"humanReadable":   unsigned.HumanReadable,
 		"buildTimestamp":  time.Now().Format(time.RFC3339),
 		"chainSpecific":   unsigned.ChainSpecific, // Critical for transaction reconstruction during signing

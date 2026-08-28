@@ -15,9 +15,9 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import tauriApi, { type AppError, type BuildTransactionResponse } from "@/services/tauri-api";
-import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
+import { SignReview } from "@/components/SignReview";
 import { PasswordInput } from "@/components/PasswordInput";
-import { useSignGate } from "@/hooks/useSignGate";
+import { useSignReview } from "@/hooks/useSignReview";
 import type { SendableToken } from "./SendTransaction";
 import type { StakingStep, StakableAsset, StakingProvider } from "@/types/defi";
 import {
@@ -215,7 +215,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
       sessionToken,
     };
   }, [selectedOption, selectedAssetAddress, amount, usbPath, sessionToken]);
-  const gate = useSignGate(gateParams);
+  const review = useSignReview(gateParams);
 
   // Calculate estimated output (1:1 for most liquid staking)
   useEffect(() => {
@@ -328,7 +328,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
   const handleExecuteStaking = async () => {
     // Action-level guard: refuse to sign a backend-flagged danger until the user
     // ticks the acknowledgment checkbox (mirrors the button's disabled prop).
-    if (gate.requiresAcknowledge && !gate.acknowledged) {
+    if (review.requiresAcknowledge && !review.acknowledged) {
       return;
     }
 
@@ -372,7 +372,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         unsignedTx: buildResult,
         usbPath,
         sessionToken,  // ✅ Session token for provider config
-        acknowledgedRisk: gate.acknowledged,  // user acknowledged a backend-flagged danger
+        acknowledgedRisk: review.acknowledged,  // user acknowledged a backend-flagged danger
       });
 
       console.log("Transaction signed");
@@ -703,12 +703,8 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         </div>
       )}
 
-      {/* High-risk acknowledgment — friction gate for backend-flagged dangers */}
-      <SignGateAcknowledge
-        requiresAcknowledge={gate.requiresAcknowledge}
-        acknowledged={gate.acknowledged}
-        onChange={gate.setAcknowledged}
-      />
+      {/* Full pre-signature review: what it does, what's risky, consent, digest */}
+      <SignReview review={review} />
 
       <div className="flex gap-3">
         <button
@@ -722,9 +718,9 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         </button>
         <button
           onClick={handleExecuteStaking}
-          disabled={!walletPassword || isLoading || (gate.requiresAcknowledge && !gate.acknowledged)}
+          disabled={!walletPassword || isLoading || (review.requiresAcknowledge && !review.acknowledged)}
           className={`flex-1 py-3 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed ${
-            gate.requiresAcknowledge ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
+            review.requiresAcknowledge ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
           }`}
         >
           {t('staking.confirmAndStake')}

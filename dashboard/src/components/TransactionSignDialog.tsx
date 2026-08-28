@@ -10,12 +10,9 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { PendingTransactionInfo } from '@/services/tauri-api';
-import { decodeCalldata } from '@/services/clearsign/decodeCalldata';
-import type { DecodedIntent } from '@/services/clearsign/types';
-import { ClearSignSummary } from '@/components/ClearSignSummary';
+import { SignReview } from '@/components/SignReview';
 import { PasswordInput } from '@/components/PasswordInput';
-import { chainIdToNetwork } from '@/services/clearsign/chainIdToNetwork';
-import { useSignGate } from '@/hooks/useSignGate';
+import { useSignReview } from '@/hooks/useSignReview';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { useSessionStore } from '@/stores/sessionStore';
 
@@ -39,18 +36,17 @@ export function TransactionSignDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [usbConnected, setUsbConnected] = useState(false);
-  const [intent, setIntent] = useState<DecodedIntent | null>(null);
 
   // Read usbPath and sessionToken from Zustand stores
   const usbPath = useDashboardStore((state) => state.usbPath) ?? '';
-  const onlineDecodingEnabled = useDashboardStore((s) => s.onlineDecodingEnabled);
   const sessionToken = useSessionStore((state) => state.token) ?? '';
 
-  // Shared sign-gate: runs the txguard security check, surfaces the backend's
-  // requiresAcknowledge conclusion, and holds the acknowledgment checkbox state.
-  // Replaces the previous bespoke security state + checkTransactionSecurity effect
-  // + acknowledged state in this dialog. Re-locks automatically on a new tx.
-  const gate = useSignGate(
+  // Shared sign-review: runs the txguard security check, decodes the calldata
+  // for clear-signing display, surfaces the backend's requiresAcknowledge
+  // conclusion, and holds the acknowledgment checkbox state. Replaces the
+  // previous bespoke security state + decodeCalldata effect + acknowledged
+  // state in this dialog. Re-locks automatically on a new tx.
+  const review = useSignReview(
     transaction && usbPath
       ? {
           from: transaction.from,
@@ -63,39 +59,24 @@ export function TransactionSignDialog({
         }
       : null,
   );
-  const security = gate.security;
-  const acknowledged = gate.acknowledged;
-  const setAcknowledged = gate.setAcknowledged;
+  const acknowledged = review.acknowledged;
 
   // Check USB connection on mount
   useEffect(() => {
     if (transaction) {
       checkUsbConnection();
-      // Reset state (acknowledgment reset is handled by useSignGate on tx change)
+      // Reset state (acknowledgment reset is handled by useSignReview on tx change)
       setPassword('');
       setError(null);
     }
   }, [transaction]);
 
-  // Decode calldata for clear-signing display
-  useEffect(() => {
-    if (!transaction) { setIntent(null); return; }
-    const network = chainIdToNetwork(transaction.chain_id);
-    decodeCalldata(network, transaction.to, transaction.data, transaction.value, {
-      onlineEnabled: onlineDecodingEnabled,
-      // Opt into the per-USB ABI cache only when we have an unlocked session.
-      usb: usbPath && sessionToken ? { usbPath, sessionToken } : undefined,
-    })
-      .then(setIntent)
-      .catch(() => setIntent(null));
-  }, [transaction, onlineDecodingEnabled, usbPath, sessionToken]);
-
   // High-risk gate: a danger/blacklist report locks the Sign button behind an
   // acknowledgment checkbox. The button stays red even after acknowledgment —
   // the danger doesn't disappear once the box is ticked; reverting to teal would
   // signal a false "all clear". Red + enabled = "you are knowingly signing a
-  // dangerous transaction". Conclusion comes from the shared gate (backend).
-  const highRisk = gate.requiresAcknowledge;
+  // dangerous transaction". Conclusion comes from the shared review (backend).
+  const highRisk = review.requiresAcknowledge;
 
   const checkUsbConnection = async () => {
     try {
@@ -218,16 +199,9 @@ export function TransactionSignDialog({
           </div>
 
           {/* Clear-signing summary */}
-          {(intent || security) && (
-            <div style={{ marginTop: '0.5rem' }}>
-              <ClearSignSummary
-                intent={intent}
-                security={security}
-                acknowledged={acknowledged}
-                onAcknowledgeChange={setAcknowledged}
-              />
-            </div>
-          )}
+          <div style={{ marginTop: '0.5rem' }}>
+            <SignReview review={review} />
+          </div>
 
           {/* Value (if not zero) */}
           {transaction.value && transaction.value !== '0x0' && transaction.value !== '0' && (

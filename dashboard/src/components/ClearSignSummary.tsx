@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { DecodedIntent, ClearSignRisk } from "@/services/clearsign/types";
 import type { SecurityReport } from "@/services/tauri-api";
 import { isHighRiskSign } from "@/services/clearsign/riskGate";
-import { formatDigest } from "@/services/clearsign/digest";
+import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
 
 const RISK_KEY: Record<ClearSignRisk, string> = {
   "unlimited-approval": "clearSign.riskUnlimited",
@@ -24,8 +24,6 @@ export function ClearSignSummary({
 }) {
   const { t } = useTranslation();
   const [showRaw, setShowRaw] = useState(false);
-  const [showDigestDetail, setShowDigestDetail] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   return (
     <div>
@@ -209,128 +207,11 @@ export function ClearSignSummary({
       )}
 
       {/* High-risk acknowledgment — friction gate, controlled by parent dialog */}
-      {isHighRiskSign(security) && (
-        <label
-          style={{
-            marginTop: "0.5rem",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "0.5rem",
-            padding: "0.75rem 1rem",
-            background: "#fef2f2",
-            border: "1px solid #fecaca",
-            borderRadius: "10px",
-            fontSize: "0.8125rem",
-            fontWeight: 600,
-            color: "#b91c1c",
-            cursor: "pointer",
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={acknowledged ?? false}
-            onChange={(e) => onAcknowledgeChange?.(e.target.checked)}
-            style={{ marginTop: "0.15rem" }}
-          />
-          <span>{t("clearSign.ackRisk")}</span>
-        </label>
-      )}
-
-      {intent?.digest && (
-        <div
-          style={{
-            marginTop: "0.75rem",
-            paddingTop: "0.75rem",
-            borderTop: "1px solid #e2e8f0",
-            fontSize: "0.75rem",
-            color: "#64748b",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span style={{ fontWeight: 600 }}>
-              {intent.digest.kind === "eip712"
-                ? t("clearSign.digestEip712")
-                : t("clearSign.digestCalldata")}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard
-                  ?.writeText(intent.digest!.primary)
-                  .then(() => {
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  })
-                  .catch(() => setCopied(false));
-              }}
-              style={{
-                border: "none",
-                background: "transparent",
-                color: "#0f766e",
-                cursor: "pointer",
-                fontSize: "0.75rem",
-                padding: 0,
-              }}
-            >
-              {copied ? t("clearSign.digestCopied") : t("clearSign.digestCopy")}
-            </button>
-          </div>
-
-          <div
-            style={{
-              fontFamily: "monospace",
-              wordBreak: "break-all",
-              lineHeight: 1.6,
-              marginTop: "0.25rem",
-            }}
-          >
-            {formatDigest(intent.digest.primary)}
-          </div>
-
-          <div style={{ marginTop: "0.25rem", fontSize: "0.7rem" }}>
-            {t("clearSign.digestHint")}
-          </div>
-
-          {intent.digest.detail && (
-            <>
-              <button
-                type="button"
-                onClick={() => setShowDigestDetail((v) => !v)}
-                style={{
-                  marginTop: "0.4rem",
-                  border: "none",
-                  background: "transparent",
-                  color: "#0f766e",
-                  cursor: "pointer",
-                  fontSize: "0.7rem",
-                  padding: 0,
-                }}
-              >
-                {showDigestDetail
-                  ? t("clearSign.digestHideDetail")
-                  : t("clearSign.digestShowDetail")}
-              </button>
-
-              {showDigestDetail && (
-                <div style={{ marginTop: "0.4rem", display: "grid", gap: "0.4rem" }}>
-                  <div>
-                    <div style={{ fontWeight: 600 }}>{t("clearSign.digestDomainHash")}</div>
-                    <div style={{ fontFamily: "monospace", wordBreak: "break-all" }}>
-                      {formatDigest(intent.digest.detail.domainHash)}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 600 }}>{t("clearSign.digestMessageHash")}</div>
-                    <div style={{ fontFamily: "monospace", wordBreak: "break-all" }}>
-                      {formatDigest(intent.digest.detail.messageHash)}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
+      <SignGateAcknowledge
+        requiresAcknowledge={isHighRiskSign(security)}
+        acknowledged={acknowledged ?? false}
+        onChange={(v) => onAcknowledgeChange?.(v)}
+      />
     </div>
   );
 }

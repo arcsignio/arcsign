@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { SignGateAcknowledge } from "@/components/SignGateAcknowledge";
+import { SignReview } from "@/components/SignReview";
+import type { SignReview as SignReviewData } from "@/hooks/useSignReview";
 import {
   fromSmallestUnit,
   getNetworkIcon,
@@ -23,17 +24,8 @@ interface SwapConfirmProps {
   routeChanged: boolean;
   walletPassword: string;
   isLoading: boolean;
-  /**
-   * gate.requiresAcknowledge — backend-computed high-risk flag.
-   * The useSignGate call itself stays in the PARENT (SwapTransaction).
-   */
-  requiresAcknowledge: boolean;
-  /**
-   * gate.acknowledged — controlled checkbox state held by useSignGate in the parent.
-   */
-  acknowledged: boolean;
-  /** Forwards to gate.setAcknowledged — wired unchanged. */
-  onAcknowledgeChange: (checked: boolean) => void;
+  /** Full pre-signature review: security verdict, consent state, and readability. */
+  review: SignReviewData;
   onPasswordChange: (value: string) => void;
   onConfirm: () => void;
 }
@@ -46,9 +38,7 @@ export const SwapConfirm: React.FC<SwapConfirmProps> = ({
   routeChanged,
   walletPassword,
   isLoading,
-  requiresAcknowledge,
-  acknowledged,
-  onAcknowledgeChange,
+  review,
   onPasswordChange,
   onConfirm,
 }) => {
@@ -131,20 +121,15 @@ export const SwapConfirm: React.FC<SwapConfirmProps> = ({
         />
       </div>
 
-      {/* High-risk acknowledgment — friction gate for backend-flagged dangers.
-          SignGateAcknowledge renders nothing when requiresAcknowledge is false.
-          The useSignGate call stays in the PARENT; we receive pre-computed values. */}
-      <SignGateAcknowledge
-        requiresAcknowledge={requiresAcknowledge}
-        acknowledged={acknowledged}
-        onChange={onAcknowledgeChange}
-      />
+      {/* Full pre-signature review: what it does, what's risky, consent, digest.
+          The useSignReview call stays in the PARENT; we receive pre-computed values. */}
+      <SignReview review={review} />
 
       <button
         className="primary-button"
         onClick={onConfirm}
-        disabled={isLoading || !walletPassword || (requiresAcknowledge && !acknowledged)}
-        style={requiresAcknowledge ? { background: "#dc2626", boxShadow: "none" } : undefined}
+        disabled={isLoading || !walletPassword || (review.requiresAcknowledge && !review.acknowledged)}
+        style={review.requiresAcknowledge ? { background: "#dc2626", boxShadow: "none" } : undefined}
       >
         {isLoading ? t('swap.processing') : t('swap.confirmSwap')}
       </button>

@@ -92,6 +92,7 @@ const mockBuildResponse = {
   amount: '500000000000000000',
   fee: '2100000000000000',
   signingPayload: 'base64payload==',
+  data: '', // native transfer carries no calldata
   humanReadable: '{}',
   buildTimestamp: '2026-03-24T00:00:00Z',
 };

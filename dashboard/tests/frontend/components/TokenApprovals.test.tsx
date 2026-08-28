@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TokenApprovals } from '@/components/TokenApprovals';
 
@@ -18,6 +18,21 @@ vi.mock('@/services/tauri-api', () => ({
     signTransaction: vi.fn(),
     broadcastTransaction: vi.fn(),
   },
+}));
+
+// The confirm panel wires useSignReview for the calldata review + acknowledge
+// gate. Real hook calls checkTransactionSecurity/decodeCalldata against a real
+// USB/backend — mock it so these tests stay backend-free. Individual tests can
+// override the return value to exercise the requiresAcknowledge gate.
+const mockUseSignReview = vi.fn(() => ({
+  security: undefined,
+  requiresAcknowledge: false,
+  acknowledged: false,
+  setAcknowledged: vi.fn(),
+  intent: undefined,
+}));
+vi.mock('@/hooks/useSignReview', () => ({
+  useSignReview: (...args: unknown[]) => mockUseSignReview(...args),
 }));
 
 import { useTokenApprovals } from '@/hooks/useTokenApprovals';
@@ -83,6 +98,16 @@ function setupMocks(overrides?: {
 describe('TokenApprovals', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Restore the default (no acknowledgment required) — individual tests that
+    // call mockReturnValue() to exercise the gate would otherwise leak into
+    // later tests since clearAllMocks doesn't undo mockReturnValue.
+    mockUseSignReview.mockReturnValue({
+      security: undefined,
+      requiresAcknowledge: false,
+      acknowledged: false,
+      setAcknowledged: vi.fn(),
+      intent: undefined,
+    });
     setupMocks();
   });
 
@@ -261,7 +286,7 @@ describe('TokenApprovals', () => {
 
   // --- Single revoke ---
 
-  it('calls build/sign/broadcast when revoke button is clicked', async () => {
+  it('calls build/sign/broadcast when revoke is confirmed', async () => {
     const user = userEvent.setup();
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { refreshFn } = setupMocks({ approvals: mockApprovals });
@@ -269,7 +294,12 @@ describe('TokenApprovals', () => {
     render(<TokenApprovals {...defaultProps} />);
     const revokeButtons = screen.getAllByText('tokenApprovals.revoke');
 
+    // Clicking "Revoke" opens the confirm panel — it must not sign immediately.
     await user.click(revokeButtons[0]);
+    expect(screen.getByTestId('revoke-confirm')).toBeInTheDocument();
+    expect(tauriApi.buildTransaction).not.toHaveBeenCalled();
+
+    await user.click(screen.getByText('tokenApprovals.confirmRevokeButton'));
 
     await waitFor(() => {
       expect(tauriApi.buildTransaction).toHaveBeenCalledWith(
@@ -304,6 +334,7 @@ describe('TokenApprovals', () => {
     render(<TokenApprovals {...defaultProps} />);
     const revokeButtons = screen.getAllByText('tokenApprovals.revoke');
     await user.click(revokeButtons[0]);
+    await user.click(screen.getByText('tokenApprovals.confirmRevokeButton'));
 
     await waitFor(() => {
       expect(screen.getByText('Build failed')).toBeInTheDocument();
@@ -322,9 +353,13 @@ describe('TokenApprovals', () => {
     // Select all
     await user.click(screen.getByText('tokenApprovals.selectAll'));
 
-    // Click batch revoke button
+    // Click batch revoke button — opens the confirm panel first.
     const batchBtn = screen.getByText(/tokenApprovals.batchRevoke/);
     await user.click(batchBtn);
+    expect(screen.getByTestId('batch-revoke-confirm')).toBeInTheDocument();
+    expect(tauriApi.buildTransaction).not.toHaveBeenCalled();
+
+    await user.click(screen.getByText('tokenApprovals.confirmRevokeButton'));
 
     await waitFor(() => {
       // Should have called build/sign/broadcast for each approval
@@ -361,6 +396,7 @@ describe('TokenApprovals', () => {
     render(<TokenApprovals {...defaultProps} />);
     await user.click(screen.getByText('tokenApprovals.selectAll'));
     await user.click(screen.getByText(/tokenApprovals.batchRevoke/));
+    await user.click(screen.getByText('tokenApprovals.confirmRevokeButton'));
 
     await waitFor(() => {
       expect(screen.getByText(/1 tokenApprovals.success, 1 tokenApprovals.failed/)).toBeInTheDocument();
@@ -396,6 +432,7 @@ describe('TokenApprovals', () => {
     render(<TokenApprovals {...defaultProps} />);
     const revokeBtn = screen.getByText('tokenApprovals.revoke');
     await user.click(revokeBtn);
+    await user.click(screen.getByText('tokenApprovals.confirmRevokeButton'));
 
     await waitFor(() => {
       expect(screen.getByText(/Unsupported network/)).toBeInTheDocument();
@@ -457,5 +494,101 @@ describe('TokenApprovals', () => {
     const green = screen.getByText('GREENTOK');
     // Red must appear before green in document order.
     expect(red.compareDocumentPosition(green) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // ── Single-revoke acknowledge gate ──────────────────────────────────────────
+
+  it('disables the single-revoke confirm button until the backend-flagged danger is acknowledged', async () => {
+    const user = userEvent.setup();
+    setupMocks({ approvals: mockApprovals });
+    let acknowledged = false;
+    mockUseSignReview.mockReturnValue({
+      security: undefined,
+      requiresAcknowledge: true,
+      acknowledged,
+      setAcknowledged: (v: boolean) => { acknowledged = v; },
+      intent: undefined,
+    });
+
+    render(<TokenApprovals {...defaultProps} />);
+    await user.click(screen.getAllByText('tokenApprovals.revoke')[0]);
+
+    const confirmBtn = screen.getByText('tokenApprovals.confirmRevokeButton') as HTMLButtonElement;
+    expect(confirmBtn.disabled).toBe(true);
+    await user.click(confirmBtn);
+    // Gate must block the sign — no build call fired.
+    expect(tauriApi.buildTransaction).not.toHaveBeenCalled();
+  });
+
+  it('enables the single-revoke confirm button once acknowledged', () => {
+    setupMocks({ approvals: mockApprovals });
+    mockUseSignReview.mockReturnValue({
+      security: undefined,
+      requiresAcknowledge: true,
+      acknowledged: true,
+      setAcknowledged: vi.fn(),
+      intent: undefined,
+    });
+
+    render(<TokenApprovals {...defaultProps} />);
+    fireEvent.click(screen.getAllByText('tokenApprovals.revoke')[0]);
+
+    const confirmBtn = screen.getByText('tokenApprovals.confirmRevokeButton') as HTMLButtonElement;
+    expect(confirmBtn.disabled).toBe(false);
+  });
+
+  // ── Batch-revoke confirm panel + acknowledge gate ───────────────────────────
+
+  it('shows each target contract and risk level in the batch confirm panel', async () => {
+    const user = userEvent.setup();
+    setupMocks({ approvals: mockApprovals });
+
+    render(<TokenApprovals {...defaultProps} />);
+    await user.click(screen.getByText('tokenApprovals.selectAll'));
+    await user.click(screen.getByText(/tokenApprovals.batchRevoke/));
+
+    const panel = screen.getByTestId('batch-revoke-confirm');
+    expect(panel).toHaveTextContent('USDC');
+    expect(panel).toHaveTextContent('DAI');
+  });
+
+  it('requires the batch acknowledge checkbox when any selected approval is red', async () => {
+    const user = userEvent.setup();
+    setupMocks({
+      approvals: [
+        { ...mockApprovals[0], riskLevel: 'green' },
+        { ...mockApprovals[1], riskLevel: 'red' },
+      ],
+    });
+
+    render(<TokenApprovals {...defaultProps} />);
+    await user.click(screen.getByText('tokenApprovals.selectAll'));
+    await user.click(screen.getByText(/tokenApprovals.batchRevoke/));
+
+    const panel = screen.getByTestId('batch-revoke-confirm');
+    const confirmBtn = within(panel).getByText('tokenApprovals.confirmRevokeButton') as HTMLButtonElement;
+    expect(confirmBtn.disabled).toBe(true);
+
+    await user.click(screen.getByText('tokenApprovals.batchAcknowledge'));
+    expect(confirmBtn.disabled).toBe(false);
+  });
+
+  it('does not require acknowledgment when no selected approval is red', async () => {
+    const user = userEvent.setup();
+    setupMocks({
+      approvals: [
+        { ...mockApprovals[0], riskLevel: 'green' },
+        { ...mockApprovals[1], riskLevel: 'yellow' },
+      ],
+    });
+
+    render(<TokenApprovals {...defaultProps} />);
+    await user.click(screen.getByText('tokenApprovals.selectAll'));
+    await user.click(screen.getByText(/tokenApprovals.batchRevoke/));
+
+    expect(screen.queryByText('tokenApprovals.batchAcknowledge')).not.toBeInTheDocument();
+    const panel = screen.getByTestId('batch-revoke-confirm');
+    const confirmBtn = within(panel).getByText('tokenApprovals.confirmRevokeButton') as HTMLButtonElement;
+    expect(confirmBtn.disabled).toBe(false);
   });
 });

@@ -14,7 +14,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SignatureRequestParams } from '@/services/walletconnect/request-handler';
-import { ClearSignSummary } from '@/components/ClearSignSummary';
+import { SignReview } from '@/components/SignReview';
 import { isHighRiskSign } from '@/services/clearsign/riskGate';
 import { PasswordInput } from "@/components/PasswordInput";
 
@@ -246,17 +246,25 @@ export const SignRequestDialog: React.FC<SignRequestDialogProps> = ({
           >
             {showRaw ? request.rawMessage : request.message}
           </div>
-          {/* ClearSign structured summary (eth_sendTransaction only) */}
-          {(request.intent || request.security) && (
-            <div style={{ marginTop: '0.5rem' }}>
-              <ClearSignSummary
-                intent={request.intent ?? null}
-                security={request.security}
-                acknowledged={acknowledged}
-                onAcknowledgeChange={setAcknowledged}
-              />
-            </div>
-          )}
+          {/* ClearSign structured summary (eth_sendTransaction only). This
+              dialog doesn't decode calldata/typed data itself — that already
+              happened upstream in the WalletConnect method handlers
+              (eth-send-transaction.ts / eth-sign-typed-data.ts), which
+              populate request.intent/request.security. useSignReview isn't
+              used here since there's no decode call in this component to
+              dedupe; the review object is assembled from the already-decoded
+              props plus this dialog's own acknowledgment state. */}
+          <div style={{ marginTop: '0.5rem' }}>
+            <SignReview
+              review={{
+                security: request.security,
+                requiresAcknowledge: highRisk,
+                acknowledged,
+                setAcknowledged,
+                intent: request.intent,
+              }}
+            />
+          </div>
         </div>
 
         {/* Security Warning */}
