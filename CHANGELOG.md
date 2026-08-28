@@ -5,6 +5,44 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [v1.6.0] — 2026-08-28 — Clear Signing 與完全開源
+
+### Added
+
+- **ERC-7730 clear signing** — 簽章確認畫面改用合約作者發布到以太坊基金會
+  官方註冊表的 descriptor 描述交易，而非僅由 ABI 逆推欄位名。ABI 給型別，
+  descriptor 給語意（哪個參數是滑點下限、哪個是收款人）。內建 229 筆快照
+  （`go:embed`，涵蓋 7 條鏈的 504 個 deployment），預設完全離線；設定頁可
+  手動更新，是唯一的連網點，下載後以 AES-256-GCM 加密存於 USB。
+- **ERC-8213 交易指紋** — 簽章畫面永遠顯示 `keccak256(uint256(len) ‖ calldata)`
+  的完整 64 字元指紋（分 16 組）。ArcSign 沒有硬體錢包那樣的第二塊實體螢幕，
+  指紋讓使用者能在**另一台裝置獨立計算比對**，確認即將被簽的 bytes 未遭竄改。
+  指紋旁可展開原始 calldata 供比對輸入。涵蓋率 100%——所有解讀層失效時仍可用。
+- **clear signing 鋪設至全部 7 個簽章確認畫面**（先前僅 2 個）。新增
+  `useSignReview` 與 `SignReview`：可讀性與安全結論同行，畫面不可能接了閘
+  卻漏了可讀性。
+- Token Approvals 與 Swap 授權補上前端知情同意閘（後端閘一直都在）。
+- 密碼欄位加入顯示／隱藏切換（26 個欄位）。
+
+### Fixed
+
+- **`ChainSpecific["data"]` 型別斷言錯誤**：builder 存 `[]byte`、取值處斷言
+  `string`，導致 `txData` 恆為空。後果不只顯示——`guard.Check` 收到的
+  `simulation.TxParams.Data` 也一直是空的，**App 內建轉帳路徑的交易模擬
+  從未看過真實 calldata**（黑名單比對只看 `to` 位址故仍有效）。
+- `BuildTransaction` 未回傳 calldata，前端只能寫死 `data: ""`。
+- 原始 calldata 的展開切換原本只在「無法解讀」時出現，而那正是最不需要
+  驗證的情況；改為與指紋並列，任何交易都可展開。
+- 空錢包時後端回傳 `tokens: null` 導致前端崩潰（後端保證回 `[]`，前端加防禦）。
+
+### Security
+
+- 新增守門測試確保 descriptor 與 digest **只影響顯示、不影響安全判定**：
+  `txguard` 不得 import `clearsign`、`SecurityReport` 不得攜帶 descriptor
+  欄位、`Guard.Check` 不得接受 descriptor 參數，以及一個對抗性測試
+  （惡意 descriptor 宣稱交易安全時，`unlimited-approval` 徽章仍存活）。
+- 黑名單檢查、`RequiresAcknowledge` 判定、session token 機制不受影響。
+
 ### Removed
 
 - 移除全部盈利機制：錢包數量限制、swap 0.1% 抽成、Pro 最佳路徑閘、
