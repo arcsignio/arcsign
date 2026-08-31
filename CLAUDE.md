@@ -315,6 +315,40 @@ integrity and reproduce the build from source (see
   to both Go (backend) and Vitest (frontend). New chains/providers must add
   the relevant mapping/parsing tests (see `internal/provider/*_test.go`,
   `src/chainadapter/ethereum/network_test.go` for the pattern).
+- **測試絕不使用真實的助記詞、私鑰或密碼。鐵則。** 需要一組有效助記詞時，
+  一律用公開的 BIP39 測試向量（trezor/python-mnemonic `vectors.json`）：
+
+  ```
+  legal winner thank year wave sausage worth useful legal winner thank yellow
+  letter advice cage absurd amount doctor acoustic avoid letter advice cage above
+  ```
+
+  這條規則涵蓋**任何會落地的東西**：測試、除錯腳本、診斷 log、commit
+  message、issue 內文。使用者為了回報問題貼出來的助記詞（截圖、Console
+  輸出）只能用於當下推理，**不得寫進檔案**。
+
+  理由：測試會進 git 歷史，而**推出去就無法挽回**——GitHub 保留 unreachable
+  object，fork / clone / CI log / 快取都可能留存，force push 也追不回。這是
+  冷錢包專案，助記詞等於資產本身。
+
+  - 要讓 checksum 失敗，把最後一個字換成另一個**詞表內**的字
+    （`yellow` → `yard`）；換成非詞表字會走到不同的錯誤分支。
+  - 診斷助記詞問題時，log 詞表索引或 codepoint，不 log 可讀的詞。
+  - commit 前用 `git log --all -S "<助記詞中的一個字>"` 確認歷史乾淨。
+  - 萬一已經 push：立刻告知使用者該組助記詞必須視為已洩漏、資產要轉移到
+    新錢包，不要自行補救後當作沒事。
+- **跨層 bug 先跑端到端，不要逐層猜。** 分層測試的綠燈**不代表 app 正常**：
+  vitest 跑在 Node 底下（有 `Buffer`/`process`），Go 測試直接呼叫函式不經過
+  FFI，兩邊都可能全綠而 app 完全不能用（見下方 WebView 環境那條）。
+  `make test-e2e` 走真的 dylib + 真的 C ABI + 真的掛載卷宗。使用者說
+  「我確認過沒錯」時，那是**證據**，不是待說服的對象。
+- **前端相依套件不得依賴 Node 全域變數。** Tauri 的 WebView 沒有 `Buffer`、
+  `process`、`global`，但 vitest 的 jsdom 有——依賴它們的套件會在測試裡
+  完美通過、在 app 裡拋 `ReferenceError`。若該錯誤被上層吞掉，症狀會是
+  「功能靜默失效」而非崩潰。守門測試：
+  `dashboard/tests/frontend/webviewEnvironment.test.ts` 會在刪掉這三個全域
+  之後才 import 做密碼學/編碼的模組；新增這類模組時要加進去。
+  加密套件優先選 `@scure/*` / `@noble/*`（純 JS、已審計）。
 - Maximum 3 attempts per issue, then stop and reassess.
 - Every commit must compile and pass all existing tests.
 - Never use `--no-verify` to bypass commit hooks.
