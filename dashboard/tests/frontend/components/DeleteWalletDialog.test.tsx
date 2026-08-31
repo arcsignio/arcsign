@@ -81,9 +81,9 @@ describe("DeleteWalletDialog", () => {
   });
 
   // The typed name is what stops a user deleting the wallet next to the one
-  // they meant, so a near-miss must not submit.
-  it.each(["My Saving", "my savings", "My Savings ", "MY SAVINGS"])(
-    "does not submit force delete for near-miss name %j",
+  // they meant, so a genuinely different name must not submit.
+  it.each(["My Saving", "My Savings 2", "Other Wallet"])(
+    "does not submit force delete for a different name %j",
     async (typed) => {
       const user = userEvent.setup();
       const { onForceConfirm } = setup();
@@ -96,8 +96,31 @@ describe("DeleteWalletDialog", () => {
       await user.type(screen.getByLabelText(/deleteWallet.typeToConfirm/), typed);
 
       expect(deleteButton()).toBeDisabled();
+      expect(screen.getByText("deleteWallet.nameMismatch")).toBeInTheDocument();
       await user.click(deleteButton());
       expect(onForceConfirm).not.toHaveBeenCalled();
+    },
+  );
+
+  // Must mirror the Go comparison. If the button stayed disabled here on input
+  // the backend accepts, the user is blocked by the UI for no reason — which is
+  // exactly what macOS autocapitalisation caused in live testing.
+  it.each(["my savings", "MY SAVINGS", " My Savings ", "mY sAvInGs"])(
+    "accepts case- and space-equivalent name %j",
+    async (typed) => {
+      const user = userEvent.setup();
+      const { onForceConfirm } = setup();
+
+      await user.click(switchLink("deleteWallet.forgotPassword"));
+      await user.type(
+        screen.getByLabelText(/deleteWallet.enterAppPassword/),
+        "AppP@ssw0rd456",
+      );
+      await user.type(screen.getByLabelText(/deleteWallet.typeToConfirm/), typed);
+
+      expect(deleteButton()).toBeEnabled();
+      await user.click(deleteButton());
+      expect(onForceConfirm).toHaveBeenCalledWith("AppP@ssw0rd456", typed);
     },
   );
 

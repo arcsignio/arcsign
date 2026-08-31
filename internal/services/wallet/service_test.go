@@ -410,8 +410,11 @@ func TestForceDeleteWallet_WrongNameKeepsWallet(t *testing.T) {
 
 // The name is what stops a user deleting the wallet next to the one they
 // meant, so a near-miss must not pass: no trimming, no case folding.
-func TestForceDeleteWallet_NameMatchIsExact(t *testing.T) {
-	for _, confirm := range []string{"Exact Name ", " Exact Name", "exact name", "EXACT NAME", ""} {
+// A name that is not this wallet's must never delete it. This is the half of
+// the confirmation that carries the safety — it stops the user deleting the
+// wallet next to the one they meant.
+func TestForceDeleteWallet_RejectsDifferentName(t *testing.T) {
+	for _, confirm := range []string{"Exact Nam", "Exact Name 2", "Other Wallet", "", "Exact  Name"} {
 		t.Run("confirm="+confirm, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			svc := NewWalletService(tmpDir)
@@ -422,11 +425,37 @@ func TestForceDeleteWallet_NameMatchIsExact(t *testing.T) {
 			}
 
 			if err := svc.ForceDeleteWallet(created.ID, confirm); err == nil {
-				t.Fatalf("ForceDeleteWallet accepted non-exact name %q", confirm)
+				t.Fatalf("ForceDeleteWallet accepted a different name %q", confirm)
 			}
 
 			if _, err := os.Stat(filepath.Join(tmpDir, created.ID)); os.IsNotExist(err) {
-				t.Errorf("wallet was deleted on non-exact name %q", confirm)
+				t.Errorf("wallet was deleted on a different name %q", confirm)
+			}
+		})
+	}
+}
+
+// Case and surrounding whitespace are folded: names are not unique, so an
+// exact match never identified the wallet (walletID does). Being strict only
+// meant macOS autocapitalising the first letter could reject a user typing
+// their own wallet's name.
+func TestForceDeleteWallet_NameMatchFoldsCaseAndSpace(t *testing.T) {
+	for _, confirm := range []string{"Exact Name", "exact name", "EXACT NAME", " Exact Name ", "eXaCt NaMe"} {
+		t.Run("confirm="+confirm, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			svc := NewWalletService(tmpDir)
+
+			created, _, err := svc.CreateWallet("Exact Name", validPassword, 12, false, "")
+			if err != nil {
+				t.Fatalf("CreateWallet failed: %v", err)
+			}
+
+			if err := svc.ForceDeleteWallet(created.ID, confirm); err != nil {
+				t.Fatalf("ForceDeleteWallet rejected equivalent name %q: %v", confirm, err)
+			}
+
+			if _, err := os.Stat(filepath.Join(tmpDir, created.ID)); !os.IsNotExist(err) {
+				t.Errorf("wallet still present after force delete with %q", confirm)
 			}
 		})
 	}

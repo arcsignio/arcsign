@@ -573,7 +573,8 @@ func (s *WalletService) DeleteWallet(walletID string, password string) error {
 //
 // Parameters:
 //   - walletID: UUID of the wallet to delete
-//   - confirmName: must equal the wallet's stored name, exactly
+//   - confirmName: must equal the wallet's stored name, ignoring case and
+//     surrounding whitespace (see the comparison below for why)
 func (s *WalletService) ForceDeleteWallet(walletID string, confirmName string) error {
 	if walletID == "" {
 		return utils.ErrWalletNotFound
@@ -584,10 +585,17 @@ func (s *WalletService) ForceDeleteWallet(walletID string, confirmName string) e
 		return fmt.Errorf("wallet not found: %w", err)
 	}
 
-	// Typing the name is the only thing standing between "delete the wallet I
-	// meant" and "delete the one above it". Compare against the stored name,
-	// never against a name supplied by the same caller.
-	if confirmName != wallet.Name {
+	// Typing the name is what stands between "delete the wallet I meant" and
+	// "delete the one above it". Compare against the STORED name — never
+	// against one supplied by the same caller.
+	//
+	// Case- and space-insensitive: wallet names are not unique, so an exact
+	// match was never what identified the target (walletID is). The name only
+	// confirms the user knows which wallet this is, and that survives folding.
+	// Being strict cost real safety instead of adding it — macOS autocapitalises
+	// the first letter of a text field, so a user typing their own lowercase
+	// wallet name was rejected for what the OS did.
+	if !strings.EqualFold(strings.TrimSpace(confirmName), strings.TrimSpace(wallet.Name)) {
 		return utils.ErrConfirmationMismatch
 	}
 

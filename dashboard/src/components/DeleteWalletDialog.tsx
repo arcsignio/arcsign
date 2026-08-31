@@ -66,13 +66,20 @@ export function DeleteWalletDialog({
 
   // UX only. The backend re-checks the app password and the typed name, so a
   // user who bypasses this button still cannot delete the wrong wallet.
+  // Must mirror the backend comparison in ForceDeleteWallet exactly, or the
+  // button stays disabled on input the backend would have accepted.
+  const nameMatches =
+    confirmText.trim().toLowerCase() === wallet.name.trim().toLowerCase();
+
   const canDelete = forceMode
-    ? password.length > 0 && confirmText === wallet.name
+    ? password.length > 0 && nameMatches
     : password.length >= 12 && confirmText.toUpperCase() === "DELETE";
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-md w-full p-6">
+      {/* Force mode adds a warning panel, which pushes the escape-hatch link
+          past the bottom of a short window. Cap the height and scroll. */}
+      <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold text-red-600 mb-4">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:'inline',verticalAlign:'middle',marginRight:6}}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>{t('deleteWallet.title')}
         </h2>
@@ -172,7 +179,21 @@ export function DeleteWalletDialog({
               }
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 font-mono"
               disabled={isDeleting}
+              // The match is case-exact, so the OS must not "help": autocapitalize
+              // turns a lowercase wallet name into a mismatch the user did not type.
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              autoComplete="off"
             />
+            {/* The match is case- and whitespace-exact on purpose — it is what
+                stops a near-miss deleting the wallet next to the intended one.
+                Say so, or a disabled button just reads as a broken app. */}
+            {forceMode && confirmText.length > 0 && !nameMatches && (
+              <p className="mt-2 text-sm text-orange-700" role="status">
+                {t('deleteWallet.nameMismatch')}
+              </p>
+            )}
           </div>
 
           <div className="flex gap-3">

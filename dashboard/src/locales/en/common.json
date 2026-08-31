@@ -556,6 +556,7 @@
     "enterAppPassword": "Enter your app password",
     "enterPassword": "Enter Wallet Password",
     "forceModeAssetsLost": "This removes the wallet from this device. Any assets it holds stay on-chain and become permanently unreachable — the password that unlocks them is gone, and the encrypted backup needs that same password.",
+    "nameMismatch": "The name does not match this wallet.",
     "forceModeTitle": "Deleting with the app password",
     "forgotPassword": "Forgot the wallet password?",
     "id": "ID",

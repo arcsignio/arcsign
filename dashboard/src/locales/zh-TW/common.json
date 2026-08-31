@@ -556,6 +556,7 @@
     "enterAppPassword": "輸入您的 app 密碼",
     "enterPassword": "輸入錢包密碼",
     "forceModeAssetsLost": "這會將錢包從此裝置移除。錢包內的資產仍在鏈上，但將永久無法取用——解開它們的密碼已經遺失，而加密備份檔需要的正是同一把密碼。",
+    "nameMismatch": "名稱與此錢包不符。",
     "forceModeTitle": "使用 app 密碼刪除",
     "forgotPassword": "忘記錢包密碼？",
     "id": "ID",
