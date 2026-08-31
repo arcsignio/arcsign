@@ -9,7 +9,13 @@
 
 import { z } from "zod";
 import { createPasswordSchema, passwordSchema } from "./password";
-import * as bip39 from "bip39";
+// @scure/bip39, not the `bip39` package: that one needs Node's Buffer, which
+// does not exist in Tauri's WebView. validateMnemonic threw ReferenceError
+// there, the throw was swallowed, and EVERY phrase was reported as an invalid
+// checksum — telling users their correct phrase was wrong. @scure is pure JS
+// and audited. See tests/frontend/validation/mnemonic.test.ts.
+import { validateMnemonic as scureValidate } from "@scure/bip39";
+import { wordlist as englishWordlist } from "@scure/bip39/wordlists/english";
 
 /**
  * Type for translation function
@@ -18,9 +24,28 @@ type TFunction = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * Normalize mnemonic whitespace (FR-030)
+ *
+ * Copying a phrase out of another wallet often carries characters that are
+ * invisible on screen but not whitespace to `\s`: zero-width spaces/joiners
+ * (U+200B–U+200D, U+FEFF) and bidirectional marks (U+200E/U+200F). The words
+ * then look perfectly correct while the checksum fails, which reads as "my
+ * phrase is right but the app rejects it". Strip them before splitting.
+ *
+ * NFKD also folds full-width Latin letters to ASCII, so a phrase typed with a
+ * CJK IME still matches the BIP39 wordlist.
  */
 export function normalizeMnemonic(mnemonic: string): string {
-  return mnemonic.trim().toLowerCase().split(/\s+/).join(" ");
+  return mnemonic
+    .normalize("NFKD")
+    .replace(/[\u200B-\u200F\u2060\uFEFF]/g, "")
+    .toLowerCase()
+    .split(/\s+/)
+    // Wallets display the phrase as a numbered list, and selecting it copies
+    // the numbering too ("1. legal 2. winner"). Drop leading indices and any
+    // punctuation clinging to a word; BIP39 words are pure a-z.
+    .map((word) => word.replace(/^\d+[.)\u3001,:]?/, "").replace(/[^a-z]/g, ""))
+    .filter((word) => word.length > 0)
+    .join(" ");
 }
 
 /**
@@ -36,7 +61,7 @@ function validateMnemonicLength(mnemonic: string): boolean {
  * Get BIP39 wordlist (complete 2048 words)
  */
 export function getBIP39Wordlist(): string[] {
-  return bip39.wordlists.english;
+  return englishWordlist as unknown as string[];
 }
 
 /**
@@ -180,10 +205,9 @@ export type WalletImportFormData = z.infer<typeof walletImportSchema>;
  * This performs full BIP39 validation including checksum verification
  */
 export function validateMnemonicChecksum(mnemonic: string): boolean {
-  const normalized = normalizeMnemonic(mnemonic);
-
-  // Use bip39 library for complete validation (wordlist + checksum)
-  return bip39.validateMnemonic(normalized);
+  // scureValidate returns false for an unknown word too, and never throws for
+  // ordinary bad input — which is the whole point of using it here.
+  return scureValidate(normalizeMnemonic(mnemonic), englishWordlist);
 }
 
 /**

@@ -210,6 +210,27 @@ test:
 	@echo ""
 	@echo "✓ Test execution complete"
 
+.PHONY: test-e2e
+# End-to-end wallet import through the BUILT dylib and the real C ABI.
+#
+# The cgo //export entry points cannot be reached from `go test` (package main
+# + import "C"), so this links against the artifact instead. That is the point:
+# a bug that made import unusable in the app survived 1600+ layered tests
+# because none of them crossed a real boundary.
+#
+# Needs a genuinely mounted volume — the FFI rejects paths outside /Volumes,
+# /media, /mnt, and faking that would exercise a different branch than the app.
+test-e2e: build-lib-macos
+	@echo "=== End-to-end FFI import test ==="
+	@set -e; \
+	DMG=$$(mktemp -d)/e2e.dmg; VOL=/Volumes/ArcSignE2E; \
+	hdiutil create -size 20m -fs APFS -volname ArcSignE2E "$$DMG" -quiet; \
+	hdiutil attach "$$DMG" -quiet; \
+	trap 'hdiutil detach "$$VOL" -quiet -force >/dev/null 2>&1 || true' EXIT; \
+	CGO_LDFLAGS="-L$(PWD)/$(LIB_DIR) -Wl,-rpath,$(PWD)/$(LIB_DIR)" \
+	ARCSIGN_E2E_USB="$$VOL" \
+	$(GO) run -tags e2e ./tests/e2e/
+
 # T063-T065: Build all platform libraries
 build-all-platforms:
 	@echo "=== Building for all platforms ==="

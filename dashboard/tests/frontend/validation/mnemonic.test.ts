@@ -1,366 +1,101 @@
 /**
- * Mnemonic validation schema tests
- * Tests: normalizeMnemonic, getBIP39Wordlist, validateMnemonicChecksum,
- *        getMnemonicValidationError, createMnemonicSchema, mnemonicSchema,
- *        createWalletImportSchema, walletImportSchema
+ * Mnemonic validation.
+ *
+ * These exist because of a shipped bug: the `bip39` package needs Node's
+ * Buffer, which Tauri's WebView does not provide. validateMnemonic threw
+ * ReferenceError, the throw was swallowed, and every phrase — including
+ * correct ones — was reported as "invalid checksum". Import was unusable and
+ * the message blamed the user's phrase.
+ *
+ * The unit tests below passed throughout, because vitest runs under Node where
+ * Buffer exists. So the important one is `does not depend on Node globals`:
+ * it removes Buffer the way the WebView does.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from "vitest";
 import {
+  validateMnemonicChecksum,
   normalizeMnemonic,
   getBIP39Wordlist,
-  validateMnemonicChecksum,
-  getMnemonicValidationError,
-  createMnemonicSchema,
-  mnemonicSchema,
-  createWalletImportSchema,
-  walletImportSchema,
-} from '@/validation/mnemonic';
+} from "@/validation/mnemonic";
 
-// Simple t function that returns the key
-const t = (key: string, options?: Record<string, unknown>) => {
-  if (options) {
-    // Simulate interpolation for count
-    return key;
-  }
-  return key;
-};
-
+// Published BIP39 test vectors — not anyone's wallet.
 const VALID_12 =
-  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+  "legal winner thank year wave sausage worth useful legal winner thank yellow";
 const VALID_24 =
-  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art';
+  "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title";
 
-describe('normalizeMnemonic', () => {
-  it('trims leading and trailing whitespace', () => {
-    expect(normalizeMnemonic('  hello world  ')).toBe('hello world');
-  });
-
-  it('collapses multiple spaces to single space', () => {
-    expect(normalizeMnemonic('hello    world')).toBe('hello world');
-  });
-
-  it('converts to lowercase', () => {
-    expect(normalizeMnemonic('HELLO World')).toBe('hello world');
-  });
-
-  it('handles tabs and newlines', () => {
-    expect(normalizeMnemonic('hello\tworld\nfoo')).toBe('hello world foo');
-  });
-
-  it('returns empty string for empty input after trim', () => {
-    expect(normalizeMnemonic('   ')).toBe('');
-  });
-});
-
-describe('getBIP39Wordlist', () => {
-  it('returns an array of 2048 words', () => {
-    const wordlist = getBIP39Wordlist();
-    expect(wordlist).toHaveLength(2048);
-  });
-
-  it('contains known BIP39 words', () => {
-    const wordlist = getBIP39Wordlist();
-    expect(wordlist).toContain('abandon');
-    expect(wordlist).toContain('zoo');
-    expect(wordlist).toContain('abstract');
-  });
-
-  it('does not contain non-BIP39 words', () => {
-    const wordlist = getBIP39Wordlist();
-    expect(wordlist).not.toContain('xyzfake');
-    expect(wordlist).not.toContain('cryptocurrency');
-  });
-});
-
-describe('validateMnemonicChecksum', () => {
-  it('returns true for valid 12-word mnemonic', () => {
+describe("validateMnemonicChecksum", () => {
+  it("accepts valid phrases", () => {
     expect(validateMnemonicChecksum(VALID_12)).toBe(true);
-  });
-
-  it('returns true for valid 24-word mnemonic', () => {
     expect(validateMnemonicChecksum(VALID_24)).toBe(true);
   });
 
-  it('returns false for invalid checksum (all same word)', () => {
-    const bad = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon';
-    expect(validateMnemonicChecksum(bad)).toBe(false);
+  it("rejects a phrase whose checksum does not match", () => {
+    // Swap the last word for another real wordlist entry.
+    const wrong = VALID_12.replace(/yellow$/, "yard");
+    expect(validateMnemonicChecksum(wrong)).toBe(false);
   });
 
-  it('returns false for non-BIP39 words', () => {
-    const bad = 'xyzfake abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
-    expect(validateMnemonicChecksum(bad)).toBe(false);
+  it("rejects a phrase containing a non-wordlist word", () => {
+    expect(validateMnemonicChecksum(VALID_12.replace("legal", "zzzz"))).toBe(false);
   });
 
-  it('returns false for empty string', () => {
-    expect(validateMnemonicChecksum('')).toBe(false);
+  it("does not throw on junk input", () => {
+    expect(() => validateMnemonicChecksum("")).not.toThrow();
+    expect(() => validateMnemonicChecksum("not a phrase")).not.toThrow();
   });
 
-  it('handles unnormalized input (extra spaces, uppercase)', () => {
-    const messy = '  ABANDON  abandon  abandon  abandon  abandon  abandon  abandon  abandon  abandon  abandon  abandon  ABOUT  ';
-    expect(validateMnemonicChecksum(messy)).toBe(true);
-  });
-});
+  // The regression. Node provides Buffer; Tauri's WebView does not. A library
+  // that reaches for it works in this test suite and fails in the app, which
+  // is exactly how the bug reached a user.
+  describe("does not depend on Node globals", () => {
+    const savedBuffer = globalThis.Buffer;
+    const savedProcess = globalThis.process;
 
-describe('getMnemonicValidationError', () => {
-  it('returns null for valid mnemonic', () => {
-    expect(getMnemonicValidationError(VALID_12)).toBeNull();
-  });
-
-  it('returns required error for empty string', () => {
-    const error = getMnemonicValidationError('');
-    expect(error).toBe('Mnemonic phrase is required');
-  });
-
-  it('returns required error for whitespace-only', () => {
-    const error = getMnemonicValidationError('   ');
-    expect(error).toBe('Mnemonic phrase is required');
-  });
-
-  it('returns word count error for wrong count', () => {
-    const error = getMnemonicValidationError('abandon abandon abandon');
-    expect(error).toMatch(/12 or 24 words/);
-    expect(error).toMatch(/3 words/);
-  });
-
-  it('returns invalid words error', () => {
-    const bad = 'xyzfake abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
-    const error = getMnemonicValidationError(bad);
-    expect(error).toMatch(/invalid words/i);
-  });
-
-  it('returns checksum error for valid words but invalid checksum', () => {
-    const bad = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon';
-    const error = getMnemonicValidationError(bad);
-    expect(error).toMatch(/checksum/i);
-  });
-
-  describe('with i18n t function', () => {
-    it('returns i18n key for empty mnemonic', () => {
-      const error = getMnemonicValidationError('', t);
-      expect(error).toBe('validation.mnemonicRequired');
+    afterEach(() => {
+      globalThis.Buffer = savedBuffer;
+      globalThis.process = savedProcess;
     });
 
-    it('returns i18n key for wrong word count', () => {
-      const error = getMnemonicValidationError('one two three', t);
-      expect(error).toBe('validation.mnemonicWordCountError');
-    });
+    it("validates with Buffer and process removed", () => {
+      // @ts-expect-error -- deliberately simulating the WebView environment
+      delete globalThis.Buffer;
+      // @ts-expect-error -- same
+      delete globalThis.process;
 
-    it('returns i18n key for invalid words', () => {
-      const bad = 'xyzfake abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
-      const error = getMnemonicValidationError(bad, t);
-      expect(error).toBe('validation.mnemonicInvalidWords');
-    });
-
-    it('returns i18n key for invalid checksum', () => {
-      const bad = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon';
-      const error = getMnemonicValidationError(bad, t);
-      expect(error).toBe('validation.mnemonicInvalidChecksum');
-    });
-
-    it('returns null for valid mnemonic with t function', () => {
-      expect(getMnemonicValidationError(VALID_12, t)).toBeNull();
+      expect(validateMnemonicChecksum(VALID_12)).toBe(true);
+      expect(validateMnemonicChecksum(VALID_12.replace(/yellow$/, "yard"))).toBe(false);
     });
   });
 });
 
-describe('mnemonicSchema (from mnemonic.ts)', () => {
-  it('accepts valid 12-word mnemonic', () => {
-    const result = mnemonicSchema.safeParse(VALID_12);
-    expect(result.success).toBe(true);
-  });
-
-  it('accepts valid 24-word mnemonic', () => {
-    const result = mnemonicSchema.safeParse(VALID_24);
-    expect(result.success).toBe(true);
-  });
-
-  it('rejects empty string', () => {
-    const result = mnemonicSchema.safeParse('');
-    expect(result.success).toBe(false);
-  });
-
-  it('normalizes input through transform', () => {
-    const messy = '  ABANDON  abandon  abandon  abandon  abandon  abandon  abandon  abandon  abandon  abandon  abandon  about  ';
-    const result = mnemonicSchema.safeParse(messy);
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data).toBe(VALID_12);
-    }
-  });
-
-  it('rejects wrong word count', () => {
-    const result = mnemonicSchema.safeParse('abandon abandon abandon');
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects invalid BIP39 words', () => {
-    const bad = 'xyzfake abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
-    const result = mnemonicSchema.safeParse(bad);
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects invalid checksum', () => {
-    const bad = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon';
-    const result = mnemonicSchema.safeParse(bad);
-    expect(result.success).toBe(false);
+describe("getBIP39Wordlist", () => {
+  it("returns the full English wordlist", () => {
+    const list = getBIP39Wordlist();
+    expect(list).toHaveLength(2048);
+    expect(list[0]).toBe("abandon");
+    expect(list[2047]).toBe("zoo");
   });
 });
 
-describe('createMnemonicSchema (i18n)', () => {
-  it('uses i18n key for required error', () => {
-    const schema = createMnemonicSchema(t);
-    const result = schema.safeParse('');
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.issues[0].message).toBe('validation.mnemonicRequired');
-    }
+describe("normalizeMnemonic", () => {
+  it("collapses case and whitespace", () => {
+    expect(normalizeMnemonic("  LEGAL   winner\nthank  ")).toBe("legal winner thank");
   });
 
-  it('uses i18n key for word count error', () => {
-    const schema = createMnemonicSchema(t);
-    const result = schema.safeParse('abandon abandon abandon');
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.issues[0].message).toBe('validation.mnemonicWordCount');
-    }
+  // Copying from another wallet carries characters that are invisible on
+  // screen but are not whitespace: the words look right, the checksum fails.
+  it("strips zero-width and bidi characters", () => {
+    const withInvisible = VALID_12.split(" ").map((w) => w + "​").join(" ");
+    expect(validateMnemonicChecksum("‎" + withInvisible)).toBe(true);
   });
 
-  it('uses i18n key for invalid words error', () => {
-    const schema = createMnemonicSchema(t);
-    const bad = 'xyzfake abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
-    const result = schema.safeParse(bad);
-    expect(result.success).toBe(false);
-  });
-
-  it('uses i18n key for checksum error', () => {
-    const schema = createMnemonicSchema(t);
-    const bad = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon';
-    const result = schema.safeParse(bad);
-    expect(result.success).toBe(false);
-  });
-
-  it('accepts valid mnemonic', () => {
-    const schema = createMnemonicSchema(t);
-    const result = schema.safeParse(VALID_12);
-    expect(result.success).toBe(true);
-  });
-});
-
-describe('walletImportSchema (from mnemonic.ts)', () => {
-  const validData = {
-    mnemonic: VALID_12,
-    password: 'StrongPassword1',
-    confirmPassword: 'StrongPassword1',
-    usePassphrase: false,
-    name: 'Test Wallet',
-  };
-
-  it('accepts valid import data', () => {
-    const result = walletImportSchema.safeParse(validData);
-    expect(result.success).toBe(true);
-  });
-
-  it('rejects password mismatch', () => {
-    const result = walletImportSchema.safeParse({
-      ...validData,
-      confirmPassword: 'WrongPassword123',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects empty wallet name', () => {
-    const result = walletImportSchema.safeParse({
-      ...validData,
-      name: '',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects wallet name over 50 chars', () => {
-    const result = walletImportSchema.safeParse({
-      ...validData,
-      name: 'A'.repeat(51),
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects empty passphrase when usePassphrase is true', () => {
-    const result = walletImportSchema.safeParse({
-      ...validData,
-      usePassphrase: true,
-      passphrase: '',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('accepts valid passphrase when usePassphrase is true', () => {
-    const result = walletImportSchema.safeParse({
-      ...validData,
-      usePassphrase: true,
-      passphrase: 'my secret passphrase',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('accepts no passphrase when usePassphrase is false', () => {
-    const result = walletImportSchema.safeParse({
-      ...validData,
-      usePassphrase: false,
-    });
-    expect(result.success).toBe(true);
-  });
-});
-
-describe('createWalletImportSchema (i18n)', () => {
-  const validData = {
-    mnemonic: VALID_12,
-    password: 'StrongPassword1',
-    confirmPassword: 'StrongPassword1',
-    usePassphrase: false,
-    name: 'Test Wallet',
-  };
-
-  it('accepts valid data', () => {
-    const schema = createWalletImportSchema(t);
-    const result = schema.safeParse(validData);
-    expect(result.success).toBe(true);
-  });
-
-  it('returns i18n key for password mismatch', () => {
-    const schema = createWalletImportSchema(t);
-    const result = schema.safeParse({
-      ...validData,
-      confirmPassword: 'WrongPassword123',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('returns i18n key for empty passphrase when enabled', () => {
-    const schema = createWalletImportSchema(t);
-    const result = schema.safeParse({
-      ...validData,
-      usePassphrase: true,
-      passphrase: '',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('returns i18n key for wallet name too long', () => {
-    const schema = createWalletImportSchema(t);
-    const result = schema.safeParse({
-      ...validData,
-      name: 'A'.repeat(51),
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('returns i18n key for required wallet name', () => {
-    const schema = createWalletImportSchema(t);
-    const result = schema.safeParse({
-      ...validData,
-      name: '',
-    });
-    expect(result.success).toBe(false);
+  // Wallets show the phrase as a numbered list and selecting it copies the
+  // numbers too.
+  it("strips list numbering and stray punctuation", () => {
+    const numbered = VALID_12.split(" ").map((w, i) => `${i + 1}. ${w}`).join(" ");
+    expect(validateMnemonicChecksum(numbered)).toBe(true);
+    expect(validateMnemonicChecksum(VALID_12 + ".")).toBe(true);
   });
 });

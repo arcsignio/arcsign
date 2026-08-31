@@ -65,18 +65,24 @@ export const WalletImport: React.FC<WalletImportProps> = ({
   const handleMnemonicChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setMnemonicValue(value);
-    setValue("mnemonic", value);
+    // Once an error is on screen, revalidate as the user types — otherwise the
+    // message describes text they have already corrected.
+    setValue("mnemonic", value, { shouldValidate: Boolean(errors.mnemonic) });
   };
 
   /**
    * Handle mnemonic blur with validation (FR-029)
+   *
+   * This replaces the onBlur that `register` returns, so validation has to be
+   * requested explicitly: without shouldValidate the form keeps the result it
+   * computed for the PREVIOUS value, and a corrected phrase still shows the
+   * old error.
    */
   const handleMnemonicBlur = () => {
-    if (mnemonicValue) {
-      const normalized = normalizeMnemonic(mnemonicValue);
-      setMnemonicValue(normalized);
-      setValue("mnemonic", normalized);
-    }
+    if (!mnemonicValue) return;
+    const normalized = normalizeMnemonic(mnemonicValue);
+    setMnemonicValue(normalized);
+    setValue("mnemonic", normalized, { shouldValidate: true });
   };
 
   /**
