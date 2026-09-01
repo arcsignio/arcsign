@@ -11,15 +11,19 @@
  * unusable, and the error message blamed the user's phrase. 1100+ frontend
  * tests passed the entire time.
  *
- * So this file imports the modules that do crypto or encoding with the Node
- * globals deleted, the way the WebView presents them.
+ * So this file imports the modules that do crypto or encoding with Buffer
+ * deleted, the way the WebView presents them.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 
+// Only Buffer and `global` are removed. `process` is deliberately left alone:
+// vitest's own RPC layer calls process.nextTick between tests, so deleting it
+// crashes the runner with an unhandled TypeError — the run reports every test
+// as passing and still exits non-zero. Buffer is the global that actually
+// caused the shipped bug, and it is the one a bundled dependency reaches for.
 const saved = {
   Buffer: globalThis.Buffer,
-  process: globalThis.process,
   global: (globalThis as Record<string, unknown>).global,
 };
 
@@ -27,14 +31,11 @@ describe("frontend runs without Node globals", () => {
   beforeAll(() => {
     // @ts-expect-error -- deliberately simulating Tauri's WebView
     delete globalThis.Buffer;
-    // @ts-expect-error -- same
-    delete globalThis.process;
     delete (globalThis as Record<string, unknown>).global;
   });
 
   afterAll(() => {
     globalThis.Buffer = saved.Buffer;
-    globalThis.process = saved.process;
     (globalThis as Record<string, unknown>).global = saved.global;
   });
 
