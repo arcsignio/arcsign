@@ -149,12 +149,15 @@ describe("toDecimalString", () => {
   });
 
   // The whole reason this is BigInt: Number(2^256-1)/Number(10^18) yields
-  // 1.157920892373162e+59, an unformattable string.
+  // 1.157920892373162e+59 — and a float division would still produce a
+  // 60-digit, non-exponential whole part, just the wrong one from the 17th
+  // significant figure onward. Comparing against the exact BigInt quotient
+  // (computed here, not hardcoded) is what actually catches that.
   it("keeps precision far above 2^53", () => {
-    const max = (2n ** 256n - 1n).toString();
-    const out = toDecimalString(max, 18);
-    expect(out).not.toContain("e+");
-    expect(out.split(".")[0]).toHaveLength(60);
+    const max = 2n ** 256n - 1n;
+    const scale = 10n ** 18n;
+    const out = toDecimalString(max.toString(), 18);
+    expect(out.split(".")[0]).toBe((max / scale).toString());
   });
 
   it("handles negatives", () => {
