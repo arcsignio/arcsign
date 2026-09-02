@@ -256,18 +256,16 @@ function formatBlacklistSource(source: string): string {
   return map[source] || source.replace(/^embedded-/, '').toUpperCase();
 }
 
-/** Format simulation amount from raw units to human-readable */
+/**
+ * Format simulation amount from raw units to human-readable.
+ *
+ * decimals is passed through as given. The previous body used
+ * `decimals || 18`, and `||` is a truthy check — a zero-decimal token was
+ * divided by 10^18 rather than 10^0, so a whole million rendered as
+ * "<0.0001": a balance change worth reading, displayed as nothing.
+ */
 function formatSimAmount(rawAmount: string, decimals: number): string {
-  try {
-    const num = parseFloat(rawAmount) / Math.pow(10, decimals || 18);
-    if (num === 0) return '0';
-    if (num < 0.0001) return '<0.0001';
-    if (num < 1) return num.toFixed(4);
-    if (num < 1000) return num.toFixed(2);
-    return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  } catch {
-    return rawAmount;
-  }
+  return formatAmount(toDecimalString(rawAmount, decimals));
 }
 
 export const SendTransaction: React.FC<SendTransactionProps> = ({
