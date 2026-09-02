@@ -10,6 +10,7 @@
 import { describe, it, expect } from "vitest";
 import {
   formatAmount,
+  formatCompactNumber,
   formatUSD,
   shortenAddress,
   toDecimalString,
@@ -184,5 +185,24 @@ describe("toDecimalString", () => {
     expect(() => toDecimalString("100", 1.5)).not.toThrow();
     expect(toDecimalString("100", -1)).toBe("0");
     expect(toDecimalString("100", NaN)).toBe("0");
+  });
+});
+
+describe("formatCompactNumber", () => {
+  it("abbreviates by magnitude", () => {
+    expect(formatCompactNumber(999)).toBe("999");
+    expect(formatCompactNumber(1500)).toBe("1.5K");
+    expect(formatCompactNumber(2500000000)).toBe("2.5B");
+  });
+
+  // The hand-written ladder used toFixed(0) at the millions tier and rounded
+  // this to "2M", overstating by a third.
+  it("does not round 1.5M up to 2M", () => {
+    expect(formatCompactNumber(1500000)).toBe("1.5M");
+  });
+
+  it("renders missing input as zero", () => {
+    expect(formatCompactNumber(undefined)).toBe("0");
+    expect(formatCompactNumber(null)).toBe("0");
   });
 });

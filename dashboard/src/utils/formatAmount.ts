@@ -172,3 +172,21 @@ export function shortenAddress(
   if (address.length <= lead + tail + 2) return address;
   return `${address.slice(0, lead)}...${address.slice(-tail)}`;
 }
+
+/**
+ * Abbreviates a magnitude: 1500000 -> "1.5M".
+ *
+ * Intl does this, so this is an option bag rather than a threshold ladder. The
+ * two hand-written ladders it replaces disagreed with each other — one
+ * abbreviated from 1,000 and the other from 1,000,000 — and one rounded 1.5M
+ * up to "2M", overstating a TVL figure by a third.
+ *
+ * Pinned to en-US for the same reason as everything else here.
+ */
+export function formatCompactNumber(value: number | null | undefined): string {
+  const num = typeof value === "number" && Number.isFinite(value) ? value : 0;
+  return new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(num);
+}

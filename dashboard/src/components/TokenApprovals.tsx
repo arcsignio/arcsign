@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { shortenAddress as sharedShorten } from "@/utils/formatAmount";
+import { formatCompactNumber, shortenAddress as sharedShorten } from "@/utils/formatAmount";
 import { useTranslation } from "react-i18next";
 import { useTokenApprovals } from "@/hooks/useTokenApprovals";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -94,10 +94,11 @@ function formatAllowance(
         : `${fraction.toFixed(3)} ${symbol}`;
     }
 
-    if (whole >= 10n ** 12n) return `>1T ${symbol}`;
-    if (whole >= 10n ** 9n) return `${(Number(whole) / 1e9).toFixed(1)}B ${symbol}`;
-    if (whole >= 10n ** 6n) return `${(Number(whole) / 1e6).toFixed(1)}M ${symbol}`;
-    if (whole >= 1000n) return `${(Number(whole) / 1e3).toFixed(1)}K ${symbol}`;
+    // Past this, Number() cannot represent `whole` — an unlimited-adjacent
+    // allowance is a 60-digit integer, and Intl on a corrupted float would
+    // abbreviate the wrong number confidently.
+    if (whole >= 10n ** 15n) return `>1000T ${symbol}`;
+    if (whole >= 1000n) return `${formatCompactNumber(Number(whole))} ${symbol}`;
 
     return `${(Number(raw) / Number(scale)).toFixed(2)} ${symbol}`;
   } catch {

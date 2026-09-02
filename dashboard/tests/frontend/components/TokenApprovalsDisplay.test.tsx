@@ -133,6 +133,6 @@ describe("TokenApprovals display", () => {
       }),
     ]);
 
-    expect(screen.getByText("1.0M TEST")).toBeInTheDocument();
+    expect(screen.getByText("1M TEST")).toBeInTheDocument();
   });
 });
