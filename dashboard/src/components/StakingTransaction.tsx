@@ -13,7 +13,11 @@
  */
 
 import React, { useState, useEffect, useMemo } from "react";
-import { formatAmount as formatBalance, formatCompactNumber } from "@/utils/formatAmount";
+import {
+  formatAmount as formatBalance,
+  formatCompactNumber,
+  formatPercent,
+} from "@/utils/formatAmount";
 import { useTranslation } from "react-i18next";
 import tauriApi, { type AppError, type BuildTransactionResponse } from "@/services/tauri-api";
 import { SignReview } from "@/components/SignReview";
@@ -460,7 +464,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
                     <span>{option.chainName}</span>
                     {option.provider.apy && (
                       <span className="text-green-600 font-medium">
-                        APY: {option.provider.apy}%
+                        APY: {formatPercent(option.provider.apy)}
                       </span>
                     )}
                     {option.provider.tvlUsd != null && (
@@ -521,7 +525,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         </div>
         {selectedOption?.provider.apy && (
           <span className="text-sm text-green-600 font-medium">
-            APY: {selectedOption.provider.apy}%
+            APY: {formatPercent(selectedOption.provider.apy)}
           </span>
         )}
       </div>
@@ -630,7 +634,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
         {selectedOption?.provider.apy && (
           <div className="p-4 bg-gray-50 rounded-lg">
             <div className="text-sm text-gray-500 mb-1">{t('staking.estimatedApy')}</div>
-            <div className="font-semibold text-green-600">{selectedOption.provider.apy}%</div>
+            <div className="font-semibold text-green-600">{formatPercent(selectedOption.provider.apy)}</div>
           </div>
         )}
 

@@ -174,6 +174,19 @@ export function shortenAddress(
 }
 
 /**
+ * Formats a percentage rate: 2.44544 -> "2.44%".
+ *
+ * Provider APIs return whatever precision they please — Ankr sends 2.44544,
+ * Lido 2.212 — so rendering the raw value put five- and six-decimal figures in
+ * a column beside three-decimal ones. Two places is all a rate carries, and
+ * this was already the rule in one of the two screens that show APY.
+ */
+export function formatPercent(value: number | null | undefined): string {
+  const num = typeof value === "number" && Number.isFinite(value) ? value : null;
+  return num === null ? "-" : `${num.toFixed(2)}%`;
+}
+
+/**
  * Abbreviates a magnitude: 1500000 -> "1.5M".
  *
  * Intl does this, so this is an option bag rather than a threshold ladder. The

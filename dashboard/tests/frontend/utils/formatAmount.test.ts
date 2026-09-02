@@ -11,6 +11,7 @@ import { describe, it, expect } from "vitest";
 import {
   formatAmount,
   formatCompactNumber,
+  formatPercent,
   formatUSD,
   shortenAddress,
   toDecimalString,
@@ -204,5 +205,21 @@ describe("formatCompactNumber", () => {
   it("renders missing input as zero", () => {
     expect(formatCompactNumber(undefined)).toBe("0");
     expect(formatCompactNumber(null)).toBe("0");
+  });
+});
+
+describe("formatPercent", () => {
+  // Rounds rather than truncates: unlike a balance, a rate is not a figure
+  // the user spends against, so there is no reason to floor it.
+  it("pins two decimals regardless of provider precision", () => {
+    expect(formatPercent(2.44544)).toBe("2.45%");
+    expect(formatPercent(2.212)).toBe("2.21%");
+    expect(formatPercent(3)).toBe("3.00%");
+  });
+
+  it("renders missing input as a dash, not 0%", () => {
+    expect(formatPercent(undefined)).toBe("-");
+    expect(formatPercent(null)).toBe("-");
+    expect(formatPercent(NaN)).toBe("-");
   });
 });
