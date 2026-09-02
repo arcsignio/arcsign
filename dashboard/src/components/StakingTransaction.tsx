@@ -13,7 +13,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from "react";
-import { formatAmount as formatBalance } from "@/utils/formatAmount";
+import { formatAmount as formatBalance, formatCompactNumber } from "@/utils/formatAmount";
 import { useTranslation } from "react-i18next";
 import tauriApi, { type AppError, type BuildTransactionResponse } from "@/services/tauri-api";
 import { SignReview } from "@/components/SignReview";
@@ -87,12 +87,15 @@ function fromSmallestUnit(amount: string, decimals: number = 18): string {
 // Format balance for display
 
 
-// Format TVL for display
+// Format TVL for display.
+//
+// `!= null` rather than a falsy check: a protocol reporting zero TVL is a
+// signal worth showing, and `!tvl` collapsed it into the same dash as "we have
+// no data". The millions tier also used toFixed(0), so a $1.5M TVL displayed
+// as "$2M" — a third higher than reality.
 function formatTvl(tvl: number | undefined): string {
-  if (!tvl) return "-";
-  if (tvl >= 1_000_000_000) return `$${(tvl / 1_000_000_000).toFixed(1)}B`;
-  if (tvl >= 1_000_000) return `$${(tvl / 1_000_000).toFixed(0)}M`;
-  return `$${tvl.toLocaleString()}`;
+  if (tvl == null) return "-";
+  return `$${formatCompactNumber(tvl)}`;
 }
 
 export const StakingTransaction: React.FC<StakingTransactionProps> = ({
@@ -460,7 +463,7 @@ export const StakingTransaction: React.FC<StakingTransactionProps> = ({
                         APY: {option.provider.apy}%
                       </span>
                     )}
-                    {option.provider.tvlUsd && (
+                    {option.provider.tvlUsd != null && (
                       <span>TVL: {formatTvl(option.provider.tvlUsd)}</span>
                     )}
                   </div>
