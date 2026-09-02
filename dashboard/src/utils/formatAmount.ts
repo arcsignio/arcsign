@@ -101,8 +101,17 @@ export function toDecimalString(
  *   formatAmount("1000000")     -> "1,000,000.0000"
  *   formatAmount("0.00000001")  -> "<0.0001"
  *   formatAmount("")            -> "0"
+ *
+ * `showDust` keeps the digits for values below the threshold. A balance under
+ * 0.0001 is dust the user cannot act on, so collapsing it is right — but a
+ * *fee* is legitimately that small: a BSC transfer costs about 0.00002 BNB, so
+ * a fee selector that applied the balance rule showed "<0.0001 BNB" for slow,
+ * normal, and fast alike, and conveyed nothing.
  */
-export function formatAmount(balance: string | number | null | undefined): string {
+export function formatAmount(
+  balance: string | number | null | undefined,
+  { showDust = false }: { showDust?: boolean } = {},
+): string {
   const num = typeof balance === "number" ? balance : parseFloat(balance ?? "");
 
   // Non-numeric input renders as zero rather than the literal "NaN" several of
@@ -111,10 +120,16 @@ export function formatAmount(balance: string | number | null | undefined): strin
   if (num === 0) return "0";
 
   const magnitude = Math.abs(num);
-  if (magnitude < DUST) return `<${DUST}`;
+  if (magnitude < DUST && !showDust) return `<${DUST}`;
 
-  const decimals = magnitude < 1 ? 6 : magnitude < 1000 ? 6 : 4;
-  const [whole, fraction] = truncate(num, decimals).split(".");
+  // Sub-dust values are only ever shown deliberately (showDust), and six
+  // places would truncate 0.0000021 to 0.000002 — losing the digits that were
+  // the reason for showing them. Trailing zeros are trimmed there: padding
+  // 0.000021 out to nine places adds width without adding information.
+  const subDust = magnitude < DUST;
+  const decimals = subDust ? 9 : magnitude < 1000 ? 6 : 4;
+  const [whole, rawFraction] = truncate(num, decimals).split(".");
+  const fraction = subDust ? rawFraction?.replace(/0+$/, "") : rawFraction;
   return fraction ? `${groupInt(whole)}.${fraction}` : groupInt(whole);
 }
 

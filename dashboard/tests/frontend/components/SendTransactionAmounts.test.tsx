@@ -109,9 +109,13 @@ describe("send-screen amount formatting", () => {
     expect(screen.getByText(/1\.500000/)).toBeInTheDocument();
   });
 
-  it("shows a dust fee as a threshold with no space", async () => {
-    await reviewWithFee("1");
-    expect(screen.getByText(/<0\.0001/)).toBeInTheDocument();
+  // Fees are legitimately below the balance dust threshold: a BSC transfer
+  // costs about 0.00002 BNB. Collapsing them to "<0.0001" made slow, normal
+  // and fast render identically and left the speed selector saying nothing.
+  it("keeps the digits on a sub-dust fee", async () => {
+    await reviewWithFee("21000000000000"); // 0.000021
+    expect(screen.getByText(/0\.000021/)).toBeInTheDocument();
+    expect(screen.queryByText(/<0\.0001/)).not.toBeInTheDocument();
   });
 
   // formatEth("") reached NaN.toFixed(4) and printed the string "NaN" into the

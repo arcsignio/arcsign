@@ -149,7 +149,8 @@ export function PendingRequests({
     const gasPrice = parseHex(request.maxFeePerGas || request.gasPrice);
     if (gas === BigInt(0) || gasPrice === BigInt(0)) return 'N/A';
     const symbol = request.network.includes('bsc') ? 'BNB' : 'ETH';
-    return `~${formatAmount(toDecimalString(gas * gasPrice, 18))} ${symbol}`;
+    // showDust: a gas cost is legitimately below the balance dust threshold.
+    return `~${formatAmount(toDecimalString(gas * gasPrice, 18), { showDust: true })} ${symbol}`;
   };
 
   const totalRequests = requests.length + messageRequests.length;

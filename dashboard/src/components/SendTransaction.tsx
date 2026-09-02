@@ -124,9 +124,13 @@ function getNetworkIcon(network: string): string {
 }
 
 
-// Helper to format ETH values
+// Helper to format ETH values.
+//
+// showDust: this renders fees, not balances. A BSC transfer costs about
+// 0.00002 BNB, so the balance rule's "<0.0001" collapsed slow, normal and fast
+// into the same string and made the speed selector meaningless.
 function formatEth(wei: string): string {
-  return formatAmount(toDecimalString(wei, 18));
+  return formatAmount(toDecimalString(wei, 18), { showDust: true });
 }
 
 /**

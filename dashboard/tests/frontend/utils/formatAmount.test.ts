@@ -39,6 +39,16 @@ describe("formatAmount", () => {
     expect(formatAmount("0.00009")).toBe("<0.0001");
   });
 
+  // Fees are legitimately below the dust threshold — a BSC transfer costs
+  // about 0.00002 BNB. Collapsing those made slow, normal and fast render as
+  // the same string, so the fee selector conveyed nothing.
+  it("keeps the digits for sub-dust values when asked", () => {
+    expect(formatAmount("0.000021", { showDust: true })).toBe("0.000021");
+    expect(formatAmount("0.0000021", { showDust: true })).toBe("0.0000021");
+    // Above the threshold showDust changes nothing.
+    expect(formatAmount("1.5", { showDust: true })).toBe("1.500000");
+  });
+
   it("renders zero as zero, not as dust", () => {
     expect(formatAmount("0")).toBe("0");
     expect(formatAmount(0)).toBe("0");
