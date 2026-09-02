@@ -8,7 +8,12 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { formatAmount, formatUSD, shortenAddress } from "@/utils/formatAmount";
+import {
+  formatAmount,
+  formatUSD,
+  shortenAddress,
+  toDecimalString,
+} from "@/utils/formatAmount";
 
 describe("formatAmount", () => {
   it("groups thousands and keeps four decimals on large values", () => {
@@ -112,5 +117,47 @@ describe("shortenAddress", () => {
     expect(shortenAddress(undefined)).toBe("");
     expect(shortenAddress(null)).toBe("");
     expect(shortenAddress("")).toBe("");
+  });
+});
+
+describe("toDecimalString", () => {
+  it("scales by the given decimals", () => {
+    expect(toDecimalString("1500000000000000000", 18)).toBe("1.5");
+    expect(toDecimalString("100000000", 6)).toBe("100");
+    expect(toDecimalString("1", 18)).toBe("0.000000000000000001");
+  });
+
+  it("defaults to 18 decimals", () => {
+    expect(toDecimalString("1500000000000000000")).toBe("1.5");
+  });
+
+  // `|| 18` would coerce 0 to 18 and divide by 10^18 instead of 10^0.
+  it("honours zero decimals", () => {
+    expect(toDecimalString("1000000", 0)).toBe("1000000");
+  });
+
+  it("accepts hex and bigint", () => {
+    expect(toDecimalString("0x0", 18)).toBe("0");
+    expect(toDecimalString(1500000000000000000n, 18)).toBe("1.5");
+  });
+
+  it("returns 0 for missing or malformed input", () => {
+    expect(toDecimalString("")).toBe("0");
+    expect(toDecimalString(null)).toBe("0");
+    expect(toDecimalString(undefined)).toBe("0");
+    expect(toDecimalString("not a number")).toBe("0");
+  });
+
+  // The whole reason this is BigInt: Number(2^256-1)/Number(10^18) yields
+  // 1.157920892373162e+59, an unformattable string.
+  it("keeps precision far above 2^53", () => {
+    const max = (2n ** 256n - 1n).toString();
+    const out = toDecimalString(max, 18);
+    expect(out).not.toContain("e+");
+    expect(out.split(".")[0]).toHaveLength(60);
+  });
+
+  it("handles negatives", () => {
+    expect(toDecimalString("-1500000000000000000", 18)).toBe("-1.5");
   });
 });

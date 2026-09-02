@@ -41,6 +41,50 @@ function truncate(value: number, decimals: number): string {
 }
 
 /**
+ * Scales a raw on-chain integer to a plain decimal string.
+ *
+ * Returns a decimal string, not a display string, on purpose. An earlier shape
+ * returned formatted output and then needed a parameter meaning "do not apply
+ * your own decimal rule" so gas prices could stay at two places — a parameter
+ * whose only job was to undo the function's opinion. Splitting scaling from
+ * presentation removes the exception: balances hand the result to
+ * formatAmount, Gwei calls .toFixed(2), each caller decides.
+ *
+ * The division never touches Number(). A near-unlimited ERC-20 allowance
+ * exceeds 2^53 — and 2^53 wei is only 0.009 ETH, so float loses precision far
+ * earlier than intuition suggests. Number(2^256-1) / Number(10^18) evaluates to
+ * 1.157920892373162e+59: not a plausible-looking small number, an
+ * unformattable one.
+ */
+export function toDecimalString(
+  raw: string | bigint | null | undefined,
+  decimals = 18,
+): string {
+  if (raw === null || raw === undefined || raw === "") return "0";
+
+  let value: bigint;
+  try {
+    value = typeof raw === "bigint" ? raw : BigInt(raw);
+  } catch {
+    return "0";
+  }
+  if (value === 0n) return "0";
+
+  const negative = value < 0n;
+  const magnitude = negative ? -value : value;
+  const scale = 10n ** BigInt(decimals);
+  const whole = magnitude / scale;
+  const remainder = magnitude % scale;
+
+  const sign = negative ? "-" : "";
+  if (remainder === 0n) return `${sign}${whole}`;
+
+  // Pad to the full width, then drop trailing zeros: 1.50 -> 1.5
+  const fraction = remainder.toString().padStart(decimals, "0").replace(/0+$/, "");
+  return `${sign}${whole}.${fraction}`;
+}
+
+/**
  * Formats a token balance for display.
  *
  * Precision scales with magnitude: small balances need digits to be meaningful
