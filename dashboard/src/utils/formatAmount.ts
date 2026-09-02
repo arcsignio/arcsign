@@ -62,6 +62,13 @@ export function toDecimalString(
 ): string {
   if (raw === null || raw === undefined || raw === "") return "0";
 
+  // `10n ** BigInt(decimals)` throws for a negative, fractional, or NaN
+  // exponent. decimals reaches here from backend simulation data and from
+  // on-chain decimals() calls, and every caller renders inside JSX with no
+  // error boundary — an uncaught throw would blank a whole signing review
+  // rather than one row of it.
+  if (!Number.isInteger(decimals) || decimals < 0) return "0";
+
   let value: bigint;
   try {
     value = typeof raw === "bigint" ? raw : BigInt(raw);

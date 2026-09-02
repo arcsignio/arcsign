@@ -163,4 +163,16 @@ describe("toDecimalString", () => {
   it("handles negatives", () => {
     expect(toDecimalString("-1500000000000000000", 18)).toBe("-1.5");
   });
+
+  // `10n ** BigInt(decimals)` throws for these. decimals arrives from backend
+  // simulation data and on-chain decimals() calls, and every caller renders
+  // inside JSX with no error boundary — an uncaught throw here would blank the
+  // signing review screen rather than one row of it.
+  it("survives an invalid decimals argument", () => {
+    expect(() => toDecimalString("100", -1)).not.toThrow();
+    expect(() => toDecimalString("100", NaN)).not.toThrow();
+    expect(() => toDecimalString("100", 1.5)).not.toThrow();
+    expect(toDecimalString("100", -1)).toBe("0");
+    expect(toDecimalString("100", NaN)).toBe("0");
+  });
 });
