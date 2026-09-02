@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { shortenAddress as sharedShorten } from "@/utils/formatAmount";
 import { useTranslation } from "react-i18next";
 import { useContacts } from "@/hooks/useContacts";
 import type { Contact, AddContactParams, UpdateContactParams } from "@/types/contact";
@@ -29,8 +30,7 @@ const CHAINS = [
 
 /** Shorten an address for display: 0x1234...5678 */
 function shortenAddress(address: string): string {
-  if (!address || address.length < 12) return address;
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  return sharedShorten(address, 6, 4);
 }
 
 export function AddressBook({

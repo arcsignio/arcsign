@@ -1615,7 +1615,7 @@ describe('WalletDetail', () => {
     });
 
     // Large balance should be truncated to 4 decimals
-    expect(screen.getByText('12345.6789 ETH')).toBeInTheDocument();
+    expect(screen.getByText('12,345.6789 ETH')).toBeInTheDocument();
   });
 
   // ── 56. More menu closes when clicking outside ────────────────────────────

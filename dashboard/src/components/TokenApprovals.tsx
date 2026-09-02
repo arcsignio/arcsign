@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { shortenAddress as sharedShorten } from "@/utils/formatAmount";
 import { useTranslation } from "react-i18next";
 import { useTokenApprovals } from "@/hooks/useTokenApprovals";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -36,13 +37,8 @@ const NETWORK_COLORS: Record<string, string> = {
   "bnb-mainnet": "#F0B90B",
 };
 
-// Guards a missing address rather than trusting the type: this renders provider
-// data, and a malformed row would otherwise throw inside the list and blank the
-// whole approvals screen — hiding every other approval the user came to revoke.
 function truncateAddress(addr?: string): string {
-  if (!addr) return "";
-  if (addr.length <= 12) return addr;
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  return sharedShorten(addr, 6, 4);
 }
 
 // Traffic-light colors for the risk badge / row accent.

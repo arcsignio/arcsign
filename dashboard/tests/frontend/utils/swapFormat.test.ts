@@ -113,6 +113,6 @@ describe("formatBalance", () => {
     expect(formatBalance("0.1234569")).toBe("0.123456");
   });
   it("truncates large values to 4 decimals", () => {
-    expect(formatBalance("12345.98765")).toBe("12345.9876");
+    expect(formatBalance("12345.98765")).toBe("12,345.9876");
   });
 });

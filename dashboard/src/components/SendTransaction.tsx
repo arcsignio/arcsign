@@ -14,6 +14,11 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  formatAmount as formatBalance,
+  formatUSD,
+  shortenAddress as sharedShorten,
+} from "@/utils/formatAmount";
 import { AddressBook } from "@/components/AddressBook";
 import { SignReview } from "@/components/SignReview";
 import { PasswordInput } from "@/components/PasswordInput";
@@ -154,10 +159,9 @@ function toSmallestUnit(amount: string, decimals: number): string {
   return result;
 }
 
-// Helper to shorten address
+// 8/6 preserves this screen's existing shape.
 function shortenAddress(address: string): string {
-  if (!address || address.length < 10) return address;
-  return `${address.slice(0, 8)}...${address.slice(-6)}`;
+  return sharedShorten(address, 8, 6);
 }
 
 /**
@@ -533,28 +537,6 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
     return (key && getNativeToken(key)?.symbol) || "ETH";
   })();
 
-  // Format balance display (truncate, no rounding).
-  //
-  // Takes no decimals argument on purpose: `balance` is already decimal-adjusted
-  // by the backend (the undivided value is a separate `rawBalance` field). An
-  // earlier signature accepted a `decimals` parameter and ignored it, which read
-  // like a bug — dividing here would have scaled every amount a second time.
-  const formatBalance = (balance: string): string => {
-    const num = parseFloat(balance);
-    if (num === 0) return "0";
-    if (num < 0.0001) return "<0.0001";
-
-    // Truncate instead of rounding
-    const truncate = (n: number, decimals: number): string => {
-      const factor = Math.pow(10, decimals);
-      return (Math.floor(n * factor) / factor).toFixed(decimals);
-    };
-
-    if (num < 0.01) return truncate(num, 6);
-    if (num < 1000) return truncate(num, 6);
-    return truncate(num, 4);
-  };
-
   // Group tokens by network for better display
   const tokensByNetwork = availableTokens.reduce((acc, token) => {
     const network = token.networkLabel;
@@ -637,7 +619,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
                         <div className="token-balance">
                           <span className="balance-amount">{formatBalance(token.balance)}</span>
                           {token.usdValue > 0 && (
-                            <span className="balance-usd">${token.usdValue.toFixed(2)}</span>
+                            <span className="balance-usd">{formatUSD(token.usdValue)}</span>
                           )}
                         </div>
                         <span className="token-arrow">→</span>

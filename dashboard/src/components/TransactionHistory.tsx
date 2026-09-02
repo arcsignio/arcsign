@@ -5,6 +5,10 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  formatAmount as formatValue,
+  shortenAddress as sharedShorten,
+} from "@/utils/formatAmount";
 import { useTranslation } from "react-i18next";
 import tauriApi, {
   type AssetTransfer,
@@ -61,19 +65,13 @@ function formatTimestamp(timestamp: string): string {
 }
 
 // Helper to shorten address
+// 6/4 keeps this list's narrow column shape.
 function shortenAddress(address: string): string {
-  if (!address || address.length < 10) return address;
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  return sharedShorten(address, 6, 4);
 }
 
 // Helper to format value
-function formatValue(value: number): string {
-  if (value === 0) return "0";
-  if (value < 0.0001) return "<0.0001";
-  if (value < 1) return value.toFixed(6);
-  if (value < 1000) return value.toFixed(4);
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
+
 
 // Helper to get block explorer URL
 function getExplorerUrl(network: string, txHash: string): string {

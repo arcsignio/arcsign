@@ -1,23 +1,7 @@
-export function formatUSD(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-export function formatBalance(balance: string): string {
-  const num = parseFloat(balance);
-  if (num === 0) return "0";
-
-  const truncate = (n: number, decimals: number): string => {
-    const factor = Math.pow(10, decimals);
-    return (Math.floor(n * factor) / factor).toFixed(decimals);
-  };
-
-  if (num < 0.000001) return truncate(num, 10);
-  if (num < 0.01) return truncate(num, 8);
-  if (num < 1000) return truncate(num, 6);
-  return truncate(num, 4);
-}
+/**
+ * Kept as a re-export so existing imports keep resolving. The implementations
+ * moved to `formatAmount.ts` when six divergent copies of this logic were
+ * collapsed into one — see that module for why truncation and a pinned locale
+ * are correctness properties rather than preferences.
+ */
+export { formatAmount as formatBalance, formatUSD } from "./formatAmount";

@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { formatAmount as formatBalance, formatUSD } from "@/utils/formatAmount";
 import { useTranslation } from "react-i18next";
 import type { TokenBalance } from "@/types/tokens";
 import { getStakableAssetsWithMetrics } from "@/constants/stakingRegistry";
@@ -137,7 +138,7 @@ export function DefiPositions({ tokens }: DefiPositionsProps) {
           {t("defiPositions.totalStaked")}
         </p>
         <p style={{ fontSize: "1.5rem", fontWeight: 700, margin: 0 }}>
-          ${totalStakedUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          {formatUSD(totalStakedUsd)}
         </p>
         <p style={{ fontSize: "0.75rem", opacity: 0.7, margin: "0.25rem 0 0" }}>
           {positions.length} {t("defiPositions.activePositions")}
@@ -241,7 +242,7 @@ function PositionCard({
             {t("defiPositions.value")}
           </p>
           <p style={{ fontSize: "1rem", fontWeight: 600, color: "#1e293b", margin: 0 }}>
-            ${(token.usdValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatUSD(token.usdValue || 0)}
           </p>
         </div>
       </div>
@@ -268,11 +269,4 @@ function PositionCard({
   );
 }
 
-function formatBalance(balance: string): string {
-  const num = parseFloat(balance);
-  if (isNaN(num)) return "0";
-  if (num < 0.001) return "<0.001";
-  if (num < 1) return num.toFixed(4);
-  if (num < 1000) return num.toFixed(3);
-  return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
+

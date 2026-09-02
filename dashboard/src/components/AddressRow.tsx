@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from 'react';
+import { shortenAddress as sharedShorten } from "@/utils/formatAmount";
 import { useTranslation } from 'react-i18next';
 import type { Address } from '@/types/address';
 import { getChainIconUrl, getChainFallbackIcon, isChainSupported } from '@/utils/chainIcons';
@@ -40,9 +41,10 @@ function formatCategory(category: string): string {
 /**
  * Truncate address for display
  */
+// 10/8 — these rows are wide enough to show more of the address, and every
+// extra character is one more the user can check against what they expected.
 function truncateAddress(address: string): string {
-  if (address.length <= 20) return address;
-  return `${address.slice(0, 10)}...${address.slice(-8)}`;
+  return sharedShorten(address, 10, 8);
 }
 
 /**

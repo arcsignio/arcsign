@@ -1548,7 +1548,7 @@ export function WalletDetail({
                 <div style={{ fontSize: "0.8125rem", color: "#64748b" }}>{selectedToken.name}</div>
               </div>
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: "1.125rem", fontWeight: 600, color: "#1e293b" }}>${selectedToken.totalUsdValue.toFixed(2)}</div>
+                <div style={{ fontSize: "1.125rem", fontWeight: 600, color: "#1e293b" }}>{formatUSD(selectedToken.totalUsdValue)}</div>
                 <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{selectedToken.isMultiChain ? `${selectedToken.networks.length} chains` : "1 chain"}</div>
               </div>
             </div>
@@ -1592,7 +1592,7 @@ export function WalletDetail({
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: "0.875rem", fontWeight: 500, color: "#1e293b" }}>{formatBalance(src.balance)} {src.tokenSymbol}</div>
-                      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>${(src.usdValue || 0).toFixed(2)}</div>
+                      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{formatUSD(src.usdValue || 0)}</div>
                     </div>
                   </div>
                 ))}

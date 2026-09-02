@@ -1,3 +1,4 @@
+import { shortenAddress as sharedShorten } from "./formatAmount";
 import type { SwapQuoteResponse } from "@/services/tauri-api";
 
 /**
@@ -91,23 +92,13 @@ export function getNativeTokenSymbol(network: string): string {
   return mapping[network] || "ETH";
 }
 
+// 8/6 keeps the swap views' existing shape; the shared helper carries the
+// missing-value guard and the single implementation.
 export function shortenAddress(address: string): string {
-  if (!address || address.length < 10) return address;
-  return `${address.slice(0, 8)}...${address.slice(-6)}`;
+  return sharedShorten(address, 8, 6);
 }
 
-export function formatBalance(balance: string): string {
-  const num = parseFloat(balance);
-  if (num === 0) return "0";
-  if (num < 0.0001) return "<0.0001";
-  const truncate = (n: number, decimals: number): string => {
-    const factor = Math.pow(10, decimals);
-    return (Math.floor(n * factor) / factor).toFixed(decimals);
-  };
-  if (num < 0.01) return truncate(num, 6);
-  if (num < 1000) return truncate(num, 6);
-  return truncate(num, 4);
-}
+export { formatAmount as formatBalance } from "./formatAmount";
 
 // Supported chains for swap (Internal Network IDs from backend).
 export const SUPPORTED_SWAP_CHAINS = [

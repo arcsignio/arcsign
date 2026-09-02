@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from "react";
+import { formatAmount as formatBalance } from "@/utils/formatAmount";
 import { useTranslation } from "react-i18next";
 import tauriApi, { type AppError, type BuildTransactionResponse } from "@/services/tauri-api";
 import { SignReview } from "@/components/SignReview";
@@ -84,14 +85,7 @@ function fromSmallestUnit(amount: string, decimals: number = 18): string {
 }
 
 // Format balance for display
-function formatBalance(balance: string): string {
-  const num = parseFloat(balance);
-  if (num === 0) return "0";
-  if (num < 0.0001) return "<0.0001";
-  if (num < 0.01) return num.toFixed(6);
-  if (num < 1000) return num.toFixed(4);
-  return num.toFixed(2);
-}
+
 
 // Format TVL for display
 function formatTvl(tvl: number | undefined): string {
