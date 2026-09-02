@@ -123,9 +123,14 @@ describe("send-screen amount formatting", () => {
 
   // The total row converted the fee inline at 6 decimals while the fee row
   // above it used 4 — two precisions for related figures on one screen.
+  //
+  // The amount is deliberately above a thousand: below it, the old inline
+  // `.toFixed(6)` and the shared rule produce the same string, so a smaller
+  // figure would pass with this fix reverted and prove nothing.
   it("formats the total through the same rule as the fee", async () => {
-    await reviewWithFee("2100000000000000", "0.5");
-    // 0.5 + 0.0021 = 0.5021, six decimals below a thousand.
-    expect(screen.getByText(/0\.502100/)).toBeInTheDocument();
+    await reviewWithFee("2100000000000000", "1500");
+    // 1500 + 0.0021 -> grouped, four decimals at this magnitude.
+    // The old path gave "1500.002100": no separator, six decimals.
+    expect(screen.getByText(/1,500\.0021/)).toBeInTheDocument();
   });
 });
