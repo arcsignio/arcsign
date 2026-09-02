@@ -15,9 +15,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  formatAmount,
   formatAmount as formatBalance,
   formatUSD,
   shortenAddress as sharedShorten,
+  toDecimalString,
 } from "@/utils/formatAmount";
 import { AddressBook } from "@/components/AddressBook";
 import { SignReview } from "@/components/SignReview";
@@ -124,12 +126,7 @@ function getNetworkIcon(network: string): string {
 
 // Helper to format ETH values
 function formatEth(wei: string): string {
-  const eth = parseFloat(wei) / 1e18;
-  if (eth === 0) return "0";
-  if (eth < 0.0001) return "<0.0001";
-  if (eth < 0.01) return eth.toFixed(6);
-  if (eth < 1) return eth.toFixed(4);
-  return eth.toFixed(4);
+  return formatAmount(toDecimalString(wei, 18));
 }
 
 /**
@@ -829,7 +826,12 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
               <div className="review-row total">
                 <span className="review-label">{t("sendTransaction.total")}</span>
                 <span className="review-value">
-                  {(parseFloat(amount) + parseFloat(unsignedTx.fee) / 1e18).toFixed(6)} {selectedToken.tokenSymbol}
+                  {/* Same rule as the fee row above: this line used its own
+                      inline conversion at six decimals while the fee showed
+                      four, seven lines apart on one screen. */}
+                  {formatAmount(
+                    parseFloat(amount) + parseFloat(toDecimalString(unsignedTx.fee, 18))
+                  )} {selectedToken.tokenSymbol}
                 </span>
               </div>
             )}
