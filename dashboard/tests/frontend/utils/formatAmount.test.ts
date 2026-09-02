@@ -8,7 +8,14 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { formatAmount, formatUSD, shortenAddress } from "@/utils/formatAmount";
+import {
+  formatAmount,
+  formatCompactNumber,
+  formatPercent,
+  formatUSD,
+  shortenAddress,
+  toDecimalString,
+} from "@/utils/formatAmount";
 
 describe("formatAmount", () => {
   it("groups thousands and keeps four decimals on large values", () => {
@@ -32,6 +39,16 @@ describe("formatAmount", () => {
   it("shows dust as a threshold", () => {
     expect(formatAmount("0.00000001")).toBe("<0.0001");
     expect(formatAmount("0.00009")).toBe("<0.0001");
+  });
+
+  // Fees are legitimately below the dust threshold — a BSC transfer costs
+  // about 0.00002 BNB. Collapsing those made slow, normal and fast render as
+  // the same string, so the fee selector conveyed nothing.
+  it("keeps the digits for sub-dust values when asked", () => {
+    expect(formatAmount("0.000021", { showDust: true })).toBe("0.000021");
+    expect(formatAmount("0.0000021", { showDust: true })).toBe("0.0000021");
+    // Above the threshold showDust changes nothing.
+    expect(formatAmount("1.5", { showDust: true })).toBe("1.500000");
   });
 
   it("renders zero as zero, not as dust", () => {
@@ -112,5 +129,97 @@ describe("shortenAddress", () => {
     expect(shortenAddress(undefined)).toBe("");
     expect(shortenAddress(null)).toBe("");
     expect(shortenAddress("")).toBe("");
+  });
+});
+
+describe("toDecimalString", () => {
+  it("scales by the given decimals", () => {
+    expect(toDecimalString("1500000000000000000", 18)).toBe("1.5");
+    expect(toDecimalString("100000000", 6)).toBe("100");
+    expect(toDecimalString("1", 18)).toBe("0.000000000000000001");
+  });
+
+  it("defaults to 18 decimals", () => {
+    expect(toDecimalString("1500000000000000000")).toBe("1.5");
+  });
+
+  // `|| 18` would coerce 0 to 18 and divide by 10^18 instead of 10^0.
+  it("honours zero decimals", () => {
+    expect(toDecimalString("1000000", 0)).toBe("1000000");
+  });
+
+  it("accepts hex and bigint", () => {
+    expect(toDecimalString("0x0", 18)).toBe("0");
+    expect(toDecimalString(1500000000000000000n, 18)).toBe("1.5");
+  });
+
+  it("returns 0 for missing or malformed input", () => {
+    expect(toDecimalString("")).toBe("0");
+    expect(toDecimalString(null)).toBe("0");
+    expect(toDecimalString(undefined)).toBe("0");
+    expect(toDecimalString("not a number")).toBe("0");
+  });
+
+  // The whole reason this is BigInt: Number(2^256-1)/Number(10^18) yields
+  // 1.157920892373162e+59 — and a float division would still produce a
+  // 60-digit, non-exponential whole part, just the wrong one from the 17th
+  // significant figure onward. Comparing against the exact BigInt quotient
+  // (computed here, not hardcoded) is what actually catches that.
+  it("keeps precision far above 2^53", () => {
+    const max = 2n ** 256n - 1n;
+    const scale = 10n ** 18n;
+    const out = toDecimalString(max.toString(), 18);
+    expect(out.split(".")[0]).toBe((max / scale).toString());
+  });
+
+  it("handles negatives", () => {
+    expect(toDecimalString("-1500000000000000000", 18)).toBe("-1.5");
+  });
+
+  // `10n ** BigInt(decimals)` throws for these. decimals arrives from backend
+  // simulation data and on-chain decimals() calls, and every caller renders
+  // inside JSX with no error boundary — an uncaught throw here would blank the
+  // signing review screen rather than one row of it.
+  it("survives an invalid decimals argument", () => {
+    expect(() => toDecimalString("100", -1)).not.toThrow();
+    expect(() => toDecimalString("100", NaN)).not.toThrow();
+    expect(() => toDecimalString("100", 1.5)).not.toThrow();
+    expect(toDecimalString("100", -1)).toBe("0");
+    expect(toDecimalString("100", NaN)).toBe("0");
+  });
+});
+
+describe("formatCompactNumber", () => {
+  it("abbreviates by magnitude", () => {
+    expect(formatCompactNumber(999)).toBe("999");
+    expect(formatCompactNumber(1500)).toBe("1.5K");
+    expect(formatCompactNumber(2500000000)).toBe("2.5B");
+  });
+
+  // The hand-written ladder used toFixed(0) at the millions tier and rounded
+  // this to "2M", overstating by a third.
+  it("does not round 1.5M up to 2M", () => {
+    expect(formatCompactNumber(1500000)).toBe("1.5M");
+  });
+
+  it("renders missing input as zero", () => {
+    expect(formatCompactNumber(undefined)).toBe("0");
+    expect(formatCompactNumber(null)).toBe("0");
+  });
+});
+
+describe("formatPercent", () => {
+  // Rounds rather than truncates: unlike a balance, a rate is not a figure
+  // the user spends against, so there is no reason to floor it.
+  it("pins two decimals regardless of provider precision", () => {
+    expect(formatPercent(2.44544)).toBe("2.45%");
+    expect(formatPercent(2.212)).toBe("2.21%");
+    expect(formatPercent(3)).toBe("3.00%");
+  });
+
+  it("renders missing input as a dash, not 0%", () => {
+    expect(formatPercent(undefined)).toBe("-");
+    expect(formatPercent(null)).toBe("-");
+    expect(formatPercent(NaN)).toBe("-");
   });
 });

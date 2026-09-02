@@ -6,6 +6,8 @@
  * Purpose: Eliminate duplicate validation logic across handlers
  */
 
+import { formatAmount, toDecimalString } from "@/utils/formatAmount";
+
 /**
  * Check if a string is a valid Ethereum address
  * Format: 0x followed by 40 hex characters
@@ -71,7 +73,11 @@ export function extractSignature(result: unknown): string {
 }
 
 /**
- * Format value from wei to display string
+ * Format value from wei to display string.
+ *
+ * This string sits in the approval prompt a user reads before signing, so an
+ * unreadable value is returned unchanged rather than as "0 ETH" — a confident
+ * zero for something we could not parse is worse than showing the raw text.
  */
 export function formatWeiValue(value?: string, symbol = 'ETH'): string {
   if (!value || value === '0x0' || value === '0x') {
@@ -79,15 +85,13 @@ export function formatWeiValue(value?: string, symbol = 'ETH'): string {
   }
 
   try {
-    const wei = BigInt(value);
-    const eth = Number(wei) / 1e18;
-    if (eth < 0.0001 && eth > 0) {
-      return `< 0.0001 ${symbol}`;
-    }
-    return `${eth.toFixed(6)} ${symbol}`;
+    // Throws for anything BigInt cannot read; that is the passthrough case.
+    BigInt(value);
   } catch {
     return value;
   }
+
+  return `${formatAmount(toDecimalString(value, 18))} ${symbol}`;
 }
 
 /**

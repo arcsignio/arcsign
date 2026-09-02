@@ -7,7 +7,11 @@
  */
 
 import { useState, useEffect } from "react";
-import { formatAmount as formatBalance, formatUSD } from "@/utils/formatAmount";
+import {
+  formatAmount as formatBalance,
+  formatPercent,
+  formatUSD,
+} from "@/utils/formatAmount";
 import { useTranslation } from "react-i18next";
 import type { TokenBalance } from "@/types/tokens";
 import { getStakableAssetsWithMetrics } from "@/constants/stakingRegistry";
@@ -218,7 +222,7 @@ function PositionCard({
             padding: "0.25rem 0.5rem",
             borderRadius: "0.375rem",
           }}>
-            {apy.toFixed(2)}% APY
+            {formatPercent(apy)} APY
           </span>
         ) : null}
       </div>

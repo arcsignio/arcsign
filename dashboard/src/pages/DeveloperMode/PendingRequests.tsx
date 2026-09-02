@@ -10,6 +10,7 @@
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatAmount, toDecimalString } from '@/utils/formatAmount';
 import type { DevSignRequest, DevSession, DevMessageSignRequest } from '@/types/developer';
 import { PasswordInput } from '@/components/PasswordInput';
 
@@ -118,39 +119,38 @@ export function PendingRequests({
     return BigInt(hex);
   };
 
-  // Format gas limit (number with commas)
+  // Format gas limit (number with commas). The separator is pinned by the
+  // shared formatter; toLocaleString() followed the runtime locale.
   const formatGasLimit = (gas: string | undefined): string => {
     if (!gas) return 'N/A';
-    const value = parseHex(gas);
-    return value.toLocaleString();
+    return formatAmount(parseHex(gas).toString());
   };
 
-  // Format gas price (to Gwei)
+  // Format gas price (to Gwei). Two decimals rather than the shared six:
+  // "200.000000 Gwei" carries nothing "200.00 Gwei" does not. Scaling and
+  // presentation are separate, so this is a caller's choice, not an exception.
   const formatGasPrice = (price: string | undefined): string => {
     if (!price) return 'N/A';
-    const value = parseHex(price);
-    const gwei = Number(value) / 1e9;
-    return `${gwei.toFixed(2)} Gwei`;
+    return `${Number(toDecimalString(parseHex(price), 9)).toFixed(2)} Gwei`;
   };
 
   // Format value (to ETH/BNB)
   const formatValue = (value: string | undefined, network: string): string => {
     if (!value || value === '0x0' || value === '0') return '0';
-    const wei = parseHex(value);
-    const eth = Number(wei) / 1e18;
     const symbol = network.includes('bsc') ? 'BNB' : 'ETH';
-    return `${eth.toFixed(6)} ${symbol}`;
+    return `${formatAmount(toDecimalString(parseHex(value), 18))} ${symbol}`;
   };
 
-  // Estimate total cost (gas * gasPrice)
+  // Estimate total cost (gas * gasPrice). The multiplication stays in BigInt
+  // and so does the scaling — gas × gasPrice routinely exceeds 2^53, and the
+  // previous body dropped to Number on the line after multiplying carefully.
   const formatEstimatedCost = (request: DevSignRequest): string => {
     const gas = parseHex(request.gas);
     const gasPrice = parseHex(request.maxFeePerGas || request.gasPrice);
     if (gas === BigInt(0) || gasPrice === BigInt(0)) return 'N/A';
-    const costWei = gas * gasPrice;
-    const costEth = Number(costWei) / 1e18;
     const symbol = request.network.includes('bsc') ? 'BNB' : 'ETH';
-    return `~${costEth.toFixed(6)} ${symbol}`;
+    // showDust: a gas cost is legitimately below the balance dust threshold.
+    return `~${formatAmount(toDecimalString(gas * gasPrice, 18), { showDust: true })} ${symbol}`;
   };
 
   const totalRequests = requests.length + messageRequests.length;

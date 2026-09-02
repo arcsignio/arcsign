@@ -349,6 +349,29 @@ integrity and reproduce the build from source (see
   `dashboard/tests/frontend/webviewEnvironment.test.ts` 會在刪掉這三個全域
   之後才 import 做密碼學/編碼的模組；新增這類模組時要加進去。
   加密套件優先選 `@scure/*` / `@noble/*`（純 JS、已審計）。
+- **能抽層就抽層，能模組化就模組化。跨元件重複的邏輯一律收到共用層。**
+  以「未來好維護、好擴展」為判準，不是以「這次改最少行」為判準。
+
+  這條是花代價換來的。曾經同時存在**六份** `formatBalance`、**八個**地址
+  縮寫、**五處**各自換算鏈上原始整數的實作。後果不是醜，是**同一個數值在
+  不同畫面顯示成不同結果**：餘額 `1234.5678` 在錢包頁是 `1234.5678`、
+  質押頁是 `1234.57`、DeFi 頁是 `1,234.57`；德文使用者在某些畫面看到
+  `1.234,57`、某些看到 `1234.5678`，而 `1.234` 在兩種慣例下差一千倍。
+  修一個地方不會修到其他七個，於是缺陷各自演化。
+
+  **How to apply:**
+  - 要在元件裡寫格式化／轉換／驗證函式前，先 grep 有沒有人做過同一件事。
+    有 → 抽到 `src/utils/`（或對應的共用層）並改掉所有呼叫點，不是再寫一份。
+  - 已存在的共用函式不合用時，**擴充它**（加參數／選項）而不是在元件裡另寫。
+    例：手續費需要顯示 dust 值時，是給 `formatAmount` 加 `showDust` 選項，
+    不是在 `SendTransaction` 裡另寫一個 `formatFee`。
+  - 抽層時**分離關注點**：換算與呈現要分開。`toDecimalString` 只做
+    「原始整數 → 十進位字串」，呈現交給呼叫端 —— 否則 Gwei 就需要一個
+    「不要套用你自己的小數規則」的參數，而那種參數存在的唯一目的是抵銷
+    函式自己的意見。
+  - 元件內的 module-local 函式**測不到**（不 export）。要嘛抽到共用層直接測，
+    要嘛透過 render 真實元件斷言畫面字串 —— 絕不在測檔裡重寫一份實作，
+    那種測試元件完全沒改也會通過。
 - Maximum 3 attempts per issue, then stop and reassess.
 - Every commit must compile and pass all existing tests.
 - Never use `--no-verify` to bypass commit hooks.
