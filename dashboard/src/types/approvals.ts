@@ -9,6 +9,7 @@ export interface ApprovalEntry {
   tokenAddress: string;    // ERC-20 token contract address
   tokenName: string;       // Token name
   tokenSymbol: string;     // Token symbol
+  decimals?: number;       // Token decimals; absent on older backends, treat as 18
   spender: string;         // Approved spender address
   allowance: string;       // Current allowance amount (decimal string)
   isUnlimited: boolean;    // True if allowance >= 2^128

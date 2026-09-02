@@ -836,12 +836,13 @@ func (c *AlchemyClient) GetApprovalEvents(ownerAddress, network string) ([]Appro
 		}
 
 		// Get token metadata
-		tokenName, tokenSymbol := c.getTokenMetadata(url, key.Token)
+		tokenName, tokenSymbol, tokenDecimals := c.getTokenMetadata(url, key.Token)
 
 		entry := ApprovalEntry{
 			TokenAddress: key.Token,
 			TokenName:    tokenName,
 			TokenSymbol:  tokenSymbol,
+			Decimals:     tokenDecimals,
 			Spender:      key.Spender,
 			Allowance:    allowance.String(),
 			IsUnlimited:  allowance.Cmp(threshold) >= 0,
@@ -869,8 +870,18 @@ func (c *AlchemyClient) ethCallAllowance(rpcURL, tokenAddress, owner, spender st
 	return c.ethCallUint256(rpcURL, tokenAddress, data)
 }
 
-// getTokenMetadata retrieves name() and symbol() for a token contract
-func (c *AlchemyClient) getTokenMetadata(rpcURL, tokenAddress string) (string, string) {
+// getTokenMetadata retrieves name(), symbol() and decimals() for a token
+// contract.
+//
+// decimals is needed to display an allowance as a token amount. Without it the
+// UI has to assume 18, which is wrong by a factor of 10^12 for USDC and USDT —
+// the two tokens users most often hold an approval on. Showing "0.000001 USDC"
+// for a 1 USDC allowance, or the reverse, misleads exactly the decision the
+// approvals screen exists to support.
+//
+// A token that does not implement decimals() returns 18: that is the ERC-20
+// default, and it keeps the display no worse than it was before.
+func (c *AlchemyClient) getTokenMetadata(rpcURL, tokenAddress string) (string, string, int) {
 	// name() selector: 0x06fdde03
 	nameResult, err := c.ethCallString(rpcURL, tokenAddress, "0x06fdde03")
 	if err != nil {
@@ -881,7 +892,16 @@ func (c *AlchemyClient) getTokenMetadata(rpcURL, tokenAddress string) (string, s
 	if err != nil {
 		symbolResult = ""
 	}
-	return nameResult, symbolResult
+	// decimals() selector: 0x313ce567
+	decimals := 18
+	if v, err := c.ethCallUint256(rpcURL, tokenAddress, "0x313ce567"); err == nil && v != nil {
+		// Guard the range: decimals is a uint8 on chain, and a bogus value here
+		// would scale the displayed allowance by an arbitrary power of ten.
+		if v.IsInt64() && v.Int64() >= 0 && v.Int64() <= 77 {
+			decimals = int(v.Int64())
+		}
+	}
+	return nameResult, symbolResult, decimals
 }
 
 // ethGetCode returns the contract bytecode at an address via eth_getCode. An

@@ -36,7 +36,11 @@ const NETWORK_COLORS: Record<string, string> = {
   "bnb-mainnet": "#F0B90B",
 };
 
-function truncateAddress(addr: string): string {
+// Guards a missing address rather than trusting the type: this renders provider
+// data, and a malformed row would otherwise throw inside the list and blank the
+// whole approvals screen — hiding every other approval the user came to revoke.
+function truncateAddress(addr?: string): string {
+  if (!addr) return "";
   if (addr.length <= 12) return addr;
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
@@ -52,20 +56,54 @@ function riskColor(level?: string): string {
   return RISK_COLORS[level ?? "yellow"] ?? "#f59e0b";
 }
 
-function formatAllowance(allowance: string, isUnlimited: boolean, symbol: string): string {
+/**
+ * Formats an allowance for display.
+ *
+ * Two things this gets right that the previous version did not:
+ *
+ * 1. It uses the token's real `decimals`. Assuming 18 is wrong by a factor of
+ *    10^12 for USDC and USDT — the tokens users most often hold an approval on
+ *    — so a 100 USDC allowance rendered as "<0.001 USDC", i.e. as nothing worth
+ *    revoking. `decimals` is optional because an older backend will not send it;
+ *    18 remains the fallback and matches the ERC-20 default.
+ *
+ * 2. The magnitude thresholds compare token counts, not raw units. The old code
+ *    compared raw units against 1e24 and labelled the result ">1T", which at 18
+ *    decimals is 1,000,000 tokens — off by a factor of a million, in the
+ *    direction that makes a large allowance look catastrophic.
+ *
+ * The scaling is done in BigInt: an unlimited-adjacent allowance exceeds 2^53,
+ * where Number() silently loses precision.
+ */
+function formatAllowance(
+  allowance: string,
+  isUnlimited: boolean,
+  symbol: string,
+  decimals = 18,
+): string {
   if (isUnlimited) return "Unlimited";
-  // For very large numbers, show in scientific notation
   try {
-    const num = BigInt(allowance);
-    if (num > BigInt("1000000000000000000000000")) {
-      return `>1T ${symbol}`;
+    const raw = BigInt(allowance);
+    if (raw === 0n) return `0 ${symbol}`;
+
+    const scale = 10n ** BigInt(decimals);
+    const whole = raw / scale;
+
+    // Below one whole token, fall back to float — the value is small enough
+    // that precision is not at risk.
+    if (whole === 0n) {
+      const fraction = Number(raw) / Number(scale);
+      return fraction < 0.001
+        ? `<0.001 ${symbol}`
+        : `${fraction.toFixed(3)} ${symbol}`;
     }
-    // Assume 18 decimals for display (rough approximation)
-    const display = Number(num) / 1e18;
-    if (display < 0.001) return `<0.001 ${symbol}`;
-    if (display > 1000000) return `${(display / 1000000).toFixed(1)}M ${symbol}`;
-    if (display > 1000) return `${(display / 1000).toFixed(1)}K ${symbol}`;
-    return `${display.toFixed(2)} ${symbol}`;
+
+    if (whole >= 10n ** 12n) return `>1T ${symbol}`;
+    if (whole >= 10n ** 9n) return `${(Number(whole) / 1e9).toFixed(1)}B ${symbol}`;
+    if (whole >= 10n ** 6n) return `${(Number(whole) / 1e6).toFixed(1)}M ${symbol}`;
+    if (whole >= 1000n) return `${(Number(whole) / 1e3).toFixed(1)}K ${symbol}`;
+
+    return `${(Number(raw) / Number(scale)).toFixed(2)} ${symbol}`;
   } catch {
     return allowance;
   }
@@ -854,8 +892,12 @@ export function TokenApprovals({
                   }}
                 >
                   <span>{t("tokenApprovals.spender")}:</span>
+                  {/* The protocol name is how a user tells "I approved Uniswap"
+                      from "I approved something I don't recognise". It was
+                      #e2e8f0 — a border token — giving ~1.2:1 on white, so it
+                      was invisible for exactly the spenders we could identify. */}
                   {approval.spenderName ? (
-                    <span style={{ color: "#e2e8f0", fontWeight: 600 }}>
+                    <span style={{ color: "#1e293b", fontWeight: 600 }}>
                       {approval.spenderName}
                     </span>
                   ) : (
@@ -937,7 +979,8 @@ export function TokenApprovals({
                       {formatAllowance(
                         approval.allowance,
                         approval.isUnlimited,
-                        approval.tokenSymbol
+                        approval.tokenSymbol,
+                        approval.decimals
                       )}
                     </span>
                   )}

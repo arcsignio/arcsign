@@ -169,6 +169,7 @@ type ApprovalEntry struct {
 	TokenAddress string `json:"tokenAddress"` // ERC-20 token contract address
 	TokenName    string `json:"tokenName"`    // Token name (from name() call)
 	TokenSymbol  string `json:"tokenSymbol"`  // Token symbol (from symbol() call)
+	Decimals     int    `json:"decimals"`     // Token decimals (from decimals(), 18 if absent)
 	Spender      string `json:"spender"`      // Approved spender address
 	Allowance    string `json:"allowance"`    // Current allowance amount (decimal string)
 	IsUnlimited  bool   `json:"isUnlimited"`  // True if allowance >= 2^128

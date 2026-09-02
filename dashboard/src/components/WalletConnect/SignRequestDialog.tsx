@@ -189,12 +189,17 @@ export const SignRequestDialog: React.FC<SignRequestDialogProps> = ({
               <h2 id="sign-request-title" className="text-xl font-semibold text-gray-900 truncate">
                 {isTransaction ? t('walletConnect.transactionRequest') : t('walletConnect.signRequest')}
               </h2>
-              <p className="text-sm text-gray-600">{request.dappName}</p>
+              {/* Name and URL are the dApp's own claim about who it is, and the
+                  only thing the user has to judge a signature request by.
+                  Truncating either hides the part that distinguishes a real site
+                  from a lookalike — `uniswap.org` from `uniswap.org.evil.io`, or
+                  a padded name from the one it imitates. Wrap instead of clip. */}
+              <p className="text-sm text-gray-600 break-words">{request.dappName}</p>
               <a
                 href={request.dappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-teal-600 hover:text-teal-800 truncate block"
+                className="text-xs text-teal-600 hover:text-teal-800 block break-all"
               >
                 {request.dappUrl}
               </a>

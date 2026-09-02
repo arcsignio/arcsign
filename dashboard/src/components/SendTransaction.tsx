@@ -533,8 +533,13 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
     return (key && getNativeToken(key)?.symbol) || "ETH";
   })();
 
-  // Format balance display (truncate, no rounding)
-  const formatBalance = (balance: string, _decimals?: number): string => {
+  // Format balance display (truncate, no rounding).
+  //
+  // Takes no decimals argument on purpose: `balance` is already decimal-adjusted
+  // by the backend (the undivided value is a separate `rawBalance` field). An
+  // earlier signature accepted a `decimals` parameter and ignored it, which read
+  // like a bug — dividing here would have scaled every amount a second time.
+  const formatBalance = (balance: string): string => {
     const num = parseFloat(balance);
     if (num === 0) return "0";
     if (num < 0.0001) return "<0.0001";
@@ -630,7 +635,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
                           )}
                         </div>
                         <div className="token-balance">
-                          <span className="balance-amount">{formatBalance(token.balance, token.decimals)}</span>
+                          <span className="balance-amount">{formatBalance(token.balance)}</span>
                           {token.usdValue > 0 && (
                             <span className="balance-usd">${token.usdValue.toFixed(2)}</span>
                           )}
@@ -661,7 +666,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
             <div className="token-details">
               <span className="token-symbol">{selectedToken.tokenSymbol}</span>
               <span className="token-balance-info">
-                {t("sendTransaction.balance")}: {formatBalance(selectedToken.balance, selectedToken.decimals)} {selectedToken.tokenSymbol}
+                {t("sendTransaction.balance")}: {formatBalance(selectedToken.balance)} {selectedToken.tokenSymbol}
               </span>
             </div>
             <button className="change-token-btn" onClick={() => setStep("select")}>
