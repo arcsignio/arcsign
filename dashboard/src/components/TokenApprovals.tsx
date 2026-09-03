@@ -45,7 +45,7 @@ function truncateAddress(addr?: string): string {
 const RISK_COLORS: Record<string, string> = {
   red: "var(--danger)",
   yellow: "var(--warning)",
-  green: "#10b981",
+  green: "var(--success)",
 };
 
 function riskColor(level?: string): string {
@@ -556,7 +556,7 @@ export function TokenApprovals({
                   fontSize: "0.8rem",
                   padding: "0.35rem 0",
                   borderBottom: "1px solid rgba(226, 232, 240, 0.6)",
-                  color: "#334155",
+                  color: "var(--text-primary)",
                 }}
               >
                 <span>
@@ -793,7 +793,7 @@ export function TokenApprovals({
               ? "rgba(16, 185, 129, 0.1)"
               : "rgba(239, 68, 68, 0.1)",
             border: `1px solid ${revokeResult.type === "success" ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
-            color: revokeResult.type === "success" ? "#059669" : "var(--danger)",
+            color: revokeResult.type === "success" ? "var(--success-text)" : "var(--danger)",
           }}
         >
           {revokeResult.message}
