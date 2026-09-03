@@ -70,7 +70,7 @@ export function DigestPanel({
 
       <div
         style={{
-          fontFamily: "monospace",
+          fontFamily: "var(--font-mono)",
           wordBreak: "break-all",
           lineHeight: 1.6,
           marginTop: "0.25rem",
@@ -99,7 +99,7 @@ export function DigestPanel({
           {showRaw && (
             <div
               style={{
-                marginTop: "0.4rem", fontFamily: "monospace",
+                marginTop: "0.4rem", fontFamily: "var(--font-mono)",
                 wordBreak: "break-all", lineHeight: 1.5, color: "#475569",
               }}
             >
@@ -128,13 +128,13 @@ export function DigestPanel({
             <div style={{ marginTop: "0.4rem", display: "grid", gap: "0.4rem" }}>
               <div>
                 <div style={{ fontWeight: 600 }}>{t("clearSign.digestDomainHash")}</div>
-                <div style={{ fontFamily: "monospace", wordBreak: "break-all" }}>
+                <div style={{ fontFamily: "var(--font-mono)", wordBreak: "break-all" }}>
                   {formatDigest(digest.detail.domainHash)}
                 </div>
               </div>
               <div>
                 <div style={{ fontWeight: 600 }}>{t("clearSign.digestMessageHash")}</div>
-                <div style={{ fontFamily: "monospace", wordBreak: "break-all" }}>
+                <div style={{ fontFamily: "var(--font-mono)", wordBreak: "break-all" }}>
                   {formatDigest(digest.detail.messageHash)}
                 </div>
               </div>

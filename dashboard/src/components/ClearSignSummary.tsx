@@ -118,7 +118,7 @@ export function ClearSignSummary({
               style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}
             >
               <span style={{ color: "#64748b" }}>{p.label}</span>
-              <span style={{ fontFamily: "monospace" }}>{p.value}</span>
+              <span style={{ fontFamily: "var(--font-mono)" }}>{p.value}</span>
             </div>
           ))}
           {intent.risks.length > 0 && (
@@ -197,7 +197,7 @@ export function ClearSignSummary({
             <div style={{ marginTop: "0.35rem" }}>
               <div style={{ color: "#64748b" }}>{t("clearSign.simulatedChanges")}</div>
               {security.simulation.assetChanges.map((c, i) => (
-                <div key={i} style={{ fontFamily: "monospace", fontSize: "0.75rem" }}>
+                <div key={i} style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem" }}>
                   {JSON.stringify(c)}
                 </div>
               ))}
