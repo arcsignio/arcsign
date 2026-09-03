@@ -1326,7 +1326,7 @@ export function WalletDetail({
                         const parent = target.parentElement;
                         if (parent) {
                           parent.style.background =
-                            "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+                            "var(--brand-gradient)";
                           parent.innerHTML = `<span style="color: white; font-weight: 600; font-size: 1rem;">${token.tokenSymbol.charAt(
                             0
                           )}</span>`;

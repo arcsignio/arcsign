@@ -139,13 +139,13 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
                 width: "64px",
                 height: "64px",
                 margin: "0 auto 1.5rem",
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "var(--brand-gradient)",
                 borderRadius: "50%",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: "2rem",
-                boxShadow: "0 4px 14px rgba(102, 126, 234, 0.4)",
+                boxShadow: "0 4px 14px rgba(13, 148, 136, 0.4)",
               }}
             >
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
@@ -241,9 +241,9 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
                   outline: "none",
                 }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = "#667eea";
+                  e.target.style.borderColor = "var(--brand-accent)";
                   e.target.style.boxShadow =
-                    "0 0 0 3px rgba(102, 126, 234, 0.1)";
+                    "0 0 0 3px rgba(13, 148, 136, 0.1)";
                 }}
                 onBlur={(e) => {
                   e.target.style.borderColor = "#e5e7eb";
@@ -272,7 +272,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
               background:
                 isLoading || !tempPassword
                   ? "#d1d5db"
-                  : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  : "var(--brand-gradient)",
               color: "white",
               padding: "0.875rem 1.5rem",
               border: "none",
@@ -284,21 +284,21 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
               boxShadow:
                 isLoading || !tempPassword
                   ? "none"
-                  : "0 4px 14px rgba(102, 126, 234, 0.4)",
+                  : "0 4px 14px rgba(13, 148, 136, 0.4)",
               transform: isLoading || !tempPassword ? "none" : "translateY(0)",
             }}
             onMouseEnter={(e) => {
               if (!isLoading && tempPassword) {
                 e.currentTarget.style.transform = "translateY(-2px)";
                 e.currentTarget.style.boxShadow =
-                  "0 6px 20px rgba(102, 126, 234, 0.5)";
+                  "0 6px 20px rgba(13, 148, 136, 0.5)";
               }
             }}
             onMouseLeave={(e) => {
               if (!isLoading && tempPassword) {
                 e.currentTarget.style.transform = "translateY(0)";
                 e.currentTarget.style.boxShadow =
-                  "0 4px 14px rgba(102, 126, 234, 0.4)";
+                  "0 4px 14px rgba(13, 148, 136, 0.4)";
               }
             }}
           >
