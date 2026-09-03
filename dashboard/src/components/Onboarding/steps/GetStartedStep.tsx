@@ -94,7 +94,7 @@ export const GetStartedStep = ({ onCreateWallet }: GetStartedStepProps) => {
           align-items: center;
           justify-content: center;
           padding: 14px 32px;
-          background: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%);
+          background: linear-gradient(135deg, var(--brand) 0%, var(--brand-accent) 100%);
           color: white;
           border: none;
           border-radius: 10px;
@@ -117,7 +117,7 @@ export const GetStartedStep = ({ onCreateWallet }: GetStartedStepProps) => {
         .ready-hint {
           margin: 0;
           font-size: 13px;
-          color: #9ca3af;
+          color: var(--text-tertiary);
         }
       `}</style>
     </OnboardingStep>

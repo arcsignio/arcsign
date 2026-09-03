@@ -110,7 +110,7 @@ export const ImportBackup: React.FC<ImportBackupProps> = ({
           >
             {fileName ? (
               <span className="import-backup-file-selected">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                 {fileName}
               </span>
             ) : (
@@ -170,7 +170,7 @@ export const ImportBackup: React.FC<ImportBackupProps> = ({
         .back-button {
           background: none;
           border: none;
-          color: #2dd4bf;
+          color: var(--brand-accent);
           cursor: pointer;
           font-size: 14px;
           padding: 8px 0;
@@ -189,12 +189,12 @@ export const ImportBackup: React.FC<ImportBackupProps> = ({
           margin: 0 0 8px;
           font-size: 28px;
           font-weight: 600;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .import-backup-desc {
           margin: 0;
-          color: #6b7280;
+          color: var(--text-secondary);
           font-size: 16px;
         }
 
@@ -213,13 +213,13 @@ export const ImportBackup: React.FC<ImportBackupProps> = ({
         .import-backup-field label {
           font-size: 14px;
           font-weight: 500;
-          color: #374151;
+          color: var(--text-primary);
         }
 
         .import-backup-file-button {
           padding: 14px 16px;
-          background: #f9fafb;
-          border: 2px dashed #d1d5db;
+          background: var(--surface-sunken);
+          border: 2px dashed var(--border-input);
           border-radius: 12px;
           cursor: pointer;
           transition: all 0.2s;
@@ -227,15 +227,15 @@ export const ImportBackup: React.FC<ImportBackupProps> = ({
         }
 
         .import-backup-file-button:hover {
-          border-color: #2dd4bf;
-          background: #f0fdfa;
+          border-color: var(--brand-accent);
+          background: var(--brand-faint);
         }
 
         .import-backup-file-placeholder {
           display: flex;
           align-items: center;
           gap: 8px;
-          color: #9ca3af;
+          color: var(--text-tertiary);
           font-size: 14px;
         }
 
@@ -243,42 +243,42 @@ export const ImportBackup: React.FC<ImportBackupProps> = ({
           display: flex;
           align-items: center;
           gap: 8px;
-          color: #111827;
+          color: var(--text-primary);
           font-size: 14px;
           font-weight: 500;
         }
 
         .import-backup-input {
           padding: 12px 16px;
-          border: 1px solid #d1d5db;
+          border: 1px solid var(--border-input);
           border-radius: 8px;
           font-size: 14px;
-          color: #111827;
+          color: var(--text-primary);
           outline: none;
           transition: border-color 0.2s;
         }
 
         .import-backup-input:focus {
-          border-color: #2dd4bf;
+          border-color: var(--brand-accent);
           box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.1);
         }
 
         .import-backup-input::placeholder {
-          color: #9ca3af;
+          color: var(--text-tertiary);
         }
 
         .import-backup-error {
           padding: 12px 16px;
-          background: #fef2f2;
-          border: 1px solid #fecaca;
+          background: var(--danger-pale);
+          border: 1px solid var(--danger-border);
           border-radius: 8px;
-          color: #dc2626;
+          color: var(--danger);
           font-size: 14px;
         }
 
         .import-backup-submit {
           padding: 14px 24px;
-          background: #0d9488;
+          background: var(--brand);
           border: none;
           border-radius: 10px;
           color: white;
@@ -290,7 +290,7 @@ export const ImportBackup: React.FC<ImportBackupProps> = ({
         }
 
         .import-backup-submit:hover {
-          background: #0f766e;
+          background: var(--brand-press);
           box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
         }
 

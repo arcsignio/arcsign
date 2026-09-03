@@ -37,9 +37,9 @@ export function DigestPanel({
       style={{
         marginTop: "0.75rem",
         paddingTop: "0.75rem",
-        borderTop: "1px solid #e2e8f0",
+        borderTop: "1px solid var(--border-default)",
         fontSize: "0.75rem",
-        color: "#64748b",
+        color: "var(--text-secondary)",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -60,7 +60,7 @@ export function DigestPanel({
               .catch(() => setCopied(false));
           }}
           style={{
-            border: "none", background: "transparent", color: "#0f766e",
+            border: "none", background: "transparent", color: "var(--brand-press)",
             cursor: "pointer", fontSize: "0.75rem", padding: 0,
           }}
         >
@@ -90,7 +90,7 @@ export function DigestPanel({
             onClick={() => setShowRaw((v) => !v)}
             style={{
               marginTop: "0.4rem", border: "none", background: "transparent",
-              color: "#0f766e", cursor: "pointer", fontSize: "0.7rem", padding: 0,
+              color: "var(--brand-press)", cursor: "pointer", fontSize: "0.7rem", padding: 0,
             }}
           >
             {showRaw ? t("clearSign.hideRaw") : t("clearSign.showRaw")}
@@ -116,7 +116,7 @@ export function DigestPanel({
             onClick={() => setShowDetail((v) => !v)}
             style={{
               marginTop: "0.4rem", border: "none", background: "transparent",
-              color: "#0f766e", cursor: "pointer", fontSize: "0.7rem", padding: 0,
+              color: "var(--brand-press)", cursor: "pointer", fontSize: "0.7rem", padding: 0,
             }}
           >
             {showDetail
