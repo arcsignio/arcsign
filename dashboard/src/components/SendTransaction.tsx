@@ -563,7 +563,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {/* Error Display */}
       {error && (
         <div className="error-banner">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <span>{error}</span>
           <button onClick={() => setError(null)}>✕</button>
         </div>
@@ -577,7 +577,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
           {availableTokens.length === 0 ? (
             <div className="no-tokens">
-              <span className="no-tokens-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>
+              <span className="no-tokens-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>
               <p>{t("sendTransaction.noTokensAvailable")}</p>
               <button className="secondary-button" onClick={onBack}>
                 {t("swap.goBack")}
@@ -681,8 +681,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
                 title={t("addressBook.selectFromContacts")}
                 aria-label={t("addressBook.selectFromContacts")}
                 style={{
-                  background: "#f0fdfa",
-                  border: "1px solid #99f6e4",
+                  background: "var(--brand-faint)",
+                  border: "1px solid var(--brand-accent)",
                   borderRadius: "8px",
                   padding: "0.5rem",
                   cursor: "pointer",
@@ -692,7 +692,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
                   flexShrink: 0,
                 }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
               </button>
             </div>
             {toAddress && !isValidAddress(toAddress) && (
@@ -851,7 +851,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
             <button
               className="primary-button"
               onClick={() => setStep("password")}
-              style={unsignedTx.security?.riskLevel === 'danger' ? { background: '#dc2626' } : undefined}
+              style={unsignedTx.security?.riskLevel === 'danger' ? { background: 'var(--danger)' } : undefined}
             >
               {unsignedTx.security?.riskLevel === 'danger' ? t("sendTransaction.understandRiskContinue") : t("sendTransaction.confirmAndSign")}
             </button>
@@ -862,7 +862,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {/* Step 3: Password Entry */}
       {step === "password" && (
         <div className="password-form">
-          <div className="password-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
+          <div className="password-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
           <h3>{t("dashboard.enterWalletPassword")}</h3>
           <p className="password-description">
             {t("sendTransaction.passwordRequiredDescription")}
@@ -898,7 +898,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
               className="primary-button"
               onClick={handleSignTransaction}
               disabled={!walletPassword || isLoading || (review.requiresAcknowledge && !review.acknowledged)}
-              style={review.requiresAcknowledge ? { background: "#dc2626", boxShadow: "none" } : undefined}
+              style={review.requiresAcknowledge ? { background: "var(--danger)", boxShadow: "none" } : undefined}
             >
               {t("sendTransaction.signAndSend")}
             </button>
@@ -927,7 +927,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {/* Step 6: Success */}
       {step === "success" && broadcastResult && selectedToken && (
         <div className="success-view">
-          <div className="success-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+          <div className="success-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
           <h3>{t("sendTransaction.transactionSubmitted")}</h3>
           <p className="success-message">
             {t("sendTransaction.submittedToNetwork", { network: selectedToken.networkLabel })}
@@ -960,7 +960,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {/* Error State */}
       {step === "error" && (
         <div className="error-view">
-          <div className="error-icon-large"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+          <div className="error-icon-large"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
           <h3>{t("errors.transactionFailed")}</h3>
           <p className="error-message">{error}</p>
           <div className="error-actions">
@@ -988,14 +988,14 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           gap: 16px;
           margin-bottom: 24px;
           padding-bottom: 16px;
-          border-bottom: 1px solid #e5e7eb;
+          border-bottom: 1px solid var(--border-default);
         }
 
         .send-header h2 {
           flex: 1;
           margin: 0;
           font-size: 20px;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .back-button {
@@ -1003,17 +1003,17 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           align-items: center;
           gap: 8px;
           padding: 8px 12px;
-          background: #f3f4f6;
+          background: var(--surface-strong);
           border: none;
           border-radius: 8px;
           cursor: pointer;
           font-size: 14px;
-          color: #374151;
+          color: var(--text-secondary);
           transition: background 0.2s;
         }
 
         .back-button:hover {
-          background: #e5e7eb;
+          background: var(--border-default);
         }
 
         .chain-badge {
@@ -1021,10 +1021,10 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           align-items: center;
           gap: 6px;
           padding: 6px 12px;
-          background: #ccfbf1;
+          background: var(--brand-pale);
           border-radius: 20px;
           font-size: 13px;
-          color: #0f766e;
+          color: var(--brand-press);
           font-weight: 500;
         }
 
@@ -1032,13 +1032,13 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .token-select-form h3 {
           margin: 0 0 8px;
           font-size: 18px;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .select-description {
           margin: 0 0 20px;
           font-size: 14px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .no-tokens {
@@ -1054,7 +1054,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
         .no-tokens p {
           margin: 0 0 20px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .token-list {
@@ -1064,7 +1064,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
 
         .network-group {
-          background: #f9fafb;
+          background: var(--surface-sunken);
           border-radius: 12px;
           overflow: hidden;
         }
@@ -1074,10 +1074,10 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           align-items: center;
           gap: 8px;
           padding: 12px 16px;
-          background: #f3f4f6;
+          background: var(--surface-strong);
           font-size: 14px;
           font-weight: 500;
-          color: #374151;
+          color: var(--text-secondary);
         }
 
         .network-icon {
@@ -1089,7 +1089,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(135deg, #0d9488, #2dd4bf);
+          background: linear-gradient(135deg, var(--brand), var(--brand-accent));
           color: white;
           flex-shrink: 0;
         }
@@ -1097,8 +1097,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .testnet-badge {
           margin-left: auto;
           padding: 2px 8px;
-          background: #fef3c7;
-          color: #92400e;
+          background: var(--warning-pale);
+          color: var(--warning-text);
           border-radius: 10px;
           font-size: 11px;
           font-weight: 600;
@@ -1116,7 +1116,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           padding: 14px 16px;
           background: white;
           border: none;
-          border-bottom: 1px solid #e5e7eb;
+          border-bottom: 1px solid var(--border-default);
           cursor: pointer;
           text-align: left;
           transition: background 0.2s;
@@ -1128,7 +1128,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
 
         .token-option:hover {
-          background: #f9fafb;
+          background: var(--surface-sunken);
         }
 
         .token-option .token-icon {
@@ -1136,7 +1136,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           height: 40px;
           border-radius: 50%;
           overflow: hidden;
-          background: #e5e7eb;
+          background: var(--border-default);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1152,7 +1152,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .token-icon-fallback {
           font-size: 14px;
           font-weight: 600;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .token-info {
@@ -1165,19 +1165,19 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .token-info .token-symbol {
           font-size: 15px;
           font-weight: 600;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .token-info .token-name {
           font-size: 12px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .token-type {
           display: inline-block;
           padding: 2px 6px;
-          background: #ccfbf1;
-          color: #0f766e;
+          background: var(--brand-pale);
+          color: var(--brand-press);
           border-radius: 4px;
           font-size: 10px;
           font-weight: 500;
@@ -1195,16 +1195,16 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .balance-amount {
           font-size: 15px;
           font-weight: 600;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .balance-usd {
           font-size: 12px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .token-arrow {
-          color: #9ca3af;
+          color: var(--text-tertiary);
           font-size: 18px;
         }
 
@@ -1290,8 +1290,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .erc20-tag {
           font-size: 11px;
           padding: 2px 6px;
-          background: #ccfbf1;
-          color: #0f766e;
+          background: var(--brand-pale);
+          color: var(--brand-press);
           border-radius: 4px;
           font-weight: 500;
         }
@@ -1301,11 +1301,11 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           align-items: center;
           gap: 8px;
           padding: 12px 16px;
-          background: #fef2f2;
-          border: 1px solid #fee2e2;
+          background: var(--danger-pale);
+          border: 1px solid var(--danger-pale);
           border-radius: 8px;
           margin-bottom: 20px;
-          color: #dc2626;
+          color: var(--danger);
           font-size: 14px;
         }
 
@@ -1314,7 +1314,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           background: none;
           border: none;
           cursor: pointer;
-          color: #dc2626;
+          color: var(--danger);
           font-size: 16px;
         }
 
@@ -1327,17 +1327,17 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           margin-bottom: 8px;
           font-size: 14px;
           font-weight: 500;
-          color: #374151;
+          color: var(--text-secondary);
         }
 
         .address-display {
           padding: 12px 16px;
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
+          background: var(--surface-sunken);
+          border: 1px solid var(--border-default);
           border-radius: 8px;
           font-family: monospace;
           font-size: 14px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .chain-selector {
@@ -1351,30 +1351,30 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           align-items: center;
           gap: 6px;
           padding: 8px 12px;
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
+          background: var(--surface-sunken);
+          border: 1px solid var(--border-default);
           border-radius: 8px;
           cursor: pointer;
           font-size: 13px;
-          color: #374151;
+          color: var(--text-secondary);
           transition: all 0.2s;
         }
 
         .chain-option:hover {
-          background: #f3f4f6;
-          border-color: #d1d5db;
+          background: var(--surface-strong);
+          border-color: var(--border-input);
         }
 
         .chain-option.selected {
-          background: #ccfbf1;
-          border-color: #2dd4bf;
-          color: #0f766e;
+          background: var(--brand-pale);
+          border-color: var(--brand-accent);
+          color: var(--brand-press);
         }
 
         .address-input {
           width: 100%;
           padding: 12px 16px;
-          border: 1px solid #e5e7eb;
+          border: 1px solid var(--border-default);
           border-radius: 8px;
           font-size: 14px;
           font-family: monospace;
@@ -1383,19 +1383,19 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
         .address-input:focus {
           outline: none;
-          border-color: #2dd4bf;
+          border-color: var(--brand-accent);
           box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
         .address-input.invalid {
-          border-color: #ef4444;
+          border-color: var(--danger);
         }
 
         .field-error {
           display: block;
           margin-top: 6px;
           font-size: 12px;
-          color: #ef4444;
+          color: var(--danger);
         }
 
         .amount-input-wrapper {
@@ -1406,7 +1406,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .amount-input {
           flex: 1;
           padding: 12px 16px;
-          border: 1px solid #e5e7eb;
+          border: 1px solid var(--border-default);
           border-radius: 8px;
           font-size: 18px;
           font-weight: 500;
@@ -1414,23 +1414,23 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
         .amount-input:focus {
           outline: none;
-          border-color: #2dd4bf;
+          border-color: var(--brand-accent);
           box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
         .max-button {
           padding: 12px 16px;
-          background: #f3f4f6;
-          border: 1px solid #e5e7eb;
+          background: var(--surface-strong);
+          border: 1px solid var(--border-default);
           border-radius: 8px;
           cursor: pointer;
           font-size: 13px;
           font-weight: 600;
-          color: #2dd4bf;
+          color: var(--brand-accent);
         }
 
         .max-button:hover {
-          background: #e5e7eb;
+          background: var(--border-default);
         }
 
         .fee-selector {
@@ -1444,8 +1444,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           align-items: center;
           gap: 12px;
           padding: 12px 16px;
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
+          background: var(--surface-sunken);
+          border: 1px solid var(--border-default);
           border-radius: 8px;
           cursor: pointer;
           text-align: left;
@@ -1453,18 +1453,18 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
 
         .fee-option:hover {
-          background: #f3f4f6;
+          background: var(--surface-strong);
         }
 
         .fee-option.selected {
-          background: #f0fdfa;
-          border-color: #2dd4bf;
+          background: var(--brand-faint);
+          border-color: var(--brand-accent);
         }
 
         .fee-speed {
           flex: 1;
           font-weight: 500;
-          color: #374151;
+          color: var(--text-secondary);
           display: flex;
           align-items: center;
           gap: 8px;
@@ -1477,24 +1477,24 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           flex-shrink: 0;
         }
 
-        .speed-slow { background: #f59e0b; }
-        .speed-normal { background: #2dd4bf; }
-        .speed-fast { background: #10b981; }
+        .speed-slow { background: var(--warning); }
+        .speed-normal { background: var(--brand-accent); }
+        .speed-fast { background: var(--success); }
 
         .fee-estimate {
           font-size: 14px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .fee-time {
           font-size: 12px;
-          color: #9ca3af;
+          color: var(--text-tertiary);
         }
 
         .primary-button {
           width: 100%;
           padding: 14px 24px;
-          background: linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%);
+          background: linear-gradient(135deg, var(--brand-accent) 0%, var(--brand) 100%);
           color: white;
           border: none;
           border-radius: 10px;
@@ -1511,16 +1511,16 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
 
         .primary-button:disabled {
-          background: #d1d5db;
+          background: var(--border-input);
           box-shadow: none;
           cursor: not-allowed;
         }
 
         .secondary-button {
           padding: 12px 24px;
-          background: #f3f4f6;
-          color: #374151;
-          border: 1px solid #e5e7eb;
+          background: var(--surface-strong);
+          color: var(--text-secondary);
+          border: 1px solid var(--border-default);
           border-radius: 8px;
           font-size: 14px;
           font-weight: 500;
@@ -1529,18 +1529,18 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
 
         .secondary-button:hover {
-          background: #e5e7eb;
+          background: var(--border-default);
         }
 
         /* Review Form */
         .review-form h3 {
           margin: 0 0 20px;
           font-size: 18px;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .review-details {
-          background: #f9fafb;
+          background: var(--surface-sunken);
           border-radius: 12px;
           padding: 16px;
           margin-bottom: 20px;
@@ -1551,7 +1551,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           justify-content: space-between;
           align-items: center;
           padding: 12px 0;
-          border-bottom: 1px solid #e5e7eb;
+          border-bottom: 1px solid var(--border-default);
         }
 
         .review-row:last-child {
@@ -1560,13 +1560,13 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
         .review-label {
           font-size: 14px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .review-value {
           font-size: 14px;
           font-weight: 500;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .review-value.address {
@@ -1575,11 +1575,11 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
         .review-value.amount {
           font-size: 18px;
-          color: #0d9488;
+          color: var(--brand);
         }
 
         .review-row.highlight {
-          background: #ccfbf1;
+          background: var(--brand-pale);
           margin: 0 -16px;
           padding: 12px 16px;
           border-radius: 8px;
@@ -1616,19 +1616,19 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .password-form h3 {
           margin: 0 0 8px;
           font-size: 20px;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .password-description {
           margin: 0 0 24px;
           font-size: 14px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .password-input {
           width: 100%;
           padding: 14px 16px;
-          border: 2px solid #e5e7eb;
+          border: 2px solid var(--border-default);
           border-radius: 10px;
           font-size: 16px;
           text-align: center;
@@ -1637,7 +1637,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
         .password-input:focus {
           outline: none;
-          border-color: #2dd4bf;
+          border-color: var(--brand-accent);
           box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
@@ -1662,18 +1662,18 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           justify-content: center;
           gap: 8px;
           padding: 12px 16px;
-          background: #dcfce7;
-          border: 1px solid #86efac;
+          background: var(--success-pale);
+          border: 1px solid var(--success-border);
           border-radius: 8px;
           margin-bottom: 16px;
-          color: #166534;
+          color: var(--success-text);
           font-size: 14px;
           font-weight: 500;
         }
 
         .validated-icon {
           font-size: 16px;
-          color: #22c55e;
+          color: var(--success);
         }
 
         /* Progress View */
@@ -1685,8 +1685,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .progress-spinner {
           width: 48px;
           height: 48px;
-          border: 4px solid #e5e7eb;
-          border-top-color: #2dd4bf;
+          border: 4px solid var(--border-default);
+          border-top-color: var(--brand-accent);
           border-radius: 50%;
           animation: spin 1s linear infinite;
           margin: 0 auto 24px;
@@ -1695,13 +1695,13 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .progress-view h3 {
           margin: 0 0 8px;
           font-size: 20px;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .progress-view p {
           margin: 0;
           font-size: 14px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         /* Success View */
@@ -1718,17 +1718,17 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .success-view h3 {
           margin: 0 0 8px;
           font-size: 24px;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .success-message {
           margin: 0 0 24px;
           font-size: 14px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .tx-hash {
-          background: #f9fafb;
+          background: var(--surface-sunken);
           border-radius: 8px;
           padding: 16px;
           margin-bottom: 24px;
@@ -1737,14 +1737,14 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .tx-label {
           display: block;
           font-size: 12px;
-          color: #6b7280;
+          color: var(--text-secondary);
           margin-bottom: 4px;
         }
 
         .tx-value {
           font-size: 14px;
           font-family: monospace;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .success-actions {
@@ -1756,8 +1756,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .explorer-link {
           display: block;
           padding: 12px;
-          background: #ccfbf1;
-          color: #0f766e;
+          background: var(--brand-pale);
+          color: var(--brand-press);
           text-decoration: none;
           border-radius: 8px;
           font-weight: 500;
@@ -1765,7 +1765,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
 
         .explorer-link:hover {
-          background: #99f6e4;
+          background: var(--brand-accent);
         }
 
         /* Error View */
@@ -1782,13 +1782,13 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .error-view h3 {
           margin: 0 0 8px;
           font-size: 20px;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .error-view .error-message {
           margin: 0 0 24px;
           font-size: 14px;
-          color: #dc2626;
+          color: var(--danger);
         }
 
         .error-actions {
@@ -1808,7 +1808,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           margin-top: 16px;
           padding: 16px;
           border-radius: 12px;
-          border: 1px solid #334155;
+          border: 1px solid var(--text-primary);
         }
         .security-panel-safe {
           background: rgba(13, 148, 136, 0.08);
@@ -1837,7 +1837,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
         .security-title {
           font-weight: 600;
-          color: #1e293b;
+          color: var(--text-primary);
           flex: 1;
         }
         .security-badge {
@@ -1850,15 +1850,15 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
         .security-badge.safe {
           background: rgba(13, 148, 136, 0.18);
-          color: #0f766e;
+          color: var(--brand-press);
         }
         .security-badge.warning {
           background: rgba(245, 158, 11, 0.18);
-          color: #b45309;
+          color: var(--pending);
         }
         .security-badge.danger {
           background: rgba(220, 38, 38, 0.18);
-          color: #b91c1c;
+          color: var(--danger-text);
         }
         .security-alert {
           padding: 12px;
@@ -1868,21 +1868,21 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .security-alert-danger {
           background: rgba(220, 38, 38, 0.1);
           border: 1px solid rgba(220, 38, 38, 0.45);
-          color: #b91c1c;
+          color: var(--danger-text);
         }
         .security-alert-warning {
           background: rgba(245, 158, 11, 0.12);
           border: 1px solid rgba(245, 158, 11, 0.45);
-          color: #b45309;
+          color: var(--pending);
         }
         .security-alert strong {
           display: block;
           margin-bottom: 4px;
-          color: #dc2626;
+          color: var(--danger);
           font-weight: 700;
         }
         .security-alert-danger p {
-          color: #991b1b;
+          color: var(--danger-text);
         }
         .security-alert p {
           font-size: 13px;
@@ -1900,7 +1900,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .security-sim-title {
           font-size: 13px;
           font-weight: 600;
-          color: #94a3b8;
+          color: var(--text-tertiary);
           margin-bottom: 8px;
         }
         .security-sim-row {
@@ -1914,12 +1914,12 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           color: #f87171;
         }
         .security-sim-row.incoming {
-          color: #2dd4bf;
+          color: var(--brand-accent);
         }
         .security-sim-row.gas {
-          color: #94a3b8;
+          color: var(--text-tertiary);
           font-size: 12px;
-          border-top: 1px solid #334155;
+          border-top: 1px solid var(--text-primary);
           padding-top: 8px;
           margin-top: 4px;
         }
@@ -1932,13 +1932,13 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
         .security-safe-text {
           font-size: 13px;
-          color: #2dd4bf;
+          color: var(--brand-accent);
         }
         .security-free-content {
           text-align: center;
         }
         .security-warning-text {
-          color: #fbbf24;
+          color: var(--warning);
           font-weight: 500;
           margin-bottom: 12px;
         }
@@ -1948,21 +1948,21 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
         .security-features-title {
           font-size: 13px;
-          color: #94a3b8;
+          color: var(--text-tertiary);
           margin-bottom: 6px;
         }
         .security-features ul {
           margin: 0;
           padding-left: 20px;
           font-size: 13px;
-          color: #cbd5e1;
+          color: var(--border-input);
         }
         .security-features li {
           margin-bottom: 4px;
         }
         .security-upgrade-btn {
           display: inline-block;
-          background: linear-gradient(135deg, #0d9488, #2dd4bf);
+          background: linear-gradient(135deg, var(--brand), var(--brand-accent));
           color: white;
           padding: 10px 24px;
           border-radius: 8px;
@@ -1982,7 +1982,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
         .security-sim-upsell-text {
           font-size: 12px;
-          color: #94a3b8;
+          color: var(--text-tertiary);
           margin: 0 0 10px;
         }
       `}</style>
