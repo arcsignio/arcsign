@@ -164,15 +164,15 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         style={{
           marginBottom: "1.5rem",
           padding: "1rem",
-          background: "#f0fdfa",
-          border: "1px solid #99f6e4",
+          background: "var(--brand-faint)",
+          border: "1px solid var(--brand-pale)",
           borderRadius: "10px",
         }}
       >
-        <div style={{ fontWeight: 700, color: "#0f766e", marginBottom: "0.25rem" }}>
+        <div style={{ fontWeight: 700, color: "var(--brand-press)", marginBottom: "0.25rem" }}>
           {t("provider.capabilities.title")}
         </div>
-        <div style={{ fontSize: "0.8125rem", color: "#0d9488", marginBottom: "0.75rem" }}>
+        <div style={{ fontSize: "0.8125rem", color: "var(--brand)", marginBottom: "0.75rem" }}>
           {t("provider.capabilities.subtitle")}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
@@ -371,12 +371,12 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
           margin: 0;
           font-size: 24px;
           font-weight: 600;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .provider-settings .add-button {
           padding: 10px 20px;
-          background: #2dd4bf;
+          background: var(--brand-accent);
           color: white;
           border: none;
           border-radius: 8px;
@@ -387,11 +387,11 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         }
 
         .provider-settings .add-button:hover {
-          background: #0d9488;
+          background: var(--brand);
         }
 
         .provider-settings .add-button:disabled {
-          background: #9ca3af;
+          background: var(--text-tertiary);
           cursor: not-allowed;
         }
 
@@ -407,20 +407,20 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         }
 
         .provider-settings .error-message {
-          background: #fef2f2;
-          border: 1px solid #fecaca;
-          color: #dc2626;
+          background: var(--danger-pale);
+          border: 1px solid var(--danger-border);
+          color: var(--danger);
         }
 
         .provider-settings .success-message {
-          background: #f0fdf4;
-          border: 1px solid #bbf7d0;
-          color: #16a34a;
+          background: var(--success-pale);
+          border: 1px solid var(--success-border);
+          color: var(--success);
         }
 
         .provider-settings .add-form {
           background: white;
-          border: 1px solid #e5e7eb;
+          border: 1px solid var(--border-default);
           border-radius: 12px;
           padding: 24px;
           margin-bottom: 24px;
@@ -434,7 +434,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
           display: block;
           font-size: 14px;
           font-weight: 500;
-          color: #374151;
+          color: var(--text-primary);
           margin-bottom: 6px;
         }
 
@@ -442,10 +442,10 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         .provider-settings .form-group select {
           width: 100%;
           padding: 10px 12px;
-          border: 1px solid #d1d5db;
+          border: 1px solid var(--border-input);
           border-radius: 8px;
           font-size: 14px;
-          color: #111827;
+          color: var(--text-primary);
           background: white;
           transition: border-color 0.2s;
         }
@@ -453,20 +453,20 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         .provider-settings .form-group input:focus,
         .provider-settings .form-group select:focus {
           outline: none;
-          border-color: #2dd4bf;
+          border-color: var(--brand-accent);
           box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
         .provider-settings .form-group input:disabled,
         .provider-settings .form-group select:disabled {
-          background: #f3f4f6;
+          background: var(--surface-strong);
           cursor: not-allowed;
         }
 
         .provider-settings .form-group small {
           display: block;
           font-size: 12px;
-          color: #6b7280;
+          color: var(--text-secondary);
           margin-top: 4px;
         }
 
@@ -484,7 +484,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         .provider-settings .submit-button {
           width: 100%;
           padding: 12px;
-          background: #2dd4bf;
+          background: var(--brand-accent);
           color: white;
           border: none;
           border-radius: 8px;
@@ -495,17 +495,17 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         }
 
         .provider-settings .submit-button:hover {
-          background: #0d9488;
+          background: var(--brand);
         }
 
         .provider-settings .submit-button:disabled {
-          background: #9ca3af;
+          background: var(--text-tertiary);
           cursor: not-allowed;
         }
 
         .provider-settings .provider-list {
           background: white;
-          border: 1px solid #e5e7eb;
+          border: 1px solid var(--border-default);
           border-radius: 12px;
           padding: 24px;
           margin-bottom: 24px;
@@ -515,12 +515,12 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
           margin: 0 0 16px;
           font-size: 18px;
           font-weight: 600;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .provider-settings .provider-list .loading,
         .provider-settings .provider-list .empty {
-          color: #6b7280;
+          color: var(--text-secondary);
           font-size: 14px;
           text-align: center;
           padding: 20px;
@@ -535,20 +535,20 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         .provider-settings table td {
           padding: 12px;
           text-align: left;
-          border-bottom: 1px solid #e5e7eb;
+          border-bottom: 1px solid var(--border-default);
         }
 
         .provider-settings table th {
           font-size: 12px;
           font-weight: 600;
-          color: #6b7280;
+          color: var(--text-secondary);
           text-transform: uppercase;
           letter-spacing: 0.05em;
         }
 
         .provider-settings table td {
           font-size: 14px;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .provider-settings table tr:last-child td {
@@ -564,13 +564,13 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         }
 
         .provider-settings .status.enabled {
-          background: #dcfce7;
-          color: #16a34a;
+          background: var(--success-pale);
+          color: var(--success);
         }
 
         .provider-settings .status.disabled {
-          background: #f3f4f6;
-          color: #6b7280;
+          background: var(--surface-strong);
+          color: var(--text-secondary);
         }
 
         .provider-settings .has-key {
@@ -579,9 +579,9 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
 
         .provider-settings .delete-button {
           padding: 6px 12px;
-          background: #fef2f2;
-          color: #dc2626;
-          border: 1px solid #fecaca;
+          background: var(--danger-pale);
+          color: var(--danger);
+          border: 1px solid var(--danger-border);
           border-radius: 6px;
           font-size: 12px;
           cursor: pointer;
@@ -589,7 +589,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         }
 
         .provider-settings .delete-button:hover {
-          background: #fee2e2;
+          background: var(--danger-pale);
           border-color: #f87171;
         }
 
@@ -599,8 +599,8 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         }
 
         .provider-settings .help-text {
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
+          background: var(--surface-sunken);
+          border: 1px solid var(--border-default);
           border-radius: 12px;
           padding: 20px;
         }
@@ -609,13 +609,13 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
           margin: 0 0 8px;
           font-size: 16px;
           font-weight: 600;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .provider-settings .help-text p {
           margin: 0 0 12px;
           font-size: 14px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .provider-settings .help-text ul {
@@ -625,12 +625,12 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
 
         .provider-settings .help-text li {
           font-size: 14px;
-          color: #374151;
+          color: var(--text-primary);
           margin-bottom: 6px;
         }
 
         .provider-settings .help-text a {
-          color: #2dd4bf;
+          color: var(--brand-accent);
           text-decoration: none;
         }
 
@@ -647,7 +647,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
 
         .provider-settings .provider-info-item {
           background: white;
-          border: 1px solid #e5e7eb;
+          border: 1px solid var(--border-default);
           border-radius: 8px;
           padding: 16px;
         }
@@ -661,7 +661,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
 
         .provider-settings .provider-info-header strong {
           font-size: 15px;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .provider-settings .provider-info-header a {
@@ -671,13 +671,13 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         .provider-settings .provider-info-desc {
           margin: 0 0 4px;
           font-size: 14px;
-          color: #374151;
+          color: var(--text-primary);
         }
 
         .provider-settings .provider-info-chains {
           margin: 0;
           font-size: 12px;
-          color: #6b7280;
+          color: var(--text-secondary);
           font-style: italic;
         }
       `}</style>
