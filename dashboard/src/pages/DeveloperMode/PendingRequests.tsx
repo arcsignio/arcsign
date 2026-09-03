@@ -629,7 +629,7 @@ export default {
           padding: 4px 12px;
           background: rgba(34, 197, 94, 0.2);
           border-radius: 4px;
-          color: #22c55e;
+          color: var(--success);
           font-family: monospace;
           margin-bottom: 8px;
         }
@@ -658,7 +658,7 @@ export default {
         }
 
         .message-content.readable {
-          border-left: 3px solid #22c55e;
+          border-left: 3px solid var(--success);
         }
 
         .domain-info {
@@ -704,13 +704,13 @@ export default {
           background: rgba(0, 0, 0, 0.3);
           border: 1px solid rgba(255, 255, 255, 0.2);
           border-radius: 8px;
-          color: #fff;
+          color: var(--text-on-fill);
           font-size: 14px;
         }
 
         .password-section input:focus {
           outline: none;
-          border-color: #2dd4bf;
+          border-color: var(--brand-accent);
         }
 
         .action-buttons {
@@ -732,7 +732,7 @@ export default {
 
         .reject-button {
           background: rgba(239, 68, 68, 0.2);
-          color: #ef4444;
+          color: var(--danger);
         }
 
         .reject-button:hover:not(:disabled) {
@@ -741,7 +741,7 @@ export default {
 
         .approve-button {
           background: rgba(34, 197, 94, 0.2);
-          color: #22c55e;
+          color: var(--success);
         }
 
         .approve-button:hover:not(:disabled) {
