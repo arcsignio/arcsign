@@ -502,8 +502,8 @@ export function WalletDetail({
     <div
       style={{
         minHeight: "100vh",
-        background: "#f8fafc",
-        color: "#1e293b",
+        background: "var(--surface-sunken)",
+        color: "var(--text-primary)",
         fontFamily:
           '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}
@@ -511,9 +511,9 @@ export function WalletDetail({
       {/* Header with Account Info */}
       <div
         style={{
-          background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+          background: "linear-gradient(180deg, var(--surface-base) 0%, var(--surface-sunken) 100%)",
           padding: "1rem 1.5rem",
-          borderBottom: "1px solid #e2e8f0",
+          borderBottom: "1px solid var(--border-default)",
         }}
       >
         <button
@@ -521,7 +521,7 @@ export function WalletDetail({
           style={{
             background: "transparent",
             border: "none",
-            color: "#64748b",
+            color: "var(--text-secondary)",
             fontSize: "0.875rem",
             cursor: "pointer",
             padding: "0.5rem 0",
@@ -570,7 +570,7 @@ export function WalletDetail({
                   fontSize: "1.125rem",
                   fontWeight: "600",
                   margin: 0,
-                  color: "#1e293b",
+                  color: "var(--text-primary)",
                 }}
               >
                 {wallet.name}
@@ -580,16 +580,16 @@ export function WalletDetail({
                 style={{
                   background: "transparent",
                   border: "none",
-                  color: "#64748b",
+                  color: "var(--text-secondary)",
                   fontSize: "0.875rem",
                   cursor: "pointer",
                   padding: "0.25rem",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "#1e293b";
+                  e.currentTarget.style.color = "var(--text-primary)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "#64748b";
+                  e.currentTarget.style.color = "var(--text-secondary)";
                 }}
               >
                 ▼
@@ -598,7 +598,7 @@ export function WalletDetail({
             <div
               style={{
                 fontSize: "0.8125rem",
-                color: "#64748b",
+                color: "var(--text-secondary)",
               }}
             >
               {t('walletDetail.wallet01')}
@@ -611,12 +611,12 @@ export function WalletDetail({
                 title={t('walletConnect.connectedDapps')}
                 onClick={() => setShowSessionsManager(true)}
                 style={{
-                  background: walletConnect.sessions.length > 0 ? "#ecfdf5" : "transparent",
-                  border: walletConnect.sessions.length > 0 ? "1px solid #10b981" : "1px solid #e2e8f0",
+                  background: walletConnect.sessions.length > 0 ? "var(--success-pale)" : "transparent",
+                  border: walletConnect.sessions.length > 0 ? "1px solid var(--success)" : "1px solid var(--border-default)",
                   borderRadius: "8px",
                   padding: "0.5rem 0.75rem",
                   cursor: "pointer",
-                  color: walletConnect.sessions.length > 0 ? "#059669" : "#64748b",
+                  color: walletConnect.sessions.length > 0 ? "var(--success-text)" : "var(--text-secondary)",
                   fontSize: "0.875rem",
                   fontWeight: "500",
                   display: "flex",
@@ -624,10 +624,10 @@ export function WalletDetail({
                   gap: "0.375rem",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = walletConnect.sessions.length > 0 ? "#d1fae5" : "#f1f5f9";
+                  e.currentTarget.style.background = walletConnect.sessions.length > 0 ? "var(--success-pale)" : "var(--surface-strong)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = walletConnect.sessions.length > 0 ? "#ecfdf5" : "transparent";
+                  e.currentTarget.style.background = walletConnect.sessions.length > 0 ? "var(--success-pale)" : "transparent";
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
@@ -641,16 +641,16 @@ export function WalletDetail({
               onClick={() => setShowAddressList(true)}
               style={{
                 background: "transparent",
-                border: "1px solid #e2e8f0",
+                border: "1px solid var(--border-default)",
                 borderRadius: "8px",
                 padding: "0.5rem",
                 cursor: "pointer",
-                color: "#1e293b",
+                color: "var(--text-primary)",
                 fontSize: "1rem",
                 position: "relative",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#f1f5f9";
+                e.currentTarget.style.background = "var(--surface-strong)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
@@ -664,17 +664,17 @@ export function WalletDetail({
               disabled={isRefreshing}
               style={{
                 background: "transparent",
-                border: "1px solid #e2e8f0",
+                border: "1px solid var(--border-default)",
                 borderRadius: "8px",
                 padding: "0.5rem",
                 cursor: isRefreshing ? "not-allowed" : "pointer",
-                color: "#1e293b",
+                color: "var(--text-primary)",
                 fontSize: "1rem",
                 opacity: isRefreshing ? 0.6 : 1,
                 animation: isRefreshing ? "spin 1s linear infinite" : "none",
               }}
               onMouseEnter={(e) => {
-                if (!isRefreshing) e.currentTarget.style.background = "#f1f5f9";
+                if (!isRefreshing) e.currentTarget.style.background = "var(--surface-strong)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
@@ -691,12 +691,12 @@ export function WalletDetail({
                 }
                 onClick={() => setShowScamTokens(!showScamTokens)}
                 style={{
-                  background: showScamTokens ? "#fef3c7" : "transparent",
-                  border: showScamTokens ? "1px solid #fbbf24" : "1px solid #e2e8f0",
+                  background: showScamTokens ? "var(--warning-pale)" : "transparent",
+                  border: showScamTokens ? "1px solid var(--warning)" : "1px solid var(--border-default)",
                   borderRadius: "8px",
                   padding: "0.5rem 0.75rem",
                   cursor: "pointer",
-                  color: showScamTokens ? "#b45309" : "#1e293b",
+                  color: showScamTokens ? "var(--pending)" : "var(--text-primary)",
                   fontSize: "0.875rem",
                   fontWeight: "500",
                   display: "flex",
@@ -704,10 +704,10 @@ export function WalletDetail({
                   gap: "0.25rem",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = showScamTokens ? "#fde68a" : "#f1f5f9";
+                  e.currentTarget.style.background = showScamTokens ? "var(--warning-border)" : "var(--surface-strong)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = showScamTokens ? "#fef3c7" : "transparent";
+                  e.currentTarget.style.background = showScamTokens ? "var(--warning-pale)" : "transparent";
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -724,11 +724,11 @@ export function WalletDetail({
                 onClick={() => setShowZeroBalance(!showZeroBalance)}
                 style={{
                   background: showZeroBalance ? "#e0e7ff" : "transparent",
-                  border: showZeroBalance ? "1px solid #818cf8" : "1px solid #e2e8f0",
+                  border: showZeroBalance ? "1px solid #818cf8" : "1px solid var(--border-default)",
                   borderRadius: "8px",
                   padding: "0.5rem 0.75rem",
                   cursor: "pointer",
-                  color: showZeroBalance ? "#4338ca" : "#1e293b",
+                  color: showZeroBalance ? "#4338ca" : "var(--text-primary)",
                   fontSize: "0.875rem",
                   fontWeight: "500",
                   display: "flex",
@@ -736,7 +736,7 @@ export function WalletDetail({
                   gap: "0.25rem",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = showZeroBalance ? "#c7d2fe" : "#f1f5f9";
+                  e.currentTarget.style.background = showZeroBalance ? "#c7d2fe" : "var(--surface-strong)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = showZeroBalance ? "#e0e7ff" : "transparent";
@@ -750,15 +750,15 @@ export function WalletDetail({
               title={t('walletDetail.networkSettings')}
               style={{
                 background: "transparent",
-                border: "1px solid #e2e8f0",
+                border: "1px solid var(--border-default)",
                 borderRadius: "8px",
                 padding: "0.5rem",
                 cursor: "pointer",
-                color: "#1e293b",
+                color: "var(--text-primary)",
                 fontSize: "1rem",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#f1f5f9";
+                e.currentTarget.style.background = "var(--surface-strong)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
@@ -777,7 +777,7 @@ export function WalletDetail({
               fontWeight: "700",
               marginBottom: "0.5rem",
               letterSpacing: "-0.02em",
-              color: "#1e293b",
+              color: "var(--text-primary)",
             }}
           >
             {formatUSD(totalUsd)}
@@ -785,7 +785,7 @@ export function WalletDetail({
           <div
             style={{
               fontSize: "0.875rem",
-              color: showPercentage ? "#22c55e" : "#64748b",
+              color: showPercentage ? "var(--success)" : "var(--text-secondary)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -799,16 +799,16 @@ export function WalletDetail({
               style={{
                 background: "transparent",
                 border: "none",
-                color: "#64748b",
+                color: "var(--text-secondary)",
                 cursor: "pointer",
                 padding: "0.25rem",
                 fontSize: "0.875rem",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.color = "#1e293b";
+                e.currentTarget.style.color = "var(--text-primary)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.color = "#64748b";
+                e.currentTarget.style.color = "var(--text-secondary)";
               }}
             >
               1D ▼
@@ -898,12 +898,12 @@ export function WalletDetail({
               onClick={action.onClick}
               disabled={action.disabled}
               style={{
-                background: action.disabled ? "#f1f5f9" : "#ffffff",
-                border: action.disabled ? "1px solid #cbd5e1" : "1px solid #e2e8f0",
+                background: action.disabled ? "var(--surface-strong)" : "var(--surface-base)",
+                border: action.disabled ? "1px solid var(--border-input)" : "1px solid var(--border-default)",
                 borderRadius: "12px",
                 padding: "1rem 0.5rem",
                 cursor: action.disabled ? "not-allowed" : "pointer",
-                color: action.disabled ? "#94a3b8" : "#1e293b",
+                color: action.disabled ? "var(--text-tertiary)" : "var(--text-primary)",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -913,13 +913,13 @@ export function WalletDetail({
               }}
               onMouseEnter={(e) => {
                 if (!action.disabled) {
-                  e.currentTarget.style.background = "#f1f5f9";
+                  e.currentTarget.style.background = "var(--surface-strong)";
                   e.currentTarget.style.transform = "translateY(-2px)";
                 }
               }}
               onMouseLeave={(e) => {
                 if (!action.disabled) {
-                  e.currentTarget.style.background = "#ffffff";
+                  e.currentTarget.style.background = "var(--surface-base)";
                   e.currentTarget.style.transform = "translateY(0)";
                 }
               }}
@@ -929,7 +929,7 @@ export function WalletDetail({
                   width: "36px",
                   height: "36px",
                   borderRadius: "50%",
-                  background: action.disabled ? "#e2e8f0" : "#f1f5f9",
+                  background: action.disabled ? "var(--border-default)" : "var(--surface-strong)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -938,7 +938,7 @@ export function WalletDetail({
               >
                 {action.disabled ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" fill="none" stroke="currentColor" strokeWidth="2"/><path d="M7 11V7a5 5 0 0110 0v4" fill="none" stroke="currentColor" strokeWidth="2"/></svg> : action.icon}
               </div>
-              <span style={{ fontSize: "0.75rem", color: action.disabled ? "#94a3b8" : "#64748b" }}>
+              <span style={{ fontSize: "0.75rem", color: action.disabled ? "var(--text-tertiary)" : "var(--text-secondary)" }}>
                 {action.label}
               </span>
             </button>
@@ -952,8 +952,8 @@ export function WalletDetail({
                 top: "100%",
                 right: "0",
                 marginTop: "0.5rem",
-                background: "#ffffff",
-                border: "1px solid #e2e8f0",
+                background: "var(--surface-base)",
+                border: "1px solid var(--border-default)",
                 borderRadius: "12px",
                 boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
                 zIndex: 50,
@@ -973,7 +973,7 @@ export function WalletDetail({
                   padding: "0.75rem 1rem",
                   background: "transparent",
                   border: "none",
-                  borderBottom: "1px solid #e2e8f0",
+                  borderBottom: "1px solid var(--border-default)",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -981,13 +981,13 @@ export function WalletDetail({
                   textAlign: "left",
                   transition: "background 0.2s",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "#f1f5f9"; }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--surface-strong)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
               >
                 <span style={{ fontSize: "1.25rem" }}>📈</span>
                 <div>
-                  <div style={{ fontWeight: "500", color: "#1e293b" }}>{t('walletDetail.staking')}</div>
-                  <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{t('walletDetail.stakingDesc')}</div>
+                  <div style={{ fontWeight: "500", color: "var(--text-primary)" }}>{t('walletDetail.staking')}</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{t('walletDetail.stakingDesc')}</div>
                 </div>
               </button>
 
@@ -1002,7 +1002,7 @@ export function WalletDetail({
                   padding: "0.75rem 1rem",
                   background: "transparent",
                   border: "none",
-                  borderBottom: "1px solid #e2e8f0",
+                  borderBottom: "1px solid var(--border-default)",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -1010,13 +1010,13 @@ export function WalletDetail({
                   textAlign: "left",
                   transition: "background 0.2s",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "#f1f5f9"; }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--surface-strong)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
                 <div>
-                  <div style={{ fontWeight: "500", color: "#1e293b" }}>{t('walletDetail.addressBook')}</div>
-                  <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{t('walletDetail.manageSavedAddresses')}</div>
+                  <div style={{ fontWeight: "500", color: "var(--text-primary)" }}>{t('walletDetail.addressBook')}</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{t('walletDetail.manageSavedAddresses')}</div>
                 </div>
               </button>
 
@@ -1046,13 +1046,13 @@ export function WalletDetail({
                   textAlign: "left",
                   transition: "background 0.2s",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "#f1f5f9"; }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--surface-strong)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
                 <div>
-                  <div style={{ fontWeight: "500", color: "#1e293b" }}>WalletConnect</div>
-                  <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                  <div style={{ fontWeight: "500", color: "var(--text-primary)" }}>WalletConnect</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
                     {walletConnect.sessions.length > 0
                       ? `${walletConnect.sessions.length} active session${walletConnect.sessions.length > 1 ? 's' : ''}`
                       : 'Connect to dApps'}
@@ -1071,7 +1071,7 @@ export function WalletDetail({
                   padding: "0.75rem 1rem",
                   background: "transparent",
                   border: "none",
-                  borderTop: "1px solid #e2e8f0",
+                  borderTop: "1px solid var(--border-default)",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -1079,13 +1079,13 @@ export function WalletDetail({
                   textAlign: "left",
                   transition: "background 0.2s",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "#f1f5f9"; }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--surface-strong)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 <div>
-                  <div style={{ fontWeight: "500", color: "#1e293b" }}>{t('backup.exportTitle')}</div>
-                  <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{t('backup.exportDescription')}</div>
+                  <div style={{ fontWeight: "500", color: "var(--text-primary)" }}>{t('backup.exportTitle')}</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{t('backup.exportDescription')}</div>
                 </div>
               </button>
             </div>
@@ -1122,9 +1122,9 @@ export function WalletDetail({
           display: "flex",
           gap: "2rem",
           padding: "0 1.5rem",
-          borderBottom: "1px solid #e2e8f0",
+          borderBottom: "1px solid var(--border-default)",
           marginBottom: "1rem",
-          background: "#ffffff",
+          background: "var(--surface-base)",
         }}
       >
         {[
@@ -1139,14 +1139,14 @@ export function WalletDetail({
             style={{
               background: "transparent",
               border: "none",
-              color: activeTab === tab.id ? "#1e293b" : "#64748b",
+              color: activeTab === tab.id ? "var(--text-primary)" : "var(--text-secondary)",
               fontSize: "0.9375rem",
               fontWeight: activeTab === tab.id ? "600" : "400",
               padding: "1rem 0",
               cursor: "pointer",
               borderBottom:
                 activeTab === tab.id
-                  ? "2px solid #2dd4bf"
+                  ? "2px solid var(--brand-accent)"
                   : "2px solid transparent",
               transition: "all 0.2s",
             }}
@@ -1178,10 +1178,10 @@ export function WalletDetail({
                   padding: "0.75rem 1rem",
                   marginBottom: "1rem",
                   background: isDegradedOnly ? "#eff6ff" : "#fffbeb",
-                  border: `1px solid ${isDegradedOnly ? "#bfdbfe" : "#fde68a"}`,
+                  border: `1px solid ${isDegradedOnly ? "#bfdbfe" : "var(--warning-border)"}`,
                   borderRadius: "10px",
                   fontSize: "0.8125rem",
-                  color: isDegradedOnly ? "#1e40af" : "#92400e",
+                  color: isDegradedOnly ? "#1e40af" : "var(--warning-text)",
                 }}
               >
                 {isDegradedOnly ? (
@@ -1212,8 +1212,8 @@ export function WalletDetail({
               style={{
                 display: "flex", alignItems: "center", gap: "0.375rem",
                 padding: "0.4rem 0.8rem", fontSize: "0.8125rem", fontWeight: 500,
-                color: "#0d9488", background: "transparent",
-                border: "1px solid #0d9488", borderRadius: "8px", cursor: "pointer",
+                color: "var(--brand)", background: "transparent",
+                border: "1px solid var(--brand)", borderRadius: "8px", cursor: "pointer",
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1223,7 +1223,7 @@ export function WalletDetail({
           {isLoading ? (
             <div style={{ textAlign: "center", padding: "3rem" }}>
               <LoadingSpinner />
-              <p style={{ marginTop: "1rem", color: "#64748b" }}>
+              <p style={{ marginTop: "1rem", color: "var(--text-secondary)" }}>
                 {t('walletDetail.loadingAssetsDot')}
               </p>
             </div>
@@ -1232,10 +1232,10 @@ export function WalletDetail({
               style={{
                 textAlign: "center",
                 padding: "3rem",
-                color: "#64748b",
+                color: "var(--text-secondary)",
               }}
             >
-              <div style={{ marginBottom: "1rem" }}><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+              <div style={{ marginBottom: "1rem" }}><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
               <p>{t('walletDetail.noTokensFound')}</p>
             </div>
           ) : (
@@ -1271,8 +1271,8 @@ export function WalletDetail({
                   title={`View ${token.tokenSymbol} details`}
                   onClick={() => setSelectedToken(agg)}
                   style={{
-                    background: "#ffffff",
-                    border: "1px solid #e2e8f0",
+                    background: "var(--surface-base)",
+                    border: "1px solid var(--border-default)",
                     borderRadius: "12px",
                     padding: "1rem",
                     cursor: "pointer",
@@ -1280,17 +1280,17 @@ export function WalletDetail({
                     alignItems: "center",
                     gap: "1rem",
                     transition: "all 0.2s",
-                    color: "#1e293b",
+                    color: "var(--text-primary)",
                     textAlign: "left",
                     opacity: token.usdValue === 0 ? 0.6 : 1,
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "#f8fafc";
+                    e.currentTarget.style.background = "var(--surface-sunken)";
                     e.currentTarget.style.transform = "translateX(4px)";
                     e.currentTarget.style.opacity = "1";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "#ffffff";
+                    e.currentTarget.style.background = "var(--surface-base)";
                     e.currentTarget.style.transform = "translateX(0)";
                     e.currentTarget.style.opacity =
                       token.usdValue === 0 ? "0.6" : "1";
@@ -1302,13 +1302,13 @@ export function WalletDetail({
                       width: "40px",
                       height: "40px",
                       borderRadius: "50%",
-                      background: "#f1f5f9",
+                      background: "var(--surface-strong)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       flexShrink: 0,
                       overflow: "hidden",
-                      border: "1px solid #e2e8f0",
+                      border: "1px solid var(--border-default)",
                     }}
                   >
                     <img
@@ -1349,7 +1349,7 @@ export function WalletDetail({
                         style={{
                           fontSize: "1rem",
                           fontWeight: "600",
-                          color: "#1e293b",
+                          color: "var(--text-primary)",
                         }}
                       >
                         {token.tokenSymbol}
@@ -1360,11 +1360,11 @@ export function WalletDetail({
                           padding: "0.125rem 0.375rem",
                           borderRadius: "0.25rem",
                           background: token.network.includes("sepolia")
-                            ? "#fef3c7"
-                            : "#ccfbf1",
+                            ? "var(--warning-pale)"
+                            : "var(--brand-pale)",
                           color: token.network.includes("sepolia")
-                            ? "#d97706"
-                            : "#0d9488",
+                            ? "var(--warning)"
+                            : "var(--brand)",
                           fontWeight: "500",
                         }}
                       >
@@ -1375,7 +1375,7 @@ export function WalletDetail({
                     <div
                       style={{
                         fontSize: "0.75rem",
-                        color: "#64748b",
+                        color: "var(--text-secondary)",
                         marginBottom: "0.125rem",
                       }}
                     >
@@ -1384,7 +1384,7 @@ export function WalletDetail({
                     <div
                       style={{
                         fontSize: "0.6875rem",
-                        color: "#94a3b8",
+                        color: "var(--text-tertiary)",
                         fontFamily: "monospace",
                         display: "flex",
                         alignItems: "center",
@@ -1433,7 +1433,7 @@ export function WalletDetail({
                         fontSize: "1rem",
                         fontWeight: "600",
                         marginBottom: "0.25rem",
-                        color: "#1e293b",
+                        color: "var(--text-primary)",
                       }}
                     >
                       {formatUSD(token.usdValue)}
@@ -1441,7 +1441,7 @@ export function WalletDetail({
                     <div
                       style={{
                         fontSize: "0.8125rem",
-                        color: token.usdValue > 0 ? "#22c55e" : "#64748b",
+                        color: token.usdValue > 0 ? "var(--success)" : "var(--text-secondary)",
                       }}
                     >
                       {formatBalance(token.balance)} {token.tokenSymbol}
@@ -1506,11 +1506,11 @@ export function WalletDetail({
             background: "rgba(239, 68, 68, 0.1)",
             border: "1px solid rgba(239, 68, 68, 0.3)",
             borderRadius: "12px",
-            color: "#ef4444",
+            color: "var(--danger)",
             fontSize: "0.875rem",
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {error}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {error}
         </div>
       )}
 
@@ -1528,7 +1528,7 @@ export function WalletDetail({
         >
           <div
             style={{
-              background: "#ffffff",
+              background: "var(--surface-base)",
               borderRadius: "16px",
               width: "90%", maxWidth: "520px", maxHeight: "85vh",
               overflow: "auto",
@@ -1537,24 +1537,24 @@ export function WalletDetail({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div style={{ padding: "1.5rem", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: "1rem" }}>
-              <div style={{ width: 44, height: 44, borderRadius: "50%", overflow: "hidden", background: "#f1f5f9", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ padding: "1.5rem", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", gap: "1rem" }}>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", overflow: "hidden", background: "var(--surface-strong)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {selectedToken.logo
                   ? <img src={selectedToken.logo} alt={selectedToken.symbol} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   : <span style={{ fontWeight: 600 }}>{selectedToken.symbol.charAt(0)}</span>}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "1.125rem", fontWeight: 600, color: "#1e293b" }}>{selectedToken.symbol}</div>
-                <div style={{ fontSize: "0.8125rem", color: "#64748b" }}>{selectedToken.name}</div>
+                <div style={{ fontSize: "1.125rem", fontWeight: 600, color: "var(--text-primary)" }}>{selectedToken.symbol}</div>
+                <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>{selectedToken.name}</div>
               </div>
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: "1.125rem", fontWeight: 600, color: "#1e293b" }}>{formatUSD(selectedToken.totalUsdValue)}</div>
-                <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{selectedToken.isMultiChain ? `${selectedToken.networks.length} chains` : "1 chain"}</div>
+                <div style={{ fontSize: "1.125rem", fontWeight: 600, color: "var(--text-primary)" }}>{formatUSD(selectedToken.totalUsdValue)}</div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{selectedToken.isMultiChain ? `${selectedToken.networks.length} chains` : "1 chain"}</div>
               </div>
             </div>
             {/* Per-chain breakdown */}
             <div style={{ padding: "1rem 1.5rem 1.5rem" }}>
-              <div style={{ fontSize: "0.75rem", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>
+              <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>
                 {t('walletDetail.byChain', 'By chain')}
               </div>
               {/* Allocation treemap — proportion of this asset across chains.
@@ -1569,7 +1569,7 @@ export function WalletDetail({
                   .slice()
                   .sort((a, b) => (b.usdValue || 0) - (a.usdValue || 0))
                   .map((src, i) => (
-                  <div key={`${src.network}-${i}`} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem", border: "1px solid #e2e8f0", borderRadius: "10px" }}>
+                  <div key={`${src.network}-${i}`} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem", border: "1px solid var(--border-default)", borderRadius: "10px" }}>
                     <img
                       src={getChainIconUrl(src.network) || getChainFallbackIcon(src.network)}
                       alt={src.networkLabel}
@@ -1577,22 +1577,22 @@ export function WalletDetail({
                       onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
                     />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: "0.875rem", fontWeight: 500, color: "#1e293b" }}>{src.networkLabel}</div>
+                      <div style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-primary)" }}>{src.networkLabel}</div>
                       {/* Per-chain contract address (ERC-20 only; native has none).
                           Lets the user verify "USDT on each chain, contract = ...". */}
                       {src.tokenAddress && (
                         <button
                           onClick={() => navigator.clipboard?.writeText(src.tokenAddress)}
                           title={`${t('walletDetail.copyContract', 'Copy contract')}: ${src.tokenAddress}`}
-                          style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "block", textAlign: "left", fontSize: "0.6875rem", color: "#94a3b8", fontFamily: "monospace" }}
+                          style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "block", textAlign: "left", fontSize: "0.6875rem", color: "var(--text-tertiary)", fontFamily: "monospace" }}
                         >
                           📜 {src.tokenAddress.slice(0, 8)}...{src.tokenAddress.slice(-6)}
                         </button>
                       )}
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: "0.875rem", fontWeight: 500, color: "#1e293b" }}>{formatBalance(src.balance)} {src.tokenSymbol}</div>
-                      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{formatUSD(src.usdValue || 0)}</div>
+                      <div style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-primary)" }}>{formatBalance(src.balance)} {src.tokenSymbol}</div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{formatUSD(src.usdValue || 0)}</div>
                     </div>
                   </div>
                 ))}
@@ -1621,7 +1621,7 @@ export function WalletDetail({
         >
           <div
             style={{
-              background: "#ffffff",
+              background: "var(--surface-base)",
               borderRadius: "16px",
               width: "90%",
               maxWidth: "650px",
@@ -1635,7 +1635,7 @@ export function WalletDetail({
             <div
               style={{
                 padding: "1.5rem",
-                borderBottom: "1px solid #e2e8f0",
+                borderBottom: "1px solid var(--border-default)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -1647,7 +1647,7 @@ export function WalletDetail({
                     margin: 0,
                     fontSize: "1.25rem",
                     fontWeight: "600",
-                    color: "#1e293b",
+                    color: "var(--text-primary)",
                   }}
                 >
                   {t('walletDetail.walletAddresses')}
@@ -1656,7 +1656,7 @@ export function WalletDetail({
                   style={{
                     margin: "0.25rem 0 0",
                     fontSize: "0.875rem",
-                    color: "#64748b",
+                    color: "var(--text-secondary)",
                   }}
                 >
                   {wallet.name} • {walletAddresses.filter(a => !a.is_testnet).length} {t('walletDetail.addresses')}
@@ -1669,7 +1669,7 @@ export function WalletDetail({
                   border: "none",
                   fontSize: "1.5rem",
                   cursor: "pointer",
-                  color: "#64748b",
+                  color: "var(--text-secondary)",
                   padding: "0.5rem",
                 }}
               >
@@ -1689,7 +1689,7 @@ export function WalletDetail({
                   style={{
                     textAlign: "center",
                     padding: "2rem",
-                    color: "#64748b",
+                    color: "var(--text-secondary)",
                   }}
                 >
                   <p>{t('walletDetail.noAddressesLoaded')}</p>
@@ -1707,19 +1707,19 @@ export function WalletDetail({
                         <div
                           style={{
                             padding: "0.75rem 1.5rem",
-                            background: "#f0fdf4",
-                            borderBottom: "1px solid #bbf7d0",
+                            background: "var(--success-pale)",
+                            borderBottom: "1px solid var(--success-border)",
                             display: "flex",
                             alignItems: "center",
                             gap: "0.5rem",
                           }}
                         >
-                          <span style={{ color: "#16a34a" }}>✓</span>
+                          <span style={{ color: "var(--success)" }}>✓</span>
                           <span
                             style={{
                               fontSize: "0.875rem",
                               fontWeight: "600",
-                              color: "#15803d",
+                              color: "var(--success-text)",
                             }}
                           >
                             {t('walletDetail.supportedChains')} ({supportedAddrs.length})
@@ -1727,7 +1727,7 @@ export function WalletDetail({
                           <span
                             style={{
                               fontSize: "0.75rem",
-                              color: "#22c55e",
+                              color: "var(--success)",
                               marginLeft: "0.5rem",
                             }}
                           >
@@ -1745,14 +1745,14 @@ export function WalletDetail({
                                 padding: "0.875rem 1rem",
                                 background:
                                   copiedAddress === addr.address
-                                    ? "#dcfce7"
+                                    ? "var(--success-pale)"
                                     : "transparent",
                                 borderRadius: "12px",
                                 transition: "all 0.2s",
                               }}
                               onMouseEnter={(e) => {
                                 if (copiedAddress !== addr.address) {
-                                  e.currentTarget.style.background = "#f1f5f9";
+                                  e.currentTarget.style.background = "var(--surface-strong)";
                                 }
                               }}
                               onMouseLeave={(e) => {
@@ -1772,7 +1772,7 @@ export function WalletDetail({
                                   display: "flex",
                                   alignItems: "center",
                                   justifyContent: "center",
-                                  background: iconErrors.has(addr.symbol) ? getChainFallbackIcon(addr.symbol) : "#f1f5f9",
+                                  background: iconErrors.has(addr.symbol) ? getChainFallbackIcon(addr.symbol) : "var(--surface-strong)",
                                 }}
                               >
                                 {iconErrors.has(addr.symbol) ? (
@@ -1805,7 +1805,7 @@ export function WalletDetail({
                                     style={{
                                       fontSize: "1rem",
                                       fontWeight: "600",
-                                      color: "#1e293b",
+                                      color: "var(--text-primary)",
                                     }}
                                   >
                                     {addr.name}
@@ -1815,8 +1815,8 @@ export function WalletDetail({
                                       fontSize: "0.6875rem",
                                       padding: "0.125rem 0.375rem",
                                       borderRadius: "0.25rem",
-                                      background: "#dcfce7",
-                                      color: "#15803d",
+                                      background: "var(--success-pale)",
+                                      color: "var(--success-text)",
                                       fontWeight: "500",
                                     }}
                                   >
@@ -1826,7 +1826,7 @@ export function WalletDetail({
                                 <div
                                   style={{
                                     fontSize: "0.75rem",
-                                    color: "#64748b",
+                                    color: "var(--text-secondary)",
                                     fontFamily: "monospace",
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
@@ -1843,12 +1843,12 @@ export function WalletDetail({
                                   onClick={() => handleCopyAddress(addr.address)}
                                   title={t('walletDetail.copyAddressTooltip')}
                                   style={{
-                                    background: copiedAddress === addr.address ? "#dcfce7" : "#f1f5f9",
+                                    background: copiedAddress === addr.address ? "var(--success-pale)" : "var(--surface-strong)",
                                     border: "none",
                                     borderRadius: "8px",
                                     padding: "0.5rem",
                                     cursor: "pointer",
-                                    color: copiedAddress === addr.address ? "#16a34a" : "#64748b",
+                                    color: copiedAddress === addr.address ? "var(--success)" : "var(--text-secondary)",
                                     fontSize: "1rem",
                                     transition: "all 0.2s",
                                   }}
@@ -1859,12 +1859,12 @@ export function WalletDetail({
                                   onClick={() => setReceiveAddress(addr)}
                                   title={t('walletDetail.showQrCode')}
                                   style={{
-                                    background: "#f1f5f9",
+                                    background: "var(--surface-strong)",
                                     border: "none",
                                     borderRadius: "8px",
                                     padding: "0.5rem",
                                     cursor: "pointer",
-                                    color: "#1e293b",
+                                    color: "var(--text-primary)",
                                     fontSize: "1rem",
                                     transition: "all 0.2s",
                                     display: "flex",
@@ -1901,20 +1901,20 @@ export function WalletDetail({
                         <div
                           style={{
                             padding: "0.75rem 1.5rem",
-                            background: "#f8fafc",
-                            borderBottom: "1px solid #e2e8f0",
-                            borderTop: "1px solid #e2e8f0",
+                            background: "var(--surface-sunken)",
+                            borderBottom: "1px solid var(--border-default)",
+                            borderTop: "1px solid var(--border-default)",
                             display: "flex",
                             alignItems: "center",
                             gap: "0.5rem",
                           }}
                         >
-                          <span style={{ color: "#64748b" }}>📦</span>
+                          <span style={{ color: "var(--text-secondary)" }}>📦</span>
                           <span
                             style={{
                               fontSize: "0.875rem",
                               fontWeight: "600",
-                              color: "#475569",
+                              color: "var(--text-secondary)",
                             }}
                           >
                             {t('walletDetail.otherChains')} ({unsupportedAddrs.length})
@@ -1922,7 +1922,7 @@ export function WalletDetail({
                           <span
                             style={{
                               fontSize: "0.75rem",
-                              color: "#94a3b8",
+                              color: "var(--text-tertiary)",
                               marginLeft: "0.5rem",
                             }}
                           >
@@ -1933,18 +1933,18 @@ export function WalletDetail({
                         <div
                           style={{
                             padding: "0.75rem 1.5rem",
-                            background: "#fef3c7",
-                            borderBottom: "1px solid #fcd34d",
+                            background: "var(--warning-pale)",
+                            borderBottom: "1px solid var(--warning-border)",
                             display: "flex",
                             alignItems: "flex-start",
                             gap: "0.5rem",
                           }}
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                          <div style={{ fontSize: "0.75rem", color: "#92400e", lineHeight: "1.4" }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                          <div style={{ fontSize: "0.75rem", color: "var(--warning-text)", lineHeight: "1.4" }}>
                             <strong>{t('walletDetail.disclaimer')}</strong> {t('walletDetail.disclaimerText')}
                             <br />
-                            <span style={{ color: "#b45309", fontStyle: "italic" }}>
+                            <span style={{ color: "var(--pending)", fontStyle: "italic" }}>
                               {t('walletDetail.disclaimerFuture')}
                             </span>
                           </div>
@@ -1960,14 +1960,14 @@ export function WalletDetail({
                                 padding: "0.875rem 1rem",
                                 background:
                                   copiedAddress === addr.address
-                                    ? "#dcfce7"
+                                    ? "var(--success-pale)"
                                     : "transparent",
                                 borderRadius: "12px",
                                 transition: "all 0.2s",
                               }}
                               onMouseEnter={(e) => {
                                 if (copiedAddress !== addr.address) {
-                                  e.currentTarget.style.background = "#f1f5f9";
+                                  e.currentTarget.style.background = "var(--surface-strong)";
                                 }
                               }}
                               onMouseLeave={(e) => {
@@ -1987,7 +1987,7 @@ export function WalletDetail({
                                   display: "flex",
                                   alignItems: "center",
                                   justifyContent: "center",
-                                  background: iconErrors.has(addr.symbol) ? getChainFallbackIcon(addr.symbol) : "#f1f5f9",
+                                  background: iconErrors.has(addr.symbol) ? getChainFallbackIcon(addr.symbol) : "var(--surface-strong)",
                                 }}
                               >
                                 {iconErrors.has(addr.symbol) ? (
@@ -2020,7 +2020,7 @@ export function WalletDetail({
                                     style={{
                                       fontSize: "1rem",
                                       fontWeight: "600",
-                                      color: "#1e293b",
+                                      color: "var(--text-primary)",
                                     }}
                                   >
                                     {addr.name}
@@ -2030,8 +2030,8 @@ export function WalletDetail({
                                       fontSize: "0.6875rem",
                                       padding: "0.125rem 0.375rem",
                                       borderRadius: "0.25rem",
-                                      background: "#e2e8f0",
-                                      color: "#475569",
+                                      background: "var(--border-default)",
+                                      color: "var(--text-secondary)",
                                       fontWeight: "500",
                                     }}
                                   >
@@ -2041,7 +2041,7 @@ export function WalletDetail({
                                 <div
                                   style={{
                                     fontSize: "0.75rem",
-                                    color: "#64748b",
+                                    color: "var(--text-secondary)",
                                     fontFamily: "monospace",
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
@@ -2057,12 +2057,12 @@ export function WalletDetail({
                                 onClick={() => handleCopyAddress(addr.address)}
                                 title={t('walletDetail.copyAddressTooltip')}
                                 style={{
-                                  background: copiedAddress === addr.address ? "#dcfce7" : "#f1f5f9",
+                                  background: copiedAddress === addr.address ? "var(--success-pale)" : "var(--surface-strong)",
                                   border: "none",
                                   borderRadius: "8px",
                                   padding: "0.5rem",
                                   cursor: "pointer",
-                                  color: copiedAddress === addr.address ? "#16a34a" : "#64748b",
+                                  color: copiedAddress === addr.address ? "var(--success)" : "var(--text-secondary)",
                                   fontSize: "1rem",
                                   transition: "all 0.2s",
                                 }}
