@@ -49,9 +49,14 @@
   --pending: #b45309;
 
   /* Neutral. One ramp — the codebase currently runs Tailwind gray and slate
-     in parallel, so body text is #111827 in some files and #1e293b in others. */
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
+     in parallel, so body text is #111827 in some files and #1e293b in others.
+     These take the majority values already on screen (#111827 appears 72 times,
+     #6b7280 102) rather than a nominally nicer slate: adopting a third value
+     would repaint ~129 text nodes across every screen, and the plan's whole
+     premise is that consolidation changes structure, not appearance. Retuning
+     later costs one line here. */
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
   --text-tertiary: #94a3b8;
   --text-on-fill: #ffffff;
 

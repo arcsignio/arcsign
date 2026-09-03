@@ -61,7 +61,12 @@ describe("CSS variable layer", () => {
   // reassigned when the danger colour changes without lying about itself.
   it("names variables by role, not by hue", () => {
     for (const v of declaredVars()) {
-      expect(v).not.toMatch(/--(red|green|blue|teal|gray|grey|slate|amber)\b/);
+      // Match the hue as a whole dash-delimited segment anywhere in the name.
+      // `\b` alone anchors word boundaries, not segment boundaries, so it lets
+      // compound names like --brand-teal through.
+      expect(v).not.toMatch(
+        /(^--|-)(red|green|blue|teal|gray|grey|slate|amber|indigo|purple)(-|$)/,
+      );
     }
   });
 });
