@@ -696,7 +696,7 @@ export function WalletDetail({
                   borderRadius: "8px",
                   padding: "0.5rem 0.75rem",
                   cursor: "pointer",
-                  color: showScamTokens ? "var(--pending)" : "var(--text-primary)",
+                  color: showScamTokens ? "var(--warning-text)" : "var(--text-primary)",
                   fontSize: "0.875rem",
                   fontWeight: "500",
                   display: "flex",
@@ -1944,7 +1944,7 @@ export function WalletDetail({
                           <div style={{ fontSize: "0.75rem", color: "var(--warning-text)", lineHeight: "1.4" }}>
                             <strong>{t('walletDetail.disclaimer')}</strong> {t('walletDetail.disclaimerText')}
                             <br />
-                            <span style={{ color: "var(--pending)", fontStyle: "italic" }}>
+                            <span style={{ color: "var(--warning-text)", fontStyle: "italic" }}>
                               {t('walletDetail.disclaimerFuture')}
                             </span>
                           </div>

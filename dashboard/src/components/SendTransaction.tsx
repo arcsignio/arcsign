@@ -1854,7 +1854,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         }
         .security-badge.warning {
           background: rgba(245, 158, 11, 0.18);
-          color: var(--pending);
+          color: var(--warning-text);
         }
         .security-badge.danger {
           background: rgba(220, 38, 38, 0.18);
@@ -1873,7 +1873,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
         .security-alert-warning {
           background: rgba(245, 158, 11, 0.12);
           border: 1px solid rgba(245, 158, 11, 0.45);
-          color: var(--pending);
+          color: var(--warning-text);
         }
         .security-alert strong {
           display: block;
