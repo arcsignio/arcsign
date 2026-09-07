@@ -530,15 +530,15 @@ export function DeveloperMode({ onBack, usbPath, hasPendingDev }: DeveloperModeP
         </header>
 
         <main className={styles.devContent}>
-          <div className="wallet-selection">
+          <div className={styles.walletSelection}>
             <h2>{t('developer.selectWallet', 'Select Wallet')}</h2>
-            <p className="wallet-selection-description">
+            <p className={styles.walletSelectionDescription}>
               {t('developer.selectWalletDescription', 'Choose a wallet to use for signing developer transactions.')}
             </p>
 
             {isLoading && (
-              <div className="loading-state">
-                <div className="spinner" />
+              <div className={styles.loadingState}>
+                <div className={styles.spinner} />
                 <span>{t('common.loading', 'Loading...')}</span>
               </div>
             )}
@@ -565,28 +565,28 @@ export function DeveloperMode({ onBack, usbPath, hasPendingDev }: DeveloperModeP
             )}
 
             {!isLoading && wallets.length === 0 && (
-              <div className="empty-state">
+              <div className={styles.emptyState}>
                 <p>{t('developer.noWallets', 'No wallets found. Please create a wallet first.')}</p>
-                <button onClick={onBack} className="primary-button">
+                <button onClick={onBack} className={styles.primaryButton}>
                   {t('actions.back')}
                 </button>
               </div>
             )}
 
             {!isLoading && wallets.length > 0 && (
-              <div className="wallet-list">
+              <div className={styles.walletList}>
                 {wallets.map(wallet => (
                   <button
                     key={wallet.id}
-                    className="wallet-item"
+                    className={styles.walletItem}
                     onClick={() => handleSelectWallet(wallet)}
                   >
-                    <div className="wallet-icon">👛</div>
-                    <div className="wallet-info">
-                      <span className="wallet-name">{wallet.name}</span>
-                      <span className="wallet-id">{wallet.id.substring(0, 8)}...</span>
+                    <div className={styles.walletIcon}>👛</div>
+                    <div className={styles.walletInfo}>
+                      <span className={styles.walletName}>{wallet.name}</span>
+                      <span className={styles.walletId}>{wallet.id.substring(0, 8)}...</span>
                     </div>
-                    <div className="wallet-arrow">→</div>
+                    <div className={styles.walletArrow}>→</div>
                   </button>
                 ))}
               </div>
@@ -594,7 +594,6 @@ export function DeveloperMode({ onBack, usbPath, hasPendingDev }: DeveloperModeP
           </div>
         </main>
 
-        <style>{walletSelectionStyles}</style>
       </div>
     );
   }
@@ -693,189 +692,4 @@ export function DeveloperMode({ onBack, usbPath, hasPendingDev }: DeveloperModeP
 }
 
 // Styles for wallet selection view
-const walletSelectionStyles = `
-  .developer-mode {
-    min-height: 100vh;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    color: #fff;
-  }
 
-  .dev-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 24px;
-    background: rgba(0, 0, 0, 0.2);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .dev-header-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .dev-header h1 {
-    margin: 0;
-    font-size: 24px;
-    font-weight: 600;
-  }
-
-  .back-button {
-    padding: 8px 16px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
-    color: #fff;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .back-button:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  .dev-content {
-    padding: 24px;
-    max-width: 600px;
-    margin: 0 auto;
-  }
-
-  .wallet-selection {
-    text-align: center;
-  }
-
-  .wallet-selection h2 {
-    margin: 0 0 8px 0;
-    font-size: 24px;
-    font-weight: 600;
-  }
-
-  .wallet-selection-description {
-    margin: 0 0 32px 0;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 14px;
-  }
-
-  .loading-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    padding: 48px 0;
-    color: rgba(255, 255, 255, 0.6);
-  }
-
-  .spinner {
-    width: 32px;
-    height: 32px;
-    border: 3px solid rgba(255, 255, 255, 0.1);
-    border-top-color: var(--brand-accent);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  .spinner.small {
-    width: 16px;
-    height: 16px;
-    border-width: 2px;
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-
-  .error-banner {
-    padding: 12px 16px;
-    margin-bottom: 16px;
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    border-radius: 8px;
-    color: #fca5a5;
-    text-align: left;
-  }
-
-  .empty-state {
-    padding: 48px 0;
-    text-align: center;
-  }
-
-  .empty-state p {
-    color: rgba(255, 255, 255, 0.6);
-    margin-bottom: 24px;
-  }
-
-  .primary-button {
-    padding: 12px 24px;
-    background: var(--brand-accent);
-    border: none;
-    border-radius: 8px;
-    color: #fff;
-    font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .primary-button:hover:not(:disabled) {
-    background: var(--brand);
-  }
-
-  .primary-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .wallet-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .wallet-item {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 16px 20px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: left;
-    width: 100%;
-  }
-
-  .wallet-item:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(59, 130, 246, 0.5);
-  }
-
-  .wallet-icon {
-    font-size: 32px;
-  }
-
-  .wallet-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .wallet-name {
-    font-size: 16px;
-    font-weight: 500;
-    color: #fff;
-  }
-
-  .wallet-id {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.5);
-    font-family: monospace;
-  }
-
-  .wallet-arrow {
-    font-size: 20px;
-    color: rgba(255, 255, 255, 0.4);
-  }
-`;

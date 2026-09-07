@@ -9,6 +9,7 @@
  */
 
 import { useState } from 'react';
+import styles from "./PendingRequests.module.css";
 import { useTranslation } from 'react-i18next';
 import { formatAmount, toDecimalString } from '@/utils/formatAmount';
 import { getNetworkColor } from '@/utils/chainIcons';
@@ -166,12 +167,12 @@ export function PendingRequests({
 
   if (totalRequests === 0) {
     return (
-      <div className="empty-requests">
-        <div className="empty-icon">📋</div>
+      <div className={styles.emptyRequests}>
+        <div className={styles.emptyIcon}>📋</div>
         <h2>{t('developer.noRequests', 'No Pending Requests')}</h2>
         <p>{t('developer.noRequestsDesc', 'When you run a Hardhat script, signing requests will appear here.')}</p>
 
-        <div className="usage-hint">
+        <div className={styles.usageHint}>
           <h3>💡 {t('developer.quickStart', 'Quick Start')}</h3>
           <pre>{`// hardhat.config.ts
 import "@arcsign/hardhat-plugin";
@@ -185,66 +186,18 @@ export default {
   },
 };`}</pre>
         </div>
-
-        <style>{`
-          .empty-requests {
-            text-align: center;
-            padding: 60px 24px;
-          }
-
-          .empty-icon {
-            font-size: 64px;
-            margin-bottom: 16px;
-          }
-
-          .empty-requests h2 {
-            margin: 0 0 8px;
-            font-size: 24px;
-            color: rgba(255, 255, 255, 0.9);
-          }
-
-          .empty-requests p {
-            margin: 0 0 32px;
-            color: rgba(255, 255, 255, 0.6);
-          }
-
-          .usage-hint {
-            max-width: 500px;
-            margin: 0 auto;
-            text-align: left;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 12px;
-            padding: 20px;
-          }
-
-          .usage-hint h3 {
-            margin: 0 0 12px;
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.8);
-          }
-
-          .usage-hint pre {
-            margin: 0;
-            padding: 16px;
-            background: rgba(0, 0, 0, 0.4);
-            border-radius: 8px;
-            font-size: 12px;
-            color: #a5f3fc;
-            overflow-x: auto;
-          }
-        `}</style>
       </div>
     );
   }
 
   return (
-    <div className="pending-requests">
+    <div className={styles.pendingRequests}>
       <h2>
         📋 {t('developer.pendingRequests', 'Pending Requests')}
-        <span className="count">({totalRequests})</span>
+        <span className={styles.count}>({totalRequests})</span>
       </h2>
 
-      <div className="requests-list">
+      <div className={styles.requestsList}>
         {/* Message Signing Requests */}
         {messageRequests.map((request) => {
           const isSelected = selectedMessageRequest === request.requestId;
@@ -252,19 +205,19 @@ export default {
           return (
             <div
               key={`msg-${request.requestId}`}
-              className={`request-card message-request ${isSelected ? 'expanded' : ''}`}
+              className={`${styles.requestCard} ${styles.messageRequest} ${isSelected ? styles.expanded : ''}`}
             >
               {/* Request Header */}
               <div
-                className="request-header"
+                className={styles.requestHeader}
                 onClick={() => setSelectedMessageRequest(isSelected ? null : request.requestId)}
               >
-                <div className="request-type">
+                <div className={styles.requestType}>
                   {request.signType === 'personal_sign' ? '✍️' : '📋'}
                   <span>{request.description}</span>
                 </div>
                 <div
-                  className="network-badge"
+                  className={styles.networkBadge}
                   style={{
                     backgroundColor: request.signType === 'personal_sign' ? '#8B5CF630' : '#F5920030',
                     color: request.signType === 'personal_sign' ? '#8B5CF6' : '#F59200',
@@ -275,46 +228,46 @@ export default {
               </div>
 
               {/* Request Summary */}
-              <div className="request-summary">
-                <div className="summary-row full-width">
-                  <span className="label">{t('developer.requestDetails.address')}:</span>
-                  <span className="value mono">{formatAddress(request.address)}</span>
+              <div className={styles.requestSummary}>
+                <div className={`${styles.summaryRow} ${styles.fullWidth}`.trim()}>
+                  <span className={styles.label}>{t('developer.requestDetails.address')}:</span>
+                  <span className={`${styles.value} ${styles.mono}`.trim()}>{formatAddress(request.address)}</span>
                 </div>
                 {request.scriptName && (
-                  <div className="summary-row full-width">
-                    <span className="label">{t('developer.requestDetails.script')}:</span>
-                    <span className="value script">{request.scriptName}</span>
+                  <div className={`${styles.summaryRow} ${styles.fullWidth}`.trim()}>
+                    <span className={styles.label}>{t('developer.requestDetails.script')}:</span>
+                    <span className={`${styles.script} ${styles.value} `.trim()}>{request.scriptName}</span>
                   </div>
                 )}
               </div>
 
               {/* Expanded Details */}
               {isSelected && (
-                <div className="request-details">
+                <div className={styles.requestDetails}>
                   {/* Message Content for personal_sign */}
                   {request.signType === 'personal_sign' && (
-                    <div className="message-section">
+                    <div className={styles.messageSection}>
                       <h4>📝 {t('developer.messageToSign', 'Message to Sign')}</h4>
                       {request.messageReadable ? (
-                        <div className="message-content readable">
+                        <div className={`${styles.messageContent} ${styles.readable}`.trim()}>
                           {request.messageReadable}
                         </div>
                       ) : (
-                        <pre className="raw-data">{request.message || '0x'}</pre>
+                        <pre className={styles.rawData}>{request.message || '0x'}</pre>
                       )}
                     </div>
                   )}
 
                   {/* Typed Data for EIP-712 */}
                   {request.signType === 'typed_data' && request.typedData && (
-                    <div className="typed-data-section">
+                    <div className={styles.typedDataSection}>
                       <h4>📋 {t('developer.typedData', 'Typed Data (EIP-712)')}</h4>
 
                       {/* Domain Info */}
                       {request.typedData.domain && (
-                        <div className="domain-info">
-                          <span className="domain-label">{t('developer.requestDetails.domain')}:</span>
-                          <span className="domain-value">
+                        <div className={styles.domainInfo}>
+                          <span className={styles.domainLabel}>{t('developer.requestDetails.domain')}:</span>
+                          <span className={styles.domainValue}>
                             {request.typedData.domain.name || 'Unknown'}
                             {request.typedData.domain.version && ` v${request.typedData.domain.version}`}
                           </span>
@@ -323,13 +276,13 @@ export default {
 
                       {/* Primary Type */}
                       {request.typedData.primaryType && (
-                        <div className="primary-type">
-                          <span className="method-name">{request.typedData.primaryType}</span>
+                        <div className={styles.primaryType}>
+                          <span className={styles.methodName}>{request.typedData.primaryType}</span>
                         </div>
                       )}
 
                       {/* Message Data */}
-                      <pre className="params">
+                      <pre className={styles.params}>
                         {JSON.stringify(request.typedData.message, null, 2)}
                       </pre>
                     </div>
@@ -337,13 +290,13 @@ export default {
 
                   {/* Error */}
                   {error && selectedMessageRequest === request.requestId && (
-                    <div className="error-message">
+                    <div className={styles.errorMessage}>
                       ⚠️ {error}
                     </div>
                   )}
 
                   {/* Password Input */}
-                  <div className="password-section">
+                  <div className={styles.passwordSection}>
                     <label>{t('developer.enterPassword', 'Enter wallet password to sign')}</label>
                     <PasswordInput
                       value={password}
@@ -354,16 +307,16 @@ export default {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="action-buttons">
+                  <div className={styles.actionButtons}>
                     <button
-                      className="reject-button"
+                      className={styles.rejectButton}
                       onClick={() => handleRejectMessage(request.requestId)}
                       disabled={isProcessing}
                     >
                       ✗ {t('common.reject', 'Reject')}
                     </button>
                     <button
-                      className="approve-button"
+                      className={styles.approveButton}
                       onClick={() => handleApproveMessage(request.requestId)}
                       disabled={isProcessing || !password}
                     >
@@ -389,18 +342,18 @@ export default {
           return (
             <div
               key={request.id}
-              className={`request-card ${isSelected ? 'expanded' : ''}`}
+              className={`${styles.requestCard} ${isSelected ? styles.expanded : ''}`}
             >
               {/* Request Header */}
-              <div className="request-header" onClick={() => setSelectedRequest(isSelected ? null : request.id)}>
-                <div className="request-type">
+              <div className={styles.requestHeader} onClick={() => setSelectedRequest(isSelected ? null : request.id)}>
+                <div className={styles.requestType}>
                   {request.type === 'deploy' && '🚀'}
                   {request.type === 'call' && '📝'}
                   {request.type === 'sign' && '✍️'}
                   <span>{request.description || request.type}</span>
                 </div>
                 <div
-                  className="network-badge"
+                  className={styles.networkBadge}
                   style={{ backgroundColor: networkInfo.color + '30', color: networkInfo.color }}
                 >
                   {networkInfo.isTestnet && '🧪'} {networkInfo.name}
@@ -408,69 +361,69 @@ export default {
               </div>
 
               {/* Request Summary */}
-              <div className="request-summary">
-                <div className="summary-row">
-                  <span className="label">{t('developer.requestDetails.from')}:</span>
-                  <span className="value mono">{formatAddress(request.from)}</span>
+              <div className={styles.requestSummary}>
+                <div className={styles.summaryRow}>
+                  <span className={styles.label}>{t('developer.requestDetails.from')}:</span>
+                  <span className={`${styles.value} ${styles.mono}`.trim()}>{formatAddress(request.from)}</span>
                 </div>
                 {request.to && (
-                  <div className="summary-row">
-                    <span className="label">{t('developer.requestDetails.to')}:</span>
-                    <span className="value mono">{formatAddress(request.to)}</span>
+                  <div className={styles.summaryRow}>
+                    <span className={styles.label}>{t('developer.requestDetails.to')}:</span>
+                    <span className={`${styles.value} ${styles.mono}`.trim()}>{formatAddress(request.to)}</span>
                   </div>
                 )}
-                <div className="summary-row">
-                  <span className="label">{t('developer.requestDetails.value')}:</span>
-                  <span className="value">{formatValue(request.value, request.network)}</span>
+                <div className={styles.summaryRow}>
+                  <span className={styles.label}>{t('developer.requestDetails.value')}:</span>
+                  <span className={styles.value}>{formatValue(request.value, request.network)}</span>
                 </div>
-                <div className="summary-row">
-                  <span className="label">{t('developer.requestDetails.nonce')}:</span>
-                  <span className="value">{request.nonce !== undefined ? request.nonce : 'N/A'}</span>
+                <div className={styles.summaryRow}>
+                  <span className={styles.label}>{t('developer.requestDetails.nonce')}:</span>
+                  <span className={styles.value}>{request.nonce !== undefined ? request.nonce : 'N/A'}</span>
                 </div>
-                <div className="summary-row">
-                  <span className="label">{t('developer.requestDetails.gasLimit')}:</span>
-                  <span className="value">{formatGasLimit(request.gas)}</span>
+                <div className={styles.summaryRow}>
+                  <span className={styles.label}>{t('developer.requestDetails.gasLimit')}:</span>
+                  <span className={styles.value}>{formatGasLimit(request.gas)}</span>
                 </div>
-                <div className="summary-row">
-                  <span className="label">{t('developer.requestDetails.gasPrice')}:</span>
-                  <span className="value">{formatGasPrice(request.maxFeePerGas || request.gasPrice)}</span>
+                <div className={styles.summaryRow}>
+                  <span className={styles.label}>{t('developer.requestDetails.gasPrice')}:</span>
+                  <span className={styles.value}>{formatGasPrice(request.maxFeePerGas || request.gasPrice)}</span>
                 </div>
-                <div className="summary-row full-width">
-                  <span className="label">{t('developer.requestDetails.estCost')}:</span>
-                  <span className="value cost">{formatEstimatedCost(request)}</span>
+                <div className={`${styles.summaryRow} ${styles.fullWidth}`.trim()}>
+                  <span className={styles.label}>{t('developer.requestDetails.estCost')}:</span>
+                  <span className={`${styles.value} ${styles.cost}`.trim()}>{formatEstimatedCost(request)}</span>
                 </div>
               </div>
 
               {/* Expanded Details */}
               {isSelected && (
-                <div className="request-details">
+                <div className={styles.requestDetails}>
                   {/* Calldata */}
                   {request.decodedCalldata && (
-                    <div className="calldata-section">
+                    <div className={styles.calldataSection}>
                       <h4>📦 {t('developer.methodCall', 'Method Call')}</h4>
-                      <div className="method-name">{request.decodedCalldata.method}</div>
+                      <div className={styles.methodName}>{request.decodedCalldata.method}</div>
                       {request.decodedCalldata.params && (
-                        <pre className="params">{JSON.stringify(request.decodedCalldata.params, null, 2)}</pre>
+                        <pre className={styles.params}>{JSON.stringify(request.decodedCalldata.params, null, 2)}</pre>
                       )}
                     </div>
                   )}
 
                   {/* Raw Data */}
-                  <div className="raw-data-section">
+                  <div className={styles.rawDataSection}>
                     <h4>🔢 {t('developer.rawData', 'Raw Data')}</h4>
-                    <pre className="raw-data">{request.data || '0x'}</pre>
+                    <pre className={styles.rawData}>{request.data || '0x'}</pre>
                   </div>
 
                   {/* Error */}
                   {error && selectedRequest === request.id && (
-                    <div className="error-message">
+                    <div className={styles.errorMessage}>
                       ⚠️ {error}
                     </div>
                   )}
 
                   {/* Password Input (if not auto-signing) */}
                   {!canAutoSign && (
-                    <div className="password-section">
+                    <div className={styles.passwordSection}>
                       <label>{t('developer.enterPassword', 'Enter wallet password to sign')}</label>
                       <PasswordInput
                         value={password}
@@ -482,16 +435,16 @@ export default {
                   )}
 
                   {/* Action Buttons */}
-                  <div className="action-buttons">
+                  <div className={styles.actionButtons}>
                     <button
-                      className="reject-button"
+                      className={styles.rejectButton}
                       onClick={() => handleReject(request.id)}
                       disabled={isProcessing}
                     >
                       ✗ {t('common.reject', 'Reject')}
                     </button>
                     <button
-                      className="approve-button"
+                      className={styles.approveButton}
                       onClick={() => handleApprove(request.id)}
                       disabled={isProcessing || (!canAutoSign && !password)}
                     >
@@ -500,7 +453,7 @@ export default {
                   </div>
 
                   {canAutoSign && (
-                    <div className="auto-sign-notice">
+                    <div className={styles.autoSignNotice}>
                       ℹ️ {t('developer.autoSignEnabled', 'Auto-sign enabled for testnet')}
                     </div>
                   )}
@@ -510,269 +463,6 @@ export default {
           );
         })}
       </div>
-
-      <style>{`
-        .pending-requests h2 {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin: 0 0 20px;
-          font-size: 20px;
-        }
-
-        .pending-requests h2 .count {
-          color: rgba(255, 255, 255, 0.5);
-          font-weight: 400;
-        }
-
-        .requests-list {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .request-card {
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 12px;
-          overflow: hidden;
-          transition: all 0.2s;
-        }
-
-        .request-card.message-request {
-          border-left: 3px solid #8B5CF6;
-        }
-
-        .request-card:hover {
-          border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .request-card.expanded {
-          border-color: rgba(59, 130, 246, 0.5);
-        }
-
-        .request-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 16px 20px;
-          cursor: pointer;
-        }
-
-        .request-type {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 16px;
-          font-weight: 500;
-        }
-
-        .network-badge {
-          padding: 4px 12px;
-          border-radius: 20px;
-          font-size: 12px;
-          font-weight: 500;
-        }
-
-        .request-summary {
-          padding: 0 20px 16px;
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 8px 16px;
-        }
-
-        .summary-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 13px;
-        }
-
-        .summary-row .label {
-          color: rgba(255, 255, 255, 0.5);
-          min-width: 70px;
-        }
-
-        .summary-row .value {
-          color: rgba(255, 255, 255, 0.9);
-        }
-
-        .summary-row .value.mono {
-          font-family: monospace;
-        }
-
-        .summary-row .value.script {
-          color: #a5f3fc;
-        }
-
-        .summary-row .value.cost {
-          color: #fbbf24;
-          font-weight: 500;
-        }
-
-        .summary-row.full-width {
-          grid-column: span 2;
-        }
-
-        .request-details {
-          padding: 20px;
-          background: rgba(0, 0, 0, 0.2);
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .calldata-section,
-        .raw-data-section,
-        .message-section,
-        .typed-data-section {
-          margin-bottom: 16px;
-        }
-
-        .request-details h4 {
-          margin: 0 0 8px;
-          font-size: 13px;
-          color: rgba(255, 255, 255, 0.6);
-        }
-
-        .method-name {
-          display: inline-block;
-          padding: 4px 12px;
-          background: rgba(34, 197, 94, 0.2);
-          border-radius: 4px;
-          color: var(--success);
-          font-family: monospace;
-          margin-bottom: 8px;
-        }
-
-        .params,
-        .raw-data {
-          margin: 0;
-          padding: 12px;
-          background: rgba(0, 0, 0, 0.3);
-          border-radius: 8px;
-          font-size: 12px;
-          color: #a5f3fc;
-          overflow-x: auto;
-          max-height: 150px;
-        }
-
-        .message-content {
-          padding: 16px;
-          background: rgba(0, 0, 0, 0.3);
-          border-radius: 8px;
-          font-size: 14px;
-          line-height: 1.5;
-          color: rgba(255, 255, 255, 0.9);
-          white-space: pre-wrap;
-          word-break: break-word;
-        }
-
-        .message-content.readable {
-          border-left: 3px solid var(--success);
-        }
-
-        .domain-info {
-          margin-bottom: 8px;
-          font-size: 13px;
-        }
-
-        .domain-label {
-          color: rgba(255, 255, 255, 0.5);
-          margin-right: 8px;
-        }
-
-        .domain-value {
-          color: rgba(255, 255, 255, 0.9);
-        }
-
-        .primary-type {
-          margin-bottom: 12px;
-        }
-
-        .error-message {
-          padding: 12px;
-          background: rgba(239, 68, 68, 0.2);
-          border-radius: 8px;
-          color: #fca5a5;
-          margin-bottom: 16px;
-        }
-
-        .password-section {
-          margin-bottom: 16px;
-        }
-
-        .password-section label {
-          display: block;
-          margin-bottom: 8px;
-          font-size: 13px;
-          color: rgba(255, 255, 255, 0.7);
-        }
-
-        .password-section input {
-          width: 100%;
-          padding: 12px;
-          background: rgba(0, 0, 0, 0.3);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 8px;
-          color: var(--text-on-fill);
-          font-size: 14px;
-        }
-
-        .password-section input:focus {
-          outline: none;
-          border-color: var(--brand-accent);
-        }
-
-        .action-buttons {
-          display: flex;
-          gap: 12px;
-        }
-
-        .reject-button,
-        .approve-button {
-          flex: 1;
-          padding: 12px 20px;
-          border: none;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .reject-button {
-          background: rgba(239, 68, 68, 0.2);
-          color: var(--danger);
-        }
-
-        .reject-button:hover:not(:disabled) {
-          background: rgba(239, 68, 68, 0.3);
-        }
-
-        .approve-button {
-          background: rgba(34, 197, 94, 0.2);
-          color: var(--success);
-        }
-
-        .approve-button:hover:not(:disabled) {
-          background: rgba(34, 197, 94, 0.3);
-        }
-
-        .approve-button:disabled,
-        .reject-button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .auto-sign-notice {
-          margin-top: 12px;
-          padding: 8px 12px;
-          background: rgba(59, 130, 246, 0.2);
-          border-radius: 6px;
-          font-size: 12px;
-          color: rgba(255, 255, 255, 0.7);
-          text-align: center;
-        }
-      `}</style>
     </div>
   );
 }
