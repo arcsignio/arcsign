@@ -14,6 +14,7 @@
  */
 
 import React from "react";
+import styles from "./swap/swap.module.css";
 import { useTranslation } from "react-i18next";
 import { TokenPicker } from "@/components/swap/TokenPicker";
 import { SwapQuoteView } from "@/components/swap/SwapQuoteView";
@@ -21,7 +22,6 @@ import { SwapConfirm } from "@/components/swap/SwapConfirm";
 import { ApprovalView } from "@/components/swap/ApprovalView";
 import { SwapProgress } from "@/components/swap/SwapProgress";
 import { SwapResult } from "@/components/swap/SwapResult";
-import { SwapStyles } from "@/components/swap/SwapStyles";
 import { useSwapFlow } from "@/hooks/useSwapFlow";
 import type { SendableToken } from "./SendTransaction";
 import {
@@ -130,20 +130,20 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
   };
 
   return (
-    <div className="swap-transaction">
-      <header className="swap-header">
-        <button onClick={getBackHandler()} className="back-button">
+    <div className={styles.swapTransaction}>
+      <header className={styles.swapHeader}>
+        <button onClick={getBackHandler()} className={styles.backButton}>
           <span>&larr;</span> {t('actions.back')}
         </button>
         <h2>{t('swap.title')}</h2>
-        <div className="header-badges">
-          <div className="best-route-badge">
-            <span className="best-route-icon">⚡</span>
+        <div className={styles.headerBadges}>
+          <div className={styles.bestRouteBadge}>
+            <span className={styles.bestRouteIcon}>⚡</span>
             <span>{t('swap.bestRoute')}</span>
           </div>
           {fromToken && (
-            <div className="chain-badge">
-              <span className="chain-icon">{getNetworkIcon(fromToken.network)}</span>
+            <div className={styles.chainBadge}>
+              <span className={styles.chainIcon}>{getNetworkIcon(fromToken.network)}</span>
               {fromToken.networkLabel}
             </div>
           )}
@@ -152,7 +152,7 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
 
       {/* Error Display */}
       {error && (
-        <div className="error-banner">
+        <div className={styles.errorBanner}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <span>{error}</span>
           <button onClick={() => setError(null)}>✕</button>
@@ -328,7 +328,6 @@ export const SwapTransaction: React.FC<SwapTransactionProps> = ({
         />
       )}
 
-      <SwapStyles />
     </div>
   );
 };

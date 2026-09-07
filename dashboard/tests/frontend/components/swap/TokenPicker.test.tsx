@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import styles from "../../../../src/components/swap/swap.module.css";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { TokenPicker } from "@/components/swap/TokenPicker";
 import type { DestToken } from "@/components/swap/TokenPicker";
@@ -38,7 +39,7 @@ describe("TokenPicker — mode: from", () => {
     );
     expect(screen.getAllByText("ETH").length).toBeGreaterThan(0);
     // Network header renders the label — at least one element with the class
-    expect(document.querySelector(".network-name")).toBeTruthy();
+    expect(document.querySelector(`.${styles.networkName}`)).toBeTruthy();
   });
 
   it("fires onSelectToken when a token button is clicked", () => {
@@ -52,7 +53,7 @@ describe("TokenPicker — mode: from", () => {
         onBack={() => {}}
       />,
     );
-    const buttons = document.querySelectorAll(".token-option");
+    const buttons = document.querySelectorAll(`.${styles.tokenOption}`);
     expect(buttons.length).toBeGreaterThan(0);
     fireEvent.click(buttons[0]);
     expect(onSelect).toHaveBeenCalledOnce();
@@ -70,7 +71,7 @@ describe("TokenPicker — mode: from", () => {
       />,
     );
     // Should show the secondary-button (goBack)
-    const backBtn = document.querySelector(".secondary-button") as HTMLElement;
+    const backBtn = document.querySelector(`.${styles.secondaryButton}`) as HTMLElement;
     expect(backBtn).toBeTruthy();
     fireEvent.click(backBtn);
     expect(onBack).toHaveBeenCalledOnce();
@@ -112,7 +113,7 @@ describe("TokenPicker — mode: to", () => {
         onSelectToken={onSelect}
       />,
     );
-    const buttons = document.querySelectorAll(".token-option");
+    const buttons = document.querySelectorAll(`.${styles.tokenOption}`);
     expect(buttons.length).toBeGreaterThan(0);
     fireEvent.click(buttons[0]);
     expect(onSelect).toHaveBeenCalledOnce();
@@ -134,7 +135,7 @@ describe("TokenPicker — mode: to", () => {
         onSelectToken={() => {}}
       />,
     );
-    const input = document.querySelector(".token-search-input") as HTMLInputElement;
+    const input = document.querySelector(`.${styles.tokenSearchInput}`) as HTMLInputElement;
     fireEvent.change(input, { target: { value: "USDC" } });
     expect(onSearch).toHaveBeenCalledWith("USDC");
   });
@@ -153,6 +154,6 @@ describe("TokenPicker — mode: to", () => {
         onSelectToken={() => {}}
       />,
     );
-    expect(document.querySelector(".token-loading")).toBeTruthy();
+    expect(document.querySelector(`.${styles.tokenLoading}`)).toBeTruthy();
   });
 });

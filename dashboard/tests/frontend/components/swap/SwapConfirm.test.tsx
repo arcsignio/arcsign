@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import styles from "../../../../src/components/swap/swap.module.css";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { SwapConfirm } from "@/components/swap/SwapConfirm";
 import type { ToToken } from "@/components/swap/SwapConfirm";
@@ -76,9 +77,9 @@ describe("SwapConfirm", () => {
       />,
     );
     // swap-summary contains the from amount and both symbols
-    expect(document.querySelector(".swap-summary")).toBeTruthy();
+    expect(document.querySelector(`.${styles.swapSummary}`)).toBeTruthy();
     // "1 ETH" is in the youPay summary row as text content
-    const summaryValues = document.querySelectorAll(".summary-value");
+    const summaryValues = document.querySelectorAll(`.${styles.summaryValue}`);
     const text = Array.from(summaryValues).map(el => el.textContent).join(" ");
     expect(text).toContain("ETH");
   });
@@ -98,7 +99,7 @@ describe("SwapConfirm", () => {
         onConfirm={() => {}}
       />,
     );
-    const btn = document.querySelector(".primary-button") as HTMLButtonElement;
+    const btn = document.querySelector(`.${styles.primaryButton}`) as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
   });
 
@@ -117,7 +118,7 @@ describe("SwapConfirm", () => {
         onConfirm={() => {}}
       />,
     );
-    const btn = document.querySelector(".primary-button") as HTMLButtonElement;
+    const btn = document.querySelector(`.${styles.primaryButton}`) as HTMLButtonElement;
     expect(btn.disabled).toBe(false);
   });
 
@@ -159,7 +160,7 @@ describe("SwapConfirm", () => {
         onConfirm={() => {}}
       />,
     );
-    const input = document.querySelector(".password-input") as HTMLInputElement;
+    const input = document.querySelector(`.${styles.passwordInput}`) as HTMLInputElement;
     fireEvent.change(input, { target: { value: "mypassword" } });
     expect(onPasswordChange).toHaveBeenCalledWith("mypassword");
   });

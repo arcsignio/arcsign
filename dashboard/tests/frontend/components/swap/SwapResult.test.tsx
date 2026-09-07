@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import styles from "../../../../src/components/swap/swap.module.css";
 import { render, fireEvent } from "@testing-library/react";
 import { SwapResult } from "@/components/swap/SwapResult";
 
@@ -15,8 +16,8 @@ describe("SwapResult — mode=success", () => {
         onStartOver={vi.fn()}
       />,
     );
-    expect(document.querySelector(".success-form")).toBeTruthy();
-    expect(document.querySelector(".success-icon")).toBeTruthy();
+    expect(document.querySelector(`.${styles.successForm}`)).toBeTruthy();
+    expect(document.querySelector(`.${styles.successIcon}`)).toBeTruthy();
   });
 
   it("shows transaction hash link when txHash and txUrl are provided", () => {
@@ -31,7 +32,7 @@ describe("SwapResult — mode=success", () => {
         onStartOver={vi.fn()}
       />,
     );
-    const link = document.querySelector(".tx-hash-link") as HTMLAnchorElement;
+    const link = document.querySelector(`.${styles.txHashLink}`) as HTMLAnchorElement;
     expect(link).toBeTruthy();
     expect(link.href).toContain("etherscan.io");
     // shortenAddress shows "0xabc1...f456"
@@ -51,7 +52,7 @@ describe("SwapResult — mode=success", () => {
         onStartOver={vi.fn()}
       />,
     );
-    const btn = document.querySelector(".primary-button") as HTMLButtonElement;
+    const btn = document.querySelector(`.${styles.primaryButton}`) as HTMLButtonElement;
     fireEvent.click(btn);
     expect(onNewSwap).toHaveBeenCalledOnce();
   });
@@ -69,7 +70,7 @@ describe("SwapResult — mode=success", () => {
         onStartOver={vi.fn()}
       />,
     );
-    const btn = document.querySelector(".secondary-button") as HTMLButtonElement;
+    const btn = document.querySelector(`.${styles.secondaryButton}`) as HTMLButtonElement;
     fireEvent.click(btn);
     expect(onBack).toHaveBeenCalledOnce();
   });
@@ -86,7 +87,7 @@ describe("SwapResult — mode=success", () => {
         onStartOver={vi.fn()}
       />,
     );
-    expect(document.querySelector(".error-form")).toBeNull();
+    expect(document.querySelector(`.${styles.errorForm}`)).toBeNull();
   });
 });
 
@@ -102,8 +103,8 @@ describe("SwapResult — mode=error", () => {
         onStartOver={vi.fn()}
       />,
     );
-    expect(document.querySelector(".error-form")).toBeTruthy();
-    expect(document.querySelector(".error-icon-large")).toBeTruthy();
+    expect(document.querySelector(`.${styles.errorForm}`)).toBeTruthy();
+    expect(document.querySelector(`.${styles.errorIconLarge}`)).toBeTruthy();
   });
 
   it("shows the error message when error prop is set", () => {
@@ -117,7 +118,7 @@ describe("SwapResult — mode=error", () => {
         onStartOver={vi.fn()}
       />,
     );
-    const desc = document.querySelector(".error-description");
+    const desc = document.querySelector(`.${styles.errorDescription}`);
     expect(desc!.textContent).toContain("Slippage too high");
   });
 
@@ -133,7 +134,7 @@ describe("SwapResult — mode=error", () => {
         onStartOver={vi.fn()}
       />,
     );
-    const btn = document.querySelector(".primary-button") as HTMLButtonElement;
+    const btn = document.querySelector(`.${styles.primaryButton}`) as HTMLButtonElement;
     fireEvent.click(btn);
     expect(onTryAgain).toHaveBeenCalledOnce();
   });
@@ -150,7 +151,7 @@ describe("SwapResult — mode=error", () => {
         onStartOver={onStartOver}
       />,
     );
-    const btn = document.querySelector(".secondary-button") as HTMLButtonElement;
+    const btn = document.querySelector(`.${styles.secondaryButton}`) as HTMLButtonElement;
     fireEvent.click(btn);
     expect(onStartOver).toHaveBeenCalledOnce();
   });
@@ -166,6 +167,6 @@ describe("SwapResult — mode=error", () => {
         onStartOver={vi.fn()}
       />,
     );
-    expect(document.querySelector(".success-form")).toBeNull();
+    expect(document.querySelector(`.${styles.successForm}`)).toBeNull();
   });
 });

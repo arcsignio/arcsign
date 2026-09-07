@@ -1,4 +1,5 @@
 import React from "react";
+import styles from "./swap.module.css";
 import { useTranslation } from "react-i18next";
 import { shortenAddress } from "@/utils/swapFormat";
 
@@ -30,32 +31,32 @@ export const SwapResult: React.FC<SwapResultProps> = ({
 
   if (mode === "success") {
     return (
-      <div className="success-form">
-        <div className="success-icon">✓</div>
+      <div className={styles.successForm}>
+        <div className={styles.successIcon}>✓</div>
         <h3>{t('swap.swapSubmitted')}</h3>
-        <p className="success-description">
+        <p className={styles.successDescription}>
           {t('swap.swapSubmittedDescription')}
         </p>
 
         {txHash && txUrl && (
-          <div className="tx-hash-display">
-            <span className="tx-label">{t('swap.transactionHash')}</span>
+          <div className={styles.txHashDisplay}>
+            <span className={styles.txLabel}>{t('swap.transactionHash')}</span>
             <a
               href={txUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="tx-hash-link"
+              className={styles.txHashLink}
             >
               {shortenAddress(txHash)} ↗
             </a>
           </div>
         )}
 
-        <div className="success-actions">
-          <button className="primary-button" onClick={onNewSwap}>
+        <div className={styles.successActions}>
+          <button className={styles.primaryButton} onClick={onNewSwap}>
             {t('swap.newSwap')}
           </button>
-          <button className="secondary-button" onClick={onBack}>
+          <button className={styles.secondaryButton} onClick={onBack}>
             {t('swap.backToWallet')}
           </button>
         </div>
@@ -65,16 +66,16 @@ export const SwapResult: React.FC<SwapResultProps> = ({
 
   // mode === "error"
   return (
-    <div className="error-form">
-      <div className="error-icon-large">✕</div>
+    <div className={styles.errorForm}>
+      <div className={styles.errorIconLarge}>✕</div>
       <h3>{t('swap.swapFailed')}</h3>
-      <p className="error-description">{error || t('swap.errorOccurred')}</p>
+      <p className={styles.errorDescription}>{error || t('swap.errorOccurred')}</p>
 
-      <div className="error-actions">
-        <button className="primary-button" onClick={onTryAgain}>
+      <div className={styles.errorActions}>
+        <button className={styles.primaryButton} onClick={onTryAgain}>
           {t('swap.tryAgain')}
         </button>
-        <button className="secondary-button" onClick={onStartOver}>
+        <button className={styles.secondaryButton} onClick={onStartOver}>
           {t('swap.startOver')}
         </button>
       </div>

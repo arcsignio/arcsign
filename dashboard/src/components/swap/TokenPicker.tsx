@@ -1,4 +1,5 @@
 import React from "react";
+import styles from "./swap.module.css";
 import { useTranslation } from "react-i18next";
 import { getNetworkIcon, formatBalance } from "@/utils/swapFormat";
 import type { SendableToken } from "@/components/SendTransaction";
@@ -45,35 +46,35 @@ export const TokenPicker: React.FC<TokenPickerProps> = (props) => {
     const hasTokens = Object.keys(tokensByNetwork).length > 0;
 
     return (
-      <div className="token-select-form">
+      <div className={styles.tokenSelectForm}>
         <h3>{t('swap.selectTokenToSwap')}</h3>
-        <p className="select-description">{t('swap.chooseAssetToSwap')}</p>
+        <p className={styles.selectDescription}>{t('swap.chooseAssetToSwap')}</p>
 
         {!hasTokens ? (
-          <div className="no-tokens">
+          <div className={styles.noTokens}>
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
             <p>{t('swap.noTokensForSwap')}</p>
-            <p className="supported-chains">{t('swap.supportedChains')}</p>
-            <button className="secondary-button" onClick={onBack}>
+            <p className={styles.supportedChains}>{t('swap.supportedChains')}</p>
+            <button className={styles.secondaryButton} onClick={onBack}>
               {t('swap.goBack')}
             </button>
           </div>
         ) : (
-          <div className="token-list">
+          <div className={styles.tokenList}>
             {Object.entries(tokensByNetwork).map(([networkLabel, tokens]) => (
-              <div key={networkLabel} className="network-group">
-                <div className="network-header">
-                  <span className="network-icon">{getNetworkIcon(tokens[0].network)}</span>
-                  <span className="network-name">{networkLabel}</span>
+              <div key={networkLabel} className={styles.networkGroup}>
+                <div className={styles.networkHeader}>
+                  <span className={styles.networkIcon}>{getNetworkIcon(tokens[0].network)}</span>
+                  <span className={styles.networkName}>{networkLabel}</span>
                 </div>
-                <div className="network-tokens">
+                <div className={styles.networkTokens}>
                   {tokens.map((token, idx) => (
                     <button
                       key={`${token.network}-${token.tokenAddress || "native"}-${idx}`}
-                      className="token-option"
+                      className={styles.tokenOption}
                       onClick={() => onSelectToken(token)}
                     >
-                      <div className="token-icon">
+                      <div className={styles.tokenIcon}>
                         {token.tokenLogo ? (
                           <img
                             src={token.tokenLogo}
@@ -84,16 +85,16 @@ export const TokenPicker: React.FC<TokenPickerProps> = (props) => {
                             }}
                           />
                         ) : null}
-                        <span className="token-icon-fallback" style={token.tokenLogo ? { display: 'none' } : undefined}>{token.tokenSymbol.slice(0, 2)}</span>
+                        <span className={styles.tokenIconFallback} style={token.tokenLogo ? { display: 'none' } : undefined}>{token.tokenSymbol.slice(0, 2)}</span>
                       </div>
-                      <div className="token-info">
-                        <span className="token-symbol">{token.tokenSymbol}</span>
-                        <span className="token-name">{token.tokenName}</span>
+                      <div className={styles.tokenInfo}>
+                        <span className={styles.tokenSymbol}>{token.tokenSymbol}</span>
+                        <span className={styles.tokenName}>{token.tokenName}</span>
                       </div>
-                      <div className="token-balance">
-                        <span className="balance-amount">{formatBalance(token.balance)}</span>
+                      <div className={styles.tokenBalance}>
+                        <span className={styles.balanceAmount}>{formatBalance(token.balance)}</span>
                       </div>
-                      <span className="token-arrow">→</span>
+                      <span className={styles.tokenArrow}>→</span>
                     </button>
                   ))}
                 </div>
@@ -118,24 +119,24 @@ export const TokenPicker: React.FC<TokenPickerProps> = (props) => {
   } = props;
 
   return (
-    <div className="token-select-form">
+    <div className={styles.tokenSelectForm}>
       <h3>{t('swap.selectTokenToReceive')}</h3>
-      <p className="select-description">
+      <p className={styles.selectDescription}>
         {t('swap.swappingFrom', { symbol: fromTokenSymbol, network: fromTokenNetworkLabel })}
       </p>
 
       {/* Search Input */}
-      <div className="token-search-wrapper">
+      <div className={styles.tokenSearchWrapper}>
         <input
           type="text"
           placeholder={t('swap.searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => onSearch(e.target.value)}
-          className="token-search-input"
+          className={styles.tokenSearchInput}
         />
         {searchQuery && (
           <button
-            className="search-clear-btn"
+            className={styles.searchClearBtn}
             onClick={() => onSearch("")}
           >
             ✕
@@ -145,23 +146,23 @@ export const TokenPicker: React.FC<TokenPickerProps> = (props) => {
 
       {/* Loading State */}
       {loadingTokens && (
-        <div className="token-loading">
-          <div className="token-loading-spinner"></div>
+        <div className={styles.tokenLoading}>
+          <div className={styles.tokenLoadingSpinner}></div>
           <span>{t('swap.loadingTokenRegistry')}</span>
         </div>
       )}
 
       {/* Token Count Info */}
       {!loadingTokens && cacheHasTokens && (
-        <div className="token-count-info">
+        <div className={styles.tokenCountInfo}>
           {t('swap.tokensAvailable', { count: destinationTokens.length })}
           {searchQuery && ` (${t('swap.filtered')})`}
         </div>
       )}
 
-      <div className="token-list">
+      <div className={styles.tokenList}>
         {destinationTokens.length === 0 && !loadingTokens ? (
-          <div className="no-tokens-found">
+          <div className={styles.noTokensFound}>
             {searchQuery
               ? t('swap.noTokensMatching', { query: searchQuery })
               : t('swap.noTokensAvailable')}
@@ -170,10 +171,10 @@ export const TokenPicker: React.FC<TokenPickerProps> = (props) => {
           destinationTokens.map((token, idx) => (
             <button
               key={`${token.address}-${idx}`}
-              className="token-option"
+              className={styles.tokenOption}
               onClick={() => onSelectToken(token)}
             >
-              <div className="token-icon">
+              <div className={styles.tokenIcon}>
                 {token.logoURI ? (
                   <img
                     src={token.logoURI}
@@ -184,18 +185,18 @@ export const TokenPicker: React.FC<TokenPickerProps> = (props) => {
                     }}
                   />
                 ) : null}
-                <span className="token-icon-fallback" style={token.logoURI ? { display: 'none' } : undefined}>{token.symbol.slice(0, 2)}</span>
+                <span className={styles.tokenIconFallback} style={token.logoURI ? { display: 'none' } : undefined}>{token.symbol.slice(0, 2)}</span>
               </div>
-              <div className="token-info">
-                <span className="token-symbol">{token.symbol}</span>
-                <span className="token-name">{token.name}</span>
+              <div className={styles.tokenInfo}>
+                <span className={styles.tokenSymbol}>{token.symbol}</span>
+                <span className={styles.tokenName}>{token.name}</span>
               </div>
               {token.balance && (
-                <div className="token-balance">
-                  <span className="balance-amount">{formatBalance(token.balance)}</span>
+                <div className={styles.tokenBalance}>
+                  <span className={styles.balanceAmount}>{formatBalance(token.balance)}</span>
                 </div>
               )}
-              <span className="token-arrow">→</span>
+              <span className={styles.tokenArrow}>→</span>
             </button>
           ))
         )}
