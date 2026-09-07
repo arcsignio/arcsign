@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { getNetworkColor } from "@/utils/chainIcons";
 import {
   formatAmount as formatValue,
   shortenAddress as sharedShorten,
@@ -30,15 +31,17 @@ interface TransactionHistoryProps {
   onBack: () => void;
 }
 
-// Supported EVM chains for transaction history
+// Supported EVM chains for transaction history.
+// Colours come from chainIcons, which owns chain identity — they were declared
+// separately here, in TokenApprovals and in developer mode, and had drifted.
 const EVM_CHAINS = [
-  { id: "eth-mainnet", name: "Ethereum", shortName: "ETH", color: "#627EEA" },
-  { id: "polygon-mainnet", name: "Polygon", shortName: "MATIC", color: "#8247E5" },
-  { id: "arbitrum-mainnet", name: "Arbitrum", shortName: "ARB", color: "#28A0F0" },
-  { id: "optimism-mainnet", name: "Optimism", shortName: "OP", color: "#FF0420" },
-  { id: "base-mainnet", name: "Base", shortName: "BASE", color: "#0052FF" },
-  { id: "bnb-mainnet", name: "BNB Chain", shortName: "BNB", color: "#F0B90B" },
-  { id: "avalanche-mainnet", name: "Avalanche", shortName: "AVAX", color: "#E84142" },
+  { id: "eth-mainnet", name: "Ethereum", shortName: "ETH", color: getNetworkColor("eth-mainnet") },
+  { id: "polygon-mainnet", name: "Polygon", shortName: "MATIC", color: getNetworkColor("polygon-mainnet") },
+  { id: "arbitrum-mainnet", name: "Arbitrum", shortName: "ARB", color: getNetworkColor("arbitrum-mainnet") },
+  { id: "optimism-mainnet", name: "Optimism", shortName: "OP", color: getNetworkColor("optimism-mainnet") },
+  { id: "base-mainnet", name: "Base", shortName: "BASE", color: getNetworkColor("base-mainnet") },
+  { id: "bnb-mainnet", name: "BNB Chain", shortName: "BNB", color: getNetworkColor("bnb-mainnet") },
+  { id: "avalanche-mainnet", name: "Avalanche", shortName: "AVAX", color: getNetworkColor("avalanche-mainnet") },
 ];
 
 // Extended transfer with network info

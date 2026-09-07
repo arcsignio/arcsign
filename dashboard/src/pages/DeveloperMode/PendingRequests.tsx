@@ -11,6 +11,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatAmount, toDecimalString } from '@/utils/formatAmount';
+import { getNetworkColor } from '@/utils/chainIcons';
 import type { DevSignRequest, DevSession, DevMessageSignRequest } from '@/types/developer';
 import { PasswordInput } from '@/components/PasswordInput';
 
@@ -24,18 +25,26 @@ interface PendingRequestsProps {
   session: DevSession | null;
 }
 
-// Network display info (keys must match getNetworkName in index.tsx)
+// Network display info (keys must match getNetworkName in index.tsx).
+//
+// Mainnet colours come from chainIcons, which owns chain identity. BSC was
+// #F3BA2F here while the wallet screens used #F0B90B — a visible difference
+// (ΔE 7.1), not a rounding slip, and the kind of drift four separate copies
+// of the same palette produce.
+//
+// Sepolia and Goerli keep their own values: they are testnet-specific tints
+// with no mainnet counterpart to inherit from.
 const NETWORK_INFO: Record<string, { name: string; color: string; isTestnet: boolean }> = {
-  'ethereum': { name: 'Ethereum Mainnet', color: '#627EEA', isTestnet: false },
+  'ethereum': { name: 'Ethereum Mainnet', color: getNetworkColor('ethereum'), isTestnet: false },
   'sepolia': { name: 'Sepolia Testnet', color: '#CFB5F0', isTestnet: true },
   'goerli': { name: 'Goerli Testnet', color: '#F6C343', isTestnet: true },
-  'bsc': { name: 'BSC Mainnet', color: '#F3BA2F', isTestnet: false },
-  'bsc-testnet': { name: 'BSC Testnet', color: '#F3BA2F', isTestnet: true },
-  'polygon': { name: 'Polygon', color: '#8247E5', isTestnet: false },
-  'mumbai': { name: 'Mumbai Testnet', color: '#8247E5', isTestnet: true },
-  'arbitrum': { name: 'Arbitrum One', color: '#28A0F0', isTestnet: false },
-  'optimism': { name: 'Optimism', color: '#FF0420', isTestnet: false },
-  'base': { name: 'Base', color: '#0052FF', isTestnet: false },
+  'bsc': { name: 'BSC Mainnet', color: getNetworkColor('bsc'), isTestnet: false },
+  'bsc-testnet': { name: 'BSC Testnet', color: getNetworkColor('bsc-testnet'), isTestnet: true },
+  'polygon': { name: 'Polygon', color: getNetworkColor('polygon'), isTestnet: false },
+  'mumbai': { name: 'Mumbai Testnet', color: getNetworkColor('mumbai'), isTestnet: true },
+  'arbitrum': { name: 'Arbitrum One', color: getNetworkColor('arbitrum'), isTestnet: false },
+  'optimism': { name: 'Optimism', color: getNetworkColor('optimism'), isTestnet: false },
+  'base': { name: 'Base', color: getNetworkColor('base'), isTestnet: false },
 };
 
 export function PendingRequests({

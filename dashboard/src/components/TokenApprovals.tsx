@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { formatCompactNumber, shortenAddress as sharedShorten } from "@/utils/formatAmount";
+import { getNetworkColor } from "@/utils/chainIcons";
 import { useTranslation } from "react-i18next";
 import { useTokenApprovals } from "@/hooks/useTokenApprovals";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -27,15 +28,6 @@ const NETWORK_TO_CHAIN_ID: Record<string, string> = {
   "bnb-mainnet": "bnb",
 };
 
-// Network badge colors
-const NETWORK_COLORS: Record<string, string> = {
-  "eth-mainnet": "#627EEA",
-  "polygon-mainnet": "#8247E5",
-  "arb-mainnet": "#28A0F0",
-  "opt-mainnet": "#FF0420",
-  "base-mainnet": "#0052FF",
-  "bnb-mainnet": "#F0B90B",
-};
 
 function truncateAddress(addr?: string): string {
   return sharedShorten(addr, 6, 4);
@@ -718,9 +710,9 @@ export function TokenApprovals({
                 fontSize: "0.75rem",
                 borderRadius: "16px",
                 border: "1px solid",
-                borderColor: filterNetwork === id ? (NETWORK_COLORS[id] || "var(--brand)") : "var(--border-default)",
-                background: filterNetwork === id ? `${NETWORK_COLORS[id] || "var(--brand)"}15` : "transparent",
-                color: filterNetwork === id ? (NETWORK_COLORS[id] || "var(--brand)") : "var(--text-secondary)",
+                borderColor: filterNetwork === id ? (getNetworkColor(id)) : "var(--border-default)",
+                background: filterNetwork === id ? `${getNetworkColor(id)}15` : "transparent",
+                color: filterNetwork === id ? (getNetworkColor(id)) : "var(--text-secondary)",
                 cursor: "pointer",
                 fontWeight: filterNetwork === id ? "600" : "400",
               }}
@@ -867,8 +859,8 @@ export function TokenApprovals({
                     style={{
                       fontSize: "0.625rem",
                       fontWeight: "600",
-                      color: NETWORK_COLORS[approval.network] || "var(--text-secondary)",
-                      background: `${NETWORK_COLORS[approval.network] || "var(--text-secondary)"}15`,
+                      color: getNetworkColor(approval.network),
+                      background: `${getNetworkColor(approval.network)}15`,
                       padding: "0.1rem 0.4rem",
                       borderRadius: "4px",
                     }}
