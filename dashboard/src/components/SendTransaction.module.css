@@ -1,0 +1,1010 @@
+.sendTransaction {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.sendHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.sendHeader h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 20px;
+  color: var(--text-primary);
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface-strong);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: background 0.2s;
+}
+
+.backButton:hover {
+  background: var(--border-default);
+}
+
+.chainBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--brand-pale);
+  border-radius: 20px;
+  font-size: 13px;
+  color: var(--brand-press);
+  font-weight: 500;
+}
+
+/* Token Selection Styles */
+.tokenSelectForm h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+.selectDescription {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.noTokens {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.noTokensIcon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.noTokens p {
+  margin: 0 0 20px;
+  color: var(--text-secondary);
+}
+
+.tokenList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.networkGroup {
+  background: var(--surface-sunken);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.networkHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--surface-strong);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.networkIcon {
+  font-size: 12px;
+  font-weight: 700;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--brand), var(--brand-accent));
+  color: white;
+  flex-shrink: 0;
+}
+
+.testnetBadge {
+  margin-left: auto;
+  padding: 2px 8px;
+  background: var(--warning-pale);
+  color: var(--warning-text);
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.networkTokens {
+  display: flex;
+  flex-direction: column;
+}
+
+.tokenOption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: white;
+  border: none;
+  border-bottom: 1px solid var(--border-default);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s;
+  width: 100%;
+}
+
+.tokenOption:last-child {
+  border-bottom: none;
+}
+
+.tokenOption:hover {
+  background: var(--surface-sunken);
+}
+
+.tokenOption .tokenIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tokenOption .tokenIcon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tokenIconFallback {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.tokenInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tokenInfo .tokenSymbol {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tokenInfo .tokenName {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.tokenType {
+  display: inline-block;
+  padding: 2px 6px;
+  background: var(--brand-pale);
+  color: var(--brand-press);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  margin-top: 2px;
+  width: fit-content;
+}
+
+.tokenBalance {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.balanceAmount {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.balanceUsd {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.tokenArrow {
+  color: var(--text-tertiary);
+  font-size: 18px;
+}
+
+/* Selected Token Card */
+.selectedTokenCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.selectedTokenCard .tokenIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.selectedTokenCard .tokenIcon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tokenDetails {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tokenDetails .tokenSymbol {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0369a1;
+}
+
+.tokenBalanceInfo {
+  font-size: 13px;
+  color: #0284c7;
+}
+
+.changeTokenBtn {
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid #0ea5e9;
+  border-radius: 8px;
+  color: #0284c7;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.changeTokenBtn:hover {
+  background: #0ea5e9;
+  color: white;
+}
+
+/* ERC-20 Notice */
+.erc20Notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #fefce8;
+  border: 1px solid #fef08a;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: #854d0e;
+}
+
+.erc20Tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: var(--brand-pale);
+  color: var(--brand-press);
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.errorBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--danger-pale);
+  border: 1px solid var(--danger-pale);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.errorBanner button {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--danger);
+  font-size: 16px;
+}
+
+.formGroup {
+  margin-bottom: 20px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.addressDisplay {
+  padding: 12px 16px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.chainSelector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chainOption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.chainOption:hover {
+  background: var(--surface-strong);
+  border-color: var(--border-input);
+}
+
+.chainOption.selected {
+  background: var(--brand-pale);
+  border-color: var(--brand-accent);
+  color: var(--brand-press);
+}
+
+.addressInput {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: monospace;
+  transition: border-color 0.2s;
+}
+
+.addressInput:focus {
+  outline: none;
+  border-color: var(--brand-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.addressInput.invalid {
+  border-color: var(--danger);
+}
+
+.fieldError {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--danger);
+}
+
+.amountInputWrapper {
+  display: flex;
+  gap: 8px;
+}
+
+.amountInput {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.amountInput:focus {
+  outline: none;
+  border-color: var(--brand-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.maxButton {
+  padding: 12px 16px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-accent);
+}
+
+.maxButton:hover {
+  background: var(--border-default);
+}
+
+.feeSelector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.feeOption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.feeOption:hover {
+  background: var(--surface-strong);
+}
+
+.feeOption.selected {
+  background: var(--brand-faint);
+  border-color: var(--brand-accent);
+}
+
+.feeSpeed {
+  flex: 1;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.speedDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.speedSlow { background: var(--warning); }
+.speedNormal { background: var(--brand-accent); }
+.speedFast { background: var(--success); }
+
+.feeEstimate {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.feeTime {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.primaryButton {
+  width: 100%;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, var(--brand-accent) 0%, var(--brand) 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+}
+
+.primaryButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+}
+
+.primaryButton:disabled {
+  background: var(--border-input);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.secondaryButton {
+  padding: 12px 24px;
+  background: var(--surface-strong);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.secondaryButton:hover {
+  background: var(--border-default);
+}
+
+/* Review Form */
+.reviewForm h3 {
+  margin: 0 0 20px;
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+.reviewDetails {
+  background: var(--surface-sunken);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.reviewRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.reviewRow:last-child {
+  border-bottom: none;
+}
+
+.reviewLabel {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.reviewValue {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.reviewValue.address {
+  font-family: monospace;
+}
+
+.reviewValue.amount {
+  font-size: 18px;
+  color: var(--brand);
+}
+
+.reviewRow.highlight {
+  background: var(--brand-pale);
+  margin: 0 -16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+}
+
+.reviewRow.total {
+  font-weight: 600;
+}
+
+.reviewActions {
+  display: flex;
+  gap: 12px;
+}
+
+.reviewActions .secondaryButton {
+  flex: 1;
+}
+
+.reviewActions .primaryButton {
+  flex: 2;
+}
+
+/* Password Form */
+.passwordForm {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.passwordIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.passwordForm h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  color: var(--text-primary);
+}
+
+.passwordDescription {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.passwordInput {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid var(--border-default);
+  border-radius: 10px;
+  font-size: 16px;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.passwordInput:focus {
+  outline: none;
+  border-color: var(--brand-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.passwordActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.passwordActions .secondaryButton {
+  flex: 1;
+}
+
+.passwordActions .primaryButton {
+  flex: 2;
+}
+
+/* Passphrase Validated Indicator */
+.passphraseValidated {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--success-pale);
+  border: 1px solid var(--success-border);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  color: var(--success-text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.validatedIcon {
+  font-size: 16px;
+  color: var(--success);
+}
+
+/* Progress View */
+.progressView {
+  text-align: center;
+  padding: 48px 20px;
+}
+
+.progressSpinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--border-default);
+  border-top-color: var(--brand-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 24px;
+}
+
+.progressView h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  color: var(--text-primary);
+}
+
+.progressView p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* Success View */
+.successView {
+  text-align: center;
+  padding: 32px 20px;
+}
+
+.successIcon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.successView h3 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  color: var(--text-primary);
+}
+
+.successMessage {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.txHash {
+  background: var(--surface-sunken);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.txLabel {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.txValue {
+  font-size: 14px;
+  font-family: monospace;
+  color: var(--text-primary);
+}
+
+.successActions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.explorerLink {
+  display: block;
+  padding: 12px;
+  background: var(--brand-pale);
+  color: var(--brand-press);
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.explorerLink:hover {
+  background: var(--brand-accent);
+}
+
+/* Error View */
+.errorView {
+  text-align: center;
+  padding: 48px 20px;
+}
+
+.errorIconLarge {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.errorView h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  color: var(--text-primary);
+}
+
+.errorView .errorMessage {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: var(--danger);
+}
+
+.errorActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Security Report Panel */
+.securityPanel {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--text-primary);
+}
+.securityPanelSafe {
+  background: rgba(13, 148, 136, 0.08);
+  border-color: rgba(13, 148, 136, 0.3);
+}
+.securityPanelWarning {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+.securityPanelDanger {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.3);
+}
+.securityPanelFree {
+  background: rgba(100, 116, 139, 0.08);
+  border-color: rgba(100, 116, 139, 0.3);
+}
+.securityHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.securityIcon {
+  font-size: 18px;
+}
+.securityTitle {
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+.securityBadge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.securityBadge.safe {
+  background: rgba(13, 148, 136, 0.18);
+  color: var(--brand-press);
+}
+.securityBadge.warning {
+  background: rgba(245, 158, 11, 0.18);
+  color: var(--warning-text);
+}
+.securityBadge.danger {
+  background: rgba(220, 38, 38, 0.18);
+  color: var(--danger-text);
+}
+.securityAlert {
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.securityAlertDanger {
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.45);
+  color: var(--danger-text);
+}
+.securityAlertWarning {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: var(--warning-text);
+}
+.securityAlert strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--danger);
+  font-weight: 700;
+}
+.securityAlertDanger p {
+  color: var(--danger-text);
+}
+.securityAlert p {
+  font-size: 13px;
+  margin: 2px 0;
+}
+.securityAlertAddress {
+  font-family: monospace;
+  font-size: 12px;
+  opacity: 0.95;
+  word-break: break-all;
+}
+.securitySimulation {
+  margin-top: 8px;
+}
+.securitySimTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+}
+.securitySimRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 14px;
+}
+.securitySimRow.outgoing {
+  color: #f87171;
+}
+.securitySimRow.incoming {
+  color: var(--brand-accent);
+}
+.securitySimRow.gas {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  border-top: 1px solid var(--text-primary);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+.simDirection {
+  width: 16px;
+  text-align: center;
+}
+.simAmount {
+  font-weight: 500;
+}
+.securitySafeText {
+  font-size: 13px;
+  color: var(--brand-accent);
+}
+.securityFreeContent {
+  text-align: center;
+}
+.securityWarningText {
+  color: var(--warning);
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+.securityFeatures {
+  text-align: left;
+  margin-bottom: 16px;
+}
+.securityFeaturesTitle {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+.securityFeatures ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--border-input);
+}
+.securityFeatures li {
+  margin-bottom: 4px;
+}
+.securityUpgradeBtn {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--brand), var(--brand-accent));
+  color: white;
+  padding: 10px 24px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: opacity 0.2s;
+}
+.securityUpgradeBtn:hover {
+  opacity: 0.9;
+}
+.securitySimUpsell {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  text-align: center;
+}
+.securitySimUpsellText {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin: 0 0 10px;
+}

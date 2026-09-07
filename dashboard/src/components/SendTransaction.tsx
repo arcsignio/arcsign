@@ -13,6 +13,15 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
+import styles from "./SendTransaction.module.css";
+
+// CSS Modules 的類名在 build 期雜湊，`speed-${speed}` 這種拼接會拼出
+// 對不到任何規則的字串（三種速度會變成同一個顏色），故攤成對應表。
+const SPEED_DOT: Record<string, string> = {
+  slow: styles.speedSlow,
+  normal: styles.speedNormal,
+  fast: styles.speedFast,
+};
 import { useTranslation } from "react-i18next";
 import {
   formatAmount,
@@ -177,27 +186,27 @@ export const SecurityReportPanel: React.FC<{
   const isWarning = security.riskLevel === 'warning';
 
   return (
-    <div className={`security-panel ${isDanger ? 'security-panel-danger' : isWarning ? 'security-panel-warning' : 'security-panel-safe'}`}>
-      <div className="security-header">
-        <span className="security-icon">&#x1F6E1;</span>
-        <span className="security-title">{t("clearSign.securityHeading")}</span>
-        <span className={`security-badge ${security.riskLevel}`}>
+    <div className={`${styles.securityPanel} ${isDanger ? styles.securityPanelDanger : isWarning ? styles.securityPanelWarning : styles.securityPanelSafe}`}>
+      <div className={styles.securityHeader}>
+        <span className={styles.securityIcon}>&#x1F6E1;</span>
+        <span className={styles.securityTitle}>{t("clearSign.securityHeading")}</span>
+        <span className={`${styles.securityBadge} ${security.riskLevel}`}>
           {isDanger ? 'DANGER' : isWarning ? 'WARNING' : 'SAFE'}
         </span>
       </div>
 
       {/* Blacklist warning */}
       {security.blacklistMatch && (
-        <div className="security-alert security-alert-danger">
+        <div className={`${styles.securityAlertDanger} ${styles.securityAlert} `.trim()}>
           <strong>{t("sendTransaction.blacklistedAddress")}</strong>
           <p>Target address is on the {formatBlacklistSource(security.blacklistMatch.source)} blacklist ({security.blacklistMatch.category}).</p>
-          <p className="security-alert-address">{security.blacklistMatch.value}</p>
+          <p className={styles.securityAlertAddress}>{security.blacklistMatch.value}</p>
         </div>
       )}
 
       {/* Simulation warnings */}
       {security.warnings?.filter(w => w.type === 'SIMULATION_FAILED').map((w, i) => (
-        <div key={i} className="security-alert security-alert-warning">
+        <div key={i} className={`${styles.securityAlertWarning} ${styles.securityAlert} `.trim()}>
           <strong>{t("sendTransaction.simulationWarning")}</strong>
           <p>{w.message}</p>
         </div>
@@ -205,23 +214,23 @@ export const SecurityReportPanel: React.FC<{
 
       {/* Simulation results */}
       {security.simulation?.success && security.simulation.assetChanges?.length > 0 && (
-        <div className="security-simulation">
-          <p className="security-sim-title">{t("sendTransaction.simulationPreview")}</p>
+        <div className={styles.securitySimulation}>
+          <p className={styles.securitySimTitle}>{t("sendTransaction.simulationPreview")}</p>
           {security.simulation.assetChanges.map((change, i) => {
             const isOutgoing = change.from.toLowerCase() !== change.to.toLowerCase() && change.changeType === 'TRANSFER';
             return (
-              <div key={i} className={`security-sim-row ${isOutgoing ? 'outgoing' : 'incoming'}`}>
-                <span className="sim-direction">{isOutgoing ? '\u25BC' : '\u25B2'}</span>
-                <span className="sim-amount">
+              <div key={i} className={`${styles.securitySimRow} ${isOutgoing ? styles.outgoing : styles.incoming}`}>
+                <span className={styles.simDirection}>{isOutgoing ? '\u25BC' : '\u25B2'}</span>
+                <span className={styles.simAmount}>
                   {change.amount ? formatSimAmount(change.amount, change.decimals) : '?'} {change.symbol}
                 </span>
               </div>
             );
           })}
           {security.simulation.gasUsed && (
-            <div className="security-sim-row gas">
-              <span className="sim-direction">&#x26FD;</span>
-              <span className="sim-amount">{t("sendTransaction.gasLabel")}: {security.simulation.gasUsed}</span>
+            <div className={`${styles.securitySimRow} ${styles.gas}`.trim()}>
+              <span className={styles.simDirection}>&#x26FD;</span>
+              <span className={styles.simAmount}>{t("sendTransaction.gasLabel")}: {security.simulation.gasUsed}</span>
             </div>
           )}
         </div>
@@ -229,7 +238,7 @@ export const SecurityReportPanel: React.FC<{
 
       {/* No blacklist match = address cleared the blacklist check. */}
       {!security.blacklistMatch && !isDanger && !isWarning && (
-        <p className="security-safe-text">{t("sendTransaction.notOnBlacklist")}</p>
+        <p className={styles.securitySafeText}>{t("sendTransaction.notOnBlacklist")}</p>
       )}
     </div>
   );
@@ -546,14 +555,14 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
 
   return (
-    <div className="send-transaction">
-      <header className="send-header">
-        <button onClick={step === "select" ? onBack : () => setStep("select")} className="back-button">
+    <div className={styles.sendTransaction}>
+      <header className={styles.sendHeader}>
+        <button onClick={step === "select" ? onBack : () => setStep("select")} className={styles.backButton}>
           <span>&larr;</span> {t("actions.back")}
         </button>
         <h2>{t("transaction.send")} {selectedToken ? selectedToken.tokenSymbol : t("swap.token")}</h2>
         {selectedToken && (
-          <div className="chain-badge">
+          <div className={styles.chainBadge}>
             <span className="chain-icon">{getNetworkIcon(selectedToken.network)}</span>
             {selectedToken.networkLabel}
           </div>
@@ -562,7 +571,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
       {/* Error Display */}
       {error && (
-        <div className="error-banner">
+        <div className={styles.errorBanner}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <span>{error}</span>
           <button onClick={() => setError(null)}>✕</button>
@@ -571,57 +580,57 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
       {/* Step 0: Token Selection */}
       {step === "select" && (
-        <div className="token-select-form">
+        <div className={styles.tokenSelectForm}>
           <h3>{t("sendTransaction.selectTokenTitle")}</h3>
-          <p className="select-description">{t("sendTransaction.selectTokenDescription")}</p>
+          <p className={styles.selectDescription}>{t("sendTransaction.selectTokenDescription")}</p>
 
           {availableTokens.length === 0 ? (
-            <div className="no-tokens">
-              <span className="no-tokens-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>
+            <div className={styles.noTokens}>
+              <span className={styles.noTokensIcon}><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>
               <p>{t("sendTransaction.noTokensAvailable")}</p>
-              <button className="secondary-button" onClick={onBack}>
+              <button className={styles.secondaryButton} onClick={onBack}>
                 {t("swap.goBack")}
               </button>
             </div>
           ) : (
-            <div className="token-list">
+            <div className={styles.tokenList}>
               {Object.entries(tokensByNetwork).map(([networkLabel, tokens]) => (
-                <div key={networkLabel} className="network-group">
-                  <div className="network-header">
-                    <span className="network-icon">{getNetworkIcon(tokens[0].network)}</span>
+                <div key={networkLabel} className={styles.networkGroup}>
+                  <div className={styles.networkHeader}>
+                    <span className={styles.networkIcon}>{getNetworkIcon(tokens[0].network)}</span>
                     <span className="network-name">{networkLabel}</span>
                     {tokens[0].network.includes("sepolia") && (
-                      <span className="testnet-badge">{t("sendTransaction.testnet")}</span>
+                      <span className={styles.testnetBadge}>{t("sendTransaction.testnet")}</span>
                     )}
                   </div>
-                  <div className="network-tokens">
+                  <div className={styles.networkTokens}>
                     {tokens.map((token, idx) => (
                       <button
                         key={`${token.network}-${token.tokenAddress || "native"}-${idx}`}
-                        className="token-option"
+                        className={styles.tokenOption}
                         onClick={() => handleSelectToken(token)}
                       >
-                        <div className="token-icon">
+                        <div className={styles.tokenIcon}>
                           {token.tokenLogo ? (
                             <img src={token.tokenLogo} alt={token.tokenSymbol} />
                           ) : (
-                            <span className="token-icon-fallback">{token.tokenSymbol.slice(0, 2)}</span>
+                            <span className={styles.tokenIconFallback}>{token.tokenSymbol.slice(0, 2)}</span>
                           )}
                         </div>
-                        <div className="token-info">
-                          <span className="token-symbol">{token.tokenSymbol}</span>
-                          <span className="token-name">{token.tokenName}</span>
+                        <div className={styles.tokenInfo}>
+                          <span className={styles.tokenSymbol}>{token.tokenSymbol}</span>
+                          <span className={styles.tokenName}>{token.tokenName}</span>
                           {token.tokenAddress && (
-                            <span className="token-type">{t("transaction.erc20")}</span>
+                            <span className={styles.tokenType}>{t("transaction.erc20")}</span>
                           )}
                         </div>
-                        <div className="token-balance">
-                          <span className="balance-amount">{formatBalance(token.balance)}</span>
+                        <div className={styles.tokenBalance}>
+                          <span className={styles.balanceAmount}>{formatBalance(token.balance)}</span>
                           {token.usdValue > 0 && (
-                            <span className="balance-usd">{formatUSD(token.usdValue)}</span>
+                            <span className={styles.balanceUsd}>{formatUSD(token.usdValue)}</span>
                           )}
                         </div>
-                        <span className="token-arrow">→</span>
+                        <span className={styles.tokenArrow}>→</span>
                       </button>
                     ))}
                   </div>
@@ -636,35 +645,35 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
       {step === "input" && selectedToken && (
         <div className="input-form">
           {/* Selected Token Info */}
-          <div className="selected-token-card">
-            <div className="token-icon">
+          <div className={styles.selectedTokenCard}>
+            <div className={styles.tokenIcon}>
               {selectedToken.tokenLogo ? (
                 <img src={selectedToken.tokenLogo} alt={selectedToken.tokenSymbol} />
               ) : (
-                <span className="token-icon-fallback">{selectedToken.tokenSymbol.slice(0, 2)}</span>
+                <span className={styles.tokenIconFallback}>{selectedToken.tokenSymbol.slice(0, 2)}</span>
               )}
             </div>
-            <div className="token-details">
-              <span className="token-symbol">{selectedToken.tokenSymbol}</span>
-              <span className="token-balance-info">
+            <div className={styles.tokenDetails}>
+              <span className={styles.tokenSymbol}>{selectedToken.tokenSymbol}</span>
+              <span className={styles.tokenBalanceInfo}>
                 {t("sendTransaction.balance")}: {formatBalance(selectedToken.balance)} {selectedToken.tokenSymbol}
               </span>
             </div>
-            <button className="change-token-btn" onClick={() => setStep("select")}>
+            <button className={styles.changeTokenBtn} onClick={() => setStep("select")}>
               {t("sendTransaction.change")}
             </button>
           </div>
 
           {/* From Address */}
-          <div className="form-group">
+          <div className={styles.formGroup}>
             <label>{t("transaction.from")}</label>
-            <div className="address-display">
-              <span className="address-text">{shortenAddress(selectedToken.fromAddress)}</span>
+            <div className={styles.addressDisplay}>
+              <span className={`${styles.address} -text`.trim()}>{shortenAddress(selectedToken.fromAddress)}</span>
             </div>
           </div>
 
           {/* To Address */}
-          <div className="form-group">
+          <div className={styles.formGroup}>
             <label>{t("sendTransaction.toAddress")}</label>
             <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
               <input
@@ -672,7 +681,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
                 placeholder="0x..."
                 value={toAddress}
                 onChange={(e) => setToAddress(e.target.value)}
-                className={`address-input ${toAddress && !isValidAddress(toAddress) ? "invalid" : ""}`}
+                className={`${styles.addressInput} ${toAddress && !isValidAddress(toAddress) ? styles.invalid : ""}`}
                 style={{ flex: 1 }}
               />
               <button
@@ -696,7 +705,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
               </button>
             </div>
             {toAddress && !isValidAddress(toAddress) && (
-              <span className="field-error">{t("sendTransaction.invalidAddress")}</span>
+              <span className={styles.fieldError}>{t("sendTransaction.invalidAddress")}</span>
             )}
           </div>
 
@@ -714,17 +723,17 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           )}
 
           {/* Amount */}
-          <div className="form-group">
+          <div className={styles.formGroup}>
             <label>{t("transaction.amount")} ({selectedToken.tokenSymbol})</label>
-            <div className="amount-input-wrapper">
+            <div className={styles.amountInputWrapper}>
               <input
                 type="text"
                 placeholder="0.0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="amount-input"
+                className={styles.amountInput}
               />
-              <button className="max-button" onClick={() => setAmount(selectedToken.balance)}>
+              <button className={styles.maxButton} onClick={() => setAmount(selectedToken.balance)}>
                 MAX
               </button>
             </div>
@@ -732,9 +741,9 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
           {/* Fee Speed Selector */}
           {feeEstimate && (
-            <div className="form-group">
+            <div className={styles.formGroup}>
               <label>{t("sendTransaction.transactionSpeed")}</label>
-              <div className="fee-selector">
+              <div className={styles.feeSelector}>
                 {(["slow", "normal", "fast"] as FeeSpeed[]).map((speed) => {
                   // Map speed to backend fee fields
                   const feeWei = speed === "slow"
@@ -747,17 +756,17 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
                   return (
                     <button
                       key={speed}
-                      className={`fee-option ${feeSpeed === speed ? "selected" : ""}`}
+                      className={`${styles.feeOption} ${feeSpeed === speed ? styles.selected : ""}`}
                       onClick={() => setFeeSpeed(speed)}
                     >
-                      <span className="fee-speed">
-                        <span className={`speed-dot speed-${speed}`} />
+                      <span className={styles.feeSpeed}>
+                        <span className={`${styles.speedDot} ${SPEED_DOT[speed]}`} />
                         {speed.charAt(0).toUpperCase() + speed.slice(1)}
                       </span>
-                      <span className="fee-estimate">
+                      <span className={styles.feeEstimate}>
                         {formatEth(feeWei)} {nativeSymbol}
                       </span>
-                      <span className="fee-time">
+                      <span className={styles.feeTime}>
                         ~{estimatedMinutes} min
                       </span>
                     </button>
@@ -769,7 +778,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
           {/* ERC-20 Notice */}
           {isERC20 && (
-            <div className="erc20-notice">
+            <div className={styles.erc20Notice}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
               <span>{t("sendTransaction.erc20GasNotice", { symbol: nativeSymbol })}</span>
             </div>
@@ -777,7 +786,7 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
           {/* Continue Button */}
           <button
-            className="primary-button"
+            className={styles.primaryButton}
             onClick={handleBuildTransaction}
             disabled={isLoading || !isValidAddress(toAddress) || !isValidAmount(amount)}
           >
@@ -788,46 +797,46 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
       {/* Step 2: Review Transaction */}
       {step === "review" && unsignedTx && selectedToken && (
-        <div className="review-form">
+        <div className={styles.reviewForm}>
           <h3>{t("sendTransaction.reviewTransaction")}</h3>
 
-          <div className="review-details">
-            <div className="review-row">
-              <span className="review-label">{t("addToken.network")}</span>
-              <span className="review-value">
+          <div className={styles.reviewDetails}>
+            <div className={styles.reviewRow}>
+              <span className={styles.reviewLabel}>{t("addToken.network")}</span>
+              <span className={styles.reviewValue}>
                 {getNetworkIcon(selectedToken.network)} {selectedToken.networkLabel}
               </span>
             </div>
-            <div className="review-row">
-              <span className="review-label">{t("swap.token")}</span>
-              <span className="review-value">
-                {selectedToken.tokenSymbol} {isERC20 && <span className="erc20-tag">({t("transaction.erc20")})</span>}
+            <div className={styles.reviewRow}>
+              <span className={styles.reviewLabel}>{t("swap.token")}</span>
+              <span className={styles.reviewValue}>
+                {selectedToken.tokenSymbol} {isERC20 && <span className={styles.erc20Tag}>({t("transaction.erc20")})</span>}
               </span>
             </div>
-            <div className="review-row">
-              <span className="review-label">{t("transaction.from")}</span>
-              <span className="review-value address">{shortenAddress(selectedToken.fromAddress)}</span>
+            <div className={styles.reviewRow}>
+              <span className={styles.reviewLabel}>{t("transaction.from")}</span>
+              <span className={`${styles.reviewValue} ${styles.address}`.trim()}>{shortenAddress(selectedToken.fromAddress)}</span>
             </div>
-            <div className="review-row">
-              <span className="review-label">{t("transaction.to")}</span>
-              <span className="review-value address">{shortenAddress(toAddress)}</span>
+            <div className={styles.reviewRow}>
+              <span className={styles.reviewLabel}>{t("transaction.to")}</span>
+              <span className={`${styles.reviewValue} ${styles.address}`.trim()}>{shortenAddress(toAddress)}</span>
             </div>
-            <div className="review-row highlight">
-              <span className="review-label">{t("transaction.amount")}</span>
-              <span className="review-value amount">
+            <div className={`${styles.reviewRow} ${styles.highlight}`.trim()}>
+              <span className={styles.reviewLabel}>{t("transaction.amount")}</span>
+              <span className={`${styles.reviewValue} ${styles.amount}`.trim()}>
                 {amount} {selectedToken.tokenSymbol}
               </span>
             </div>
-            <div className="review-row">
-              <span className="review-label">{t("sendTransaction.estimatedFee")}</span>
-              <span className="review-value">
+            <div className={styles.reviewRow}>
+              <span className={styles.reviewLabel}>{t("sendTransaction.estimatedFee")}</span>
+              <span className={styles.reviewValue}>
                 {formatEth(unsignedTx.fee)} {nativeSymbol}
               </span>
             </div>
             {!isERC20 && (
-              <div className="review-row total">
-                <span className="review-label">{t("sendTransaction.total")}</span>
-                <span className="review-value">
+              <div className={`${styles.reviewRow} ${styles.total}`.trim()}>
+                <span className={styles.reviewLabel}>{t("sendTransaction.total")}</span>
+                <span className={styles.reviewValue}>
                   {/* Same rule as the fee row above: this line used its own
                       inline conversion at six decimals while the fee showed
                       four, seven lines apart on one screen. */}
@@ -844,12 +853,12 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
             <SecurityReportPanel security={unsignedTx.security} />
           )}
 
-          <div className="review-actions">
-            <button className="secondary-button" onClick={() => setStep("input")}>
+          <div className={styles.reviewActions}>
+            <button className={styles.secondaryButton} onClick={() => setStep("input")}>
               {t("addressBook.edit")}
             </button>
             <button
-              className="primary-button"
+              className={styles.primaryButton}
               onClick={() => setStep("password")}
               style={unsignedTx.security?.riskLevel === 'danger' ? { background: 'var(--danger)' } : undefined}
             >
@@ -861,28 +870,28 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
       {/* Step 3: Password Entry */}
       {step === "password" && (
-        <div className="password-form">
-          <div className="password-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
+        <div className={styles.passwordForm}>
+          <div className={styles.passwordIcon}><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
           <h3>{t("dashboard.enterWalletPassword")}</h3>
-          <p className="password-description">
+          <p className={styles.passwordDescription}>
             {t("sendTransaction.passwordRequiredDescription")}
           </p>
 
-          <div className="form-group">
+          <div className={styles.formGroup}>
             <PasswordInput
               placeholder={t("dashboard.enterWalletPasswordPlaceholder")}
               value={walletPassword}
               onChange={(e) => setWalletPassword(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSignTransaction()}
               autoFocus
-              className="password-input"
+              className={styles.passwordInput}
             />
           </div>
 
           {/* Passphrase indicator - shown if wallet uses passphrase (already validated) */}
           {walletHasPassphrase && preValidatedPassphrase && (
-            <div className="passphrase-validated">
-              <span className="validated-icon">✓</span>
+            <div className={styles.passphraseValidated}>
+              <span className={styles.validatedIcon}>✓</span>
               <span>{t("sendTransaction.passphraseVerified")}</span>
             </div>
           )}
@@ -890,12 +899,12 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
           {/* Full pre-signature review: what it does, what's risky, consent, digest */}
           <SignReview review={review} />
 
-          <div className="password-actions">
-            <button className="secondary-button" onClick={() => setStep("review")}>
+          <div className={styles.passwordActions}>
+            <button className={styles.secondaryButton} onClick={() => setStep("review")}>
               {t("actions.back")}
             </button>
             <button
-              className="primary-button"
+              className={styles.primaryButton}
               onClick={handleSignTransaction}
               disabled={!walletPassword || isLoading || (review.requiresAcknowledge && !review.acknowledged)}
               style={review.requiresAcknowledge ? { background: "var(--danger)", boxShadow: "none" } : undefined}
@@ -908,8 +917,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
       {/* Step 4: Signing in Progress */}
       {step === "signing" && (
-        <div className="progress-view">
-          <div className="progress-spinner" />
+        <div className={styles.progressView}>
+          <div className={styles.progressSpinner} />
           <h3>{t("sendTransaction.signingTransaction")}</h3>
           <p>{t("sendTransaction.pleaseWaitSigning")}</p>
         </div>
@@ -917,8 +926,8 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
       {/* Step 5: Broadcasting */}
       {step === "broadcasting" && selectedToken && (
-        <div className="progress-view">
-          <div className="progress-spinner" />
+        <div className={styles.progressView}>
+          <div className={styles.progressSpinner} />
           <h3>{t("sendTransaction.broadcastingTransaction")}</h3>
           <p>{t("sendTransaction.submittingToNetwork", { network: selectedToken.networkLabel })}</p>
         </div>
@@ -926,31 +935,31 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
       {/* Step 6: Success */}
       {step === "success" && broadcastResult && selectedToken && (
-        <div className="success-view">
-          <div className="success-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <div className={styles.successView}>
+          <div className={styles.successIcon}><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
           <h3>{t("sendTransaction.transactionSubmitted")}</h3>
-          <p className="success-message">
+          <p className={styles.successMessage}>
             {t("sendTransaction.submittedToNetwork", { network: selectedToken.networkLabel })}
           </p>
 
-          <div className="tx-hash">
-            <span className="tx-label">{t("transaction.hash")}</span>
-            <code className="tx-value">{shortenAddress(broadcastResult.txHash)}</code>
+          <div className={styles.txHash}>
+            <span className={styles.txLabel}>{t("transaction.hash")}</span>
+            <code className={styles.txValue}>{shortenAddress(broadcastResult.txHash)}</code>
           </div>
 
-          <div className="success-actions">
+          <div className={styles.successActions}>
             <a
               href={getExplorerUrl(selectedToken.network, broadcastResult.txHash)}
               target="_blank"
               rel="noopener noreferrer"
-              className="explorer-link"
+              className={styles.explorerLink}
             >
               {t("sendTransaction.viewOnExplorer")}
             </a>
-            <button className="primary-button" onClick={handleReset}>
+            <button className={styles.primaryButton} onClick={handleReset}>
               {t("sendTransaction.sendAnother")}
             </button>
-            <button className="secondary-button" onClick={onBack}>
+            <button className={styles.secondaryButton} onClick={onBack}>
               {t("staking.done")}
             </button>
           </div>
@@ -959,1033 +968,20 @@ export const SendTransaction: React.FC<SendTransactionProps> = ({
 
       {/* Error State */}
       {step === "error" && (
-        <div className="error-view">
-          <div className="error-icon-large"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+        <div className={styles.errorView}>
+          <div className={styles.errorIconLarge}><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
           <h3>{t("errors.transactionFailed")}</h3>
-          <p className="error-message">{error}</p>
-          <div className="error-actions">
-            <button className="secondary-button" onClick={handleReset}>
+          <p className={styles.errorMessage}>{error}</p>
+          <div className={styles.errorActions}>
+            <button className={styles.secondaryButton} onClick={handleReset}>
               {t("swap.tryAgain")}
             </button>
-            <button className="secondary-button" onClick={onBack}>
+            <button className={styles.secondaryButton} onClick={onBack}>
               {t("actions.cancel")}
             </button>
           </div>
         </div>
       )}
-
-      <style>{`
-        .send-transaction {
-          max-width: 480px;
-          margin: 0 auto;
-          padding: 20px;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
-
-        .send-header {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          margin-bottom: 24px;
-          padding-bottom: 16px;
-          border-bottom: 1px solid var(--border-default);
-        }
-
-        .send-header h2 {
-          flex: 1;
-          margin: 0;
-          font-size: 20px;
-          color: var(--text-primary);
-        }
-
-        .back-button {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 12px;
-          background: var(--surface-strong);
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 14px;
-          color: var(--text-secondary);
-          transition: background 0.2s;
-        }
-
-        .back-button:hover {
-          background: var(--border-default);
-        }
-
-        .chain-badge {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 6px 12px;
-          background: var(--brand-pale);
-          border-radius: 20px;
-          font-size: 13px;
-          color: var(--brand-press);
-          font-weight: 500;
-        }
-
-        /* Token Selection Styles */
-        .token-select-form h3 {
-          margin: 0 0 8px;
-          font-size: 18px;
-          color: var(--text-primary);
-        }
-
-        .select-description {
-          margin: 0 0 20px;
-          font-size: 14px;
-          color: var(--text-secondary);
-        }
-
-        .no-tokens {
-          text-align: center;
-          padding: 40px 20px;
-        }
-
-        .no-tokens-icon {
-          font-size: 48px;
-          display: block;
-          margin-bottom: 16px;
-        }
-
-        .no-tokens p {
-          margin: 0 0 20px;
-          color: var(--text-secondary);
-        }
-
-        .token-list {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .network-group {
-          background: var(--surface-sunken);
-          border-radius: 12px;
-          overflow: hidden;
-        }
-
-        .network-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 16px;
-          background: var(--surface-strong);
-          font-size: 14px;
-          font-weight: 500;
-          color: var(--text-secondary);
-        }
-
-        .network-icon {
-          font-size: 12px;
-          font-weight: 700;
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          background: linear-gradient(135deg, var(--brand), var(--brand-accent));
-          color: white;
-          flex-shrink: 0;
-        }
-
-        .testnet-badge {
-          margin-left: auto;
-          padding: 2px 8px;
-          background: var(--warning-pale);
-          color: var(--warning-text);
-          border-radius: 10px;
-          font-size: 11px;
-          font-weight: 600;
-        }
-
-        .network-tokens {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .token-option {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 14px 16px;
-          background: white;
-          border: none;
-          border-bottom: 1px solid var(--border-default);
-          cursor: pointer;
-          text-align: left;
-          transition: background 0.2s;
-          width: 100%;
-        }
-
-        .token-option:last-child {
-          border-bottom: none;
-        }
-
-        .token-option:hover {
-          background: var(--surface-sunken);
-        }
-
-        .token-option .token-icon {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          overflow: hidden;
-          background: var(--border-default);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .token-option .token-icon img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .token-icon-fallback {
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--text-secondary);
-        }
-
-        .token-info {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-
-        .token-info .token-symbol {
-          font-size: 15px;
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
-        .token-info .token-name {
-          font-size: 12px;
-          color: var(--text-secondary);
-        }
-
-        .token-type {
-          display: inline-block;
-          padding: 2px 6px;
-          background: var(--brand-pale);
-          color: var(--brand-press);
-          border-radius: 4px;
-          font-size: 10px;
-          font-weight: 500;
-          margin-top: 2px;
-          width: fit-content;
-        }
-
-        .token-balance {
-          text-align: right;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-
-        .balance-amount {
-          font-size: 15px;
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
-        .balance-usd {
-          font-size: 12px;
-          color: var(--text-secondary);
-        }
-
-        .token-arrow {
-          color: var(--text-tertiary);
-          font-size: 18px;
-        }
-
-        /* Selected Token Card */
-        .selected-token-card {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 16px;
-          background: #f0f9ff;
-          border: 1px solid #bae6fd;
-          border-radius: 12px;
-          margin-bottom: 20px;
-        }
-
-        .selected-token-card .token-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          overflow: hidden;
-          background: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .selected-token-card .token-icon img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .token-details {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-
-        .token-details .token-symbol {
-          font-size: 18px;
-          font-weight: 600;
-          color: #0369a1;
-        }
-
-        .token-balance-info {
-          font-size: 13px;
-          color: #0284c7;
-        }
-
-        .change-token-btn {
-          padding: 8px 16px;
-          background: white;
-          border: 1px solid #0ea5e9;
-          border-radius: 8px;
-          color: #0284c7;
-          font-size: 13px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .change-token-btn:hover {
-          background: #0ea5e9;
-          color: white;
-        }
-
-        /* ERC-20 Notice */
-        .erc20-notice {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 16px;
-          background: #fefce8;
-          border: 1px solid #fef08a;
-          border-radius: 8px;
-          margin-bottom: 20px;
-          font-size: 13px;
-          color: #854d0e;
-        }
-
-        .erc20-tag {
-          font-size: 11px;
-          padding: 2px 6px;
-          background: var(--brand-pale);
-          color: var(--brand-press);
-          border-radius: 4px;
-          font-weight: 500;
-        }
-
-        .error-banner {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 16px;
-          background: var(--danger-pale);
-          border: 1px solid var(--danger-pale);
-          border-radius: 8px;
-          margin-bottom: 20px;
-          color: var(--danger);
-          font-size: 14px;
-        }
-
-        .error-banner button {
-          margin-left: auto;
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: var(--danger);
-          font-size: 16px;
-        }
-
-        .form-group {
-          margin-bottom: 20px;
-        }
-
-        .form-group label {
-          display: block;
-          margin-bottom: 8px;
-          font-size: 14px;
-          font-weight: 500;
-          color: var(--text-secondary);
-        }
-
-        .address-display {
-          padding: 12px 16px;
-          background: var(--surface-sunken);
-          border: 1px solid var(--border-default);
-          border-radius: 8px;
-          font-family: monospace;
-          font-size: 14px;
-          color: var(--text-secondary);
-        }
-
-        .chain-selector {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        .chain-option {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 12px;
-          background: var(--surface-sunken);
-          border: 1px solid var(--border-default);
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 13px;
-          color: var(--text-secondary);
-          transition: all 0.2s;
-        }
-
-        .chain-option:hover {
-          background: var(--surface-strong);
-          border-color: var(--border-input);
-        }
-
-        .chain-option.selected {
-          background: var(--brand-pale);
-          border-color: var(--brand-accent);
-          color: var(--brand-press);
-        }
-
-        .address-input {
-          width: 100%;
-          padding: 12px 16px;
-          border: 1px solid var(--border-default);
-          border-radius: 8px;
-          font-size: 14px;
-          font-family: monospace;
-          transition: border-color 0.2s;
-        }
-
-        .address-input:focus {
-          outline: none;
-          border-color: var(--brand-accent);
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-
-        .address-input.invalid {
-          border-color: var(--danger);
-        }
-
-        .field-error {
-          display: block;
-          margin-top: 6px;
-          font-size: 12px;
-          color: var(--danger);
-        }
-
-        .amount-input-wrapper {
-          display: flex;
-          gap: 8px;
-        }
-
-        .amount-input {
-          flex: 1;
-          padding: 12px 16px;
-          border: 1px solid var(--border-default);
-          border-radius: 8px;
-          font-size: 18px;
-          font-weight: 500;
-        }
-
-        .amount-input:focus {
-          outline: none;
-          border-color: var(--brand-accent);
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-
-        .max-button {
-          padding: 12px 16px;
-          background: var(--surface-strong);
-          border: 1px solid var(--border-default);
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--brand-accent);
-        }
-
-        .max-button:hover {
-          background: var(--border-default);
-        }
-
-        .fee-selector {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .fee-option {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 12px 16px;
-          background: var(--surface-sunken);
-          border: 1px solid var(--border-default);
-          border-radius: 8px;
-          cursor: pointer;
-          text-align: left;
-          transition: all 0.2s;
-        }
-
-        .fee-option:hover {
-          background: var(--surface-strong);
-        }
-
-        .fee-option.selected {
-          background: var(--brand-faint);
-          border-color: var(--brand-accent);
-        }
-
-        .fee-speed {
-          flex: 1;
-          font-weight: 500;
-          color: var(--text-secondary);
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .speed-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          flex-shrink: 0;
-        }
-
-        .speed-slow { background: var(--warning); }
-        .speed-normal { background: var(--brand-accent); }
-        .speed-fast { background: var(--success); }
-
-        .fee-estimate {
-          font-size: 14px;
-          color: var(--text-secondary);
-        }
-
-        .fee-time {
-          font-size: 12px;
-          color: var(--text-tertiary);
-        }
-
-        .primary-button {
-          width: 100%;
-          padding: 14px 24px;
-          background: linear-gradient(135deg, var(--brand-accent) 0%, var(--brand) 100%);
-          color: white;
-          border: none;
-          border-radius: 10px;
-          font-size: 16px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-          box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
-        }
-
-        .primary-button:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
-        }
-
-        .primary-button:disabled {
-          background: var(--border-input);
-          box-shadow: none;
-          cursor: not-allowed;
-        }
-
-        .secondary-button {
-          padding: 12px 24px;
-          background: var(--surface-strong);
-          color: var(--text-secondary);
-          border: 1px solid var(--border-default);
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .secondary-button:hover {
-          background: var(--border-default);
-        }
-
-        /* Review Form */
-        .review-form h3 {
-          margin: 0 0 20px;
-          font-size: 18px;
-          color: var(--text-primary);
-        }
-
-        .review-details {
-          background: var(--surface-sunken);
-          border-radius: 12px;
-          padding: 16px;
-          margin-bottom: 20px;
-        }
-
-        .review-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px 0;
-          border-bottom: 1px solid var(--border-default);
-        }
-
-        .review-row:last-child {
-          border-bottom: none;
-        }
-
-        .review-label {
-          font-size: 14px;
-          color: var(--text-secondary);
-        }
-
-        .review-value {
-          font-size: 14px;
-          font-weight: 500;
-          color: var(--text-primary);
-        }
-
-        .review-value.address {
-          font-family: monospace;
-        }
-
-        .review-value.amount {
-          font-size: 18px;
-          color: var(--brand);
-        }
-
-        .review-row.highlight {
-          background: var(--brand-pale);
-          margin: 0 -16px;
-          padding: 12px 16px;
-          border-radius: 8px;
-        }
-
-        .review-row.total {
-          font-weight: 600;
-        }
-
-        .review-actions {
-          display: flex;
-          gap: 12px;
-        }
-
-        .review-actions .secondary-button {
-          flex: 1;
-        }
-
-        .review-actions .primary-button {
-          flex: 2;
-        }
-
-        /* Password Form */
-        .password-form {
-          text-align: center;
-          padding: 20px 0;
-        }
-
-        .password-icon {
-          font-size: 48px;
-          margin-bottom: 16px;
-        }
-
-        .password-form h3 {
-          margin: 0 0 8px;
-          font-size: 20px;
-          color: var(--text-primary);
-        }
-
-        .password-description {
-          margin: 0 0 24px;
-          font-size: 14px;
-          color: var(--text-secondary);
-        }
-
-        .password-input {
-          width: 100%;
-          padding: 14px 16px;
-          border: 2px solid var(--border-default);
-          border-radius: 10px;
-          font-size: 16px;
-          text-align: center;
-          transition: all 0.2s;
-        }
-
-        .password-input:focus {
-          outline: none;
-          border-color: var(--brand-accent);
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-
-        .password-actions {
-          display: flex;
-          gap: 12px;
-          margin-top: 24px;
-        }
-
-        .password-actions .secondary-button {
-          flex: 1;
-        }
-
-        .password-actions .primary-button {
-          flex: 2;
-        }
-
-        /* Passphrase Validated Indicator */
-        .passphrase-validated {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          padding: 12px 16px;
-          background: var(--success-pale);
-          border: 1px solid var(--success-border);
-          border-radius: 8px;
-          margin-bottom: 16px;
-          color: var(--success-text);
-          font-size: 14px;
-          font-weight: 500;
-        }
-
-        .validated-icon {
-          font-size: 16px;
-          color: var(--success);
-        }
-
-        /* Progress View */
-        .progress-view {
-          text-align: center;
-          padding: 48px 20px;
-        }
-
-        .progress-spinner {
-          width: 48px;
-          height: 48px;
-          border: 4px solid var(--border-default);
-          border-top-color: var(--brand-accent);
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin: 0 auto 24px;
-        }
-
-        .progress-view h3 {
-          margin: 0 0 8px;
-          font-size: 20px;
-          color: var(--text-primary);
-        }
-
-        .progress-view p {
-          margin: 0;
-          font-size: 14px;
-          color: var(--text-secondary);
-        }
-
-        /* Success View */
-        .success-view {
-          text-align: center;
-          padding: 32px 20px;
-        }
-
-        .success-icon {
-          font-size: 64px;
-          margin-bottom: 16px;
-        }
-
-        .success-view h3 {
-          margin: 0 0 8px;
-          font-size: 24px;
-          color: var(--text-primary);
-        }
-
-        .success-message {
-          margin: 0 0 24px;
-          font-size: 14px;
-          color: var(--text-secondary);
-        }
-
-        .tx-hash {
-          background: var(--surface-sunken);
-          border-radius: 8px;
-          padding: 16px;
-          margin-bottom: 24px;
-        }
-
-        .tx-label {
-          display: block;
-          font-size: 12px;
-          color: var(--text-secondary);
-          margin-bottom: 4px;
-        }
-
-        .tx-value {
-          font-size: 14px;
-          font-family: monospace;
-          color: var(--text-primary);
-        }
-
-        .success-actions {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .explorer-link {
-          display: block;
-          padding: 12px;
-          background: var(--brand-pale);
-          color: var(--brand-press);
-          text-decoration: none;
-          border-radius: 8px;
-          font-weight: 500;
-          transition: background 0.2s;
-        }
-
-        .explorer-link:hover {
-          background: var(--brand-accent);
-        }
-
-        /* Error View */
-        .error-view {
-          text-align: center;
-          padding: 48px 20px;
-        }
-
-        .error-icon-large {
-          font-size: 64px;
-          margin-bottom: 16px;
-        }
-
-        .error-view h3 {
-          margin: 0 0 8px;
-          font-size: 20px;
-          color: var(--text-primary);
-        }
-
-        .error-view .error-message {
-          margin: 0 0 24px;
-          font-size: 14px;
-          color: var(--danger);
-        }
-
-        .error-actions {
-          display: flex;
-          gap: 12px;
-          justify-content: center;
-        }
-
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        /* Security Report Panel */
-        .security-panel {
-          margin-top: 16px;
-          padding: 16px;
-          border-radius: 12px;
-          border: 1px solid var(--text-primary);
-        }
-        .security-panel-safe {
-          background: rgba(13, 148, 136, 0.08);
-          border-color: rgba(13, 148, 136, 0.3);
-        }
-        .security-panel-warning {
-          background: rgba(245, 158, 11, 0.08);
-          border-color: rgba(245, 158, 11, 0.3);
-        }
-        .security-panel-danger {
-          background: rgba(220, 38, 38, 0.08);
-          border-color: rgba(220, 38, 38, 0.3);
-        }
-        .security-panel-free {
-          background: rgba(100, 116, 139, 0.08);
-          border-color: rgba(100, 116, 139, 0.3);
-        }
-        .security-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 12px;
-        }
-        .security-icon {
-          font-size: 18px;
-        }
-        .security-title {
-          font-weight: 600;
-          color: var(--text-primary);
-          flex: 1;
-        }
-        .security-badge {
-          font-size: 11px;
-          font-weight: 700;
-          padding: 2px 8px;
-          border-radius: 4px;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-        .security-badge.safe {
-          background: rgba(13, 148, 136, 0.18);
-          color: var(--brand-press);
-        }
-        .security-badge.warning {
-          background: rgba(245, 158, 11, 0.18);
-          color: var(--warning-text);
-        }
-        .security-badge.danger {
-          background: rgba(220, 38, 38, 0.18);
-          color: var(--danger-text);
-        }
-        .security-alert {
-          padding: 12px;
-          border-radius: 8px;
-          margin-bottom: 8px;
-        }
-        .security-alert-danger {
-          background: rgba(220, 38, 38, 0.1);
-          border: 1px solid rgba(220, 38, 38, 0.45);
-          color: var(--danger-text);
-        }
-        .security-alert-warning {
-          background: rgba(245, 158, 11, 0.12);
-          border: 1px solid rgba(245, 158, 11, 0.45);
-          color: var(--warning-text);
-        }
-        .security-alert strong {
-          display: block;
-          margin-bottom: 4px;
-          color: var(--danger);
-          font-weight: 700;
-        }
-        .security-alert-danger p {
-          color: var(--danger-text);
-        }
-        .security-alert p {
-          font-size: 13px;
-          margin: 2px 0;
-        }
-        .security-alert-address {
-          font-family: monospace;
-          font-size: 12px;
-          opacity: 0.95;
-          word-break: break-all;
-        }
-        .security-simulation {
-          margin-top: 8px;
-        }
-        .security-sim-title {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--text-tertiary);
-          margin-bottom: 8px;
-        }
-        .security-sim-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 6px 0;
-          font-size: 14px;
-        }
-        .security-sim-row.outgoing {
-          color: #f87171;
-        }
-        .security-sim-row.incoming {
-          color: var(--brand-accent);
-        }
-        .security-sim-row.gas {
-          color: var(--text-tertiary);
-          font-size: 12px;
-          border-top: 1px solid var(--text-primary);
-          padding-top: 8px;
-          margin-top: 4px;
-        }
-        .sim-direction {
-          width: 16px;
-          text-align: center;
-        }
-        .sim-amount {
-          font-weight: 500;
-        }
-        .security-safe-text {
-          font-size: 13px;
-          color: var(--brand-accent);
-        }
-        .security-free-content {
-          text-align: center;
-        }
-        .security-warning-text {
-          color: var(--warning);
-          font-weight: 500;
-          margin-bottom: 12px;
-        }
-        .security-features {
-          text-align: left;
-          margin-bottom: 16px;
-        }
-        .security-features-title {
-          font-size: 13px;
-          color: var(--text-tertiary);
-          margin-bottom: 6px;
-        }
-        .security-features ul {
-          margin: 0;
-          padding-left: 20px;
-          font-size: 13px;
-          color: var(--border-input);
-        }
-        .security-features li {
-          margin-bottom: 4px;
-        }
-        .security-upgrade-btn {
-          display: inline-block;
-          background: linear-gradient(135deg, var(--brand), var(--brand-accent));
-          color: white;
-          padding: 10px 24px;
-          border-radius: 8px;
-          text-decoration: none;
-          font-weight: 600;
-          font-size: 14px;
-          transition: opacity 0.2s;
-        }
-        .security-upgrade-btn:hover {
-          opacity: 0.9;
-        }
-        .security-sim-upsell {
-          margin-top: 12px;
-          padding-top: 12px;
-          border-top: 1px solid rgba(148, 163, 184, 0.2);
-          text-align: center;
-        }
-        .security-sim-upsell-text {
-          font-size: 12px;
-          color: var(--text-tertiary);
-          margin: 0 0 10px;
-        }
-      `}</style>
     </div>
   );
 };

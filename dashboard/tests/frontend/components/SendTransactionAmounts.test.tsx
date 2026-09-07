@@ -13,6 +13,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import styles from "../../../src/components/SendTransaction.module.css";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SendTransaction, type SendableToken } from "@/components/SendTransaction";
@@ -77,7 +78,7 @@ async function reviewWithFee(feeWei: string, amount = "0.5") {
 
   const ethBtn = screen
     .getAllByRole("button")
-    .find((b) => b.classList.contains("token-option") && b.textContent?.includes("ETH"));
+    .find((b) => b.classList.contains(styles.tokenOption) && b.textContent?.includes("ETH"));
   await user.click(ethBtn!);
 
   await user.type(screen.getByPlaceholderText("0x..."), RECIPIENT);
