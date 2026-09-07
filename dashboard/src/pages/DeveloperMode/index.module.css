@@ -1,0 +1,143 @@
+.developerMode {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #fff;
+}
+
+.devHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.devHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.devHeader h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.backButton {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.backButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.connectionStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+.connectionStatus.connected {
+  background: rgba(34, 197, 94, 0.2);
+  color: var(--success);
+}
+
+.connectionStatus.disconnected {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--danger);
+}
+
+.errorBanner {
+  padding: 12px 24px;
+  background: rgba(239, 68, 68, 0.2);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+.devTabs {
+  display: flex;
+  gap: 4px;
+  padding: 16px 24px;
+  background: rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.devTab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.devTab:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.devTab.active {
+  background: rgba(59, 130, 246, 0.3);
+  color: #fff;
+}
+
+.devTab .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--danger);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.devContent {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.devHeaderCenter {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.activeWalletBadge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+.walletIconSmall {
+  font-size: 16px;
+}
+
+.walletNameSmall {
+  color: #93c5fd;
+  font-weight: 500;
+}

@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import styles from "./TransactionHistory.module.css";
 import { getNetworkColor } from "@/utils/chainIcons";
 import {
   formatAmount as formatValue,
@@ -284,24 +285,24 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   };
 
   return (
-    <div className="transaction-history">
-      <header className="history-header">
-        <button onClick={onBack} className="back-button">
+    <div className={styles.transactionHistory}>
+      <header className={styles.historyHeader}>
+        <button onClick={onBack} className={styles.backButton}>
           <span className="back-arrow">&larr;</span> {t("actions.back")}
         </button>
-        <div className="header-info">
+        <div className={styles.headerInfo}>
           <h2>{t("transaction.history")}</h2>
-          <p className="address-info">
+          <p className={styles.addressInfo}>
             {shortenAddress(address)}
           </p>
-          <p className="supported-chains">
+          <p className={styles.supportedChains}>
             Querying: {EVM_CHAINS.map(c => c.shortName).join(", ")}
           </p>
         </div>
         <button
           onClick={fetchAllChainTransfers}
           disabled={isLoading}
-          className="refresh-button"
+          className={styles.refreshButton}
         >
           {isLoading ? "Loading..." : "Refresh"}
         </button>
@@ -309,25 +310,25 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
       {/* Loading indicator with chain progress */}
       {loadingChains.length > 0 && (
-        <div className="loading-chains">
-          <div className="loading-spinner-small" />
+        <div className={styles.loadingChains}>
+          <div className={styles.loadingSpinnerSmall} />
           <span>Loading: {loadingChains.join(", ")}...</span>
         </div>
       )}
 
       {/* Chain stats summary */}
       {!isLoading && Object.keys(chainStats).length > 0 && (
-        <div className="chain-stats">
+        <div className={styles.chainStats}>
           {EVM_CHAINS.map(chain => {
             const count = chainStats[chain.name];
             const isError = count === -1;
             return (
               <span
                 key={chain.id}
-                className={`chain-stat ${isError ? 'error' : ''}`}
+                className={`${styles.chainStat} ${isError ? styles.error : ''}`}
                 style={{ borderColor: chain.color }}
               >
-                <span className="chain-dot" style={{ backgroundColor: chain.color }} />
+                <span className={styles.chainDot} style={{ backgroundColor: chain.color }} />
                 {chain.shortName}: {isError ? '✕' : count}
               </span>
             );
@@ -360,7 +361,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
       )}
 
       {error && (
-        <div className="error-message">
+        <div className={styles.errorMessage}>
           <p>{error}</p>
           <button onClick={fetchAllChainTransfers}>{t("addressBook.retry")}</button>
         </div>
@@ -368,14 +369,14 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
       {/* Unverified token filter notice */}
       {unverifiedTokenCount > 0 && (
-        <div className="scam-filter-notice">
+        <div className={styles.scamFilterNotice}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           <span>
             已過濾 {unverifiedTokenCount} 筆未驗證的交易（不在白名單內）
           </span>
           <button
             onClick={() => setShowUnverifiedTokens(!showUnverifiedTokens)}
-            className="toggle-scam-button"
+            className={styles.toggleScamButton}
           >
             {showUnverifiedTokens ? "隱藏" : "顯示"}
           </button>
@@ -383,8 +384,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
       )}
 
       {!error && transfers.length === 0 && !isLoading && (
-        <div className="empty-state">
-          <div className="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIcon}><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
           {isKeyLoading ? null : !hasAlchemyKey ? (
             <>
               <h3>{t("transactionHistory.needKeyTitle")}</h3>
@@ -400,7 +401,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
       )}
 
       {filteredTransfers.length > 0 && (
-        <div className="transfers-list">
+        <div className={styles.transfersList}>
           {filteredTransfers.map((transfer, index) => {
             const direction = getTransferDirection(transfer);
             const categoryStyle =
@@ -413,51 +414,51 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
             return (
               <div
                 key={`${transfer.uniqueId}-${index}`}
-                className={`transfer-item ${shouldHighlight ? "transfer-item-warning" : ""}`}
+                className={`${styles.transferItem} ${shouldHighlight ? styles.transferItemWarning : ""}`}
                 title={shouldHighlight ? t("transaction.unknownTokenWarning") : undefined}
               >
-                <div className="transfer-icon">
+                <div className={styles.transferIcon}>
                   <span
-                    className={`direction-indicator ${direction}`}
+                    className={`${styles.directionIndicator} ${direction}`}
                     title={direction === "in" ? "Received" : "Sent"}
                   >
                     {direction === "in" ? "↓" : "↑"}
                   </span>
                 </div>
 
-                <div className="transfer-details">
-                  <div className="transfer-main">
-                    <div className="badges">
+                <div className={styles.transferDetails}>
+                  <div className={styles.transferMain}>
+                    <div className={styles.badges}>
                       <span
-                        className="network-badge"
+                        className={styles.networkBadge}
                         style={{ backgroundColor: transfer.networkColor }}
                       >
                         {EVM_CHAINS.find(c => c.id === transfer.network)?.shortName || transfer.networkName}
                       </span>
                       <span
-                        className="category-badge"
+                        className={styles.categoryBadge}
                         style={{ backgroundColor: categoryStyle.color }}
                       >
                         {categoryStyle.label}
                       </span>
                       {txLabel && (
-                        <span className="tx-label-badge" onClick={() => setEditingLabelTx({ network: transfer.network, txHash: transfer.hash })}>
+                        <span className={styles.txLabelBadge} onClick={() => setEditingLabelTx({ network: transfer.network, txHash: transfer.hash })}>
                           {txLabel.label.name}
                         </span>
                       )}
                       {shouldHighlight && (
-                        <span className="warning-badge">
+                        <span className={styles.warningBadge}>
                           {t("transaction.tokenNotVerified")}
                         </span>
                       )}
                     </div>
-                    <div className="transfer-value-row">
-                      <span className="transfer-value">
+                    <div className={styles.transferValueRow}>
+                      <span className={styles.transferValue}>
                         {direction === "in" ? "+" : "-"}
                         {formatValue(transfer.value)} {transfer.asset}
                       </span>
                       <button
-                        className="tx-label-edit-btn"
+                        className={styles.txLabelEditBtn}
                         onClick={() => setEditingLabelTx({ network: transfer.network, txHash: transfer.hash })}
                         title={txLabel ? t("txLabel.editLabel") : t("txLabel.addLabel")}
                       >
@@ -466,7 +467,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                     </div>
                   </div>
 
-                  <div className="transfer-addresses">
+                  <div className={styles.transferAddresses}>
                     <span className="from-to">
                       {direction === "in" ? "From: " : "To: "}
                       {shortenAddress(
@@ -475,9 +476,9 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                     </span>
                   </div>
 
-                  <div className="transfer-meta">
+                  <div className={styles.transferMeta}>
                     {transfer.metadata?.blockTimestamp && (
-                      <span className="timestamp">
+                      <span className={styles.timestamp}>
                         {formatTimestamp(transfer.metadata.blockTimestamp)}
                       </span>
                     )}
@@ -485,7 +486,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                       href={getExplorerUrl(transfer.network, transfer.hash)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="explorer-link"
+                      className={styles.explorerLink}
                     >
                       {t("sendTransaction.viewOnExplorer")}
                     </a>
@@ -498,8 +499,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
       )}
 
       {isLoading && transfers.length === 0 && loadingChains.length === 0 && (
-        <div className="loading-state">
-          <div className="loading-spinner" />
+        <div className={styles.loadingState}>
+          <div className={styles.loadingSpinner} />
           <p>{t("sendTransaction.loadingTransactionHistory")}</p>
         </div>
       )}
@@ -525,414 +526,6 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           onClose={() => setEditingLabelTx(null)}
         />
       )}
-
-      <style>{`
-        .transaction-history {
-          padding: 20px;
-          max-width: 800px;
-          margin: 0 auto;
-        }
-
-        .history-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 24px;
-          padding-bottom: 16px;
-          border-bottom: 1px solid var(--border-default);
-        }
-
-        .back-button {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 16px;
-          background: var(--surface-strong);
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 14px;
-          color: var(--text-secondary);
-          transition: background 0.2s;
-        }
-
-        .back-button:hover {
-          background: var(--border-default);
-        }
-
-        .header-info {
-          text-align: center;
-        }
-
-        .header-info h2 {
-          margin: 0;
-          font-size: 20px;
-          color: var(--text-primary);
-        }
-
-        .address-info {
-          margin: 4px 0 0;
-          font-size: 14px;
-          color: var(--text-secondary);
-        }
-
-        .supported-chains {
-          margin: 2px 0 0;
-          font-size: 12px;
-          color: var(--text-tertiary);
-        }
-
-        .refresh-button {
-          padding: 8px 16px;
-          background: var(--brand-accent);
-          color: white;
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 14px;
-          transition: background 0.2s;
-        }
-
-        .refresh-button:hover:not(:disabled) {
-          background: var(--brand);
-        }
-
-        .refresh-button:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .loading-chains {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          padding: 12px;
-          background: #f0f9ff;
-          border-radius: 8px;
-          margin-bottom: 16px;
-          font-size: 14px;
-          color: #0369a1;
-        }
-
-        .loading-spinner-small {
-          width: 16px;
-          height: 16px;
-          border: 2px solid var(--brand-accent);
-          border-top-color: var(--brand-accent);
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        .chain-stats {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-bottom: 16px;
-          justify-content: center;
-        }
-
-        .chain-stat {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          padding: 4px 10px;
-          background: var(--surface-sunken);
-          border: 1px solid;
-          border-radius: 16px;
-          font-size: 12px;
-          color: #4b5563;
-        }
-
-        .chain-stat.error {
-          background: var(--danger-pale);
-          color: var(--danger);
-        }
-
-        .scam-filter-notice {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          padding: 12px 16px;
-          background: linear-gradient(135deg, var(--warning-pale) 0%, var(--warning-border) 100%);
-          border: 1px solid var(--warning);
-          border-radius: 8px;
-          margin-bottom: 16px;
-          font-size: 14px;
-          color: var(--warning-text);
-        }
-
-        .scam-icon {
-          font-size: 18px;
-        }
-
-        .toggle-scam-button {
-          padding: 4px 12px;
-          background: var(--warning);
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 12px;
-          font-weight: 500;
-          transition: background 0.2s;
-        }
-
-        .toggle-scam-button:hover {
-          background: var(--warning);
-        }
-
-        .chain-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-        }
-
-        .error-message {
-          background: var(--danger-pale);
-          border: 1px solid var(--danger-pale);
-          border-radius: 8px;
-          padding: 16px;
-          text-align: center;
-          color: var(--danger);
-        }
-
-        .error-message button {
-          margin-top: 12px;
-          padding: 8px 16px;
-          background: var(--danger);
-          color: white;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-        }
-
-        .empty-state {
-          text-align: center;
-          padding: 48px 24px;
-          background: var(--surface-sunken);
-          border-radius: 12px;
-        }
-
-        .empty-icon {
-          font-size: 48px;
-          margin-bottom: 16px;
-        }
-
-        .empty-state h3 {
-          margin: 0 0 8px;
-          color: var(--text-secondary);
-        }
-
-        .empty-state p {
-          margin: 0;
-          color: var(--text-secondary);
-        }
-
-        .transfers-list {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .transfer-item {
-          display: flex;
-          align-items: flex-start;
-          gap: 16px;
-          padding: 16px;
-          background: white;
-          border: 1px solid var(--border-default);
-          border-radius: 12px;
-          transition: border-color 0.2s;
-        }
-
-        .transfer-item:hover {
-          border-color: var(--border-input);
-        }
-
-        /* Warning highlight for unknown tokens */
-        .transfer-item-warning {
-          background: linear-gradient(135deg, var(--warning-pale) 0%, var(--warning-border) 100%);
-          border-color: var(--warning);
-          border-width: 2px;
-        }
-
-        .transfer-item-warning:hover {
-          background: linear-gradient(135deg, var(--warning-border) 0%, #fcd34d 100%);
-          border-color: var(--warning);
-        }
-
-        .warning-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          padding: 3px 8px;
-          background: var(--warning-pale);
-          border: 1px solid var(--warning);
-          border-radius: 4px;
-          font-size: 11px;
-          font-weight: 500;
-          color: var(--warning-text);
-        }
-
-        .transfer-icon {
-          width: 40px;
-          height: 40px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          background: var(--surface-strong);
-          flex-shrink: 0;
-        }
-
-        .direction-indicator {
-          font-size: 20px;
-          font-weight: bold;
-        }
-
-        .direction-indicator.in {
-          color: var(--success);
-        }
-
-        .direction-indicator.out {
-          color: var(--danger);
-        }
-
-        .transfer-details {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .transfer-main {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 8px;
-        }
-
-        .badges {
-          display: flex;
-          gap: 6px;
-        }
-
-        .network-badge {
-          padding: 3px 8px;
-          border-radius: 4px;
-          font-size: 11px;
-          font-weight: 600;
-          color: white;
-        }
-
-        .category-badge {
-          padding: 3px 8px;
-          border-radius: 4px;
-          font-size: 11px;
-          font-weight: 500;
-          color: white;
-        }
-
-        .transfer-value-row {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .transfer-value {
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
-        .tx-label-badge {
-          padding: 3px 8px;
-          background: var(--brand-faint);
-          border: 1px solid var(--brand-accent);
-          border-radius: 4px;
-          font-size: 11px;
-          font-weight: 500;
-          color: var(--brand);
-          cursor: pointer;
-          transition: all 0.2s;
-          max-width: 120px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .tx-label-badge:hover {
-          background: var(--brand-pale);
-          border-color: #5eead4;
-        }
-
-        .tx-label-edit-btn {
-          background: none;
-          border: none;
-          color: var(--text-tertiary);
-          cursor: pointer;
-          padding: 2px;
-          display: flex;
-          align-items: center;
-          border-radius: 4px;
-          transition: all 0.2s;
-          flex-shrink: 0;
-        }
-
-        .tx-label-edit-btn:hover {
-          color: var(--brand);
-          background: var(--brand-faint);
-        }
-
-        .transfer-addresses {
-          font-size: 14px;
-          color: var(--text-secondary);
-          margin-bottom: 8px;
-        }
-
-        .transfer-meta {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          font-size: 12px;
-          color: var(--text-tertiary);
-        }
-
-        .timestamp {
-          flex-shrink: 0;
-        }
-
-        .explorer-link {
-          color: var(--brand-accent);
-          text-decoration: none;
-          margin-left: auto;
-        }
-
-        .explorer-link:hover {
-          text-decoration: underline;
-        }
-
-        .loading-state {
-          text-align: center;
-          padding: 48px 24px;
-        }
-
-        .loading-spinner {
-          width: 40px;
-          height: 40px;
-          border: 3px solid var(--border-default);
-          border-top-color: var(--brand-accent);
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin: 0 auto 16px;
-        }
-
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
     </div>
   );
 };
