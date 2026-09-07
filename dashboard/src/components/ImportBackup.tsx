@@ -5,6 +5,7 @@
  */
 
 import React, { useState } from 'react';
+import styles from "./ImportBackup.module.css";
 import { useTranslation } from 'react-i18next';
 import { open } from '@tauri-apps/plugin-dialog';
 import { readFile } from '@tauri-apps/plugin-fs';
@@ -88,33 +89,33 @@ export const ImportBackup: React.FC<ImportBackupProps> = ({
   const fileName = selectedFile ? selectedFile.split('/').pop()?.split('\\').pop() : null;
 
   return (
-    <div className="import-backup-page">
-      <button onClick={onBack} className="back-button">
+    <div className={styles.importBackupPage}>
+      <button onClick={onBack} className={styles.backButton}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:'inline',verticalAlign:'middle',marginRight:4}}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         {t('settings.backToWallets')}
       </button>
 
-      <header className="import-backup-header">
+      <header className={styles.importBackupHeader}>
         <h1>{t('backup.importTitle')}</h1>
-        <p className="import-backup-desc">{t('backup.importDescription')}</p>
+        <p className={styles.importBackupDesc}>{t('backup.importDescription')}</p>
       </header>
 
-      <div className="import-backup-form">
+      <div className={styles.importBackupForm}>
         {/* File Selection */}
-        <div className="import-backup-field">
+        <div className={styles.importBackupField}>
           <label>{t('backup.selectFile')}</label>
           <button
-            className="import-backup-file-button"
+            className={styles.importBackupFileButton}
             onClick={handleSelectFile}
             disabled={isImporting}
           >
             {fileName ? (
-              <span className="import-backup-file-selected">
+              <span className={styles.importBackupFileSelected}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                 {fileName}
               </span>
             ) : (
-              <span className="import-backup-file-placeholder">
+              <span className={styles.importBackupFilePlaceholder}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 {t('backup.selectFile')}
               </span>
@@ -123,10 +124,10 @@ export const ImportBackup: React.FC<ImportBackupProps> = ({
         </div>
 
         {/* Password */}
-        <div className="import-backup-field">
+        <div className={styles.importBackupField}>
           <label>{t('backup.enterPassword')}</label>
           <PasswordInput
-            className="import-backup-input"
+            className={styles.importBackupInput}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder={t('backup.enterPassword')}
@@ -135,11 +136,11 @@ export const ImportBackup: React.FC<ImportBackupProps> = ({
         </div>
 
         {/* Optional Wallet Name */}
-        <div className="import-backup-field">
+        <div className={styles.importBackupField}>
           <label>{t('backup.walletName', 'Wallet Name (optional)')}</label>
           <input
             type="text"
-            className="import-backup-input"
+            className={styles.importBackupInput}
             value={walletName}
             onChange={(e) => setWalletName(e.target.value)}
             placeholder={t('backup.walletNamePlaceholder', 'Leave empty to use original name')}
@@ -148,158 +149,17 @@ export const ImportBackup: React.FC<ImportBackupProps> = ({
         </div>
 
         {error && (
-          <div className="import-backup-error">{error}</div>
+          <div className={styles.importBackupError}>{error}</div>
         )}
 
         <button
-          className="import-backup-submit"
+          className={styles.importBackupSubmit}
           onClick={handleImport}
           disabled={!fileData || !password || isImporting}
         >
           {isImporting ? t('backup.importing') : t('backup.importTitle')}
         </button>
       </div>
-
-      <style>{`
-        .import-backup-page {
-          max-width: 560px;
-          margin: 0 auto;
-          padding: 20px;
-        }
-
-        .back-button {
-          background: none;
-          border: none;
-          color: var(--brand-accent);
-          cursor: pointer;
-          font-size: 14px;
-          padding: 8px 0;
-          margin-bottom: 16px;
-        }
-
-        .back-button:hover {
-          text-decoration: underline;
-        }
-
-        .import-backup-header {
-          margin-bottom: 32px;
-        }
-
-        .import-backup-header h1 {
-          margin: 0 0 8px;
-          font-size: 28px;
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
-        .import-backup-desc {
-          margin: 0;
-          color: var(--text-secondary);
-          font-size: 16px;
-        }
-
-        .import-backup-form {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-
-        .import-backup-field {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .import-backup-field label {
-          font-size: 14px;
-          font-weight: 500;
-          color: var(--text-primary);
-        }
-
-        .import-backup-file-button {
-          padding: 14px 16px;
-          background: var(--surface-sunken);
-          border: 2px dashed var(--border-input);
-          border-radius: 12px;
-          cursor: pointer;
-          transition: all 0.2s;
-          text-align: left;
-        }
-
-        .import-backup-file-button:hover {
-          border-color: var(--brand-accent);
-          background: var(--brand-faint);
-        }
-
-        .import-backup-file-placeholder {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: var(--text-tertiary);
-          font-size: 14px;
-        }
-
-        .import-backup-file-selected {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: var(--text-primary);
-          font-size: 14px;
-          font-weight: 500;
-        }
-
-        .import-backup-input {
-          padding: 12px 16px;
-          border: 1px solid var(--border-input);
-          border-radius: 8px;
-          font-size: 14px;
-          color: var(--text-primary);
-          outline: none;
-          transition: border-color 0.2s;
-        }
-
-        .import-backup-input:focus {
-          border-color: var(--brand-accent);
-          box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.1);
-        }
-
-        .import-backup-input::placeholder {
-          color: var(--text-tertiary);
-        }
-
-        .import-backup-error {
-          padding: 12px 16px;
-          background: var(--danger-pale);
-          border: 1px solid var(--danger-border);
-          border-radius: 8px;
-          color: var(--danger);
-          font-size: 14px;
-        }
-
-        .import-backup-submit {
-          padding: 14px 24px;
-          background: var(--brand);
-          border: none;
-          border-radius: 10px;
-          color: white;
-          font-size: 16px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-          margin-top: 8px;
-        }
-
-        .import-backup-submit:hover {
-          background: var(--brand-press);
-          box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
-        }
-
-        .import-backup-submit:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-          box-shadow: none;
-        }
-      `}</style>
     </div>
   );
 };

@@ -1,0 +1,40 @@
+.addTokenOverlay {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.5);
+}
+.addTokenDialog {
+  background: #fff; border-radius: 12px; padding: 24px;
+  width: 100%; max-width: 420px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.addTokenDialog h3 { margin: 0; color: #0d9488; }
+.addTokenNetwork { margin: 0; font-size: 13px; color: #6b7280; }
+.addTokenDialog label {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 13px; font-weight: 500; color: #374151;
+}
+.addTokenDialog input {
+  padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px;
+  font-size: 14px;
+}
+.addTokenDialog input:focus {
+  outline: none; border-color: #2dd4bf;
+  box-shadow: 0 0 0 3px rgba(45,212,191,0.2);
+}
+.addTokenHintError { color: #dc2626; font-size: 12px; }
+.addTokenError {
+  background: #fef2f2; color: #b91c1c; padding: 8px 10px;
+  border-radius: 8px; font-size: 13px;
+}
+.addTokenActions {
+  display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;
+}
+.addTokenActions button {
+  padding: 8px 16px; border-radius: 8px; font-size: 14px;
+  font-weight: 500; cursor: pointer; border: none;
+}
+.addTokenCancel { background: #f3f4f6; color: #374151; }
+.addTokenSubmit { background: #0d9488; color: #fff; }
+.addTokenSubmit:disabled { opacity: 0.5; cursor: not-allowed; }

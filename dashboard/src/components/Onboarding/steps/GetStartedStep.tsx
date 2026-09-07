@@ -3,6 +3,7 @@
  */
 
 import { useTranslation } from 'react-i18next';
+import styles from "./GetStartedStep.module.css";
 import { OnboardingStep } from '../OnboardingStep';
 
 const RocketIcon = () => (
@@ -23,16 +24,16 @@ export const GetStartedStep = ({ onCreateWallet }: GetStartedStepProps) => {
 
   return (
     <OnboardingStep icon={<RocketIcon />} title={t('onboarding.readyTitle')}>
-      <div className="ready-content">
-        <div className="ready-logo-wrapper">
-          <img src="/logo.png" alt="ArcSign" className="ready-logo" />
-          <div className="ready-glow" />
+      <div className={styles.readyContent}>
+        <div className={styles.readyLogoWrapper}>
+          <img src="/logo.png" alt="ArcSign" className={styles.readyLogo} />
+          <div className={styles.readyGlow} />
         </div>
 
-        <p className="ready-body">{t('onboarding.readyBody')}</p>
+        <p className={styles.readyBody}>{t('onboarding.readyBody')}</p>
 
         <button
-          className="ready-cta"
+          className={styles.readyCta}
           onClick={onCreateWallet}
           type="button"
         >
@@ -43,83 +44,8 @@ export const GetStartedStep = ({ onCreateWallet }: GetStartedStepProps) => {
           {t('onboarding.createFirstWallet')}
         </button>
 
-        <p className="ready-hint">{t('onboarding.revisitHint')}</p>
+        <p className={styles.readyHint}>{t('onboarding.revisitHint')}</p>
       </div>
-
-      <style>{`
-        .ready-content {
-          text-align: center;
-        }
-
-        .ready-logo-wrapper {
-          position: relative;
-          display: inline-block;
-          margin-bottom: 24px;
-        }
-
-        .ready-logo {
-          width: 72px;
-          height: 72px;
-          object-fit: contain;
-          position: relative;
-          z-index: 1;
-        }
-
-        .ready-glow {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          width: 100px;
-          height: 100px;
-          background: radial-gradient(circle, rgba(45, 212, 191, 0.2) 0%, transparent 70%);
-          border-radius: 50%;
-          animation: pulseGlow 2s ease-in-out infinite;
-        }
-
-        @keyframes pulseGlow {
-          0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
-          50% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
-        }
-
-        .ready-body {
-          margin: 0 0 28px;
-          font-size: 15px;
-          line-height: 1.7;
-          color: #4b5563;
-        }
-
-        .ready-cta {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 14px 32px;
-          background: linear-gradient(135deg, var(--brand) 0%, var(--brand-accent) 100%);
-          color: white;
-          border: none;
-          border-radius: 10px;
-          font-size: 16px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-          margin-bottom: 20px;
-        }
-
-        .ready-cta:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 16px rgba(45, 212, 191, 0.4);
-        }
-
-        .ready-cta:active {
-          transform: translateY(0);
-        }
-
-        .ready-hint {
-          margin: 0;
-          font-size: 13px;
-          color: var(--text-tertiary);
-        }
-      `}</style>
     </OnboardingStep>
   );
 };

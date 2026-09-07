@@ -3,6 +3,7 @@
  */
 
 import { useTranslation } from 'react-i18next';
+import styles from "./BestPracticesStep.module.css";
 import { OnboardingStep } from '../OnboardingStep';
 
 const ChecklistIcon = () => (
@@ -18,8 +19,8 @@ interface PracticeItemProps {
 }
 
 const PracticeItem = ({ title, body }: PracticeItemProps) => (
-  <div className="practice-item">
-    <div className="practice-check">
+  <div className={styles.practiceItem}>
+    <div className={styles.practiceCheck}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="20 6 9 17 4 12"/>
       </svg>
@@ -44,62 +45,12 @@ export const BestPracticesStep = () => {
 
   return (
     <OnboardingStep icon={<ChecklistIcon />} title={t('onboarding.practicesTitle')}>
-      <p className="practices-intro">{t('onboarding.practicesBody')}</p>
-      <div className="practices-list">
+      <p className={styles.practicesIntro}>{t('onboarding.practicesBody')}</p>
+      <div className={styles.practicesList}>
         {practices.map((practice, i) => (
           <PracticeItem key={i} {...practice} />
         ))}
       </div>
-
-      <style>{`
-        .practices-intro {
-          text-align: center;
-          margin: 0 0 20px;
-          color: #6b7280;
-        }
-
-        .practices-list {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .practice-item {
-          display: flex;
-          gap: 12px;
-          padding: 12px 16px;
-          background: #fffbeb;
-          border: 1px solid #fde68a;
-          border-radius: 8px;
-        }
-
-        .practice-check {
-          width: 24px;
-          height: 24px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #f59e0b;
-          color: white;
-          border-radius: 50%;
-          flex-shrink: 0;
-          margin-top: 2px;
-        }
-
-        .practice-item h4 {
-          margin: 0 0 2px;
-          font-size: 14px;
-          font-weight: 600;
-          color: #92400e;
-        }
-
-        .practice-item p {
-          margin: 0;
-          font-size: 13px;
-          color: #78716c;
-          line-height: 1.4;
-        }
-      `}</style>
     </OnboardingStep>
   );
 };

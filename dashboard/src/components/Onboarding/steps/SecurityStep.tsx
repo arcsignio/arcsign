@@ -3,6 +3,7 @@
  */
 
 import { useTranslation } from 'react-i18next';
+import styles from "./SecurityStep.module.css";
 import { OnboardingStep } from '../OnboardingStep';
 
 const UsbIcon = () => (
@@ -21,9 +22,9 @@ interface SecurityCardProps {
 }
 
 const SecurityCard = ({ title, body, index }: SecurityCardProps) => (
-  <div className="security-card" style={{ animationDelay: `${index * 0.1}s` }}>
-    <div className="security-card-number">{index + 1}</div>
-    <div className="security-card-content">
+  <div className={styles.securityCard} style={{ animationDelay: `${index * 0.1}s` }}>
+    <div className={styles.securityCardNumber}>{index + 1}</div>
+    <div className={styles.securityCardContent}>
       <h4>{title}</h4>
       <p>{body}</p>
     </div>
@@ -41,70 +42,12 @@ export const SecurityStep = () => {
 
   return (
     <OnboardingStep icon={<UsbIcon />} title={t('onboarding.securityTitle')}>
-      <p className="security-intro">{t('onboarding.securityBody')}</p>
-      <div className="security-cards">
+      <p className={styles.securityIntro}>{t('onboarding.securityBody')}</p>
+      <div className={styles.securityCards}>
         {points.map((point, i) => (
           <SecurityCard key={i} title={point.title} body={point.body} index={i} />
         ))}
       </div>
-
-      <style>{`
-        .security-intro {
-          text-align: center;
-          margin: 0 0 24px;
-          color: var(--text-secondary);
-        }
-
-        .security-cards {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .security-card {
-          display: flex;
-          gap: 16px;
-          padding: 16px;
-          background: var(--brand-faint);
-          border-left: 4px solid var(--brand-accent);
-          border-radius: 0 8px 8px 0;
-          animation: fadeInUp 0.4s ease forwards;
-          opacity: 0;
-        }
-
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .security-card-number {
-          width: 28px;
-          height: 28px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--brand);
-          color: white;
-          border-radius: 50%;
-          font-size: 13px;
-          font-weight: 700;
-          flex-shrink: 0;
-        }
-
-        .security-card-content h4 {
-          margin: 0 0 4px;
-          font-size: 15px;
-          font-weight: 600;
-          color: var(--brand-press);
-        }
-
-        .security-card-content p {
-          margin: 0;
-          font-size: 13px;
-          color: #4b5563;
-          line-height: 1.5;
-        }
-      `}</style>
     </OnboardingStep>
   );
 };

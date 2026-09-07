@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import styles from "./DescriptorSettings.module.css";
 import { useTranslation } from "react-i18next";
 import {
   getDescriptorStatus,
@@ -52,20 +53,20 @@ export function DescriptorSettings({ usbPath, sessionToken, onBack }: Descriptor
   };
 
   return (
-    <div className="descriptor-settings">
+    <div className={styles.descriptorSettings}>
       <button onClick={onBack} className="back-button">
         ← {t("common.back", "Back")}
       </button>
 
       <h2>{t("descriptors.title", "Transaction descriptions")}</h2>
-      <p className="descriptor-settings__intro">
+      <p className={styles.descriptorSettings_Intro}>
         {t(
           "descriptors.intro",
           "Descriptions published by protocol authors let ArcSign show what a transaction actually does, instead of raw contract data.",
         )}
       </p>
 
-      <dl className="descriptor-settings__status">
+      <dl className={styles.descriptorSettings_Status}>
         <dt>{t("descriptors.version", "Version")}</dt>
         <dd>{status?.version || t("descriptors.builtIn", "built-in")}</dd>
         <dt>{t("descriptors.count", "Descriptions")}</dt>
@@ -74,7 +75,7 @@ export function DescriptorSettings({ usbPath, sessionToken, onBack }: Descriptor
 
       <button
         type="button"
-        className="descriptor-settings__update"
+        className={styles.descriptorSettings_Update}
         onClick={handleUpdate}
         disabled={updating}
       >
@@ -83,7 +84,7 @@ export function DescriptorSettings({ usbPath, sessionToken, onBack }: Descriptor
           : t("descriptors.update", "Update")}
       </button>
 
-      <p className="descriptor-settings__notice">
+      <p className={styles.descriptorSettings_Notice}>
         {t(
           "descriptors.networkNotice",
           "Updating connects to GitHub to download the latest descriptions. Nothing is sent about your wallet.",
@@ -91,40 +92,17 @@ export function DescriptorSettings({ usbPath, sessionToken, onBack }: Descriptor
       </p>
 
       {updated !== null && (
-        <p className="descriptor-settings__ok">
+        <p className={styles.descriptorSettings_Ok}>
           {t("descriptors.updateDone", "Updated — {{count}} descriptions available.", {
             count: updated,
           })}
         </p>
       )}
       {error && (
-        <p className="descriptor-settings__error">
+        <p className={styles.descriptorSettings_Error}>
           {t("descriptors.updateFailed", "Update failed:")} {error}
         </p>
       )}
-
-      <style>{`
-        .descriptor-settings { padding: 1.5rem; max-width: 640px; }
-        .descriptor-settings h2 { margin: 1rem 0 0.5rem; font-size: 1.25rem; }
-        .descriptor-settings__intro { color: #6b7280; font-size: 0.9rem; line-height: 1.6; }
-        .descriptor-settings__status {
-          display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1.5rem;
-          margin: 1.5rem 0; padding: 1rem; border: 1px solid #e5e7eb; border-radius: 8px;
-        }
-        .descriptor-settings__status dt { color: #6b7280; font-size: 0.875rem; }
-        .descriptor-settings__status dd { margin: 0; font-weight: 600; }
-        .descriptor-settings__update {
-          padding: 0.625rem 1.25rem; border: none; border-radius: 8px;
-          background: #0d9488; color: #fff; font-weight: 600; cursor: pointer;
-        }
-        .descriptor-settings__update:hover:not(:disabled) { background: #0f766e; }
-        .descriptor-settings__update:disabled { opacity: 0.5; cursor: not-allowed; }
-        .descriptor-settings__notice {
-          margin-top: 0.75rem; color: #6b7280; font-size: 0.8125rem; line-height: 1.5;
-        }
-        .descriptor-settings__ok { color: #0d9488; font-size: 0.875rem; }
-        .descriptor-settings__error { color: #dc2626; font-size: 0.875rem; }
-      `}</style>
     </div>
   );
 }

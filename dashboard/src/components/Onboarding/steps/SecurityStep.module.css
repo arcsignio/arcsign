@@ -1,0 +1,55 @@
+.securityIntro {
+  text-align: center;
+  margin: 0 0 24px;
+  color: var(--text-secondary);
+}
+
+.securityCards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.securityCard {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background: var(--brand-faint);
+  border-left: 4px solid var(--brand-accent);
+  border-radius: 0 8px 8px 0;
+  animation: fadeInUp 0.4s ease forwards;
+  opacity: 0;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.securityCardNumber {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand);
+  color: white;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.securityCardContent h4 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--brand-press);
+}
+
+.securityCardContent p {
+  margin: 0;
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.5;
+}
