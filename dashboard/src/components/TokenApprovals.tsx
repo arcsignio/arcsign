@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { formatCompactNumber, shortenAddress as sharedShorten } from "@/utils/formatAmount";
+import { getNetworkColor } from "@/utils/chainIcons";
 import { useTranslation } from "react-i18next";
 import { useTokenApprovals } from "@/hooks/useTokenApprovals";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -27,15 +28,6 @@ const NETWORK_TO_CHAIN_ID: Record<string, string> = {
   "bnb-mainnet": "bnb",
 };
 
-// Network badge colors
-const NETWORK_COLORS: Record<string, string> = {
-  "eth-mainnet": "#627EEA",
-  "polygon-mainnet": "#8247E5",
-  "arb-mainnet": "#28A0F0",
-  "opt-mainnet": "#FF0420",
-  "base-mainnet": "#0052FF",
-  "bnb-mainnet": "#F0B90B",
-};
 
 function truncateAddress(addr?: string): string {
   return sharedShorten(addr, 6, 4);
@@ -43,13 +35,13 @@ function truncateAddress(addr?: string): string {
 
 // Traffic-light colors for the risk badge / row accent.
 const RISK_COLORS: Record<string, string> = {
-  red: "#ef4444",
-  yellow: "#f59e0b",
-  green: "#10b981",
+  red: "var(--danger)",
+  yellow: "var(--warning)",
+  green: "var(--success)",
 };
 
 function riskColor(level?: string): string {
-  return RISK_COLORS[level ?? "yellow"] ?? "#f59e0b";
+  return RISK_COLORS[level ?? "yellow"] ?? "var(--warning)";
 }
 
 /**
@@ -384,7 +376,7 @@ export function TokenApprovals({
           alignItems: "center",
           justifyContent: "center",
           padding: "3rem 1.5rem",
-          color: "#64748b",
+          color: "var(--text-secondary)",
         }}
       >
         <LoadingSpinner size="md" />
@@ -404,15 +396,15 @@ export function TokenApprovals({
           flexDirection: "column",
           alignItems: "center",
           padding: "3rem 1.5rem",
-          color: "#64748b",
+          color: "var(--text-secondary)",
         }}
       >
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
           <line x1="12" y1="9" x2="12" y2="13" />
           <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
-        <p style={{ marginTop: "1rem", fontWeight: "600", color: "#1e293b" }}>
+        <p style={{ marginTop: "1rem", fontWeight: "600", color: "var(--text-primary)" }}>
           {t("tokenApprovals.loadError")}
         </p>
         <p style={{ fontSize: "0.875rem", marginBottom: "1rem" }}>{error}</p>
@@ -420,7 +412,7 @@ export function TokenApprovals({
           onClick={refresh}
           style={{
             padding: "0.5rem 1.5rem",
-            background: "#0d9488",
+            background: "var(--brand)",
             color: "#fff",
             border: "none",
             borderRadius: "8px",
@@ -443,19 +435,19 @@ export function TokenApprovals({
           flexDirection: "column",
           alignItems: "center",
           padding: "3rem 1.5rem",
-          color: "#64748b",
+          color: "var(--text-secondary)",
         }}
       >
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          <polyline points="9 12 12 15 16 10" style={{ stroke: "#0d9488" }} />
+          <polyline points="9 12 12 15 16 10" style={{ stroke: "var(--brand)" }} />
         </svg>
         <p
           style={{
             marginTop: "1rem",
             marginBottom: "0.5rem",
             fontWeight: "600",
-            color: "#1e293b",
+            color: "var(--text-primary)",
           }}
         >
           {t("tokenApprovals.empty")}
@@ -482,7 +474,7 @@ export function TokenApprovals({
             borderRadius: "12px",
           }}
         >
-          <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1e293b", marginBottom: "0.5rem" }}>
+          <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text-primary)", marginBottom: "0.5rem" }}>
             {t("tokenApprovals.confirmRevoke")}
           </p>
           <SignReview review={singleReview} />
@@ -497,7 +489,7 @@ export function TokenApprovals({
                 padding: "0.4rem 1rem",
                 fontSize: "0.8rem",
                 fontWeight: 600,
-                background: "#ef4444",
+                background: "var(--danger)",
                 color: "#fff",
                 border: "none",
                 borderRadius: "8px",
@@ -518,8 +510,8 @@ export function TokenApprovals({
                 padding: "0.4rem 1rem",
                 fontSize: "0.8rem",
                 background: "transparent",
-                color: "#64748b",
-                border: "1px solid #e2e8f0",
+                color: "var(--text-secondary)",
+                border: "1px solid var(--border-default)",
                 borderRadius: "8px",
                 cursor: "pointer",
               }}
@@ -542,7 +534,7 @@ export function TokenApprovals({
             borderRadius: "12px",
           }}
         >
-          <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1e293b", marginBottom: "0.5rem" }}>
+          <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text-primary)", marginBottom: "0.5rem" }}>
             {t("tokenApprovals.confirmBatchRevoke", { count: pendingBatch.length })}
           </p>
           <ul style={{ listStyle: "none", padding: 0, margin: "0 0 0.75rem" }}>
@@ -556,7 +548,7 @@ export function TokenApprovals({
                   fontSize: "0.8rem",
                   padding: "0.35rem 0",
                   borderBottom: "1px solid rgba(226, 232, 240, 0.6)",
-                  color: "#334155",
+                  color: "var(--text-primary)",
                 }}
               >
                 <span>
@@ -589,7 +581,7 @@ export function TokenApprovals({
                 alignItems: "center",
                 gap: "0.5rem",
                 fontSize: "0.8rem",
-                color: "#dc2626",
+                color: "var(--danger)",
                 marginBottom: "0.75rem",
                 cursor: "pointer",
               }}
@@ -598,7 +590,7 @@ export function TokenApprovals({
                 type="checkbox"
                 checked={batchAcknowledged}
                 onChange={(e) => setBatchAcknowledged(e.target.checked)}
-                style={{ accentColor: "#dc2626" }}
+                style={{ accentColor: "var(--danger)" }}
               />
               {t("tokenApprovals.batchAcknowledge")}
             </label>
@@ -612,7 +604,7 @@ export function TokenApprovals({
                 padding: "0.4rem 1rem",
                 fontSize: "0.8rem",
                 fontWeight: 600,
-                background: "#ef4444",
+                background: "var(--danger)",
                 color: "#fff",
                 border: "none",
                 borderRadius: "8px",
@@ -631,8 +623,8 @@ export function TokenApprovals({
                 padding: "0.4rem 1rem",
                 fontSize: "0.8rem",
                 background: "transparent",
-                color: "#64748b",
-                border: "1px solid #e2e8f0",
+                color: "var(--text-secondary)",
+                border: "1px solid var(--border-default)",
                 borderRadius: "8px",
                 cursor: "pointer",
               }}
@@ -657,10 +649,10 @@ export function TokenApprovals({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
-          <span style={{ fontSize: "0.875rem", fontWeight: "600", color: "#0d9488" }}>
+          <span style={{ fontSize: "0.875rem", fontWeight: "600", color: "var(--brand)" }}>
             {filteredApprovals.length} {t("tokenApprovals.activeApprovals")}
           </span>
         </div>
@@ -671,7 +663,7 @@ export function TokenApprovals({
             padding: "0.25rem 0.75rem",
             fontSize: "0.75rem",
             background: "rgba(13, 148, 136, 0.1)",
-            color: "#0d9488",
+            color: "var(--brand)",
             border: "1px solid rgba(13, 148, 136, 0.3)",
             borderRadius: "6px",
             cursor: isLoading ? "not-allowed" : "pointer",
@@ -700,9 +692,9 @@ export function TokenApprovals({
               fontSize: "0.75rem",
               borderRadius: "16px",
               border: "1px solid",
-              borderColor: filterNetwork === "all" ? "#0d9488" : "#e2e8f0",
+              borderColor: filterNetwork === "all" ? "var(--brand)" : "var(--border-default)",
               background: filterNetwork === "all" ? "rgba(13, 148, 136, 0.1)" : "transparent",
-              color: filterNetwork === "all" ? "#0d9488" : "#64748b",
+              color: filterNetwork === "all" ? "var(--brand)" : "var(--text-secondary)",
               cursor: "pointer",
               fontWeight: filterNetwork === "all" ? "600" : "400",
             }}
@@ -718,9 +710,9 @@ export function TokenApprovals({
                 fontSize: "0.75rem",
                 borderRadius: "16px",
                 border: "1px solid",
-                borderColor: filterNetwork === id ? (NETWORK_COLORS[id] || "#0d9488") : "#e2e8f0",
-                background: filterNetwork === id ? `${NETWORK_COLORS[id] || "#0d9488"}15` : "transparent",
-                color: filterNetwork === id ? (NETWORK_COLORS[id] || "#0d9488") : "#64748b",
+                borderColor: filterNetwork === id ? (getNetworkColor(id)) : "var(--border-default)",
+                background: filterNetwork === id ? `${getNetworkColor(id)}15` : "transparent",
+                color: filterNetwork === id ? (getNetworkColor(id)) : "var(--text-secondary)",
                 cursor: "pointer",
                 fontWeight: filterNetwork === id ? "600" : "400",
               }}
@@ -746,7 +738,7 @@ export function TokenApprovals({
             onClick={selectedIds.size > 0 ? deselectAll : selectAll}
             style={{
               fontSize: "0.75rem",
-              color: "#0d9488",
+              color: "var(--brand)",
               background: "none",
               border: "none",
               cursor: "pointer",
@@ -765,7 +757,7 @@ export function TokenApprovals({
               style={{
                 padding: "0.35rem 1rem",
                 fontSize: "0.75rem",
-                background: batchRevoking ? "#94a3b8" : "#ef4444",
+                background: batchRevoking ? "var(--text-tertiary)" : "var(--danger)",
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
@@ -793,7 +785,7 @@ export function TokenApprovals({
               ? "rgba(16, 185, 129, 0.1)"
               : "rgba(239, 68, 68, 0.1)",
             border: `1px solid ${revokeResult.type === "success" ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
-            color: revokeResult.type === "success" ? "#059669" : "#dc2626",
+            color: revokeResult.type === "success" ? "var(--success-text)" : "var(--danger)",
           }}
         >
           {revokeResult.message}
@@ -832,7 +824,7 @@ export function TokenApprovals({
                 style={{
                   width: "16px",
                   height: "16px",
-                  accentColor: "#0d9488",
+                  accentColor: "var(--brand)",
                   cursor: "pointer",
                   flexShrink: 0,
                 }}
@@ -852,13 +844,13 @@ export function TokenApprovals({
                     style={{
                       fontWeight: "600",
                       fontSize: "0.875rem",
-                      color: "#1e293b",
+                      color: "var(--text-primary)",
                     }}
                   >
                     {approval.tokenSymbol || truncateAddress(approval.tokenAddress)}
                   </span>
                   {approval.tokenName && approval.tokenName !== approval.tokenSymbol && (
-                    <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>
                       {approval.tokenName}
                     </span>
                   )}
@@ -867,8 +859,8 @@ export function TokenApprovals({
                     style={{
                       fontSize: "0.625rem",
                       fontWeight: "600",
-                      color: NETWORK_COLORS[approval.network] || "#64748b",
-                      background: `${NETWORK_COLORS[approval.network] || "#64748b"}15`,
+                      color: getNetworkColor(approval.network),
+                      background: `${getNetworkColor(approval.network)}15`,
                       padding: "0.1rem 0.4rem",
                       borderRadius: "4px",
                     }}
@@ -884,17 +876,17 @@ export function TokenApprovals({
                     alignItems: "center",
                     gap: "0.4rem",
                     fontSize: "0.75rem",
-                    color: "#94a3b8",
+                    color: "var(--text-tertiary)",
                     flexWrap: "wrap",
                   }}
                 >
                   <span>{t("tokenApprovals.spender")}:</span>
                   {/* The protocol name is how a user tells "I approved Uniswap"
                       from "I approved something I don't recognise". It was
-                      #e2e8f0 — a border token — giving ~1.2:1 on white, so it
+                      var(--border-default) — a border token — giving ~1.2:1 on white, so it
                       was invisible for exactly the spenders we could identify. */}
                   {approval.spenderName ? (
-                    <span style={{ color: "#1e293b", fontWeight: 600 }}>
+                    <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
                       {approval.spenderName}
                     </span>
                   ) : (
@@ -918,7 +910,7 @@ export function TokenApprovals({
                   )}
                   {/* Unknown / EOA hint when not a known protocol */}
                   {!approval.spenderName && approval.isEOA && (
-                    <span style={{ fontSize: "0.625rem", color: "#ef4444" }}>
+                    <span style={{ fontSize: "0.625rem", color: "var(--danger)" }}>
                       {t("tokenApprovals.eoaSpender")}
                     </span>
                   )}
@@ -937,7 +929,7 @@ export function TokenApprovals({
                       border: "1px solid rgba(239, 68, 68, 0.4)",
                       borderRadius: "6px",
                       fontSize: "0.7rem",
-                      color: "#ef4444",
+                      color: "var(--danger)",
                       fontWeight: 600,
                     }}
                   >
@@ -955,7 +947,7 @@ export function TokenApprovals({
                     marginTop: "0.25rem",
                   }}
                 >
-                  <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
                     {t("tokenApprovals.allowance")}:
                   </span>
                   {approval.isUnlimited ? (
@@ -963,7 +955,7 @@ export function TokenApprovals({
                       style={{
                         fontSize: "0.7rem",
                         fontWeight: "700",
-                        color: "#ef4444",
+                        color: "var(--danger)",
                         background: "rgba(239, 68, 68, 0.1)",
                         padding: "0.1rem 0.4rem",
                         borderRadius: "4px",
@@ -972,7 +964,7 @@ export function TokenApprovals({
                       {t("tokenApprovals.unlimited")}
                     </span>
                   ) : (
-                    <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
                       {formatAllowance(
                         approval.allowance,
                         approval.isUnlimited,
@@ -992,9 +984,9 @@ export function TokenApprovals({
                   padding: "0.4rem 1rem",
                   fontSize: "0.75rem",
                   fontWeight: "600",
-                  background: isRevoking ? "#94a3b8" : "transparent",
-                  color: isRevoking ? "#fff" : "#ef4444",
-                  border: `1px solid ${isRevoking ? "#94a3b8" : "#ef4444"}`,
+                  background: isRevoking ? "var(--text-tertiary)" : "transparent",
+                  color: isRevoking ? "#fff" : "var(--danger)",
+                  border: `1px solid ${isRevoking ? "var(--text-tertiary)" : "var(--danger)"}`,
                   borderRadius: "8px",
                   cursor: isRevoking || batchRevoking ? "not-allowed" : "pointer",
                   opacity: batchRevoking && !isRevoking ? 0.5 : 1,

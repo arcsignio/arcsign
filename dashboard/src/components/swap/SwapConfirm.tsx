@@ -84,7 +84,7 @@ export const SwapConfirm: React.FC<SwapConfirmProps> = ({
         </div>
         <div className="swap-summary-row">
           <span className="summary-label">{t('swap.priceImpact')}</span>
-          <span className="summary-value" style={{ color: parseFloat(swapQuote.priceImpact || '0') < -1 ? '#ef4444' : '#10b981' }}>
+          <span className="summary-value" style={{ color: parseFloat(swapQuote.priceImpact || '0') < -1 ? 'var(--danger)' : '#10b981' }}>
             {swapQuote.priceImpact}%
           </span>
         </div>
@@ -129,7 +129,7 @@ export const SwapConfirm: React.FC<SwapConfirmProps> = ({
         className="primary-button"
         onClick={onConfirm}
         disabled={isLoading || !walletPassword || (review.requiresAcknowledge && !review.acknowledged)}
-        style={review.requiresAcknowledge ? { background: "#dc2626", boxShadow: "none" } : undefined}
+        style={review.requiresAcknowledge ? { background: "var(--danger)", boxShadow: "none" } : undefined}
       >
         {isLoading ? t('swap.processing') : t('swap.confirmSwap')}
       </button>

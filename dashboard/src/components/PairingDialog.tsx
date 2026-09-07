@@ -27,26 +27,26 @@ export function PairingDialog({ code, origin, onClose }: Props) {
           background: '#0f172a',
           padding: 24,
           borderRadius: 12,
-          border: '1px solid #0d9488',
+          border: '1px solid var(--brand)',
           maxWidth: 360,
         }}
       >
-        <p style={{ color: '#94a3b8', margin: 0 }}>
-          來源 <strong style={{ color: '#2dd4bf' }}>{origin ?? '(未知)'}</strong> 請求連線
+        <p style={{ color: 'var(--text-tertiary)', margin: 0 }}>
+          來源 <strong style={{ color: 'var(--brand-accent)' }}>{origin ?? '(未知)'}</strong> 請求連線
         </p>
-        <p style={{ color: '#e2e8f0' }}>把這組配對碼輸入網頁：</p>
+        <p style={{ color: 'var(--border-default)' }}>把這組配對碼輸入網頁：</p>
         <div
           style={{
             fontSize: 32,
             letterSpacing: 4,
-            color: '#2dd4bf',
+            color: 'var(--brand-accent)',
             textAlign: 'center',
             fontFamily: 'monospace',
           }}
         >
           {code}
         </div>
-        <p style={{ color: '#64748b', fontSize: 12, marginTop: 12 }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 12 }}>
           60 秒內有效，輸錯 3 次鎖定此連線。
         </p>
         <button
@@ -55,7 +55,7 @@ export function PairingDialog({ code, origin, onClose }: Props) {
             marginTop: 16,
             width: '100%',
             padding: '8px 0',
-            background: '#0d9488',
+            background: 'var(--brand)',
             color: '#fff',
             border: 'none',
             borderRadius: 8,

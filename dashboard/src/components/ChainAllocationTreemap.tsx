@@ -94,7 +94,7 @@ export function ChainAllocationTreemap({ slices }: { slices: ChainAllocationSlic
             {showLabel && (
               <>
                 <span style={{ fontSize: "0.8125rem", fontWeight: 600, color }}>{pct.toFixed(1)}%</span>
-                <span style={{ fontSize: "0.625rem", color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+                <span style={{ fontSize: "0.625rem", color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
                   {s.networkLabel}
                 </span>
               </>

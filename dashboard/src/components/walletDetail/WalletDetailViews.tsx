@@ -130,7 +130,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
             padding: "2.5rem",
             boxShadow:
               "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
-            border: "1px solid #e5e7eb",
+            border: "1px solid var(--border-default)",
           }}
         >
           <div style={{ textAlign: "center", marginBottom: "2rem" }}>
@@ -139,13 +139,13 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
                 width: "64px",
                 height: "64px",
                 margin: "0 auto 1.5rem",
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "var(--brand-gradient)",
                 borderRadius: "50%",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: "2rem",
-                boxShadow: "0 4px 14px rgba(102, 126, 234, 0.4)",
+                boxShadow: "0 4px 14px rgba(13, 148, 136, 0.4)",
               }}
             >
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
@@ -154,7 +154,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
               style={{
                 fontSize: "1.5rem",
                 fontWeight: "700",
-                color: "#1f2937",
+                color: "var(--text-primary)",
                 marginBottom: "0.5rem",
               }}
             >
@@ -163,7 +163,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
             <p
               style={{
                 fontSize: "0.9375rem",
-                color: "#6b7280",
+                color: "var(--text-secondary)",
                 lineHeight: "1.5",
               }}
             >
@@ -174,8 +174,8 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
           {error && (
             <div
               style={{
-                background: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)",
-                border: "1px solid #ef4444",
+                background: "linear-gradient(135deg, var(--danger-pale) 0%, var(--danger-border) 100%)",
+                border: "1px solid var(--danger)",
                 borderRadius: "0.5rem",
                 padding: "1rem",
                 marginBottom: "1.5rem",
@@ -188,7 +188,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               <span
                 style={{
-                  color: "#991b1b",
+                  color: "var(--danger-text)",
                   fontSize: "0.875rem",
                   fontWeight: "500",
                 }}
@@ -205,7 +205,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
                 display: "block",
                 fontSize: "0.875rem",
                 fontWeight: "600",
-                color: "#374151",
+                color: "var(--text-primary)",
                 marginBottom: "0.5rem",
               }}
             >
@@ -219,7 +219,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
                   top: "50%",
                   transform: "translateY(-50%)",
                   fontSize: "1.125rem",
-                  color: "#9ca3af",
+                  color: "var(--text-tertiary)",
                 }}
               >
                 🔑
@@ -234,19 +234,19 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
                 style={{
                   width: "100%",
                   padding: "0.875rem 1rem 0.875rem 3rem",
-                  border: "2px solid #e5e7eb",
+                  border: "2px solid var(--border-default)",
                   borderRadius: "0.5rem",
                   fontSize: "1rem",
                   transition: "all 0.2s ease",
                   outline: "none",
                 }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = "#667eea";
+                  e.target.style.borderColor = "var(--brand-accent)";
                   e.target.style.boxShadow =
-                    "0 0 0 3px rgba(102, 126, 234, 0.1)";
+                    "0 0 0 3px rgba(13, 148, 136, 0.1)";
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = "#e5e7eb";
+                  e.target.style.borderColor = "var(--border-default)";
                   e.target.style.boxShadow = "none";
                 }}
               />
@@ -255,7 +255,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
               style={{
                 display: "block",
                 fontSize: "0.75rem",
-                color: "#9ca3af",
+                color: "var(--text-tertiary)",
                 marginTop: "0.5rem",
                 textAlign: "right",
               }}
@@ -271,8 +271,8 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
               width: "100%",
               background:
                 isLoading || !tempPassword
-                  ? "#d1d5db"
-                  : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  ? "var(--border-input)"
+                  : "var(--brand-gradient)",
               color: "white",
               padding: "0.875rem 1.5rem",
               border: "none",
@@ -284,21 +284,21 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
               boxShadow:
                 isLoading || !tempPassword
                   ? "none"
-                  : "0 4px 14px rgba(102, 126, 234, 0.4)",
+                  : "0 4px 14px rgba(13, 148, 136, 0.4)",
               transform: isLoading || !tempPassword ? "none" : "translateY(0)",
             }}
             onMouseEnter={(e) => {
               if (!isLoading && tempPassword) {
                 e.currentTarget.style.transform = "translateY(-2px)";
                 e.currentTarget.style.boxShadow =
-                  "0 6px 20px rgba(102, 126, 234, 0.5)";
+                  "0 6px 20px rgba(13, 148, 136, 0.5)";
               }
             }}
             onMouseLeave={(e) => {
               if (!isLoading && tempPassword) {
                 e.currentTarget.style.transform = "translateY(0)";
                 e.currentTarget.style.boxShadow =
-                  "0 4px 14px rgba(102, 126, 234, 0.4)";
+                  "0 4px 14px rgba(13, 148, 136, 0.4)";
               }
             }}
           >
@@ -352,7 +352,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
             padding: "2.5rem",
             boxShadow:
               "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
-            border: "1px solid #e5e7eb",
+            border: "1px solid var(--border-default)",
           }}
         >
           <div style={{ textAlign: "center", marginBottom: "2rem" }}>
@@ -361,7 +361,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
                 width: "64px",
                 height: "64px",
                 margin: "0 auto 1.5rem",
-                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                background: "linear-gradient(135deg, var(--warning) 0%, #d97706 100%)",
                 borderRadius: "50%",
                 display: "flex",
                 alignItems: "center",
@@ -376,7 +376,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
               style={{
                 fontSize: "1.5rem",
                 fontWeight: "700",
-                color: "#1f2937",
+                color: "var(--text-primary)",
                 marginBottom: "0.5rem",
               }}
             >
@@ -385,7 +385,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
             <p
               style={{
                 fontSize: "0.9375rem",
-                color: "#6b7280",
+                color: "var(--text-secondary)",
                 lineHeight: "1.5",
               }}
             >
@@ -398,8 +398,8 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
           {error && (
             <div
               style={{
-                background: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)",
-                border: "1px solid #ef4444",
+                background: "linear-gradient(135deg, var(--danger-pale) 0%, var(--danger-border) 100%)",
+                border: "1px solid var(--danger)",
                 borderRadius: "0.5rem",
                 padding: "1rem",
                 marginBottom: "1.5rem",
@@ -411,7 +411,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               <span
                 style={{
-                  color: "#991b1b",
+                  color: "var(--danger-text)",
                   fontSize: "0.875rem",
                   fontWeight: "500",
                 }}
@@ -428,7 +428,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
                 display: "block",
                 fontSize: "0.875rem",
                 fontWeight: "600",
-                color: "#374151",
+                color: "var(--text-primary)",
                 marginBottom: "0.5rem",
               }}
             >
@@ -442,7 +442,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
                   top: "50%",
                   transform: "translateY(-50%)",
                   fontSize: "1.125rem",
-                  color: "#9ca3af",
+                  color: "var(--text-tertiary)",
                 }}
               >
                 🔑
@@ -457,19 +457,19 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
                 style={{
                   width: "100%",
                   padding: "0.875rem 1rem 0.875rem 3rem",
-                  border: "2px solid #e5e7eb",
+                  border: "2px solid var(--border-default)",
                   borderRadius: "0.5rem",
                   fontSize: "1rem",
                   transition: "all 0.2s ease",
                   outline: "none",
                 }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = "#f59e0b";
+                  e.target.style.borderColor = "var(--warning)";
                   e.target.style.boxShadow =
                     "0 0 0 3px rgba(245, 158, 11, 0.1)";
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = "#e5e7eb";
+                  e.target.style.borderColor = "var(--border-default)";
                   e.target.style.boxShadow = "none";
                 }}
               />
@@ -478,7 +478,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
               style={{
                 display: "block",
                 fontSize: "0.75rem",
-                color: "#9ca3af",
+                color: "var(--text-tertiary)",
                 marginTop: "0.5rem",
               }}
             >
@@ -493,8 +493,8 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
               width: "100%",
               background:
                 isValidatingPassphrase || !passphrase
-                  ? "#d1d5db"
-                  : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                  ? "var(--border-input)"
+                  : "linear-gradient(135deg, var(--warning) 0%, #d97706 100%)",
               color: "white",
               padding: "0.875rem 1.5rem",
               border: "none",
@@ -548,7 +548,7 @@ export function WalletDetailViews(props: WalletDetailViewsProps): JSX.Element | 
               width: "100%",
               marginTop: "1rem",
               background: "transparent",
-              color: "#6b7280",
+              color: "var(--text-secondary)",
               padding: "0.75rem",
               border: "none",
               fontSize: "0.875rem",

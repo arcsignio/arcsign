@@ -120,7 +120,7 @@ export const SwapStyles: React.FC = () => (
   width: 20px;
   height: 20px;
   border: 2px solid #e5e7eb;
-  border-top-color: #667eea;
+  border-top-color: var(--brand-accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -209,7 +209,7 @@ export const SwapStyles: React.FC = () => (
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--brand-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -742,7 +742,7 @@ export const SwapStyles: React.FC = () => (
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--brand-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -956,7 +956,7 @@ export const SwapStyles: React.FC = () => (
 
 .get-quote-button {
   padding: 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--brand-gradient);
   border: none;
   border-radius: 12px;
   color: #fff;
@@ -968,7 +968,7 @@ export const SwapStyles: React.FC = () => (
 
 .get-quote-button:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
 }
 
 .get-quote-button:disabled {
@@ -1075,7 +1075,7 @@ export const SwapStyles: React.FC = () => (
 /* Primary and Secondary Buttons */
 .primary-button {
   padding: 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--brand-gradient);
   border: none;
   border-radius: 12px;
   color: #fff;
@@ -1087,7 +1087,7 @@ export const SwapStyles: React.FC = () => (
 
 .primary-button:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
 }
 
 .primary-button:disabled {
@@ -1267,7 +1267,7 @@ export const SwapStyles: React.FC = () => (
   width: 48px;
   height: 48px;
   border: 3px solid #e5e7eb;
-  border-top-color: #667eea;
+  border-top-color: var(--brand-accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -1572,7 +1572,7 @@ export const SwapStyles: React.FC = () => (
   width: 56px;
   height: 56px;
   border: 4px solid #e5e7eb;
-  border-top-color: #667eea;
+  border-top-color: var(--brand-accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }

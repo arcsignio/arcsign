@@ -50,7 +50,7 @@ export function TokenListDemo() {
             padding: "0.5rem",
             fontSize: "1rem",
             borderRadius: "0.5rem",
-            border: "2px solid #e5e7eb",
+            border: "2px solid var(--border-default)",
           }}
         >
           <option value="ethereum">Ethereum</option>
@@ -81,7 +81,7 @@ export function TokenListDemo() {
             padding: "0.5rem",
             fontSize: "1rem",
             borderRadius: "0.5rem",
-            border: "2px solid #e5e7eb",
+            border: "2px solid var(--border-default)",
             width: "100%",
             maxWidth: "400px",
           }}
@@ -108,7 +108,7 @@ export function TokenListDemo() {
                 style={{
                   padding: "1rem",
                   background: "white",
-                  border: "1px solid #e5e7eb",
+                  border: "1px solid var(--border-default)",
                   borderRadius: "0.5rem",
                   display: "flex",
                   alignItems: "center",
@@ -126,10 +126,10 @@ export function TokenListDemo() {
                 />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: "600" }}>{token.symbol}</div>
-                  <div style={{ fontSize: "0.875rem", color: "#6b7280" }}>
+                  <div style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>
                     {token.name}
                   </div>
-                  <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>
                     {token.chainName} • {token.address.slice(0, 10)}...
                   </div>
                 </div>
@@ -158,7 +158,7 @@ export function TokenListDemo() {
         <div
           style={{
             fontSize: "0.875rem",
-            color: "#6b7280",
+            color: "var(--text-secondary)",
             marginBottom: "1rem",
           }}
         >
@@ -177,7 +177,7 @@ export function TokenListDemo() {
               style={{
                 padding: "1rem",
                 background: "white",
-                border: "1px solid #e5e7eb",
+                border: "1px solid var(--border-default)",
                 borderRadius: "0.5rem",
                 display: "flex",
                 alignItems: "center",
@@ -197,7 +197,7 @@ export function TokenListDemo() {
                 <div style={{ fontWeight: "600", fontSize: "0.875rem" }}>
                   {token.symbol}
                 </div>
-                <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>
                   {token.chainName}
                 </div>
               </div>
@@ -230,7 +230,7 @@ export function TokenListDemo() {
               style={{
                 padding: "1rem",
                 background: "white",
-                border: "1px solid #e5e7eb",
+                border: "1px solid var(--border-default)",
                 borderRadius: "0.5rem",
                 display: "flex",
                 alignItems: "center",
@@ -241,7 +241,7 @@ export function TokenListDemo() {
                 style={{
                   width: "32px",
                   textAlign: "center",
-                  color: "#9ca3af",
+                  color: "var(--text-tertiary)",
                   fontWeight: "600",
                 }}
               >
@@ -258,14 +258,14 @@ export function TokenListDemo() {
               />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: "600" }}>{token.symbol}</div>
-                <div style={{ fontSize: "0.875rem", color: "#6b7280" }}>
+                <div style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>
                   {token.name}
                 </div>
               </div>
               <div
                 style={{
                   fontSize: "0.75rem",
-                  color: "#9ca3af",
+                  color: "var(--text-tertiary)",
                   fontFamily: "monospace",
                 }}
               >

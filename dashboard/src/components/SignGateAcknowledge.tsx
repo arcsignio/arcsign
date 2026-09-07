@@ -17,8 +17,8 @@ export function SignGateAcknowledge({
     <label
       style={{
         marginTop: "0.5rem", display: "flex", alignItems: "flex-start", gap: "0.5rem",
-        padding: "0.75rem 1rem", background: "#fef2f2", border: "1px solid #fecaca",
-        borderRadius: "10px", fontSize: "0.8125rem", fontWeight: 600, color: "#b91c1c", cursor: "pointer",
+        padding: "0.75rem 1rem", background: "var(--danger-pale)", border: "1px solid var(--danger-border)",
+        borderRadius: "10px", fontSize: "0.8125rem", fontWeight: 600, color: "var(--danger-text)", cursor: "pointer",
       }}
     >
       <input type="checkbox" checked={acknowledged} onChange={(e) => onChange(e.target.checked)} style={{ marginTop: "0.15rem" }} />

@@ -263,31 +263,31 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
         }
 
         .update-icon-teal {
-          background: #f0fdfa;
-          color: #0d9488;
+          background: var(--brand-faint);
+          color: var(--brand);
         }
 
         .update-icon-green {
-          background: #f0fdf4;
-          color: #16a34a;
+          background: var(--success-pale);
+          color: var(--success);
         }
 
         .update-icon-red {
-          background: #fef2f2;
-          color: #dc2626;
+          background: var(--danger-pale);
+          color: var(--danger);
         }
 
         .update-title {
           margin: 0 0 6px;
           font-size: 18px;
           font-weight: 600;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .update-desc {
           margin: 0;
           font-size: 14px;
-          color: #6b7280;
+          color: var(--text-secondary);
           line-height: 1.5;
         }
 
@@ -296,24 +296,24 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
           justify-content: space-between;
           align-items: center;
           padding: 10px 0;
-          border-bottom: 1px solid #f3f4f6;
+          border-bottom: 1px solid var(--surface-strong);
         }
 
         .update-version-label {
           font-size: 14px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .update-version-value {
           font-size: 14px;
           font-weight: 600;
-          color: #111827;
+          color: var(--text-primary);
           font-family: 'SF Mono', 'Fira Code', monospace;
         }
 
         .update-version-new {
-          color: #0d9488;
-          background: #f0fdfa;
+          color: var(--brand);
+          background: var(--brand-faint);
           padding: 2px 8px;
           border-radius: 6px;
         }
@@ -326,18 +326,18 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
           margin: 0 0 8px;
           font-size: 13px;
           font-weight: 600;
-          color: #374151;
+          color: var(--text-primary);
           text-transform: uppercase;
           letter-spacing: 0.03em;
         }
 
         .update-notes-content {
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
+          background: var(--surface-sunken);
+          border: 1px solid var(--border-default);
           border-radius: 8px;
           padding: 12px 14px;
           font-size: 13px;
-          color: #374151;
+          color: var(--text-primary);
           line-height: 1.6;
           max-height: 160px;
           overflow-y: auto;
@@ -362,7 +362,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
           display: inline-flex;
           align-items: center;
           padding: 10px 20px;
-          background: #0d9488;
+          background: var(--brand);
           color: #fff;
           border: none;
           border-radius: 10px;
@@ -373,7 +373,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
         }
 
         .update-btn-primary:hover {
-          background: #0f766e;
+          background: var(--brand-press);
         }
 
         .update-btn-secondary {
@@ -381,8 +381,8 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
           align-items: center;
           padding: 10px 20px;
           background: #fff;
-          color: #374151;
-          border: 1px solid #d1d5db;
+          color: var(--text-primary);
+          border: 1px solid var(--border-input);
           border-radius: 10px;
           font-size: 14px;
           font-weight: 500;
@@ -391,14 +391,14 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
         }
 
         .update-btn-secondary:hover {
-          background: #f9fafb;
-          border-color: #9ca3af;
+          background: var(--surface-sunken);
+          border-color: var(--text-tertiary);
         }
 
         .update-btn-text {
           background: none;
           border: none;
-          color: #6b7280;
+          color: var(--text-secondary);
           font-size: 13px;
           cursor: pointer;
           text-decoration: underline;
@@ -406,17 +406,17 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
         }
 
         .update-btn-text:hover {
-          color: #374151;
+          color: var(--text-primary);
         }
 
         .update-error-detail {
           margin: 10px 0 0;
           padding: 8px 12px;
-          background: #fef2f2;
-          border: 1px solid #fecaca;
+          background: var(--danger-pale);
+          border: 1px solid var(--danger-border);
           border-radius: 6px;
           font-size: 12px;
-          color: #991b1b;
+          color: var(--danger-text);
           font-family: 'SF Mono', 'Fira Code', monospace;
           word-break: break-all;
         }
@@ -426,7 +426,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
           width: 100%;
           max-width: 280px;
           height: 6px;
-          background: #e5e7eb;
+          background: var(--border-default);
           border-radius: 3px;
           overflow: hidden;
           margin-top: 20px;
@@ -435,7 +435,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
         .update-progress-bar-inner {
           width: 40%;
           height: 100%;
-          background: linear-gradient(90deg, #2dd4bf, #0d9488);
+          background: linear-gradient(90deg, var(--brand-accent), var(--brand));
           border-radius: 3px;
           animation: update-progress-slide 1.5s ease-in-out infinite;
         }

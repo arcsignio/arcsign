@@ -274,7 +274,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
         .back-button {
           background: none;
           border: none;
-          color: #2dd4bf;
+          color: var(--brand-accent);
           cursor: pointer;
           font-size: 14px;
           padding: 8px 0;
@@ -293,12 +293,12 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
           margin: 0 0 8px;
           font-size: 28px;
           font-weight: 600;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .settings-header .settings-description {
           margin: 0;
-          color: #6b7280;
+          color: var(--text-secondary);
           font-size: 16px;
         }
 
@@ -314,7 +314,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
           gap: 16px;
           padding: 20px;
           background: white;
-          border: 1px solid #e5e7eb;
+          border: 1px solid var(--border-default);
           border-radius: 12px;
           cursor: pointer;
           transition: all 0.2s;
@@ -323,7 +323,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
         }
 
         .setting-item:hover {
-          border-color: #2dd4bf;
+          border-color: var(--brand-accent);
           box-shadow: 0 2px 12px rgba(45, 212, 191, 0.1);
         }
 
@@ -334,7 +334,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #f3f4f6;
+          background: var(--surface-strong);
           border-radius: 12px;
           flex-shrink: 0;
         }
@@ -347,37 +347,37 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
           margin: 0 0 4px;
           font-size: 16px;
           font-weight: 600;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .setting-content .setting-description {
           margin: 0;
           font-size: 14px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .setting-arrow {
-          color: #9ca3af;
+          color: var(--text-tertiary);
           font-size: 18px;
           flex-shrink: 0;
         }
 
         .setting-item:hover .setting-arrow {
-          color: #0d9488;
+          color: var(--brand);
         }
 
         /* Preferences Section */
         .preferences-section {
           margin-top: 48px;
           padding-top: 24px;
-          border-top: 1px solid #e5e7eb;
+          border-top: 1px solid var(--border-default);
         }
 
         .preferences-section-title {
           margin: 0 0 16px;
           font-size: 14px;
           font-weight: 600;
-          color: #6b7280;
+          color: var(--text-secondary);
           text-transform: uppercase;
           letter-spacing: 0.05em;
         }
@@ -388,14 +388,14 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
           gap: 16px;
           padding: 20px;
           background: white;
-          border: 1px solid #e5e7eb;
+          border: 1px solid var(--border-default);
           border-radius: 12px;
         }
 
         .toggle-privacy-note {
           margin: 8px 0 0;
           font-size: 12px;
-          color: #9ca3af;
+          color: var(--text-tertiary);
           line-height: 1.5;
         }
 
@@ -418,7 +418,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
           position: absolute;
           inset: 0;
           cursor: pointer;
-          background: #d1d5db;
+          background: var(--border-input);
           border-radius: 24px;
           transition: background 0.2s;
         }
@@ -436,7 +436,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
         }
 
         .toggle-switch input:checked + .toggle-slider {
-          background: #2dd4bf;
+          background: var(--brand-accent);
         }
 
         .toggle-switch input:checked + .toggle-slider::before {
@@ -448,9 +448,9 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
           align-self: center;
           padding: 8px 16px;
           background: transparent;
-          border: 1px solid #d1d5db;
+          border: 1px solid var(--border-input);
           border-radius: 8px;
-          color: #0d9488;
+          color: var(--brand);
           font-size: 13px;
           font-weight: 500;
           cursor: pointer;
@@ -459,7 +459,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
         }
 
         .clear-abi-button:hover:not(:disabled) {
-          border-color: #2dd4bf;
+          border-color: var(--brand-accent);
           background: rgba(45, 212, 191, 0.05);
         }
 
@@ -475,32 +475,32 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
         }
 
         .abi-cache-status-done {
-          color: #0d9488;
+          color: var(--brand);
         }
 
         .abi-cache-status-failed {
-          color: #dc2626;
+          color: var(--danger);
         }
 
         /* Backup Section */
         .backup-section {
           margin-top: 48px;
           padding-top: 24px;
-          border-top: 1px solid #e5e7eb;
+          border-top: 1px solid var(--border-default);
         }
 
         .backup-section-title {
           margin: 0 0 16px;
           font-size: 14px;
           font-weight: 600;
-          color: #6b7280;
+          color: var(--text-secondary);
           text-transform: uppercase;
           letter-spacing: 0.05em;
         }
 
         .backup-icon {
           background: #e0f2f1;
-          color: #0d9488;
+          color: var(--brand);
         }
 
         .setting-item-disabled {
@@ -509,7 +509,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
         }
 
         .setting-item-disabled:hover {
-          border-color: #e5e7eb;
+          border-color: var(--border-default);
           box-shadow: none;
         }
 
@@ -517,7 +517,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
           display: inline-block;
           margin-left: 8px;
           padding: 2px 6px;
-          background: linear-gradient(135deg, #f59e0b, #d97706);
+          background: linear-gradient(135deg, var(--warning), #d97706);
           color: white;
           font-size: 10px;
           font-weight: 700;
@@ -530,41 +530,41 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
         .developer-section {
           margin-top: 48px;
           padding-top: 24px;
-          border-top: 1px solid #e5e7eb;
+          border-top: 1px solid var(--border-default);
         }
 
         .developer-section-title {
           margin: 0 0 16px;
           font-size: 14px;
           font-weight: 600;
-          color: #6b7280;
+          color: var(--text-secondary);
           text-transform: uppercase;
           letter-spacing: 0.05em;
         }
 
         .developer-item {
           background: white;
-          border-color: #e5e7eb;
+          border-color: var(--border-default);
         }
 
         .developer-item:hover {
-          border-color: #2dd4bf;
+          border-color: var(--brand-accent);
           box-shadow: 0 2px 12px rgba(45, 212, 191, 0.1);
         }
 
         .developer-item:hover .setting-arrow {
-          color: #0d9488;
+          color: var(--brand);
         }
 
         .developer-icon {
-          background: #f3f4f6;
+          background: var(--surface-strong);
         }
 
         /* About Section */
         .about-section {
           margin-top: 48px;
           padding-top: 24px;
-          border-top: 1px solid #e5e7eb;
+          border-top: 1px solid var(--border-default);
         }
 
         .about-card {
@@ -594,13 +594,13 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
           margin: 0;
           font-size: 18px;
           font-weight: 700;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .about-version {
           margin: 0;
           font-size: 13px;
-          color: #9ca3af;
+          color: var(--text-tertiary);
           font-weight: 500;
           font-family: 'SF Mono', 'Fira Code', monospace;
         }
@@ -608,7 +608,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
         .about-desc {
           margin: 4px 0 0;
           font-size: 13px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .about-links {
@@ -620,7 +620,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
 
         .about-link {
           font-size: 13px;
-          color: #2dd4bf;
+          color: var(--brand-accent);
           text-decoration: none;
           font-weight: 500;
         }
@@ -630,7 +630,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
         }
 
         .about-separator {
-          color: #d1d5db;
+          color: var(--border-input);
           font-size: 12px;
         }
 
@@ -638,9 +638,9 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
           margin-top: 12px;
           padding: 8px 20px;
           background: transparent;
-          border: 1px solid #d1d5db;
+          border: 1px solid var(--border-input);
           border-radius: 8px;
-          color: #0d9488;
+          color: var(--brand);
           font-size: 13px;
           font-weight: 500;
           cursor: pointer;
@@ -651,7 +651,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
         }
 
         .check-update-button:hover {
-          border-color: #2dd4bf;
+          border-color: var(--brand-accent);
           background: rgba(45, 212, 191, 0.05);
         }
 

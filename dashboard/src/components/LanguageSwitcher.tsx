@@ -39,19 +39,19 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
           fontSize: '0.875rem',
           fontWeight: 500,
           color: '#4b5563',
-          backgroundColor: '#f3f4f6',
-          border: '1px solid #d1d5db',
+          backgroundColor: 'var(--surface-strong)',
+          border: '1px solid var(--border-input)',
           borderRadius: '0.375rem',
           cursor: 'pointer',
           transition: 'all 0.15s ease',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#e5e7eb';
-          e.currentTarget.style.borderColor = '#9ca3af';
+          e.currentTarget.style.backgroundColor = 'var(--border-default)';
+          e.currentTarget.style.borderColor = 'var(--text-tertiary)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = '#f3f4f6';
-          e.currentTarget.style.borderColor = '#d1d5db';
+          e.currentTarget.style.backgroundColor = 'var(--surface-strong)';
+          e.currentTarget.style.borderColor = 'var(--border-input)';
         }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
@@ -70,9 +70,9 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
           style={{
             padding: '0.375rem 2rem 0.375rem 0.75rem',
             fontSize: '0.875rem',
-            color: '#374151',
+            color: 'var(--text-primary)',
             backgroundColor: '#ffffff',
-            border: '1px solid #d1d5db',
+            border: '1px solid var(--border-input)',
             borderRadius: '0.375rem',
             cursor: 'pointer',
             appearance: 'none',
@@ -100,7 +100,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
         display: 'inline-flex',
         borderRadius: '0.375rem',
         overflow: 'hidden',
-        border: '1px solid #d1d5db',
+        border: '1px solid var(--border-input)',
       }}
     >
       {Object.entries(supportedLanguages).map(([code, { nativeName }]) => (
@@ -112,7 +112,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
             fontSize: '0.875rem',
             fontWeight: currentLanguage === code ? 600 : 400,
             color: currentLanguage === code ? '#ffffff' : '#4b5563',
-            backgroundColor: currentLanguage === code ? '#2dd4bf' : '#ffffff',
+            backgroundColor: currentLanguage === code ? 'var(--brand-accent)' : '#ffffff',
             border: 'none',
             cursor: 'pointer',
             transition: 'all 0.15s ease',

@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { getNetworkColor } from "@/utils/chainIcons";
 import {
   formatAmount as formatValue,
   shortenAddress as sharedShorten,
@@ -30,15 +31,17 @@ interface TransactionHistoryProps {
   onBack: () => void;
 }
 
-// Supported EVM chains for transaction history
+// Supported EVM chains for transaction history.
+// Colours come from chainIcons, which owns chain identity — they were declared
+// separately here, in TokenApprovals and in developer mode, and had drifted.
 const EVM_CHAINS = [
-  { id: "eth-mainnet", name: "Ethereum", shortName: "ETH", color: "#627EEA" },
-  { id: "polygon-mainnet", name: "Polygon", shortName: "MATIC", color: "#8247E5" },
-  { id: "arbitrum-mainnet", name: "Arbitrum", shortName: "ARB", color: "#28A0F0" },
-  { id: "optimism-mainnet", name: "Optimism", shortName: "OP", color: "#FF0420" },
-  { id: "base-mainnet", name: "Base", shortName: "BASE", color: "#0052FF" },
-  { id: "bnb-mainnet", name: "BNB Chain", shortName: "BNB", color: "#F0B90B" },
-  { id: "avalanche-mainnet", name: "Avalanche", shortName: "AVAX", color: "#E84142" },
+  { id: "eth-mainnet", name: "Ethereum", shortName: "ETH", color: getNetworkColor("eth-mainnet") },
+  { id: "polygon-mainnet", name: "Polygon", shortName: "MATIC", color: getNetworkColor("polygon-mainnet") },
+  { id: "arbitrum-mainnet", name: "Arbitrum", shortName: "ARB", color: getNetworkColor("arbitrum-mainnet") },
+  { id: "optimism-mainnet", name: "Optimism", shortName: "OP", color: getNetworkColor("optimism-mainnet") },
+  { id: "base-mainnet", name: "Base", shortName: "BASE", color: getNetworkColor("base-mainnet") },
+  { id: "bnb-mainnet", name: "BNB Chain", shortName: "BNB", color: getNetworkColor("bnb-mainnet") },
+  { id: "avalanche-mainnet", name: "Avalanche", shortName: "AVAX", color: getNetworkColor("avalanche-mainnet") },
 ];
 
 // Extended transfer with network info
@@ -50,11 +53,11 @@ interface TransferWithNetwork extends AssetTransfer {
 
 // Category display names and colors
 const CATEGORY_STYLES: Record<string, { label: string; color: string }> = {
-  external: { label: "Transfer", color: "#2dd4bf" },
-  internal: { label: "Internal", color: "#6b7280" },
-  erc20: { label: "ERC-20", color: "#10b981" },
+  external: { label: "Transfer", color: "var(--brand-accent)" },
+  internal: { label: "Internal", color: "var(--text-secondary)" },
+  erc20: { label: "ERC-20", color: "var(--success)" },
   erc721: { label: "NFT", color: "#8b5cf6" },
-  erc1155: { label: "Multi-Token", color: "#f59e0b" },
+  erc1155: { label: "Multi-Token", color: "var(--warning)" },
 };
 
 // Helper to format timestamp
@@ -381,7 +384,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
       {!error && transfers.length === 0 && !isLoading && (
         <div className="empty-state">
-          <div className="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+          <div className="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
           {isKeyLoading ? null : !hasAlchemyKey ? (
             <>
               <h3>{t("transactionHistory.needKeyTitle")}</h3>
@@ -536,7 +539,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           justify-content: space-between;
           margin-bottom: 24px;
           padding-bottom: 16px;
-          border-bottom: 1px solid #e5e7eb;
+          border-bottom: 1px solid var(--border-default);
         }
 
         .back-button {
@@ -544,17 +547,17 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           align-items: center;
           gap: 8px;
           padding: 8px 16px;
-          background: #f3f4f6;
+          background: var(--surface-strong);
           border: none;
           border-radius: 8px;
           cursor: pointer;
           font-size: 14px;
-          color: #374151;
+          color: var(--text-secondary);
           transition: background 0.2s;
         }
 
         .back-button:hover {
-          background: #e5e7eb;
+          background: var(--border-default);
         }
 
         .header-info {
@@ -564,24 +567,24 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         .header-info h2 {
           margin: 0;
           font-size: 20px;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .address-info {
           margin: 4px 0 0;
           font-size: 14px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .supported-chains {
           margin: 2px 0 0;
           font-size: 12px;
-          color: #9ca3af;
+          color: var(--text-tertiary);
         }
 
         .refresh-button {
           padding: 8px 16px;
-          background: #2dd4bf;
+          background: var(--brand-accent);
           color: white;
           border: none;
           border-radius: 8px;
@@ -591,7 +594,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         }
 
         .refresh-button:hover:not(:disabled) {
-          background: #0d9488;
+          background: var(--brand);
         }
 
         .refresh-button:disabled {
@@ -615,8 +618,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         .loading-spinner-small {
           width: 16px;
           height: 16px;
-          border: 2px solid #99f6e4;
-          border-top-color: #2dd4bf;
+          border: 2px solid var(--brand-accent);
+          border-top-color: var(--brand-accent);
           border-radius: 50%;
           animation: spin 1s linear infinite;
         }
@@ -634,7 +637,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           align-items: center;
           gap: 4px;
           padding: 4px 10px;
-          background: #f9fafb;
+          background: var(--surface-sunken);
           border: 1px solid;
           border-radius: 16px;
           font-size: 12px;
@@ -642,8 +645,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         }
 
         .chain-stat.error {
-          background: #fef2f2;
-          color: #dc2626;
+          background: var(--danger-pale);
+          color: var(--danger);
         }
 
         .scam-filter-notice {
@@ -652,12 +655,12 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           justify-content: center;
           gap: 8px;
           padding: 12px 16px;
-          background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-          border: 1px solid #f59e0b;
+          background: linear-gradient(135deg, var(--warning-pale) 0%, var(--warning-border) 100%);
+          border: 1px solid var(--warning);
           border-radius: 8px;
           margin-bottom: 16px;
           font-size: 14px;
-          color: #92400e;
+          color: var(--warning-text);
         }
 
         .scam-icon {
@@ -666,7 +669,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
         .toggle-scam-button {
           padding: 4px 12px;
-          background: #f59e0b;
+          background: var(--warning);
           color: white;
           border: none;
           border-radius: 4px;
@@ -677,7 +680,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         }
 
         .toggle-scam-button:hover {
-          background: #d97706;
+          background: var(--warning);
         }
 
         .chain-dot {
@@ -687,18 +690,18 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         }
 
         .error-message {
-          background: #fef2f2;
-          border: 1px solid #fee2e2;
+          background: var(--danger-pale);
+          border: 1px solid var(--danger-pale);
           border-radius: 8px;
           padding: 16px;
           text-align: center;
-          color: #dc2626;
+          color: var(--danger);
         }
 
         .error-message button {
           margin-top: 12px;
           padding: 8px 16px;
-          background: #dc2626;
+          background: var(--danger);
           color: white;
           border: none;
           border-radius: 6px;
@@ -708,7 +711,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         .empty-state {
           text-align: center;
           padding: 48px 24px;
-          background: #f9fafb;
+          background: var(--surface-sunken);
           border-radius: 12px;
         }
 
@@ -719,12 +722,12 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
         .empty-state h3 {
           margin: 0 0 8px;
-          color: #374151;
+          color: var(--text-secondary);
         }
 
         .empty-state p {
           margin: 0;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .transfers-list {
@@ -739,25 +742,25 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           gap: 16px;
           padding: 16px;
           background: white;
-          border: 1px solid #e5e7eb;
+          border: 1px solid var(--border-default);
           border-radius: 12px;
           transition: border-color 0.2s;
         }
 
         .transfer-item:hover {
-          border-color: #d1d5db;
+          border-color: var(--border-input);
         }
 
         /* Warning highlight for unknown tokens */
         .transfer-item-warning {
-          background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-          border-color: #f59e0b;
+          background: linear-gradient(135deg, var(--warning-pale) 0%, var(--warning-border) 100%);
+          border-color: var(--warning);
           border-width: 2px;
         }
 
         .transfer-item-warning:hover {
-          background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
-          border-color: #d97706;
+          background: linear-gradient(135deg, var(--warning-border) 0%, #fcd34d 100%);
+          border-color: var(--warning);
         }
 
         .warning-badge {
@@ -765,12 +768,12 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           align-items: center;
           gap: 4px;
           padding: 3px 8px;
-          background: #fef3c7;
-          border: 1px solid #f59e0b;
+          background: var(--warning-pale);
+          border: 1px solid var(--warning);
           border-radius: 4px;
           font-size: 11px;
           font-weight: 500;
-          color: #92400e;
+          color: var(--warning-text);
         }
 
         .transfer-icon {
@@ -780,7 +783,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           align-items: center;
           justify-content: center;
           border-radius: 50%;
-          background: #f3f4f6;
+          background: var(--surface-strong);
           flex-shrink: 0;
         }
 
@@ -790,11 +793,11 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         }
 
         .direction-indicator.in {
-          color: #10b981;
+          color: var(--success);
         }
 
         .direction-indicator.out {
-          color: #ef4444;
+          color: var(--danger);
         }
 
         .transfer-details {
@@ -839,17 +842,17 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         .transfer-value {
           font-size: 16px;
           font-weight: 600;
-          color: #111827;
+          color: var(--text-primary);
         }
 
         .tx-label-badge {
           padding: 3px 8px;
-          background: #f0fdfa;
-          border: 1px solid #99f6e4;
+          background: var(--brand-faint);
+          border: 1px solid var(--brand-accent);
           border-radius: 4px;
           font-size: 11px;
           font-weight: 500;
-          color: #0d9488;
+          color: var(--brand);
           cursor: pointer;
           transition: all 0.2s;
           max-width: 120px;
@@ -859,14 +862,14 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         }
 
         .tx-label-badge:hover {
-          background: #ccfbf1;
+          background: var(--brand-pale);
           border-color: #5eead4;
         }
 
         .tx-label-edit-btn {
           background: none;
           border: none;
-          color: #9ca3af;
+          color: var(--text-tertiary);
           cursor: pointer;
           padding: 2px;
           display: flex;
@@ -877,13 +880,13 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         }
 
         .tx-label-edit-btn:hover {
-          color: #0d9488;
-          background: #f0fdfa;
+          color: var(--brand);
+          background: var(--brand-faint);
         }
 
         .transfer-addresses {
           font-size: 14px;
-          color: #6b7280;
+          color: var(--text-secondary);
           margin-bottom: 8px;
         }
 
@@ -892,7 +895,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           align-items: center;
           justify-content: space-between;
           font-size: 12px;
-          color: #9ca3af;
+          color: var(--text-tertiary);
         }
 
         .timestamp {
@@ -900,7 +903,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         }
 
         .explorer-link {
-          color: #2dd4bf;
+          color: var(--brand-accent);
           text-decoration: none;
           margin-left: auto;
         }
@@ -917,8 +920,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         .loading-spinner {
           width: 40px;
           height: 40px;
-          border: 3px solid #e5e7eb;
-          border-top-color: #2dd4bf;
+          border: 3px solid var(--border-default);
+          border-top-color: var(--brand-accent);
           border-radius: 50%;
           animation: spin 1s linear infinite;
           margin: 0 auto 16px;

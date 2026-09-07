@@ -2,6 +2,96 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * The single definition point for colour.
+ *
+ * Tailwind reads these through theme.extend, CSS Modules and inline styles read
+ * them with var(). One place to change a colour, four ways to consume it — as
+ * opposed to a TS token object, which Tailwind and <style> blocks cannot read
+ * and which therefore needs a second copy of every value kept in sync by hand.
+ *
+ * Named by role, never by hue. A border colour that is called --border-default
+ * cannot quietly become body text the way #e2e8f0 did in TokenApprovals, where
+ * it rendered a spender name at roughly 1.2:1 on white — invisible, and only
+ * for the spenders the backend could actually identify.
+ */
+:root {
+  /* Brand. One accent, used sparingly. There is no second brand colour:
+     the indigo #667eea gradient that grew in the swap views is being folded
+     back into this one. */
+  --brand: #0d9488;
+  --brand-press: #0f766e;
+  --brand-accent: #2dd4bf;
+  --brand-pale: #ccfbf1;
+  --brand-faint: #f0fdfa;
+  --brand-gradient: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%);
+
+  /* Semantic. Each tier carries surface / pale / text.
+     
+     Where the codebase had two values for one role, the survivor is the one
+     with more contrast on white — danger #dc2626 (4.83) over #ef4444 (3.76),
+     success #16a34a (3.30) over #22c55e (2.28), warning #d97706 (3.19) over
+     #f59e0b (2.15). Headcount could not decide these; they were within a few
+     occurrences of each other.
+     
+     None of the three reaches 4.5, which is why the -text tokens exist and are
+     not optional: a 14px risk label written in --danger fails WCAG on white,
+     and these labels are how a user reads a security verdict. */
+  --danger: #dc2626;
+  --danger-pale: #fef2f2;
+  --danger-border: #fecaca;
+  --danger-text: #991b1b;
+
+  --warning: #d97706;
+  --warning-pale: #fef3c7;
+  --warning-border: #fde68a;
+  --warning-text: #92400e;
+
+  --success: #16a34a;
+  --success-pale: #f0fdf4;
+  --success-border: #bbf7d0;
+  --success-text: #166534;
+
+  /* Pending is deliberately separate from warning: "broadcasting" and
+     "dangerous" must not look alike. */
+  --pending: #b45309;
+
+  /* Neutral. One ramp.
+     
+     The codebase runs Tailwind's gray and slate ramps in parallel — body text
+     is #111827 in some files and #1e293b in others, borders #e5e7eb or #e2e8f0.
+     Merging them is the point of consolidation: leaving both means a future
+     palette change only reaches half the app.
+     
+     Slate is the survivor, not gray. It carries a slight blue cast, which is
+     what current wallet UIs use; picking gray on a headcount would have locked
+     in the direction this app is moving away from. The shift is visible —
+     #111827 to #1e293b is ΔE 8.3 — so it is a deliberate appearance change,
+     not a silent one. */
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-tertiary: #94a3b8;
+  --text-on-fill: #ffffff;
+
+  --border-default: #e2e8f0;
+  /* One step darker than --border-default so an input reads as interactive
+     before it is clicked. */
+  --border-input: #cbd5e1;
+
+  --surface-base: #ffffff;
+  --surface-sunken: #f8fafc;
+  --surface-strong: #f1f5f9;
+
+  /* Depth comes from surface contrast. One tier only. */
+  --shadow-raised: 0 4px 12px rgba(15, 23, 42, 0.06);
+
+  /* Monospace for content compared character by character: addresses, tx
+     hashes, and the ERC-8213 digest. Bare `monospace` resolves to a face that
+     does not reliably disambiguate 0/O and 1/l, which matters on the one
+     screen where a user checks 64 characters against a second device. */
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
 * {
   margin: 0;
   padding: 0;

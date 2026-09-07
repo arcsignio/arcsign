@@ -56,29 +56,29 @@ function ExportWalletItem({ wallet, usbPath }: { wallet: Wallet; usbPath: string
           gap: 16,
           padding: 20,
           background: 'white',
-          border: '1px solid #e5e7eb',
+          border: '1px solid var(--border-default)',
           borderRadius: 12,
           cursor: 'pointer',
           transition: 'all 0.2s',
           textAlign: 'left',
           width: '100%',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#2dd4bf'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(45, 212, 191, 0.1)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--brand-accent)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(45, 212, 191, 0.1)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.boxShadow = 'none'; }}
       >
         <span style={{
           width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: '#e0f2f1', borderRadius: 12, flexShrink: 0, color: '#0d9488',
+          background: '#e0f2f1', borderRadius: 12, flexShrink: 0, color: 'var(--brand)',
         }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M22 10H18a2 2 0 000 4h4"/></svg>
         </span>
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#111827' }}>{wallet.name}</div>
-          <div style={{ fontSize: 13, color: '#9ca3af', marginTop: 2 }}>
+          <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--text-primary)' }}>{wallet.name}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 2 }}>
             {wallet.address_count} {t('wallet.addresses', 'addresses')}
           </div>
         </div>
-        <span style={{ color: '#9ca3af' }}>
+        <span style={{ color: 'var(--text-tertiary)' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </span>
       </button>
@@ -676,13 +676,13 @@ export function Dashboard({ onCheckUpdate }: { onCheckUpdate?: () => Promise<voi
             {t('dashboard.backToSettings')}
           </button>
           <header style={{ marginBottom: 32 }}>
-            <h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 600, color: '#111827' }}>{t('backup.exportSettingsTitle')}</h1>
-            <p style={{ margin: 0, color: '#6b7280', fontSize: 16 }}>{t('backup.selectWalletToExport')}</p>
+            <h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 600, color: 'var(--text-primary)' }}>{t('backup.exportSettingsTitle')}</h1>
+            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 16 }}>{t('backup.selectWalletToExport')}</p>
           </header>
           {!usbPath ? (
             <div className="error-message">{t("dashboard.noUsbDetected")}</div>
           ) : wallets.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#6b7280', padding: 40 }}>
+            <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 40 }}>
               {t("dashboard.noWalletsFound")}
             </div>
           ) : (

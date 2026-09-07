@@ -107,15 +107,15 @@ export function DefiPositions({ tokens }: DefiPositionsProps) {
   // Empty state
   if (positions.length === 0) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "3rem 1.5rem", color: "#64748b" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "3rem 1.5rem", color: "var(--text-secondary)" }}>
         <div style={{ marginBottom: "1rem" }}>
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2L2 7l10 5 10-5-10-5z" />
             <path d="M2 17l10 5 10-5" />
             <path d="M2 12l10 5 10-5" />
           </svg>
         </div>
-        <p style={{ fontWeight: "600", color: "#1e293b", marginBottom: "0.5rem" }}>
+        <p style={{ fontWeight: "600", color: "var(--text-primary)", marginBottom: "0.5rem" }}>
           {t("defiPositions.empty")}
         </p>
         <p style={{ fontSize: "0.875rem" }}>
@@ -132,7 +132,7 @@ export function DefiPositions({ tokens }: DefiPositionsProps) {
     <div style={{ padding: "1rem" }}>
       {/* Summary */}
       <div style={{
-        background: "linear-gradient(135deg, #0d9488 0%, #0f766e 100%)",
+        background: "linear-gradient(135deg, var(--brand) 0%, var(--brand-press) 100%)",
         borderRadius: "0.75rem",
         padding: "1.25rem",
         color: "#fff",
@@ -178,7 +178,7 @@ function PositionCard({
 
   return (
     <div style={{
-      border: "1px solid #e2e8f0",
+      border: "1px solid var(--border-default)",
       borderRadius: "0.75rem",
       padding: "1rem",
       background: "#fff",
@@ -196,10 +196,10 @@ function PositionCard({
             />
           )}
           <div>
-            <p style={{ fontWeight: 600, color: "#1e293b", margin: 0, fontSize: "0.9375rem" }}>
+            <p style={{ fontWeight: 600, color: "var(--text-primary)", margin: 0, fontSize: "0.9375rem" }}>
               {provider?.name || token.tokenName}
             </p>
-            <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: "0.125rem 0 0" }}>
+            <p style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", margin: "0.125rem 0 0" }}>
               {position.stakedAsset} {t("defiPositions.staking")} &middot; {token.networkLabel}
             </p>
           </div>
@@ -208,9 +208,9 @@ function PositionCard({
         {/* APY badge */}
         {isLoadingApy ? (
           <span style={{
-            fontSize: "0.75rem", color: "#94a3b8",
+            fontSize: "0.75rem", color: "var(--text-tertiary)",
             padding: "0.25rem 0.5rem",
-            background: "#f1f5f9",
+            background: "var(--surface-strong)",
             borderRadius: "0.375rem",
           }}>
             ...
@@ -231,21 +231,21 @@ function PositionCard({
       <div style={{
         display: "flex", justifyContent: "space-between", alignItems: "baseline",
         padding: "0.5rem 0",
-        borderTop: "1px solid #f1f5f9",
+        borderTop: "1px solid var(--surface-strong)",
       }}>
         <div>
-          <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: "0 0 0.125rem", textTransform: "uppercase", fontWeight: 600 }}>
+          <p style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", margin: "0 0 0.125rem", textTransform: "uppercase", fontWeight: 600 }}>
             {t("defiPositions.balance")}
           </p>
-          <p style={{ fontSize: "1rem", fontWeight: 600, color: "#1e293b", margin: 0 }}>
+          <p style={{ fontSize: "1rem", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
             {formatBalance(token.balance)} {token.tokenSymbol}
           </p>
         </div>
         <div style={{ textAlign: "right" }}>
-          <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: "0 0 0.125rem", textTransform: "uppercase", fontWeight: 600 }}>
+          <p style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", margin: "0 0 0.125rem", textTransform: "uppercase", fontWeight: 600 }}>
             {t("defiPositions.value")}
           </p>
-          <p style={{ fontSize: "1rem", fontWeight: 600, color: "#1e293b", margin: 0 }}>
+          <p style={{ fontSize: "1rem", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
             {formatUSD(token.usdValue || 0)}
           </p>
         </div>
@@ -255,7 +255,7 @@ function PositionCard({
       {provider?.verified && (
         <div style={{
           display: "flex", alignItems: "center", gap: "0.25rem",
-          fontSize: "0.6875rem", color: "#0d9488", marginTop: "0.5rem",
+          fontSize: "0.6875rem", color: "var(--brand)", marginTop: "0.5rem",
         }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -263,7 +263,7 @@ function PositionCard({
           </svg>
           {t("defiPositions.verified")}
           {provider.audits && provider.audits.length > 0 && (
-            <span style={{ color: "#94a3b8" }}>
+            <span style={{ color: "var(--text-tertiary)" }}>
               &middot; {provider.audits.map(a => a.auditor).join(", ")}
             </span>
           )}

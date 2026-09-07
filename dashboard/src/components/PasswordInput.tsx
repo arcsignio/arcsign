@@ -112,12 +112,12 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
             border: none;
             border-radius: 6px;
             background: transparent;
-            color: #6b7280;
+            color: var(--text-secondary);
             cursor: pointer;
             transition: color 0.15s ease, background 0.15s ease;
           }
           .pw-field__toggle:hover:not(:disabled) {
-            color: #0d9488;
+            color: var(--brand);
             background: rgba(13, 148, 136, 0.08);
           }
           .pw-field__toggle:disabled {

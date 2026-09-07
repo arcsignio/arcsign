@@ -176,6 +176,55 @@ export function getChainFallbackIcon(symbol: string): string {
 }
 
 /**
+ * Internal network id → chain symbol.
+ *
+ * Callers key by network id ("polygon-mainnet"), CHAIN_COLORS keys by symbol
+ * ("MATIC"). Rather than duplicating the palette under a second set of keys,
+ * this maps ids onto the symbols that already own the colours. Developer-mode
+ * uses short ids ("polygon") and the wallet screens use "-mainnet" suffixes,
+ * so both spellings appear here.
+ */
+const NETWORK_TO_SYMBOL: Record<string, string> = {
+  "eth-mainnet": "ETH",
+  ethereum: "ETH",
+  sepolia: "ETH",
+  "eth-sepolia": "ETH",
+  "polygon-mainnet": "MATIC",
+  polygon: "MATIC",
+  mumbai: "MATIC",
+  "arbitrum-mainnet": "ARB",
+  "arb-mainnet": "ARB",
+  arbitrum: "ARB",
+  "optimism-mainnet": "OP",
+  "opt-mainnet": "OP",
+  optimism: "OP",
+  "base-mainnet": "BASE",
+  base: "BASE",
+  "bnb-mainnet": "BNB",
+  bsc: "BNB",
+  "bsc-testnet": "BNB",
+  "avalanche-mainnet": "AVAX",
+  avalanche: "AVAX",
+};
+
+/**
+ * Brand colour for a chain, by internal network id.
+ *
+ * Chain colours are external identity — Polygon is purple because Polygon is
+ * purple — so they deliberately live here rather than in the :root variable
+ * layer. That layer exists so a palette change reaches every design colour at
+ * once, and a chain's brand must not move when the app's palette does.
+ *
+ * This function exists because the same seven colours were declared in four
+ * files, and they had already drifted: BNB was #F0B90B in three of them and
+ * #F3BA2F in developer mode (ΔE 7.1 — visibly different, not a rounding slip).
+ */
+export function getNetworkColor(network: string): string {
+  const symbol = NETWORK_TO_SYMBOL[network] ?? NETWORK_TO_SYMBOL[network.toLowerCase()];
+  return symbol ? getChainFallbackIcon(symbol) : "#6B7280";
+}
+
+/**
  * Chain category labels for grouping
  */
 export const CHAIN_CATEGORIES = {

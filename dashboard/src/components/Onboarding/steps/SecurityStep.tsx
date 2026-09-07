@@ -52,7 +52,7 @@ export const SecurityStep = () => {
         .security-intro {
           text-align: center;
           margin: 0 0 24px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
 
         .security-cards {
@@ -65,8 +65,8 @@ export const SecurityStep = () => {
           display: flex;
           gap: 16px;
           padding: 16px;
-          background: #f0fdfa;
-          border-left: 4px solid #2dd4bf;
+          background: var(--brand-faint);
+          border-left: 4px solid var(--brand-accent);
           border-radius: 0 8px 8px 0;
           animation: fadeInUp 0.4s ease forwards;
           opacity: 0;
@@ -83,7 +83,7 @@ export const SecurityStep = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #0d9488;
+          background: var(--brand);
           color: white;
           border-radius: 50%;
           font-size: 13px;
@@ -95,7 +95,7 @@ export const SecurityStep = () => {
           margin: 0 0 4px;
           font-size: 15px;
           font-weight: 600;
-          color: #0f766e;
+          color: var(--brand-press);
         }
 
         .security-card-content p {

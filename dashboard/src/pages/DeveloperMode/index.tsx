@@ -741,12 +741,12 @@ export function DeveloperMode({ onBack, usbPath, hasPendingDev }: DeveloperModeP
 
         .connection-status.connected {
           background: rgba(34, 197, 94, 0.2);
-          color: #22c55e;
+          color: var(--success);
         }
 
         .connection-status.disconnected {
           background: rgba(239, 68, 68, 0.2);
-          color: #ef4444;
+          color: var(--danger);
         }
 
         .error-banner {
@@ -795,7 +795,7 @@ export function DeveloperMode({ onBack, usbPath, hasPendingDev }: DeveloperModeP
           min-width: 20px;
           height: 20px;
           padding: 0 6px;
-          background: #ef4444;
+          background: var(--danger);
           border-radius: 10px;
           font-size: 12px;
           font-weight: 600;
@@ -915,7 +915,7 @@ const walletSelectionStyles = `
     width: 32px;
     height: 32px;
     border: 3px solid rgba(255, 255, 255, 0.1);
-    border-top-color: #2dd4bf;
+    border-top-color: var(--brand-accent);
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
@@ -952,7 +952,7 @@ const walletSelectionStyles = `
 
   .primary-button {
     padding: 12px 24px;
-    background: #2dd4bf;
+    background: var(--brand-accent);
     border: none;
     border-radius: 8px;
     color: #fff;
@@ -963,7 +963,7 @@ const walletSelectionStyles = `
   }
 
   .primary-button:hover:not(:disabled) {
-    background: #0d9488;
+    background: var(--brand);
   }
 
   .primary-button:disabled {

@@ -265,24 +265,24 @@ export const OnboardingFlow = ({ onComplete, usbPath }: OnboardingFlowProps) => 
           width: 10px;
           height: 10px;
           border-radius: 50%;
-          background: #e5e7eb;
+          background: var(--border-default);
           transition: all 0.3s ease;
         }
 
         .onboarding-dot.active {
-          background: #2dd4bf;
+          background: var(--brand-accent);
           box-shadow: 0 0 8px rgba(45, 212, 191, 0.4);
           transform: scale(1.2);
         }
 
         .onboarding-dot.completed {
-          background: #0d9488;
+          background: var(--brand);
         }
 
         .onboarding-step-indicator {
           text-align: center;
           font-size: 12px;
-          color: #9ca3af;
+          color: var(--text-tertiary);
           margin-bottom: 24px;
         }
 
@@ -312,7 +312,7 @@ export const OnboardingFlow = ({ onComplete, usbPath }: OnboardingFlowProps) => 
           align-items: center;
           margin-top: 24px;
           padding-top: 20px;
-          border-top: 1px solid #f3f4f6;
+          border-top: 1px solid var(--surface-strong);
         }
 
         .onboarding-nav-back {
@@ -320,9 +320,9 @@ export const OnboardingFlow = ({ onComplete, usbPath }: OnboardingFlowProps) => 
           align-items: center;
           padding: 10px 20px;
           background: none;
-          border: 1px solid #e5e7eb;
+          border: 1px solid var(--border-default);
           border-radius: 8px;
-          color: #6b7280;
+          color: var(--text-secondary);
           font-size: 14px;
           font-weight: 500;
           cursor: pointer;
@@ -330,8 +330,8 @@ export const OnboardingFlow = ({ onComplete, usbPath }: OnboardingFlowProps) => 
         }
 
         .onboarding-nav-back:hover:not(:disabled) {
-          border-color: #d1d5db;
-          background: #f9fafb;
+          border-color: var(--border-input);
+          background: var(--surface-sunken);
         }
 
         .onboarding-nav-back:disabled {
@@ -343,7 +343,7 @@ export const OnboardingFlow = ({ onComplete, usbPath }: OnboardingFlowProps) => 
           display: inline-flex;
           align-items: center;
           padding: 10px 24px;
-          background: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%);
+          background: linear-gradient(135deg, var(--brand) 0%, var(--brand-accent) 100%);
           color: white;
           border: none;
           border-radius: 8px;

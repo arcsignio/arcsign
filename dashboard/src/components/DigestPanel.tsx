@@ -37,9 +37,9 @@ export function DigestPanel({
       style={{
         marginTop: "0.75rem",
         paddingTop: "0.75rem",
-        borderTop: "1px solid #e2e8f0",
+        borderTop: "1px solid var(--border-default)",
         fontSize: "0.75rem",
-        color: "#64748b",
+        color: "var(--text-secondary)",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -60,7 +60,7 @@ export function DigestPanel({
               .catch(() => setCopied(false));
           }}
           style={{
-            border: "none", background: "transparent", color: "#0f766e",
+            border: "none", background: "transparent", color: "var(--brand-press)",
             cursor: "pointer", fontSize: "0.75rem", padding: 0,
           }}
         >
@@ -70,7 +70,7 @@ export function DigestPanel({
 
       <div
         style={{
-          fontFamily: "monospace",
+          fontFamily: "var(--font-mono)",
           wordBreak: "break-all",
           lineHeight: 1.6,
           marginTop: "0.25rem",
@@ -90,7 +90,7 @@ export function DigestPanel({
             onClick={() => setShowRaw((v) => !v)}
             style={{
               marginTop: "0.4rem", border: "none", background: "transparent",
-              color: "#0f766e", cursor: "pointer", fontSize: "0.7rem", padding: 0,
+              color: "var(--brand-press)", cursor: "pointer", fontSize: "0.7rem", padding: 0,
             }}
           >
             {showRaw ? t("clearSign.hideRaw") : t("clearSign.showRaw")}
@@ -99,7 +99,7 @@ export function DigestPanel({
           {showRaw && (
             <div
               style={{
-                marginTop: "0.4rem", fontFamily: "monospace",
+                marginTop: "0.4rem", fontFamily: "var(--font-mono)",
                 wordBreak: "break-all", lineHeight: 1.5, color: "#475569",
               }}
             >
@@ -116,7 +116,7 @@ export function DigestPanel({
             onClick={() => setShowDetail((v) => !v)}
             style={{
               marginTop: "0.4rem", border: "none", background: "transparent",
-              color: "#0f766e", cursor: "pointer", fontSize: "0.7rem", padding: 0,
+              color: "var(--brand-press)", cursor: "pointer", fontSize: "0.7rem", padding: 0,
             }}
           >
             {showDetail
@@ -128,13 +128,13 @@ export function DigestPanel({
             <div style={{ marginTop: "0.4rem", display: "grid", gap: "0.4rem" }}>
               <div>
                 <div style={{ fontWeight: 600 }}>{t("clearSign.digestDomainHash")}</div>
-                <div style={{ fontFamily: "monospace", wordBreak: "break-all" }}>
+                <div style={{ fontFamily: "var(--font-mono)", wordBreak: "break-all" }}>
                   {formatDigest(digest.detail.domainHash)}
                 </div>
               </div>
               <div>
                 <div style={{ fontWeight: 600 }}>{t("clearSign.digestMessageHash")}</div>
-                <div style={{ fontFamily: "monospace", wordBreak: "break-all" }}>
+                <div style={{ fontFamily: "var(--font-mono)", wordBreak: "break-all" }}>
                   {formatDigest(digest.detail.messageHash)}
                 </div>
               </div>

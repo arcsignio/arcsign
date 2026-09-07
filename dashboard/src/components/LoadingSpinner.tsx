@@ -60,7 +60,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
               cy="32"
               r="30"
               fill="none"
-              stroke="#e5e7eb"
+              stroke="var(--border-default)"
               strokeWidth="2"
             />
             <circle
@@ -68,7 +68,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
               cy="32"
               r="30"
               fill="none"
-              stroke="#2dd4bf"
+              stroke="var(--brand-accent)"
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeDasharray="60 140"
@@ -97,7 +97,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
         fill="none"
         viewBox="0 0 24 24"
         aria-label={t('common.loading')}
-        style={{ color: '#2dd4bf' }}
+        style={{ color: 'var(--brand-accent)' }}
       >
         <circle
           className="opacity-25"
