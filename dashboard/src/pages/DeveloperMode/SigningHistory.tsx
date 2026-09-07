@@ -7,6 +7,7 @@
  */
 
 import { useTranslation } from 'react-i18next';
+import styles from "./SigningHistory.module.css";
 import type { DevSignRequest } from '@/types/developer';
 
 interface SigningHistoryProps {
@@ -55,73 +56,50 @@ export function SigningHistory({ history }: SigningHistoryProps) {
 
   if (history.length === 0) {
     return (
-      <div className="empty-history">
-        <div className="empty-icon">📜</div>
+      <div className={styles.emptyHistory}>
+        <div className={styles.emptyIcon}>📜</div>
         <h2>{t('developer.noHistory', 'No Signing History')}</h2>
         <p>{t('developer.noHistoryDesc', 'Your signed and rejected transactions will appear here.')}</p>
-
-        <style>{`
-          .empty-history {
-            text-align: center;
-            padding: 60px 24px;
-          }
-
-          .empty-icon {
-            font-size: 64px;
-            margin-bottom: 16px;
-          }
-
-          .empty-history h2 {
-            margin: 0 0 8px;
-            font-size: 24px;
-            color: rgba(255, 255, 255, 0.9);
-          }
-
-          .empty-history p {
-            margin: 0;
-            color: rgba(255, 255, 255, 0.6);
-          }
-        `}</style>
       </div>
     );
   }
 
   return (
-    <div className="signing-history">
+    <div className={styles.signingHistory}>
       <h2>📜 {t('developer.signingHistory', 'Signing History')}</h2>
 
-      <div className="history-list">
+      <div className={styles.historyList}>
         {history.map((item) => (
-          <div key={item.id} className={`history-item ${item.status}`}>
-            <div className="history-header">
-              <div className="history-type">
+          <div key={item.id} className={`${styles.historyItem} ${item.status}`}>
+            <div className={styles.historyHeader}>
+              <div className={styles.historyType}>
                 {item.status === 'approved' && '✓'}
                 {item.status === 'rejected' && '✗'}
                 <span>{item.description || item.type}</span>
               </div>
-              <div className="history-time">
+              <div className={styles.historyTime}>
                 {formatTime(item.timestamp || Date.now())}
               </div>
             </div>
 
-            <div className="history-details">
-              <div className="detail-row">
-                <span className="label">{t('developer.requestDetails.network')}:</span>
-                <span className="value">{item.network}</span>
+            <div className={styles.historyDetails}>
+              <div className={styles.detailRow}>
+                <span className={styles.label}>{t('developer.requestDetails.network')}:</span>
+                <span className={styles.value}>{item.network}</span>
               </div>
-              <div className="detail-row">
-                <span className="label">{t('developer.requestDetails.from')}:</span>
-                <span className="value mono">{formatAddress(item.from)}</span>
+              <div className={styles.detailRow}>
+                <span className={styles.label}>{t('developer.requestDetails.from')}:</span>
+                <span className={`${styles.value} ${styles.mono}`.trim()}>{formatAddress(item.from)}</span>
               </div>
               {item.to && (
-                <div className="detail-row">
-                  <span className="label">{t('developer.requestDetails.to')}:</span>
-                  <span className="value mono">{formatAddress(item.to)}</span>
+                <div className={styles.detailRow}>
+                  <span className={styles.label}>{t('developer.requestDetails.to')}:</span>
+                  <span className={`${styles.value} ${styles.mono}`.trim()}>{formatAddress(item.to)}</span>
                 </div>
               )}
               {item.txHash && (
-                <div className="detail-row">
-                  <span className="label">{t('walletConnect.txHash')}:</span>
+                <div className={styles.detailRow}>
+                  <span className={styles.label}>{t('walletConnect.txHash')}:</span>
                   {(() => {
                     const explorerUrl = getBlockExplorerTxUrl(item.chainId, item.txHash);
                     return explorerUrl ? (
@@ -129,121 +107,24 @@ export function SigningHistory({ history }: SigningHistoryProps) {
                         href={explorerUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="value mono tx-link"
+                        className={`${styles.txLink} ${styles.value} ${styles.mono} `.trim()}
                       >
                         {formatAddress(item.txHash)} ↗
                       </a>
                     ) : (
-                      <span className="value mono">{formatAddress(item.txHash)}</span>
+                      <span className={`${styles.value} ${styles.mono}`.trim()}>{formatAddress(item.txHash)}</span>
                     );
                   })()}
                 </div>
               )}
-              <div className="detail-row">
-                <span className="label">{t('developer.requestDetails.script')}:</span>
-                <span className="value script">{item.scriptName || 'Unknown'}</span>
+              <div className={styles.detailRow}>
+                <span className={styles.label}>{t('developer.requestDetails.script')}:</span>
+                <span className={`${styles.script} ${styles.value} `.trim()}>{item.scriptName || 'Unknown'}</span>
               </div>
             </div>
           </div>
         ))}
       </div>
-
-      <style>{`
-        .signing-history h2 {
-          margin: 0 0 20px;
-          font-size: 20px;
-        }
-
-        .history-list {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .history-item {
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 12px;
-          padding: 16px;
-        }
-
-        .history-item.approved {
-          border-left: 3px solid #22c55e;
-        }
-
-        .history-item.rejected {
-          border-left: 3px solid #ef4444;
-        }
-
-        .history-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 12px;
-        }
-
-        .history-type {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 15px;
-          font-weight: 500;
-        }
-
-        .history-item.approved .history-type {
-          color: #22c55e;
-        }
-
-        .history-item.rejected .history-type {
-          color: #ef4444;
-        }
-
-        .history-time {
-          font-size: 12px;
-          color: rgba(255, 255, 255, 0.5);
-        }
-
-        .history-details {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 8px;
-        }
-
-        .detail-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 13px;
-        }
-
-        .detail-row .label {
-          color: rgba(255, 255, 255, 0.5);
-        }
-
-        .detail-row .value {
-          color: rgba(255, 255, 255, 0.9);
-        }
-
-        .detail-row .value.mono {
-          font-family: monospace;
-        }
-
-        .detail-row .value.script {
-          color: #a5f3fc;
-        }
-
-        .tx-link {
-          color: #60a5fa;
-          text-decoration: none;
-          cursor: pointer;
-          transition: color 0.2s;
-        }
-
-        .tx-link:hover {
-          text-decoration: underline;
-          color: #93c5fd;
-        }
-      `}</style>
     </div>
   );
 }

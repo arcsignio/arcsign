@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
+import styles from "./ApiKeySetupStep.module.css";
 import { useTranslation } from 'react-i18next';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { OnboardingStep } from '../OnboardingStep';
@@ -115,12 +116,12 @@ const ProviderCard = ({
   const isSuccess = state.status === 'success';
 
   return (
-    <div className={`api-provider-card ${isConfigured || isSuccess ? 'success' : ''}`}>
-      <div className="api-provider-header">
+    <div className={`${styles.apiProviderCard} ${isConfigured || isSuccess ? styles.success : ''}`}>
+      <div className={styles.apiProviderHeader}>
         <strong>{name}</strong>
         {!isConfigured && (
           <button
-            className="api-link-button"
+            className={styles.apiLinkButton}
             onClick={() => openUrl(signupUrl).catch(() => {})}
             type="button"
           >
@@ -133,19 +134,19 @@ const ProviderCard = ({
           </button>
         )}
       </div>
-      <p className="api-provider-desc">{desc}</p>
-      <p className="api-provider-chains">{chains}</p>
+      <p className={styles.apiProviderDesc}>{desc}</p>
+      <p className={styles.apiProviderChains}>{chains}</p>
 
       {isConfigured ? (
-        <div className="api-configured-row">
-          <div className="api-status api-status-success">
+        <div className={styles.apiConfiguredRow}>
+          <div className={`${styles.apiStatusSuccess} ${styles.apiStatus} `.trim()}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
             {t('onboarding.apiKeyAlreadyConfigured')}
           </div>
           <button
-            className="api-reconfigure-button"
+            className={styles.apiReconfigureButton}
             onClick={onReconfigure}
             type="button"
           >
@@ -154,8 +155,8 @@ const ProviderCard = ({
         </div>
       ) : (
         <>
-          <div className="api-key-input-row">
-            <div className="api-key-input-wrapper">
+          <div className={styles.apiKeyInputRow}>
+            <div className={styles.apiKeyInputWrapper}>
               <input
                 type={state.showKey ? 'text' : 'password'}
                 value={state.apiKey}
@@ -165,7 +166,7 @@ const ProviderCard = ({
                 autoComplete="off"
               />
               <button
-                className="api-key-toggle"
+                className={styles.apiKeyToggle}
                 onClick={onToggleShow}
                 type="button"
                 tabIndex={-1}
@@ -174,7 +175,7 @@ const ProviderCard = ({
               </button>
             </div>
             <button
-              className="api-test-button"
+              className={styles.apiTestButton}
               onClick={onTest}
               disabled={!state.apiKey.trim() || state.status === 'testing' || state.status === 'saving' || state.status === 'success'}
               type="button"
@@ -190,7 +191,7 @@ const ProviderCard = ({
           </div>
 
           {isSuccess && (
-            <div className="api-status api-status-success">
+            <div className={`${styles.apiStatusSuccess} ${styles.apiStatus} `.trim()}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
@@ -199,7 +200,7 @@ const ProviderCard = ({
           )}
 
           {state.status === 'error' && (
-            <div className="api-status api-status-error">
+            <div className={`${styles.apiStatusError} ${styles.apiStatus} `.trim()}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
@@ -306,9 +307,9 @@ export const ApiKeySetupStep = ({ usbPath }: ApiKeySetupStepProps) => {
 
   return (
     <OnboardingStep icon={<KeyIcon />} title={t('onboarding.apiKeyTitle')}>
-      <p className="api-intro">{t('onboarding.apiKeyBody')}</p>
+      <p className={styles.apiIntro}>{t('onboarding.apiKeyBody')}</p>
 
-      <div className="api-providers">
+      <div className={styles.apiProviders}>
         <ProviderCard
           providerType={PROVIDER_TYPES.ALCHEMY}
           name="Alchemy"
@@ -342,202 +343,7 @@ export const ApiKeySetupStep = ({ usbPath }: ApiKeySetupStepProps) => {
         />
       </div>
 
-      <p className="api-skip-hint">{t('onboarding.apiKeySkipHint')}</p>
-
-      <style>{`
-        .api-intro {
-          text-align: center;
-          margin: 0 0 20px;
-          color: #6b7280;
-        }
-
-        .api-providers {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-          margin-bottom: 16px;
-        }
-
-        .api-provider-card {
-          background: white;
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 16px;
-          transition: border-color 0.2s;
-        }
-
-        .api-provider-card.success {
-          border-color: #10b981;
-          background: #f0fdf4;
-        }
-
-        .api-provider-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 8px;
-        }
-
-        .api-provider-header strong {
-          font-size: 16px;
-          color: #111827;
-        }
-
-        .api-link-button {
-          display: inline-flex;
-          align-items: center;
-          padding: 4px 10px;
-          background: none;
-          border: 1px solid #2dd4bf;
-          border-radius: 6px;
-          color: #0d9488;
-          font-size: 12px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .api-link-button:hover {
-          background: rgba(45, 212, 191, 0.08);
-        }
-
-        .api-provider-desc {
-          margin: 0 0 2px;
-          font-size: 13px;
-          color: #4b5563;
-        }
-
-        .api-provider-chains {
-          margin: 0 0 12px;
-          font-size: 12px;
-          color: #9ca3af;
-          font-style: italic;
-        }
-
-        .api-key-input-row {
-          display: flex;
-          gap: 8px;
-        }
-
-        .api-key-input-wrapper {
-          flex: 1;
-          position: relative;
-        }
-
-        .api-key-input-wrapper input {
-          width: 100%;
-          padding: 8px 60px 8px 12px;
-          border: 1px solid #d1d5db;
-          border-radius: 8px;
-          font-size: 13px;
-          color: #111827;
-          transition: border-color 0.2s;
-          box-sizing: border-box;
-        }
-
-        .api-key-input-wrapper input:focus {
-          outline: none;
-          border-color: #2dd4bf;
-        }
-
-        .api-key-input-wrapper input:disabled {
-          background: #f3f4f6;
-        }
-
-        .api-key-toggle {
-          position: absolute;
-          right: 8px;
-          top: 50%;
-          transform: translateY(-50%);
-          background: none;
-          border: none;
-          color: #9ca3af;
-          font-size: 11px;
-          cursor: pointer;
-          padding: 2px 4px;
-        }
-
-        .api-key-toggle:hover {
-          color: #6b7280;
-        }
-
-        .api-test-button {
-          padding: 8px 16px;
-          background: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%);
-          color: white;
-          border: none;
-          border-radius: 8px;
-          font-size: 13px;
-          font-weight: 500;
-          cursor: pointer;
-          white-space: nowrap;
-          transition: all 0.2s;
-        }
-
-        .api-test-button:hover:not(:disabled) {
-          box-shadow: 0 2px 8px rgba(45, 212, 191, 0.3);
-        }
-
-        .api-test-button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .api-status {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          margin-top: 8px;
-          padding: 6px 10px;
-          border-radius: 6px;
-          font-size: 12px;
-          font-weight: 500;
-        }
-
-        .api-status-success {
-          background: #dcfce7;
-          color: #16a34a;
-        }
-
-        .api-status-error {
-          background: #fee2e2;
-          color: #dc2626;
-        }
-
-        .api-configured-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px;
-        }
-
-        .api-configured-row .api-status {
-          margin-top: 0;
-        }
-
-        .api-reconfigure-button {
-          background: none;
-          border: none;
-          color: #6b7280;
-          font-size: 12px;
-          cursor: pointer;
-          padding: 4px 8px;
-          text-decoration: underline;
-          white-space: nowrap;
-          flex-shrink: 0;
-        }
-
-        .api-reconfigure-button:hover {
-          color: #0d9488;
-        }
-
-        .api-skip-hint {
-          text-align: center;
-          margin: 0;
-          font-size: 12px;
-          color: #9ca3af;
-        }
-      `}</style>
+      <p className={styles.apiSkipHint}>{t('onboarding.apiKeySkipHint')}</p>
     </OnboardingStep>
   );
 };

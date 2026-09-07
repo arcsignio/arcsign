@@ -1,0 +1,116 @@
+.emptyHistory {
+    text-align: center;
+    padding: 60px 24px;
+  }
+
+  .emptyIcon {
+    font-size: 64px;
+    margin-bottom: 16px;
+  }
+
+  .emptyHistory h2 {
+    margin: 0 0 8px;
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .emptyHistory p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+
+.signingHistory h2 {
+  margin: 0 0 20px;
+  font-size: 20px;
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.historyItem {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.historyItem.approved {
+  border-left: 3px solid #22c55e;
+}
+
+.historyItem.rejected {
+  border-left: 3px solid #ef4444;
+}
+
+.historyHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.historyType {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.historyItem.approved .historyType {
+  color: #22c55e;
+}
+
+.historyItem.rejected .historyType {
+  color: #ef4444;
+}
+
+.historyTime {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.historyDetails {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.detailRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.detailRow .label {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.detailRow .value {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.detailRow .value.mono {
+  font-family: monospace;
+}
+
+.detailRow .value.script {
+  color: #a5f3fc;
+}
+
+.txLink {
+  color: #60a5fa;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.txLink:hover {
+  text-decoration: underline;
+  color: #93c5fd;
+}

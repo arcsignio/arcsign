@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import styles from "../../../src/components/TransactionLabelModal.module.css";
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TransactionLabelModal } from '@/components/TransactionLabelModal';
@@ -136,7 +137,8 @@ describe('TransactionLabelModal', () => {
   it('calls onClose when overlay is clicked', async () => {
     const user = userEvent.setup();
     const { container } = render(<TransactionLabelModal {...defaultProps} />);
-    const overlay = container.querySelector('.txlabel-overlay')!;
+    // CSS Modules 會雜湊類名，所以問模組要真名，不要寫死原始類名。
+    const overlay = container.querySelector(`.${styles.txlabelOverlay}`)!;
     await user.click(overlay);
     expect(mockOnClose).toHaveBeenCalled();
   });

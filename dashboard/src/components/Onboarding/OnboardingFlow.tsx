@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import styles from "./OnboardingFlow.module.css";
 import { useTranslation } from 'react-i18next';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
@@ -95,36 +96,36 @@ export const OnboardingFlow = ({ onComplete, usbPath }: OnboardingFlowProps) => 
   };
 
   return (
-    <div className="onboarding-overlay">
+    <div className={styles.onboardingOverlay}>
       {/* Language Switcher */}
-      <div className="onboarding-top-left">
+      <div className={styles.onboardingTopLeft}>
         <LanguageSwitcher variant="toggle" />
       </div>
 
       {/* Skip button */}
       <button
-        className="onboarding-skip"
+        className={styles.onboardingSkip}
         onClick={handleSkip}
         type="button"
       >
         {t('onboarding.skip')}
       </button>
 
-      <div className="onboarding-container">
+      <div className={styles.onboardingContainer}>
         {/* Progress dots */}
-        <div className="onboarding-progress">
+        <div className={styles.onboardingProgress}>
           {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
             <div
               key={i}
-              className={`onboarding-dot ${
-                i === currentStep ? 'active' : i < currentStep ? 'completed' : ''
+              className={`${styles.onboardingDot} ${
+                i === currentStep ? styles.active : i < currentStep ? styles.completed : ''
               }`}
             />
           ))}
         </div>
 
         {/* Step indicator */}
-        <div className="onboarding-step-indicator">
+        <div className={styles.onboardingStepIndicator}>
           {t('onboarding.stepOf', {
             current: String(currentStep + 1),
             total: String(TOTAL_STEPS),
@@ -133,22 +134,22 @@ export const OnboardingFlow = ({ onComplete, usbPath }: OnboardingFlowProps) => 
 
         {/* Step content */}
         <div
-          className={`onboarding-content ${
+          className={`${styles.onboardingContent} ${
             animating
               ? direction === 'forward'
-                ? 'slide-out-left'
-                : 'slide-out-right'
-              : 'slide-in'
+                ? styles.slideOutLeft
+                : styles.slideOutRight
+              : styles.slideIn
           }`}
         >
           {renderStep()}
         </div>
 
         {/* Navigation buttons */}
-        <div className="onboarding-nav">
+        <div className={styles.onboardingNav}>
           {currentStep > 0 ? (
             <button
-              className="onboarding-nav-back"
+              className={styles.onboardingNavBack}
               onClick={handleBack}
               disabled={animating}
               type="button"
@@ -165,7 +166,7 @@ export const OnboardingFlow = ({ onComplete, usbPath }: OnboardingFlowProps) => 
 
           {currentStep < TOTAL_STEPS - 1 && (
             <button
-              className="onboarding-nav-next"
+              className={styles.onboardingNavNext}
               onClick={handleNext}
               disabled={animating}
               type="button"
@@ -179,191 +180,6 @@ export const OnboardingFlow = ({ onComplete, usbPath }: OnboardingFlowProps) => 
           )}
         </div>
       </div>
-
-      <style>{`
-        .onboarding-overlay {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: linear-gradient(135deg, #0a1c32 0%, #0f2b46 40%, #134e5e 100%);
-          padding: 20px;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .onboarding-overlay::before {
-          content: '';
-          position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: radial-gradient(circle at 30% 50%, rgba(45, 212, 191, 0.06) 0%, transparent 50%),
-                      radial-gradient(circle at 70% 30%, rgba(94, 234, 212, 0.04) 0%, transparent 40%);
-          pointer-events: none;
-        }
-
-        .onboarding-top-left {
-          position: absolute;
-          top: 20px;
-          left: 20px;
-          z-index: 10;
-        }
-
-        .onboarding-top-left button {
-          background: rgba(255, 255, 255, 0.95) !important;
-          border-color: rgba(255, 255, 255, 0.3) !important;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        }
-
-        .onboarding-top-left button:hover {
-          background: #ffffff !important;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-
-        .onboarding-skip {
-          position: absolute;
-          top: 24px;
-          right: 24px;
-          z-index: 10;
-          background: none;
-          border: 1px solid rgba(255, 255, 255, 0.25);
-          color: rgba(255, 255, 255, 0.7);
-          padding: 6px 16px;
-          border-radius: 6px;
-          font-size: 13px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .onboarding-skip:hover {
-          background: rgba(255, 255, 255, 0.1);
-          color: white;
-          border-color: rgba(255, 255, 255, 0.4);
-        }
-
-        .onboarding-container {
-          width: 100%;
-          max-width: 640px;
-          background: white;
-          border-radius: 16px;
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-          padding: 32px 40px;
-          position: relative;
-          z-index: 1;
-        }
-
-        .onboarding-progress {
-          display: flex;
-          justify-content: center;
-          gap: 8px;
-          margin-bottom: 8px;
-        }
-
-        .onboarding-dot {
-          width: 10px;
-          height: 10px;
-          border-radius: 50%;
-          background: var(--border-default);
-          transition: all 0.3s ease;
-        }
-
-        .onboarding-dot.active {
-          background: var(--brand-accent);
-          box-shadow: 0 0 8px rgba(45, 212, 191, 0.4);
-          transform: scale(1.2);
-        }
-
-        .onboarding-dot.completed {
-          background: var(--brand);
-        }
-
-        .onboarding-step-indicator {
-          text-align: center;
-          font-size: 12px;
-          color: var(--text-tertiary);
-          margin-bottom: 24px;
-        }
-
-        .onboarding-content {
-          min-height: 360px;
-          transition: opacity 0.2s ease, transform 0.2s ease;
-        }
-
-        .onboarding-content.slide-in {
-          opacity: 1;
-          transform: translateX(0);
-        }
-
-        .onboarding-content.slide-out-left {
-          opacity: 0;
-          transform: translateX(-20px);
-        }
-
-        .onboarding-content.slide-out-right {
-          opacity: 0;
-          transform: translateX(20px);
-        }
-
-        .onboarding-nav {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-top: 24px;
-          padding-top: 20px;
-          border-top: 1px solid var(--surface-strong);
-        }
-
-        .onboarding-nav-back {
-          display: inline-flex;
-          align-items: center;
-          padding: 10px 20px;
-          background: none;
-          border: 1px solid var(--border-default);
-          border-radius: 8px;
-          color: var(--text-secondary);
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .onboarding-nav-back:hover:not(:disabled) {
-          border-color: var(--border-input);
-          background: var(--surface-sunken);
-        }
-
-        .onboarding-nav-back:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
-        }
-
-        .onboarding-nav-next {
-          display: inline-flex;
-          align-items: center;
-          padding: 10px 24px;
-          background: linear-gradient(135deg, var(--brand) 0%, var(--brand-accent) 100%);
-          color: white;
-          border: none;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-          margin-left: auto;
-        }
-
-        .onboarding-nav-next:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(45, 212, 191, 0.4);
-        }
-
-        .onboarding-nav-next:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-      `}</style>
     </div>
   );
 };

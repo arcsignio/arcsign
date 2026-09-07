@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import styles from "./App.module.css";
 import { useTranslation } from 'react-i18next';
 import { Dashboard } from '@/pages/Dashboard';
 import { AppUnlock } from '@/components/AppUnlock';
@@ -140,7 +141,7 @@ function AppContent() {
   // Loading USB detection
   if (loadingUsb) {
     return (
-      <div className="app-loading">
+      <div className={styles.appLoading}>
         <LoadingSpinner size="lg" message="Detecting USB drive..." />
       </div>
     );
@@ -149,77 +150,18 @@ function AppContent() {
   // USB error
   if (usbError || !usbPath) {
     return (
-      <div className="app-error">
-        <div className="error-container">
-          <img src="/logo.png" alt="ArcSign" className="error-logo" />
+      <div className={styles.appError}>
+        <div className={styles.errorContainer}>
+          <img src="/logo.png" alt="ArcSign" className={styles.errorLogo} />
           <h1>{t('app.usbDriveRequired')}</h1>
           <p>{usbError || t('app.noUsbDriveDetected')}</p>
           <button
             onClick={() => window.location.reload()}
-            className="retry-button"
+            className={styles.retryButton}
           >
             {t('app.retryDetection')}
           </button>
         </div>
-
-        <style>{`
-          .app-error {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #0a1c32 0%, #0f2b46 40%, #134e5e 100%);
-            padding: 20px;
-          }
-
-          .error-container {
-            text-align: center;
-            background: white;
-            padding: 48px 40px;
-            border-radius: 16px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            max-width: 480px;
-          }
-
-          .error-logo {
-            width: 64px;
-            height: 64px;
-            object-fit: contain;
-            margin-bottom: 20px;
-            opacity: 0.6;
-          }
-
-          .error-container h1 {
-            margin: 0 0 12px;
-            font-size: 24px;
-            font-weight: 700;
-            color: #1a1a1a;
-          }
-
-          .error-container p {
-            margin: 0 0 28px;
-            color: #666;
-            line-height: 1.6;
-            font-size: 15px;
-          }
-
-          .retry-button {
-            padding: 12px 32px;
-            background: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-          }
-
-          .retry-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(45, 212, 191, 0.4);
-          }
-        `}</style>
       </div>
     );
   }
@@ -275,19 +217,6 @@ function AppContent() {
         notifications={walletConnect.signatureNotifications}
         onDismiss={walletConnect.dismissNotification}
       />
-
-      <style>{`
-        .app-loading {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: linear-gradient(135deg, #0a1c32 0%, #0f2b46 40%, #134e5e 100%);
-        }
-        .app-loading p {
-          color: rgba(255, 255, 255, 0.7) !important;
-        }
-      `}</style>
     </div>
   );
 }
