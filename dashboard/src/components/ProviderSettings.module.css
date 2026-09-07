@@ -1,0 +1,326 @@
+.providerSettings {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.providerSettings .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.providerSettings .header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.providerSettings .addButton {
+  padding: 10px 20px;
+  background: var(--brand-accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.providerSettings .addButton:hover {
+  background: var(--brand);
+}
+
+.providerSettings .addButton:disabled {
+  background: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.providerSettings .message {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.providerSettings .message p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.providerSettings .errorMessage {
+  background: var(--danger-pale);
+  border: 1px solid var(--danger-border);
+  color: var(--danger);
+}
+
+.providerSettings .successMessage {
+  background: var(--success-pale);
+  border: 1px solid var(--success-border);
+  color: var(--success);
+}
+
+.providerSettings .addForm {
+  background: white;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.providerSettings .formGroup {
+  margin-bottom: 16px;
+}
+
+.providerSettings .formGroup label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.providerSettings .formGroup input,
+.providerSettings .formGroup select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-input);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.providerSettings .formGroup input:focus,
+.providerSettings .formGroup select:focus {
+  outline: none;
+  border-color: var(--brand-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.providerSettings .formGroup input:disabled,
+.providerSettings .formGroup select:disabled {
+  background: var(--surface-strong);
+  cursor: not-allowed;
+}
+
+.providerSettings .formGroup small {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.providerSettings .formGroup.checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.providerSettings .formGroup.checkbox input {
+  width: auto;
+}
+
+.providerSettings .submitButton {
+  width: 100%;
+  padding: 12px;
+  background: var(--brand-accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.providerSettings .submitButton:hover {
+  background: var(--brand);
+}
+
+.providerSettings .submitButton:disabled {
+  background: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.providerSettings .providerList {
+  background: white;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.providerSettings .providerList h3 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.providerSettings .providerList .loading,
+.providerSettings .providerList .empty {
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+}
+
+.providerSettings table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.providerSettings table th,
+.providerSettings table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.providerSettings table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.providerSettings table td {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.providerSettings table tr:last-child td {
+  border-bottom: none;
+}
+
+.providerSettings .status {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.providerSettings .status.enabled {
+  background: var(--success-pale);
+  color: var(--success);
+}
+
+.providerSettings .status.disabled {
+  background: var(--surface-strong);
+  color: var(--text-secondary);
+}
+
+.providerSettings .hasKey {
+  margin-left: 8px;
+}
+
+.providerSettings .deleteButton {
+  padding: 6px 12px;
+  background: var(--danger-pale);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.providerSettings .deleteButton:hover {
+  background: var(--danger-pale);
+  border-color: #f87171;
+}
+
+.providerSettings .deleteButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.providerSettings .helpText {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.providerSettings .helpText h4 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.providerSettings .helpText p {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.providerSettings .helpText ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.providerSettings .helpText li {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.providerSettings .helpText a {
+  color: var(--brand-accent);
+  text-decoration: none;
+}
+
+.providerSettings .helpText a:hover {
+  text-decoration: underline;
+}
+
+.providerSettings .providerInfoList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.providerSettings .providerInfoItem {
+  background: white;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.providerSettings .providerInfoHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.providerSettings .providerInfoHeader strong {
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.providerSettings .providerInfoHeader a {
+  font-size: 13px;
+}
+
+.providerSettings .providerInfoDesc {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.providerSettings .providerInfoChains {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+}

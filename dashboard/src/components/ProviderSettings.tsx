@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import styles from "./ProviderSettings.module.css";
 import { useTranslation } from 'react-i18next';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { useSessionStore } from '@/stores/sessionStore';
@@ -158,7 +159,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
   };
 
   return (
-    <div className="provider-settings">
+    <div className={styles.providerSettings}>
       {/* Capabilities comparison: free vs key-gated */}
       <div
         style={{
@@ -203,10 +204,10 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
         </div>
       </div>
 
-      <div className="header">
+      <div className={styles.header}>
         <h2>{t('provider.title')}</h2>
         <button
-          className="add-button"
+          className={styles.addButton}
           onClick={() => setShowAddForm(!showAddForm)}
           disabled={isLoading}
         >
@@ -216,20 +217,20 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
 
       {/* Error/Success messages */}
       {error && (
-        <div className="message error-message">
+        <div className={`${styles.errorMessage} ${styles.message} `.trim()}>
           <p>{error}</p>
         </div>
       )}
       {success && (
-        <div className="message success-message">
+        <div className={`${styles.successMessage} ${styles.message} `.trim()}>
           <p>{success}</p>
         </div>
       )}
 
       {/* Add provider form */}
       {showAddForm && (
-        <form className="add-form" onSubmit={handleSubmit}>
-          <div className="form-group">
+        <form className={styles.addForm} onSubmit={handleSubmit}>
+          <div className={styles.formGroup}>
             <label>{t('provider.providerType')}</label>
             <select
               value={formData.providerType}
@@ -244,7 +245,7 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
             </select>
           </div>
 
-          <div className="form-group">
+          <div className={styles.formGroup}>
             <label>{t('provider.apiKey')}</label>
             <PasswordInput
               value={formData.apiKey}
@@ -255,20 +256,20 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
             />
           </div>
 
-          <button type="submit" className="submit-button" disabled={isLoading}>
+          <button type="submit" className={styles.submitButton} disabled={isLoading}>
             {isLoading ? t('provider.saving') : t('provider.save')}
           </button>
         </form>
       )}
 
       {/* Provider list */}
-      <div className="provider-list">
+      <div className={styles.providerList}>
         <h3>{t('provider.configuredProviders')}</h3>
 
         {isLoading && providers.length === 0 ? (
-          <p className="loading">{t('provider.loading')}</p>
+          <p className={styles.loading}>{t('provider.loading')}</p>
         ) : providers.length === 0 ? (
-          <p className="empty">{t('provider.noProviders')}</p>
+          <p className={styles.empty}>{t('provider.noProviders')}</p>
         ) : (
           <table>
             <thead>
@@ -284,18 +285,18 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
                   <td>{provider.providerType.toUpperCase()}</td>
                   <td>
                     {provider.hasApiKey ? (
-                      <span className="status enabled">
+                      <span className={`${styles.enabled} ${styles.status} `.trim()}>
                         {t('provider.configured')} 🔑
                       </span>
                     ) : (
-                      <span className="status disabled">
+                      <span className={`${styles.disabled} ${styles.status} `.trim()}>
                         {t('provider.missing')}
                       </span>
                     )}
                   </td>
                   <td>
                     <button
-                      className="delete-button"
+                      className={styles.deleteButton}
                       onClick={() => handleDelete(provider.chainId, provider.providerType)}
                       disabled={isLoading}
                     >
@@ -310,377 +311,48 @@ export const ProviderSettings: React.FC<ProviderSettingsProps> = () => {
       </div>
 
       {/* Help text */}
-      <div className="help-text">
+      <div className={styles.helpText}>
         <h4>{t('provider.helpTitle')}</h4>
         <p>{t('provider.helpDescription')}</p>
 
-        <div className="provider-info-list">
-          <div className="provider-info-item">
-            <div className="provider-info-header">
+        <div className={styles.providerInfoList}>
+          <div className={styles.providerInfoItem}>
+            <div className={styles.providerInfoHeader}>
               <strong>Alchemy</strong>
               <a href="https://dashboard.alchemy.com" target="_blank" rel="noopener noreferrer">
                 dashboard.alchemy.com
               </a>
             </div>
-            <p className="provider-info-desc">{t('provider.alchemyInfo')}</p>
-            <p className="provider-info-chains">{t('provider.alchemyChains')}</p>
+            <p className={styles.providerInfoDesc}>{t('provider.alchemyInfo')}</p>
+            <p className={styles.providerInfoChains}>{t('provider.alchemyChains')}</p>
           </div>
 
-          <div className="provider-info-item">
-            <div className="provider-info-header">
+          <div className={styles.providerInfoItem}>
+            <div className={styles.providerInfoHeader}>
               <strong>NodeReal</strong>
               <a href="https://dashboard.nodereal.io" target="_blank" rel="noopener noreferrer">
                 dashboard.nodereal.io
               </a>
             </div>
-            <p className="provider-info-desc">{t('provider.noderealInfo')}</p>
-            <p className="provider-info-chains">{t('provider.noderealChains')}</p>
+            <p className={styles.providerInfoDesc}>{t('provider.noderealInfo')}</p>
+            <p className={styles.providerInfoChains}>{t('provider.noderealChains')}</p>
           </div>
 
           {/* 1inch - Temporarily disabled, will be enabled in future release
-          <div className="provider-info-item">
-            <div className="provider-info-header">
+          <div className={styles.providerInfoItem}>
+            <div className={styles.providerInfoHeader}>
               <strong>1inch</strong>
               <a href="https://portal.1inch.dev" target="_blank" rel="noopener noreferrer">
                 portal.1inch.dev
               </a>
             </div>
-            <p className="provider-info-desc">{t('provider.oneinchInfo')}</p>
-            <p className="provider-info-chains">{t('provider.oneinchChains')}</p>
+            <p className={styles.providerInfoDesc}>{t('provider.oneinchInfo')}</p>
+            <p className={styles.providerInfoChains}>{t('provider.oneinchChains')}</p>
           </div>
           */}
 
         </div>
       </div>
-
-      <style>{`
-        .provider-settings {
-          max-width: 900px;
-          margin: 0 auto;
-          padding: 20px;
-        }
-
-        .provider-settings .header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 24px;
-        }
-
-        .provider-settings .header h2 {
-          margin: 0;
-          font-size: 24px;
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
-        .provider-settings .add-button {
-          padding: 10px 20px;
-          background: var(--brand-accent);
-          color: white;
-          border: none;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-
-        .provider-settings .add-button:hover {
-          background: var(--brand);
-        }
-
-        .provider-settings .add-button:disabled {
-          background: var(--text-tertiary);
-          cursor: not-allowed;
-        }
-
-        .provider-settings .message {
-          padding: 12px 16px;
-          border-radius: 8px;
-          margin-bottom: 16px;
-        }
-
-        .provider-settings .message p {
-          margin: 0;
-          font-size: 14px;
-        }
-
-        .provider-settings .error-message {
-          background: var(--danger-pale);
-          border: 1px solid var(--danger-border);
-          color: var(--danger);
-        }
-
-        .provider-settings .success-message {
-          background: var(--success-pale);
-          border: 1px solid var(--success-border);
-          color: var(--success);
-        }
-
-        .provider-settings .add-form {
-          background: white;
-          border: 1px solid var(--border-default);
-          border-radius: 12px;
-          padding: 24px;
-          margin-bottom: 24px;
-        }
-
-        .provider-settings .form-group {
-          margin-bottom: 16px;
-        }
-
-        .provider-settings .form-group label {
-          display: block;
-          font-size: 14px;
-          font-weight: 500;
-          color: var(--text-primary);
-          margin-bottom: 6px;
-        }
-
-        .provider-settings .form-group input,
-        .provider-settings .form-group select {
-          width: 100%;
-          padding: 10px 12px;
-          border: 1px solid var(--border-input);
-          border-radius: 8px;
-          font-size: 14px;
-          color: var(--text-primary);
-          background: white;
-          transition: border-color 0.2s;
-        }
-
-        .provider-settings .form-group input:focus,
-        .provider-settings .form-group select:focus {
-          outline: none;
-          border-color: var(--brand-accent);
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-
-        .provider-settings .form-group input:disabled,
-        .provider-settings .form-group select:disabled {
-          background: var(--surface-strong);
-          cursor: not-allowed;
-        }
-
-        .provider-settings .form-group small {
-          display: block;
-          font-size: 12px;
-          color: var(--text-secondary);
-          margin-top: 4px;
-        }
-
-        .provider-settings .form-group.checkbox label {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          cursor: pointer;
-        }
-
-        .provider-settings .form-group.checkbox input {
-          width: auto;
-        }
-
-        .provider-settings .submit-button {
-          width: 100%;
-          padding: 12px;
-          background: var(--brand-accent);
-          color: white;
-          border: none;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-
-        .provider-settings .submit-button:hover {
-          background: var(--brand);
-        }
-
-        .provider-settings .submit-button:disabled {
-          background: var(--text-tertiary);
-          cursor: not-allowed;
-        }
-
-        .provider-settings .provider-list {
-          background: white;
-          border: 1px solid var(--border-default);
-          border-radius: 12px;
-          padding: 24px;
-          margin-bottom: 24px;
-        }
-
-        .provider-settings .provider-list h3 {
-          margin: 0 0 16px;
-          font-size: 18px;
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
-        .provider-settings .provider-list .loading,
-        .provider-settings .provider-list .empty {
-          color: var(--text-secondary);
-          font-size: 14px;
-          text-align: center;
-          padding: 20px;
-        }
-
-        .provider-settings table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-
-        .provider-settings table th,
-        .provider-settings table td {
-          padding: 12px;
-          text-align: left;
-          border-bottom: 1px solid var(--border-default);
-        }
-
-        .provider-settings table th {
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--text-secondary);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .provider-settings table td {
-          font-size: 14px;
-          color: var(--text-primary);
-        }
-
-        .provider-settings table tr:last-child td {
-          border-bottom: none;
-        }
-
-        .provider-settings .status {
-          display: inline-block;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-          font-weight: 500;
-        }
-
-        .provider-settings .status.enabled {
-          background: var(--success-pale);
-          color: var(--success);
-        }
-
-        .provider-settings .status.disabled {
-          background: var(--surface-strong);
-          color: var(--text-secondary);
-        }
-
-        .provider-settings .has-key {
-          margin-left: 8px;
-        }
-
-        .provider-settings .delete-button {
-          padding: 6px 12px;
-          background: var(--danger-pale);
-          color: var(--danger);
-          border: 1px solid var(--danger-border);
-          border-radius: 6px;
-          font-size: 12px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .provider-settings .delete-button:hover {
-          background: var(--danger-pale);
-          border-color: #f87171;
-        }
-
-        .provider-settings .delete-button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .provider-settings .help-text {
-          background: var(--surface-sunken);
-          border: 1px solid var(--border-default);
-          border-radius: 12px;
-          padding: 20px;
-        }
-
-        .provider-settings .help-text h4 {
-          margin: 0 0 8px;
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
-        .provider-settings .help-text p {
-          margin: 0 0 12px;
-          font-size: 14px;
-          color: var(--text-secondary);
-        }
-
-        .provider-settings .help-text ul {
-          margin: 0;
-          padding-left: 20px;
-        }
-
-        .provider-settings .help-text li {
-          font-size: 14px;
-          color: var(--text-primary);
-          margin-bottom: 6px;
-        }
-
-        .provider-settings .help-text a {
-          color: var(--brand-accent);
-          text-decoration: none;
-        }
-
-        .provider-settings .help-text a:hover {
-          text-decoration: underline;
-        }
-
-        .provider-settings .provider-info-list {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-          margin-top: 16px;
-        }
-
-        .provider-settings .provider-info-item {
-          background: white;
-          border: 1px solid var(--border-default);
-          border-radius: 8px;
-          padding: 16px;
-        }
-
-        .provider-settings .provider-info-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 8px;
-        }
-
-        .provider-settings .provider-info-header strong {
-          font-size: 15px;
-          color: var(--text-primary);
-        }
-
-        .provider-settings .provider-info-header a {
-          font-size: 13px;
-        }
-
-        .provider-settings .provider-info-desc {
-          margin: 0 0 4px;
-          font-size: 14px;
-          color: var(--text-primary);
-        }
-
-        .provider-settings .provider-info-chains {
-          margin: 0;
-          font-size: 12px;
-          color: var(--text-secondary);
-          font-style: italic;
-        }
-      `}</style>
     </div>
   );
 };

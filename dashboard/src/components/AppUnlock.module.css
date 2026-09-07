@@ -1,0 +1,207 @@
+.appUnlock {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a1c32 0%, #0f2b46 40%, #134e5e 100%);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.appUnlock::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 30% 50%, rgba(45, 212, 191, 0.06) 0%, transparent 50%),
+              radial-gradient(circle at 70% 30%, rgba(94, 234, 212, 0.04) 0%, transparent 40%);
+  pointer-events: none;
+}
+
+.topLeft {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 10;
+}
+
+.topLeft button {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.topLeft button:hover {
+  background: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.unlockLogo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  margin-bottom: 8px;
+}
+
+.unlockContainer {
+  width: 100%;
+  max-width: 460px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  padding: 40px;
+}
+
+.unlockHeader {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.unlockHeader h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.subtitle {
+  margin: 8px 0 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.formTitle {
+  text-align: center;
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.setupForm h2,
+.unlockForm h2 {
+  margin: 0 0 12px;
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.description {
+  margin-bottom: 24px;
+  color: #666;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.securityNote {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #f0fdfa;
+  border-left: 4px solid #2dd4bf;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.securityNote strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #0f766e;
+}
+
+.securityNote ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #0f766e;
+}
+
+.securityNote li {
+  margin-bottom: 4px;
+}
+
+.formGroup {
+  margin-bottom: 20px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+.formGroup input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 15px;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.formGroup input:focus {
+  outline: none;
+  border-color: #2dd4bf;
+}
+
+.formGroup input:disabled {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.alert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.alertError {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.btnPrimary {
+  width: 100%;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(45, 212, 191, 0.4);
+}
+
+.btnPrimary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnLarge {
+  padding: 16px 24px;
+  font-size: 17px;
+}
+
+.usbInfo {
+  margin-top: 24px;
+  text-align: center;
+  color: #999;
+  font-size: 12px;
+}
