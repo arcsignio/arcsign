@@ -1,0 +1,214 @@
+.updateDialogBody {
+  padding: 32px 28px 24px;
+}
+
+.updateCenter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.updateIconCircle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.updateIconTeal {
+  background: var(--brand-faint);
+  color: var(--brand);
+}
+
+.updateIconGreen {
+  background: var(--success-pale);
+  color: var(--success);
+}
+
+.updateIconRed {
+  background: var(--danger-pale);
+  color: var(--danger);
+}
+
+.updateTitle {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.updateDesc {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.updateVersionRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--surface-strong);
+}
+
+.updateVersionLabel {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.updateVersionValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.updateVersionNew {
+  color: var(--brand);
+  background: var(--brand-faint);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.updateNotesSection {
+  margin-top: 16px;
+}
+
+.updateNotesTitle {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.updateNotesContent {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  max-height: 160px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.updateSkipRow {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.updateActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  justify-content: flex-end;
+}
+
+.updateBtnPrimary {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 20px;
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.updateBtnPrimary:hover {
+  background: var(--brand-press);
+}
+
+.updateBtnSecondary {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 20px;
+  background: #fff;
+  color: var(--text-primary);
+  border: 1px solid var(--border-input);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.updateBtnSecondary:hover {
+  background: var(--surface-sunken);
+  border-color: var(--text-tertiary);
+}
+
+.updateBtnText {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px 8px;
+}
+
+.updateBtnText:hover {
+  color: var(--text-primary);
+}
+
+.updateErrorDetail {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  background: var(--danger-pale);
+  border: 1px solid var(--danger-border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--danger-text);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  word-break: break-all;
+}
+
+/* Indeterminate progress bar */
+.updateProgressBar {
+  width: 100%;
+  max-width: 280px;
+  height: 6px;
+  background: var(--border-default);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 20px;
+}
+
+.updateProgressBarInner {
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand-accent), var(--brand));
+  border-radius: 3px;
+  animation: update-progress-slide 1.5s ease-in-out infinite;
+}
+
+@keyframes update-progress-slide {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(150%); }
+  100% { transform: translateX(-100%); }
+}
+
+/* Spinner animation */
+.updateSpinner {
+  animation: update-spin 1s linear infinite;
+}
+
+@keyframes update-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

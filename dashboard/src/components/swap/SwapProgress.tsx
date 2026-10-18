@@ -1,4 +1,5 @@
 import React from "react";
+import styles from "./swap.module.css";
 import { useTranslation } from "react-i18next";
 import { shortenAddress } from "@/utils/swapFormat";
 
@@ -25,10 +26,10 @@ export const SwapProgress: React.FC<SwapProgressProps> = ({
 
   if (mode === "approving") {
     return (
-      <div className="approving-form">
-        <div className="approving-spinner" />
+      <div className={styles.approvingForm}>
+        <div className={styles.approvingSpinner} />
         <h3>{t('swap.approving', { symbol: tokenSymbol })}</h3>
-        <p className="approving-description">
+        <p className={styles.approvingDescription}>
           {approvalTxHash
             ? t('swap.waitingForConfirmation')
             : t('swap.signingAndBroadcasting')
@@ -36,26 +37,26 @@ export const SwapProgress: React.FC<SwapProgressProps> = ({
         </p>
 
         {approvalTxHash && approvalTxUrl && (
-          <div className="approval-tx-info">
-            <div className="tx-hash-display">
-              <span className="tx-label">{t('swap.approvalTransaction')}</span>
+          <div className={styles.approvalTxInfo}>
+            <div className={styles.txHashDisplay}>
+              <span className={styles.txLabel}>{t('swap.approvalTransaction')}</span>
               <a
                 href={approvalTxUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="tx-hash-link"
+                className={styles.txHashLink}
               >
                 {shortenAddress(approvalTxHash)} ↗
               </a>
             </div>
-            <div className="confirmation-status">
-              <div className="status-indicator pulsing" />
+            <div className={styles.confirmationStatus}>
+              <div className={`${styles.statusIndicator} ${styles.pulsing}`.trim()} />
               <span>{t('swap.confirmingOn', { network: networkLabel })}</span>
             </div>
           </div>
         )}
 
-        <p className="approving-note">
+        <p className={styles.approvingNote}>
           {approvalTxHash
             ? t('swap.typicallyTakes')
             : t('swap.pleaseWait')
@@ -67,10 +68,10 @@ export const SwapProgress: React.FC<SwapProgressProps> = ({
 
   // mode === "signing" | "broadcasting"
   return (
-    <div className="processing-form">
-      <div className="processing-spinner"></div>
+    <div className={styles.processingForm}>
+      <div className={styles.processingSpinner}></div>
       <h3>{mode === "signing" ? t('swap.signingTransaction') : t('swap.broadcastingTransaction')}</h3>
-      <p className="processing-description">
+      <p className={styles.processingDescription}>
         {mode === "signing"
           ? t('swap.pleaseWaitSigning')
           : t('swap.submittingToBlockchain')

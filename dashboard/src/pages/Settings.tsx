@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import styles from "./Settings.module.css";
 import { useTranslation } from 'react-i18next';
 import { getVersion } from '@tauri-apps/api/app';
 import { useDashboardStore } from '@/stores/dashboardStore';
@@ -111,68 +112,68 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
   };
 
   return (
-    <div className="settings-page">
-      <button onClick={onBack} className="back-button">
+    <div className={styles.settingsPage}>
+      <button onClick={onBack} className={styles.backButton}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:'inline',verticalAlign:'middle',marginRight:4}}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         {t('settings.backToWallets')}
       </button>
 
-      <header className="settings-header">
+      <header className={styles.settingsHeader}>
         <h1>{t('settings.settings')}</h1>
-        <p className="settings-description">
+        <p className={styles.settingsDescription}>
           {t('settings.settingsDescription')}
         </p>
       </header>
 
-      <div className="settings-menu">
+      <div className={styles.settingsMenu}>
         {SETTING_ITEMS.map((item) => (
           <button
             key={item.id}
-            className="setting-item"
+            className={styles.settingItem}
             onClick={() => onNavigate(item.id)}
           >
-            <span className="setting-icon">{item.icon}</span>
-            <div className="setting-content">
-              <h3 className="setting-title">{t(item.titleKey)}</h3>
-              <p className="setting-description">{t(item.descriptionKey)}</p>
+            <span className={styles.settingIcon}>{item.icon}</span>
+            <div className={styles.settingContent}>
+              <h3 className={styles.settingTitle}>{t(item.titleKey)}</h3>
+              <p className={styles.settingDescription}>{t(item.descriptionKey)}</p>
             </div>
-            <span className="setting-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+            <span className={styles.settingArrow}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
           </button>
         ))}
       </div>
 
       {/* Privacy / Clear-signing preferences */}
-      <div className="preferences-section">
-        <h2 className="preferences-section-title">{t('settings.advancedTitle', 'Advanced')}</h2>
-        <div className="toggle-item">
-          <div className="setting-content">
-            <h3 className="setting-title">{t('onlineDecoding.label')}</h3>
-            <p className="setting-description">{t('onlineDecoding.description')}</p>
-            <p className="toggle-privacy-note">{t('onlineDecoding.privacyNote')}</p>
+      <div className={styles.preferencesSection}>
+        <h2 className={styles.preferencesSectionTitle}>{t('settings.advancedTitle', 'Advanced')}</h2>
+        <div className={styles.toggleItem}>
+          <div className={styles.settingContent}>
+            <h3 className={styles.settingTitle}>{t('onlineDecoding.label')}</h3>
+            <p className={styles.settingDescription}>{t('onlineDecoding.description')}</p>
+            <p className={styles.togglePrivacyNote}>{t('onlineDecoding.privacyNote')}</p>
           </div>
-          <label className="toggle-switch">
+          <label className={styles.toggleSwitch}>
             <input
               type="checkbox"
               checked={onlineDecodingEnabled}
               onChange={(e) => setOnlineDecodingEnabled(e.target.checked)}
             />
-            <span className="toggle-slider" />
+            <span className={styles.toggleSlider} />
           </label>
         </div>
 
-        <div className="toggle-item">
-          <div className="setting-content">
-            <h3 className="setting-title">{t('clearAbiCache.label')}</h3>
-            <p className="setting-description">{t('clearAbiCache.description')}</p>
+        <div className={styles.toggleItem}>
+          <div className={styles.settingContent}>
+            <h3 className={styles.settingTitle}>{t('clearAbiCache.label')}</h3>
+            <p className={styles.settingDescription}>{t('clearAbiCache.description')}</p>
             {abiCacheStatus === 'done' && (
-              <p className="abi-cache-status abi-cache-status-done">{t('clearAbiCache.done')}</p>
+              <p className={`${styles.abiCacheStatusDone} ${styles.abiCacheStatus} `.trim()}>{t('clearAbiCache.done')}</p>
             )}
             {abiCacheStatus === 'failed' && (
-              <p className="abi-cache-status abi-cache-status-failed">{t('clearAbiCache.failed')}</p>
+              <p className={`${styles.abiCacheStatusFailed} ${styles.abiCacheStatus} `.trim()}>{t('clearAbiCache.failed')}</p>
             )}
           </div>
           <button
-            className="clear-abi-button"
+            className={styles.clearAbiButton}
             onClick={handleClearAbiCache}
             disabled={!usbPath || !sessionToken || isClearingAbiCache}
           >
@@ -182,75 +183,75 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
       </div>
 
       {/* Backup & Restore Section */}
-      <div className="backup-section">
-        <h2 className="backup-section-title">{t('backup.backupSectionTitle')}</h2>
+      <div className={styles.backupSection}>
+        <h2 className={styles.backupSectionTitle}>{t('backup.backupSectionTitle')}</h2>
         <button
-          className="setting-item"
+          className={styles.settingItem}
           onClick={() => onNavigate('export-backup-select')}
         >
-          <span className="setting-icon backup-icon"><IconDownload /></span>
-          <div className="setting-content">
-            <h3 className="setting-title">{t('backup.exportSettingsTitle')}</h3>
-            <p className="setting-description">{t('backup.exportSettingsDescription')}</p>
+          <span className={`${styles.settingIcon} ${styles.backupIcon}`.trim()}><IconDownload /></span>
+          <div className={styles.settingContent}>
+            <h3 className={styles.settingTitle}>{t('backup.exportSettingsTitle')}</h3>
+            <p className={styles.settingDescription}>{t('backup.exportSettingsDescription')}</p>
           </div>
-          <span className="setting-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+          <span className={styles.settingArrow}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
         </button>
         <button
-          className="setting-item"
+          className={styles.settingItem}
           onClick={() => onNavigate('export-all-backups')}
         >
-          <span className="setting-icon backup-icon"><IconDownload /></span>
-          <div className="setting-content">
-            <h3 className="setting-title">
+          <span className={`${styles.settingIcon} ${styles.backupIcon}`.trim()}><IconDownload /></span>
+          <div className={styles.settingContent}>
+            <h3 className={styles.settingTitle}>
               {t('backup.exportAllTitle')}
             </h3>
-            <p className="setting-description">
+            <p className={styles.settingDescription}>
               {t('backup.exportAllDescription')}
             </p>
           </div>
-          <span className="setting-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+          <span className={styles.settingArrow}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
         </button>
       </div>
 
       {/* Developer Mode - Separate Section */}
-      <div className="developer-section">
-        <h2 className="developer-section-title">{t('settings.advancedTitle', 'Advanced')}</h2>
+      <div className={styles.developerSection}>
+        <h2 className={styles.developerSectionTitle}>{t('settings.advancedTitle', 'Advanced')}</h2>
         <button
-          className="setting-item developer-item"
+          className={`${styles.developerItem} ${styles.settingItem} `.trim()}
           onClick={() => onNavigate(DEVELOPER_ITEM.id)}
         >
-          <span className="setting-icon developer-icon">{DEVELOPER_ITEM.icon}</span>
-          <div className="setting-content">
-            <h3 className="setting-title">{t(DEVELOPER_ITEM.titleKey)}</h3>
-            <p className="setting-description">{t(DEVELOPER_ITEM.descriptionKey)}</p>
+          <span className={`${styles.developerIcon} ${styles.settingIcon} `.trim()}>{DEVELOPER_ITEM.icon}</span>
+          <div className={styles.settingContent}>
+            <h3 className={styles.settingTitle}>{t(DEVELOPER_ITEM.titleKey)}</h3>
+            <p className={styles.settingDescription}>{t(DEVELOPER_ITEM.descriptionKey)}</p>
           </div>
-          <span className="setting-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+          <span className={styles.settingArrow}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
         </button>
       </div>
 
       {/* About ArcSign */}
-      <div className="about-section">
-        <div className="about-card">
-          <img src="/logo.png" alt="ArcSign" className="about-logo" />
-          <div className="about-info">
-            <h3 className="about-title">ArcSign</h3>
-            <p className="about-version">v{appVersion}</p>
-            <p className="about-desc">{t('app.tagline')}</p>
+      <div className={styles.aboutSection}>
+        <div className={styles.aboutCard}>
+          <img src="/logo.png" alt="ArcSign" className={styles.aboutLogo} />
+          <div className={styles.aboutInfo}>
+            <h3 className={styles.aboutTitle}>ArcSign</h3>
+            <p className={styles.aboutVersion}>v{appVersion}</p>
+            <p className={styles.aboutDesc}>{t('app.tagline')}</p>
           </div>
-          <div className="about-links">
-            <a href="https://arcsign.io" target="_blank" rel="noopener noreferrer" className="about-link">arcsign.io</a>
-            <span className="about-separator">·</span>
-            <a href="https://x.com/ArcSignWallet" target="_blank" rel="noopener noreferrer" className="about-link">@ArcSignWallet</a>
+          <div className={styles.aboutLinks}>
+            <a href="https://arcsign.io" target="_blank" rel="noopener noreferrer" className={styles.aboutLink}>arcsign.io</a>
+            <span className={styles.aboutSeparator}>·</span>
+            <a href="https://x.com/ArcSignWallet" target="_blank" rel="noopener noreferrer" className={styles.aboutLink}>@ArcSignWallet</a>
           </div>
           {onCheckUpdate && (
             <button
-              className="check-update-button"
+              className={styles.checkUpdateButton}
               onClick={handleCheckUpdate}
               disabled={isCheckingUpdate}
             >
               {isCheckingUpdate ? (
                 <>
-                  <svg className="check-update-spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
+                  <svg className={styles.checkUpdateSpinner} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
                   {t('update.checking')}
                 </>
               ) : (
@@ -263,412 +264,6 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, onNavigate, onCheckU
           )}
         </div>
       </div>
-
-      <style>{`
-        .settings-page {
-          max-width: 800px;
-          margin: 0 auto;
-          padding: 20px;
-        }
-
-        .back-button {
-          background: none;
-          border: none;
-          color: var(--brand-accent);
-          cursor: pointer;
-          font-size: 14px;
-          padding: 8px 0;
-          margin-bottom: 16px;
-        }
-
-        .back-button:hover {
-          text-decoration: underline;
-        }
-
-        .settings-header {
-          margin-bottom: 32px;
-        }
-
-        .settings-header h1 {
-          margin: 0 0 8px;
-          font-size: 28px;
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
-        .settings-header .settings-description {
-          margin: 0;
-          color: var(--text-secondary);
-          font-size: 16px;
-        }
-
-        .settings-menu {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .setting-item {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          padding: 20px;
-          background: white;
-          border: 1px solid var(--border-default);
-          border-radius: 12px;
-          cursor: pointer;
-          transition: all 0.2s;
-          text-align: left;
-          width: 100%;
-        }
-
-        .setting-item:hover {
-          border-color: var(--brand-accent);
-          box-shadow: 0 2px 12px rgba(45, 212, 191, 0.1);
-        }
-
-        .setting-icon {
-          font-size: 24px;
-          width: 48px;
-          height: 48px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--surface-strong);
-          border-radius: 12px;
-          flex-shrink: 0;
-        }
-
-        .setting-content {
-          flex: 1;
-        }
-
-        .setting-title {
-          margin: 0 0 4px;
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
-        .setting-content .setting-description {
-          margin: 0;
-          font-size: 14px;
-          color: var(--text-secondary);
-        }
-
-        .setting-arrow {
-          color: var(--text-tertiary);
-          font-size: 18px;
-          flex-shrink: 0;
-        }
-
-        .setting-item:hover .setting-arrow {
-          color: var(--brand);
-        }
-
-        /* Preferences Section */
-        .preferences-section {
-          margin-top: 48px;
-          padding-top: 24px;
-          border-top: 1px solid var(--border-default);
-        }
-
-        .preferences-section-title {
-          margin: 0 0 16px;
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--text-secondary);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .toggle-item {
-          display: flex;
-          align-items: flex-start;
-          gap: 16px;
-          padding: 20px;
-          background: white;
-          border: 1px solid var(--border-default);
-          border-radius: 12px;
-        }
-
-        .toggle-privacy-note {
-          margin: 8px 0 0;
-          font-size: 12px;
-          color: var(--text-tertiary);
-          line-height: 1.5;
-        }
-
-        .toggle-switch {
-          position: relative;
-          display: inline-block;
-          width: 44px;
-          height: 24px;
-          flex-shrink: 0;
-          margin-top: 2px;
-        }
-
-        .toggle-switch input {
-          opacity: 0;
-          width: 0;
-          height: 0;
-        }
-
-        .toggle-slider {
-          position: absolute;
-          inset: 0;
-          cursor: pointer;
-          background: var(--border-input);
-          border-radius: 24px;
-          transition: background 0.2s;
-        }
-
-        .toggle-slider::before {
-          content: "";
-          position: absolute;
-          height: 18px;
-          width: 18px;
-          left: 3px;
-          top: 3px;
-          background: white;
-          border-radius: 50%;
-          transition: transform 0.2s;
-        }
-
-        .toggle-switch input:checked + .toggle-slider {
-          background: var(--brand-accent);
-        }
-
-        .toggle-switch input:checked + .toggle-slider::before {
-          transform: translateX(20px);
-        }
-
-        .clear-abi-button {
-          flex-shrink: 0;
-          align-self: center;
-          padding: 8px 16px;
-          background: transparent;
-          border: 1px solid var(--border-input);
-          border-radius: 8px;
-          color: var(--brand);
-          font-size: 13px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s;
-          white-space: nowrap;
-        }
-
-        .clear-abi-button:hover:not(:disabled) {
-          border-color: var(--brand-accent);
-          background: rgba(45, 212, 191, 0.05);
-        }
-
-        .clear-abi-button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .abi-cache-status {
-          margin: 8px 0 0;
-          font-size: 12px;
-          font-weight: 500;
-        }
-
-        .abi-cache-status-done {
-          color: var(--brand);
-        }
-
-        .abi-cache-status-failed {
-          color: var(--danger);
-        }
-
-        /* Backup Section */
-        .backup-section {
-          margin-top: 48px;
-          padding-top: 24px;
-          border-top: 1px solid var(--border-default);
-        }
-
-        .backup-section-title {
-          margin: 0 0 16px;
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--text-secondary);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .backup-icon {
-          background: #e0f2f1;
-          color: var(--brand);
-        }
-
-        .setting-item-disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .setting-item-disabled:hover {
-          border-color: var(--border-default);
-          box-shadow: none;
-        }
-
-        .pro-badge {
-          display: inline-block;
-          margin-left: 8px;
-          padding: 2px 6px;
-          background: linear-gradient(135deg, var(--warning), #d97706);
-          color: white;
-          font-size: 10px;
-          font-weight: 700;
-          border-radius: 4px;
-          vertical-align: middle;
-          letter-spacing: 0.05em;
-        }
-
-        /* Developer Section */
-        .developer-section {
-          margin-top: 48px;
-          padding-top: 24px;
-          border-top: 1px solid var(--border-default);
-        }
-
-        .developer-section-title {
-          margin: 0 0 16px;
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--text-secondary);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .developer-item {
-          background: white;
-          border-color: var(--border-default);
-        }
-
-        .developer-item:hover {
-          border-color: var(--brand-accent);
-          box-shadow: 0 2px 12px rgba(45, 212, 191, 0.1);
-        }
-
-        .developer-item:hover .setting-arrow {
-          color: var(--brand);
-        }
-
-        .developer-icon {
-          background: var(--surface-strong);
-        }
-
-        /* About Section */
-        .about-section {
-          margin-top: 48px;
-          padding-top: 24px;
-          border-top: 1px solid var(--border-default);
-        }
-
-        .about-card {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 12px;
-          padding: 32px 20px;
-          text-align: center;
-        }
-
-        .about-logo {
-          width: 56px;
-          height: 56px;
-          object-fit: contain;
-          opacity: 0.9;
-        }
-
-        .about-info {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 2px;
-        }
-
-        .about-title {
-          margin: 0;
-          font-size: 18px;
-          font-weight: 700;
-          color: var(--text-primary);
-        }
-
-        .about-version {
-          margin: 0;
-          font-size: 13px;
-          color: var(--text-tertiary);
-          font-weight: 500;
-          font-family: 'SF Mono', 'Fira Code', monospace;
-        }
-
-        .about-desc {
-          margin: 4px 0 0;
-          font-size: 13px;
-          color: var(--text-secondary);
-        }
-
-        .about-links {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-top: 4px;
-        }
-
-        .about-link {
-          font-size: 13px;
-          color: var(--brand-accent);
-          text-decoration: none;
-          font-weight: 500;
-        }
-
-        .about-link:hover {
-          text-decoration: underline;
-        }
-
-        .about-separator {
-          color: var(--border-input);
-          font-size: 12px;
-        }
-
-        .check-update-button {
-          margin-top: 12px;
-          padding: 8px 20px;
-          background: transparent;
-          border: 1px solid var(--border-input);
-          border-radius: 8px;
-          color: var(--brand);
-          font-size: 13px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s;
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .check-update-button:hover {
-          border-color: var(--brand-accent);
-          background: rgba(45, 212, 191, 0.05);
-        }
-
-        .check-update-button:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .check-update-spinner {
-          animation: check-update-spin 1s linear infinite;
-        }
-
-        @keyframes check-update-spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 };

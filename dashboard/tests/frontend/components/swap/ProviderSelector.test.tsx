@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import styles from "../../../../src/components/swap/swap.module.css";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ProviderSelector } from "@/components/swap/ProviderSelector";
 
@@ -28,7 +29,7 @@ describe("ProviderSelector", () => {
       />,
     );
     // Click the provider-badge button (the trigger)
-    const badge = document.querySelector(".provider-badge") as HTMLElement;
+    const badge = document.querySelector(`.${styles.providerBadge}`) as HTMLElement;
     fireEvent.click(badge);
     expect(onToggle).toHaveBeenCalledOnce();
   });
@@ -43,7 +44,7 @@ describe("ProviderSelector", () => {
       />,
     );
     // Should render the provider dropdown
-    expect(document.querySelector(".provider-dropdown")).toBeTruthy();
+    expect(document.querySelector(`.${styles.providerDropdown}`)).toBeTruthy();
   });
 
   it("fires onSelectProvider when a provider option is clicked", () => {
@@ -56,7 +57,7 @@ describe("ProviderSelector", () => {
         onSelectProvider={onSelect}
       />,
     );
-    const options = document.querySelectorAll(".provider-option");
+    const options = document.querySelectorAll(`.${styles.providerOption}`);
     expect(options.length).toBeGreaterThan(0);
     fireEvent.click(options[0]);
     expect(onSelect).toHaveBeenCalledOnce();

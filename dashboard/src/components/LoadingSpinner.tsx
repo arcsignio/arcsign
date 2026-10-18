@@ -78,12 +78,6 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
         {message && (
           <p className="mt-3 text-sm text-gray-600">{message}</p>
         )}
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
       </div>
     );
   }

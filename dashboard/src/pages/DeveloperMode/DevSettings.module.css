@@ -1,0 +1,214 @@
+.devSettings {
+  padding: 0;
+}
+
+.devSettings h2 {
+  margin: 0 0 24px;
+  font-size: 20px;
+}
+
+.settingsSection {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.settingsSection h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.sectionDescription {
+  margin: 0 0 20px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.5;
+}
+
+.apiKeysList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.apiKeyItem {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.apiKeyHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.apiKeyInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.apiKeyLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.apiKeyNetworks {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.apiKeyLink {
+  font-size: 12px;
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.apiKeyLink:hover {
+  text-decoration: underline;
+}
+
+.apiKeyInputRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.apiKeyInput {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: white;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.apiKeyInput:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.apiKeyInput::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.btnIcon {
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btnIcon:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btnSave {
+  padding: 8px 16px;
+  background: #2dd4bf;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  min-width: 60px;
+}
+
+.btnSave:hover:not(:disabled) {
+  background: #0d9488;
+}
+
+.btnSave:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btnSave.saved {
+  background: #22c55e;
+}
+
+.settingsInfo {
+  display: flex;
+  gap: 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.infoIcon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.infoText {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.5;
+}
+
+.infoText p {
+  margin: 0 0 8px;
+}
+
+.infoText p:last-child {
+  margin-bottom: 0;
+}
+
+.codeBlock {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.defaultWalletRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.walletSelect {
+  flex: 1;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  appearance: auto;
+}
+
+.walletSelect:focus {
+  outline: none;
+  border-color: #2dd4bf;
+}
+
+.walletSelect option {
+  background: #1a1a2e;
+  color: white;
+}
+
+.saveStatus {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.saveStatus.saved {
+  color: #22c55e;
+}

@@ -17,6 +17,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import styles from "./index.module.css";
 import { useTranslation } from 'react-i18next';
 import { PendingRequests } from './PendingRequests';
 import { SessionSettings } from './SessionSettings';
@@ -518,26 +519,26 @@ export function DeveloperMode({ onBack, usbPath, hasPendingDev }: DeveloperModeP
   // Render wallet selection view
   if (viewState === 'wallet-selection') {
     return (
-      <div className="developer-mode">
-        <header className="dev-header">
-          <div className="dev-header-left">
-            <button onClick={onBack} className="back-button">
+      <div className={styles.developerMode}>
+        <header className={styles.devHeader}>
+          <div className={styles.devHeaderLeft}>
+            <button onClick={onBack} className={styles.backButton}>
               ← {t('actions.back')}
             </button>
             <h1>🔧 {t('developer.title', 'Developer Mode')}</h1>
           </div>
         </header>
 
-        <main className="dev-content">
-          <div className="wallet-selection">
+        <main className={styles.devContent}>
+          <div className={styles.walletSelection}>
             <h2>{t('developer.selectWallet', 'Select Wallet')}</h2>
-            <p className="wallet-selection-description">
+            <p className={styles.walletSelectionDescription}>
               {t('developer.selectWalletDescription', 'Choose a wallet to use for signing developer transactions.')}
             </p>
 
             {isLoading && (
-              <div className="loading-state">
-                <div className="spinner" />
+              <div className={styles.loadingState}>
+                <div className={styles.spinner} />
                 <span>{t('common.loading', 'Loading...')}</span>
               </div>
             )}
@@ -558,34 +559,34 @@ export function DeveloperMode({ onBack, usbPath, hasPendingDev }: DeveloperModeP
             )}
 
             {error && (
-              <div className="error-banner">
+              <div className={styles.errorBanner}>
                 ⚠️ {error}
               </div>
             )}
 
             {!isLoading && wallets.length === 0 && (
-              <div className="empty-state">
+              <div className={styles.emptyState}>
                 <p>{t('developer.noWallets', 'No wallets found. Please create a wallet first.')}</p>
-                <button onClick={onBack} className="primary-button">
+                <button onClick={onBack} className={styles.primaryButton}>
                   {t('actions.back')}
                 </button>
               </div>
             )}
 
             {!isLoading && wallets.length > 0 && (
-              <div className="wallet-list">
+              <div className={styles.walletList}>
                 {wallets.map(wallet => (
                   <button
                     key={wallet.id}
-                    className="wallet-item"
+                    className={styles.walletItem}
                     onClick={() => handleSelectWallet(wallet)}
                   >
-                    <div className="wallet-icon">👛</div>
-                    <div className="wallet-info">
-                      <span className="wallet-name">{wallet.name}</span>
-                      <span className="wallet-id">{wallet.id.substring(0, 8)}...</span>
+                    <div className={styles.walletIcon}>👛</div>
+                    <div className={styles.walletInfo}>
+                      <span className={styles.walletName}>{wallet.name}</span>
+                      <span className={styles.walletId}>{wallet.id.substring(0, 8)}...</span>
                     </div>
-                    <div className="wallet-arrow">→</div>
+                    <div className={styles.walletArrow}>→</div>
                   </button>
                 ))}
               </div>
@@ -593,30 +594,29 @@ export function DeveloperMode({ onBack, usbPath, hasPendingDev }: DeveloperModeP
           </div>
         </main>
 
-        <style>{walletSelectionStyles}</style>
       </div>
     );
   }
 
   // Render main developer mode interface
   return (
-    <div className="developer-mode">
+    <div className={styles.developerMode}>
       {/* Header */}
-      <header className="dev-header">
-        <div className="dev-header-left">
-          <button onClick={handleExit} className="back-button">
+      <header className={styles.devHeader}>
+        <div className={styles.devHeaderLeft}>
+          <button onClick={handleExit} className={styles.backButton}>
             ← {t('actions.back')}
           </button>
           <h1>🔧 {t('developer.title', 'Developer Mode')}</h1>
         </div>
-        <div className="dev-header-center">
-          <div className="active-wallet-badge">
-            <span className="wallet-icon-small">👛</span>
-            <span className="wallet-name-small">{selectedWallet?.name}</span>
+        <div className={styles.devHeaderCenter}>
+          <div className={styles.activeWalletBadge}>
+            <span className={styles.walletIconSmall}>👛</span>
+            <span className={styles.walletNameSmall}>{selectedWallet?.name}</span>
           </div>
         </div>
-        <div className="dev-header-right">
-          <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
+        <div className={`${styles.devHeader} -right`.trim()}>
+          <div className={`${styles.connectionStatus} ${isConnected ? styles.connected : styles.disconnected}`}>
             {isConnected ? '🟢' : '🔴'}
             {isConnected ? t('developer.connected', 'Connected') : t('developer.disconnected', 'Disconnected')}
           </div>
@@ -625,30 +625,30 @@ export function DeveloperMode({ onBack, usbPath, hasPendingDev }: DeveloperModeP
 
       {/* Connection Error Banner */}
       {connectionError && (
-        <div className="error-banner">
+        <div className={styles.errorBanner}>
           ⚠️ {connectionError}
         </div>
       )}
 
       {/* Tab Navigation */}
-      <nav className="dev-tabs">
+      <nav className={styles.devTabs}>
         <button
-          className={`dev-tab ${activeTab === 'requests' ? 'active' : ''}`}
+          className={`${styles.devTab} ${activeTab === 'requests' ? styles.active : ''}`}
           onClick={() => setActiveTab('requests')}
         >
           📋 {t('developer.pendingRequests', 'Pending Requests')}
           {(pendingRequests.length + pendingMessageRequests.length) > 0 && (
-            <span className="badge">{pendingRequests.length + pendingMessageRequests.length}</span>
+            <span className={styles.badge}>{pendingRequests.length + pendingMessageRequests.length}</span>
           )}
         </button>
         <button
-          className={`dev-tab ${activeTab === 'history' ? 'active' : ''}`}
+          className={`${styles.devTab} ${activeTab === 'history' ? styles.active : ''}`}
           onClick={() => setActiveTab('history')}
         >
           📜 {t('developer.history', 'History')}
         </button>
         <button
-          className={`dev-tab ${activeTab === 'settings' ? 'active' : ''}`}
+          className={`${styles.devTab} ${activeTab === 'settings' ? styles.active : ''}`}
           onClick={() => setActiveTab('settings')}
         >
           ⚙️ {t('developer.settings', 'Settings')}
@@ -656,7 +656,7 @@ export function DeveloperMode({ onBack, usbPath, hasPendingDev }: DeveloperModeP
       </nav>
 
       {/* Tab Content */}
-      <main className="dev-content">
+      <main className={styles.devContent}>
         {activeTab === 'requests' && (
           <PendingRequests
             requests={pendingRequests}
@@ -687,340 +687,9 @@ export function DeveloperMode({ onBack, usbPath, hasPendingDev }: DeveloperModeP
           </>
         )}
       </main>
-
-      <style>{`
-        .developer-mode {
-          min-height: 100vh;
-          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-          color: #fff;
-        }
-
-        .dev-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 16px 24px;
-          background: rgba(0, 0, 0, 0.2);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .dev-header-left {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .dev-header h1 {
-          margin: 0;
-          font-size: 24px;
-          font-weight: 600;
-        }
-
-        .back-button {
-          padding: 8px 16px;
-          background: rgba(255, 255, 255, 0.1);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 8px;
-          color: #fff;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .back-button:hover {
-          background: rgba(255, 255, 255, 0.2);
-        }
-
-        .connection-status {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 16px;
-          border-radius: 20px;
-          font-size: 14px;
-        }
-
-        .connection-status.connected {
-          background: rgba(34, 197, 94, 0.2);
-          color: var(--success);
-        }
-
-        .connection-status.disconnected {
-          background: rgba(239, 68, 68, 0.2);
-          color: var(--danger);
-        }
-
-        .error-banner {
-          padding: 12px 24px;
-          background: rgba(239, 68, 68, 0.2);
-          border-bottom: 1px solid rgba(239, 68, 68, 0.3);
-          color: #fca5a5;
-        }
-
-        .dev-tabs {
-          display: flex;
-          gap: 4px;
-          padding: 16px 24px;
-          background: rgba(0, 0, 0, 0.1);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .dev-tab {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 20px;
-          background: transparent;
-          border: none;
-          border-radius: 8px;
-          color: rgba(255, 255, 255, 0.6);
-          font-size: 14px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .dev-tab:hover {
-          background: rgba(255, 255, 255, 0.1);
-          color: #fff;
-        }
-
-        .dev-tab.active {
-          background: rgba(59, 130, 246, 0.3);
-          color: #fff;
-        }
-
-        .dev-tab .badge {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 20px;
-          height: 20px;
-          padding: 0 6px;
-          background: var(--danger);
-          border-radius: 10px;
-          font-size: 12px;
-          font-weight: 600;
-        }
-
-        .dev-content {
-          padding: 24px;
-          max-width: 1200px;
-          margin: 0 auto;
-        }
-
-        .dev-header-center {
-          flex: 1;
-          display: flex;
-          justify-content: center;
-        }
-
-        .active-wallet-badge {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 16px;
-          background: rgba(59, 130, 246, 0.2);
-          border: 1px solid rgba(59, 130, 246, 0.3);
-          border-radius: 20px;
-          font-size: 14px;
-        }
-
-        .wallet-icon-small {
-          font-size: 16px;
-        }
-
-        .wallet-name-small {
-          color: #93c5fd;
-          font-weight: 500;
-        }
-      `}</style>
     </div>
   );
 }
 
 // Styles for wallet selection view
-const walletSelectionStyles = `
-  .developer-mode {
-    min-height: 100vh;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    color: #fff;
-  }
 
-  .dev-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 24px;
-    background: rgba(0, 0, 0, 0.2);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .dev-header-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .dev-header h1 {
-    margin: 0;
-    font-size: 24px;
-    font-weight: 600;
-  }
-
-  .back-button {
-    padding: 8px 16px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
-    color: #fff;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .back-button:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  .dev-content {
-    padding: 24px;
-    max-width: 600px;
-    margin: 0 auto;
-  }
-
-  .wallet-selection {
-    text-align: center;
-  }
-
-  .wallet-selection h2 {
-    margin: 0 0 8px 0;
-    font-size: 24px;
-    font-weight: 600;
-  }
-
-  .wallet-selection-description {
-    margin: 0 0 32px 0;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 14px;
-  }
-
-  .loading-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    padding: 48px 0;
-    color: rgba(255, 255, 255, 0.6);
-  }
-
-  .spinner {
-    width: 32px;
-    height: 32px;
-    border: 3px solid rgba(255, 255, 255, 0.1);
-    border-top-color: var(--brand-accent);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  .spinner.small {
-    width: 16px;
-    height: 16px;
-    border-width: 2px;
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-
-  .error-banner {
-    padding: 12px 16px;
-    margin-bottom: 16px;
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    border-radius: 8px;
-    color: #fca5a5;
-    text-align: left;
-  }
-
-  .empty-state {
-    padding: 48px 0;
-    text-align: center;
-  }
-
-  .empty-state p {
-    color: rgba(255, 255, 255, 0.6);
-    margin-bottom: 24px;
-  }
-
-  .primary-button {
-    padding: 12px 24px;
-    background: var(--brand-accent);
-    border: none;
-    border-radius: 8px;
-    color: #fff;
-    font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .primary-button:hover:not(:disabled) {
-    background: var(--brand);
-  }
-
-  .primary-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .wallet-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .wallet-item {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 16px 20px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: left;
-    width: 100%;
-  }
-
-  .wallet-item:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(59, 130, 246, 0.5);
-  }
-
-  .wallet-icon {
-    font-size: 32px;
-  }
-
-  .wallet-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .wallet-name {
-    font-size: 16px;
-    font-weight: 500;
-    color: #fff;
-  }
-
-  .wallet-id {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.5);
-    font-family: monospace;
-  }
-
-  .wallet-arrow {
-    font-size: 20px;
-    color: rgba(255, 255, 255, 0.4);
-  }
-`;

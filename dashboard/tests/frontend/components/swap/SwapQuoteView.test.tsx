@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import styles from "../../../../src/components/swap/swap.module.css";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { SwapQuoteView } from "@/components/swap/SwapQuoteView";
 import type { ToToken } from "@/components/swap/SwapQuoteView";
@@ -114,7 +115,7 @@ describe("SwapQuoteView", () => {
         onContinue={() => {}}
       />,
     );
-    const input = document.querySelector(".amount-input-large") as HTMLInputElement;
+    const input = document.querySelector(`.${styles.amountInputLarge}`) as HTMLInputElement;
     fireEvent.change(input, { target: { value: "0.5" } });
     expect(onAmountChange).toHaveBeenCalledWith("0.5");
   });
@@ -139,7 +140,7 @@ describe("SwapQuoteView", () => {
         onContinue={() => {}}
       />,
     );
-    const btn = document.querySelector(".primary-button") as HTMLButtonElement;
+    const btn = document.querySelector(`.${styles.primaryButton}`) as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
   });
 
@@ -163,7 +164,7 @@ describe("SwapQuoteView", () => {
         onContinue={() => {}}
       />,
     );
-    const btn = document.querySelector(".primary-button") as HTMLButtonElement;
+    const btn = document.querySelector(`.${styles.primaryButton}`) as HTMLButtonElement;
     expect(btn.disabled).toBe(false);
   });
 
@@ -188,7 +189,7 @@ describe("SwapQuoteView", () => {
         onContinue={() => {}}
       />,
     );
-    const slippageButtons = document.querySelectorAll(".slippage-option");
+    const slippageButtons = document.querySelectorAll(`.${styles.slippageOption}`);
     expect(slippageButtons.length).toBe(3);
     fireEvent.click(slippageButtons[1]); // 1% option
     expect(onSlippageChange).toHaveBeenCalledWith(1);

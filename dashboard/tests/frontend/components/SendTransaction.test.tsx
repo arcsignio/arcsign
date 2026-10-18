@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import styles from "../../../src/components/SendTransaction.module.css";
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SendTransaction, type SendableToken } from '@/components/SendTransaction';
@@ -171,7 +172,7 @@ describe('SendTransaction', () => {
     // Click the ETH token option (the button contains the token symbol text)
     const ethButtons = screen.getAllByRole('button');
     const ethTokenBtn = ethButtons.find(
-      (btn) => btn.classList.contains('token-option') && btn.textContent?.includes('ETH')
+      (btn) => btn.classList.contains(styles.tokenOption) && btn.textContent?.includes('ETH')
     );
     expect(ethTokenBtn).toBeDefined();
     await user.click(ethTokenBtn!);
@@ -191,7 +192,7 @@ describe('SendTransaction', () => {
     // Select ETH token
     const ethButtons = screen.getAllByRole('button');
     const ethTokenBtn = ethButtons.find(
-      (btn) => btn.classList.contains('token-option') && btn.textContent?.includes('ETH')
+      (btn) => btn.classList.contains(styles.tokenOption) && btn.textContent?.includes('ETH')
     );
     await user.click(ethTokenBtn!);
 
@@ -218,7 +219,7 @@ describe('SendTransaction', () => {
     // Select ETH
     const ethButtons = screen.getAllByRole('button');
     const ethTokenBtn = ethButtons.find(
-      (btn) => btn.classList.contains('token-option') && btn.textContent?.includes('ETH')
+      (btn) => btn.classList.contains(styles.tokenOption) && btn.textContent?.includes('ETH')
     );
     await user.click(ethTokenBtn!);
 
@@ -257,7 +258,7 @@ describe('SendTransaction', () => {
     // Navigate: select -> input -> review -> password
     const ethButtons = screen.getAllByRole('button');
     const ethTokenBtn = ethButtons.find(
-      (btn) => btn.classList.contains('token-option') && btn.textContent?.includes('ETH')
+      (btn) => btn.classList.contains(styles.tokenOption) && btn.textContent?.includes('ETH')
     );
     await user.click(ethTokenBtn!);
 
@@ -302,7 +303,7 @@ describe('SendTransaction', () => {
     // Navigate through the full flow: select -> input -> review -> password -> success
     const ethButtons = screen.getAllByRole('button');
     const ethTokenBtn = ethButtons.find(
-      (btn) => btn.classList.contains('token-option') && btn.textContent?.includes('ETH')
+      (btn) => btn.classList.contains(styles.tokenOption) && btn.textContent?.includes('ETH')
     );
     await user.click(ethTokenBtn!);
 
@@ -344,7 +345,7 @@ describe('SendTransaction', () => {
     // Navigate: select -> input -> review -> password -> error
     const ethButtons = screen.getAllByRole('button');
     const ethTokenBtn = ethButtons.find(
-      (btn) => btn.classList.contains('token-option') && btn.textContent?.includes('ETH')
+      (btn) => btn.classList.contains(styles.tokenOption) && btn.textContent?.includes('ETH')
     );
     await user.click(ethTokenBtn!);
 
@@ -383,7 +384,7 @@ describe('SendTransaction', () => {
     expect(screen.getByText('sendTransaction.selectTokenTitle')).toBeInTheDocument();
     const ethButtons = screen.getAllByRole('button');
     const ethTokenBtn = ethButtons.find(
-      (btn) => btn.classList.contains('token-option') && btn.textContent?.includes('ETH')
+      (btn) => btn.classList.contains(styles.tokenOption) && btn.textContent?.includes('ETH')
     );
     await user.click(ethTokenBtn!);
 
@@ -447,7 +448,7 @@ describe('SendTransaction', () => {
     // Select ETH
     const ethButtons = screen.getAllByRole('button');
     const ethTokenBtn = ethButtons.find(
-      (btn) => btn.classList.contains('token-option') && btn.textContent?.includes('ETH')
+      (btn) => btn.classList.contains(styles.tokenOption) && btn.textContent?.includes('ETH')
     );
     await user.click(ethTokenBtn!);
 

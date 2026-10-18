@@ -1,0 +1,248 @@
+.sessionSettings h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.sessionSettings .description {
+  margin: 0 0 24px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.sessionCard {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 32px;
+}
+
+.sessionCard.active {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.sessionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sessionStatus {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.statusIcon {
+  font-size: 24px;
+}
+
+.statusText {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.toggleButton {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggleButton.activate {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.toggleButton.activate:hover:not(:disabled) {
+  background: rgba(34, 197, 94, 0.3);
+}
+
+.toggleButton.deactivate {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.toggleButton.deactivate:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.toggleButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sessionInfo {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: grid;
+  gap: 12px;
+}
+
+.infoRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.infoRow .label {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.infoRow .value {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.infoRow .value.networks {
+  font-family: monospace;
+  color: #a5f3fc;
+}
+
+/* Password Dialog Styles */
+.passwordDialogOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.passwordDialog {
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 24px;
+  width: 400px;
+  max-width: 90%;
+}
+
+.passwordDialog h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.passwordDialog p {
+  margin: 0 0 20px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+}
+
+.passwordInput {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+
+.passwordInput:focus {
+  outline: none;
+  border-color: #2dd4bf;
+}
+
+.errorMessage {
+  padding: 10px 12px;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: #fca5a5;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.dialogButtons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.cancelButton {
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancelButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.submitButton {
+  padding: 10px 20px;
+  background: #2dd4bf;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: #0d9488;
+}
+
+.submitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rulesSection h3 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.rulesList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rule {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.ruleIcon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.ruleContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ruleTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.ruleDesc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+}

@@ -20,6 +20,7 @@
  */
 
 import { forwardRef, useState, type InputHTMLAttributes } from "react";
+import styles from "./PasswordInput.module.css";
 import { useTranslation } from "react-i18next";
 
 type PasswordInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type">;
@@ -30,7 +31,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
     const [revealed, setRevealed] = useState(false);
 
     return (
-      <span className="pw-field">
+      <span className={styles.field}>
         <input
           {...rest}
           ref={ref}
@@ -41,7 +42,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
         />
         <button
           type="button"
-          className="pw-field__toggle"
+          className={styles.toggle}
           onClick={() => setRevealed((v) => !v)}
           disabled={disabled}
           aria-label={
@@ -88,43 +89,6 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
             </svg>
           )}
         </button>
-
-        <style>{`
-          .pw-field {
-            position: relative;
-            display: block;
-            width: 100%;
-          }
-          .pw-field > input {
-            width: 100%;
-          }
-          .pw-field__toggle {
-            position: absolute;
-            top: 50%;
-            right: 0.5rem;
-            transform: translateY(-50%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 2rem;
-            height: 2rem;
-            padding: 0;
-            border: none;
-            border-radius: 6px;
-            background: transparent;
-            color: var(--text-secondary);
-            cursor: pointer;
-            transition: color 0.15s ease, background 0.15s ease;
-          }
-          .pw-field__toggle:hover:not(:disabled) {
-            color: var(--brand);
-            background: rgba(13, 148, 136, 0.08);
-          }
-          .pw-field__toggle:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-          }
-        `}</style>
       </span>
     );
   }

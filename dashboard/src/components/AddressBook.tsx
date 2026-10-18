@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import styles from "./AddressBook.module.css";
 import { shortenAddress as sharedShorten } from "@/utils/formatAmount";
 import { useTranslation } from "react-i18next";
 import { useContacts } from "@/hooks/useContacts";
@@ -209,26 +210,26 @@ export function AddressBook({
 
   // --- render ---
   return (
-    <div className="ab-root">
+    <div className={styles.abRoot}>
       {/* Header */}
-      <header className="ab-header">
-        <button onClick={onBack} className="ab-back-btn">
-          <span className="ab-back-arrow">&larr;</span>
+      <header className={styles.abHeader}>
+        <button onClick={onBack} className={styles.abBackBtn}>
+          <span className={styles.abBackArrow}>&larr;</span>
           {t("addressBook.back")}
         </button>
 
-        <h2 className="ab-title">{t("addressBook.title")}</h2>
+        <h2 className={styles.abTitle}>{t("addressBook.title")}</h2>
 
-        <button onClick={openAddModal} className="ab-add-btn">
+        <button onClick={openAddModal} className={styles.abAddBtn}>
           + {t("addressBook.addContact")}
         </button>
       </header>
 
       {/* Search + chain filter */}
-      <div className="ab-toolbar">
-        <div className="ab-search-wrap">
+      <div className={styles.abToolbar}>
+        <div className={styles.abSearchWrap}>
           <svg
-            className="ab-search-icon"
+            className={styles.abSearchIcon}
             width="16"
             height="16"
             viewBox="0 0 24 24"
@@ -243,7 +244,7 @@ export function AddressBook({
           </svg>
           <input
             type="text"
-            className="ab-search-input"
+            className={styles.abSearchInput}
             placeholder={t("addressBook.search")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -251,7 +252,7 @@ export function AddressBook({
         </div>
 
         <select
-          className="ab-chain-select"
+          className={styles.abChainSelect}
           value={chainFilter}
           onChange={(e) => setChainFilter(e.target.value)}
         >
@@ -266,7 +267,7 @@ export function AddressBook({
 
       {/* Error banner */}
       {error && (
-        <div className="ab-error">
+        <div className={styles.abError}>
           <p>{error}</p>
           <button onClick={loadContacts}>{t("addressBook.retry")}</button>
         </div>
@@ -274,15 +275,15 @@ export function AddressBook({
 
       {/* Loading state */}
       {isLoading && contacts.length === 0 && (
-        <div className="ab-loading">
-          <div className="ab-spinner" />
+        <div className={styles.abLoading}>
+          <div className={styles.abSpinner} />
           <p>{t("addressBook.loading")}</p>
         </div>
       )}
 
       {/* Empty state */}
       {!isLoading && !error && filteredContacts.length === 0 && (
-        <div className="ab-empty">
+        <div className={styles.abEmpty}>
           <svg
             width="56"
             height="56"
@@ -314,33 +315,33 @@ export function AddressBook({
 
       {/* Contact list */}
       {filteredContacts.length > 0 && (
-        <div className="ab-list">
+        <div className={styles.abList}>
           {filteredContacts.map((contact) => (
-            <div key={contact.id} className="ab-card">
-              <div className="ab-card-main">
+            <div key={contact.id} className={styles.abCard}>
+              <div className={styles.abCardMain}>
                 {/* Avatar circle with first letter */}
-                <div className="ab-avatar">
+                <div className={styles.abAvatar}>
                   {contact.name.charAt(0).toUpperCase()}
                 </div>
 
-                <div className="ab-card-info">
-                  <div className="ab-card-top-row">
-                    <span className="ab-card-name">{contact.name}</span>
-                    <span className="ab-chain-badge">{contact.symbol}</span>
+                <div className={styles.abCardInfo}>
+                  <div className={styles.abCardTopRow}>
+                    <span className={styles.abCardName}>{contact.name}</span>
+                    <span className={styles.abChainBadge}>{contact.symbol}</span>
                   </div>
-                  <span className="ab-card-address">
+                  <span className={styles.abCardAddress}>
                     {shortenAddress(contact.address)}
                   </span>
                   {contact.notes && (
-                    <span className="ab-card-notes">{contact.notes}</span>
+                    <span className={styles.abCardNotes}>{contact.notes}</span>
                   )}
                 </div>
               </div>
 
-              <div className="ab-card-actions">
+              <div className={styles.abCardActions}>
                 {onSelectAddress && (
                   <button
-                    className="ab-action-btn ab-select-btn"
+                    className={`${styles.abActionBtn} ${styles.abSelectBtn}`.trim()}
                     title={t("addressBook.select")}
                     onClick={() =>
                       onSelectAddress(contact.address, contact.symbol)
@@ -350,7 +351,7 @@ export function AddressBook({
                   </button>
                 )}
                 <button
-                  className="ab-action-btn ab-copy-btn"
+                  className={`${styles.abActionBtn} ${styles.abCopyBtn}`.trim()}
                   title={
                     copiedId === contact.id
                       ? t("addressBook.copied")
@@ -370,12 +371,12 @@ export function AddressBook({
                   )}
                   {/* The checkmark swap is silent to a screen reader, and a
                       changed title attribute is not announced either. */}
-                  <span className="ab-sr-only" aria-live="polite">
+                  <span className={styles.abSrOnly} aria-live="polite">
                     {copiedId === contact.id ? t("addressBook.copied") : ""}
                   </span>
                 </button>
                 <button
-                  className="ab-action-btn ab-edit-btn"
+                  className={`${styles.abActionBtn} ${styles.abEditBtn}`.trim()}
                   title={t("addressBook.edit")}
                   onClick={() => openEditModal(contact)}
                 >
@@ -385,7 +386,7 @@ export function AddressBook({
                   </svg>
                 </button>
                 <button
-                  className="ab-action-btn ab-delete-btn"
+                  className={`${styles.abActionBtn} ${styles.abDeleteBtn}`.trim()}
                   title={t("addressBook.delete")}
                   onClick={() => setDeleteTarget(contact)}
                 >
@@ -405,26 +406,26 @@ export function AddressBook({
 
       {/* ---- Add / Edit Modal ---- */}
       {modalOpen && (
-        <div className="ab-overlay" onClick={closeModal}>
+        <div className={styles.abOverlay} onClick={closeModal}>
           <div
-            className="ab-modal"
+            className={styles.abModal}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-labelledby="ab-modal-title"
           >
-            <h3 id="ab-modal-title" className="ab-modal-title">
+            <h3 id="ab-modal-title" className={styles.abModalTitle}>
               {editingContact
                 ? t("addressBook.editContact")
                 : t("addressBook.addContact")}
             </h3>
 
-            {formError && <div className="ab-form-error">{formError}</div>}
+            {formError && <div className={styles.abFormError}>{formError}</div>}
 
-            <label className="ab-label">
+            <label className={styles.abLabel}>
               {t("addressBook.name")}
               <input
                 type="text"
-                className="ab-input"
+                className={styles.abInput}
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder={t("addressBook.namePlaceholder")}
@@ -432,21 +433,21 @@ export function AddressBook({
               />
             </label>
 
-            <label className="ab-label">
+            <label className={styles.abLabel}>
               {t("addressBook.address")}
               <input
                 type="text"
-                className="ab-input ab-input-mono"
+                className={`${styles.abInputMono} ${styles.abInput} `.trim()}
                 value={formAddress}
                 onChange={(e) => setFormAddress(e.target.value)}
                 placeholder={t("addressBook.addressPlaceholder")}
               />
             </label>
 
-            <label className="ab-label">
+            <label className={styles.abLabel}>
               {t("addressBook.chain")}
               <select
-                className="ab-input"
+                className={styles.abInput}
                 value={formSymbol}
                 onChange={(e) => setFormSymbol(e.target.value)}
               >
@@ -458,10 +459,10 @@ export function AddressBook({
               </select>
             </label>
 
-            <label className="ab-label">
+            <label className={styles.abLabel}>
               {t("addressBook.notes")}
               <textarea
-                className="ab-textarea"
+                className={styles.abTextarea}
                 value={formNotes}
                 onChange={(e) => setFormNotes(e.target.value)}
                 placeholder={t("addressBook.notesPlaceholder")}
@@ -469,16 +470,16 @@ export function AddressBook({
               />
             </label>
 
-            <div className="ab-modal-actions">
+            <div className={styles.abModalActions}>
               <button
-                className="ab-modal-cancel"
+                className={styles.abModalCancel}
                 onClick={closeModal}
                 disabled={isSaving}
               >
                 {t("addressBook.cancel")}
               </button>
               <button
-                className="ab-modal-save"
+                className={styles.abModalSave}
                 onClick={handleSave}
                 disabled={isSaving}
               >
@@ -496,38 +497,38 @@ export function AddressBook({
       {/* ---- Delete Confirmation ---- */}
       {deleteTarget && (
         <div
-          className="ab-overlay"
+          className={styles.abOverlay}
           onClick={() => !isDeleting && setDeleteTarget(null)}
         >
           <div
-            className="ab-modal ab-modal-sm"
+            className={`${styles.abModalSm} ${styles.abModal} `.trim()}
             onClick={(e) => e.stopPropagation()}
             role="alertdialog"
             aria-labelledby="ab-delete-title"
           >
-            <div className="ab-delete-icon-wrap">
+            <div className={styles.abDeleteIconWrap}>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="15" y1="9" x2="9" y2="15" />
                 <line x1="9" y1="9" x2="15" y2="15" />
               </svg>
             </div>
-            <h3 id="ab-delete-title" className="ab-modal-title">
+            <h3 id="ab-delete-title" className={styles.abModalTitle}>
               {t("addressBook.deleteContact")}
             </h3>
-            <p className="ab-delete-msg">
+            <p className={styles.abDeleteMsg}>
               {t("addressBook.deleteMessage", { name: deleteTarget.name })}
             </p>
-            <div className="ab-modal-actions">
+            <div className={styles.abModalActions}>
               <button
-                className="ab-modal-cancel"
+                className={styles.abModalCancel}
                 onClick={() => setDeleteTarget(null)}
                 disabled={isDeleting}
               >
                 {t("addressBook.cancel")}
               </button>
               <button
-                className="ab-modal-delete"
+                className={styles.abModalDelete}
                 onClick={handleDeleteConfirm}
                 disabled={isDeleting}
               >
@@ -539,530 +540,6 @@ export function AddressBook({
           </div>
         </div>
       )}
-
-      <style>{`
-        /* Visible to screen readers only — clip rather than display:none,
-           which would remove the node from the accessibility tree and stop
-           aria-live announcements. */
-        .ab-sr-only {
-          position: absolute;
-          width: 1px;
-          height: 1px;
-          padding: 0;
-          margin: -1px;
-          overflow: hidden;
-          clip: rect(0, 0, 0, 0);
-          white-space: nowrap;
-          border: 0;
-        }
-
-        /* ===== Root / Layout ===== */
-        .ab-root {
-          padding: 20px;
-          max-width: 800px;
-          margin: 0 auto;
-        }
-
-        /* ===== Header ===== */
-        .ab-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 24px;
-          padding-bottom: 16px;
-          border-bottom: 1px solid #e2e8f0;
-        }
-
-        .ab-back-btn {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 16px;
-          background: #f1f5f9;
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 14px;
-          color: #1e293b;
-          transition: background 0.2s;
-        }
-        .ab-back-btn:hover {
-          background: #e2e8f0;
-        }
-
-        .ab-back-arrow {
-          font-size: 18px;
-        }
-
-        .ab-title {
-          margin: 0;
-          font-size: 20px;
-          color: #1e293b;
-          font-weight: 700;
-        }
-
-        .ab-add-btn {
-          padding: 8px 18px;
-          background: #0d9488;
-          color: #fff;
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 14px;
-          font-weight: 600;
-          transition: background 0.2s;
-        }
-        .ab-add-btn:hover {
-          background: #0f766e;
-        }
-
-        /* ===== Toolbar (search + filter) ===== */
-        .ab-toolbar {
-          display: flex;
-          gap: 12px;
-          margin-bottom: 20px;
-        }
-
-        .ab-search-wrap {
-          flex: 1;
-          position: relative;
-        }
-
-        .ab-search-icon {
-          position: absolute;
-          left: 12px;
-          top: 50%;
-          transform: translateY(-50%);
-          pointer-events: none;
-        }
-
-        .ab-search-input {
-          width: 100%;
-          padding: 10px 12px 10px 36px;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          font-size: 14px;
-          color: #1e293b;
-          outline: none;
-          background: #ffffff;
-          transition: border-color 0.2s;
-          box-sizing: border-box;
-        }
-        .ab-search-input:focus {
-          border-color: #2dd4bf;
-        }
-        .ab-search-input::placeholder {
-          color: #94a3b8;
-        }
-
-        .ab-chain-select {
-          padding: 10px 14px;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          font-size: 14px;
-          color: #1e293b;
-          background: #ffffff;
-          cursor: pointer;
-          outline: none;
-          min-width: 170px;
-          transition: border-color 0.2s;
-        }
-        .ab-chain-select:focus {
-          border-color: #2dd4bf;
-        }
-
-        /* ===== Error ===== */
-        .ab-error {
-          background: #fef2f2;
-          border: 1px solid #fee2e2;
-          border-radius: 12px;
-          padding: 16px;
-          text-align: center;
-          color: #dc2626;
-          margin-bottom: 20px;
-        }
-        .ab-error p {
-          margin: 0 0 12px;
-        }
-        .ab-error button {
-          padding: 8px 16px;
-          background: #dc2626;
-          color: #fff;
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 14px;
-        }
-
-        /* ===== Loading ===== */
-        .ab-loading {
-          text-align: center;
-          padding: 48px 24px;
-        }
-        .ab-loading p {
-          margin: 0;
-          color: #64748b;
-        }
-
-        .ab-spinner {
-          width: 40px;
-          height: 40px;
-          border: 3px solid #e2e8f0;
-          border-top-color: #2dd4bf;
-          border-radius: 50%;
-          animation: ab-spin 1s linear infinite;
-          margin: 0 auto 16px;
-        }
-
-        @keyframes ab-spin {
-          to { transform: rotate(360deg); }
-        }
-
-        /* ===== Empty State ===== */
-        .ab-empty {
-          text-align: center;
-          padding: 56px 24px;
-          background: #f8fafc;
-          border-radius: 12px;
-        }
-        .ab-empty svg {
-          margin-bottom: 16px;
-        }
-        .ab-empty h3 {
-          margin: 0 0 8px;
-          color: #1e293b;
-          font-size: 18px;
-        }
-        .ab-empty p {
-          margin: 0;
-          color: #64748b;
-          font-size: 14px;
-        }
-
-        /* ===== Contact List ===== */
-        .ab-list {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .ab-card {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px;
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .ab-card:hover {
-          border-color: #cbd5e1;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        }
-
-        .ab-card-main {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          min-width: 0;
-          flex: 1;
-        }
-
-        .ab-avatar {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #0d9488, #2dd4bf);
-          color: #fff;
-          font-weight: 700;
-          font-size: 16px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .ab-card-info {
-          display: flex;
-          flex-direction: column;
-          gap: 3px;
-          min-width: 0;
-        }
-
-        .ab-card-top-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .ab-card-name {
-          font-weight: 600;
-          font-size: 15px;
-          color: #1e293b;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .ab-chain-badge {
-          display: inline-block;
-          padding: 2px 8px;
-          background: #f0fdfa;
-          color: #0d9488;
-          border: 1px solid #99f6e4;
-          border-radius: 4px;
-          font-size: 11px;
-          font-weight: 600;
-          flex-shrink: 0;
-        }
-
-        .ab-card-address {
-          font-size: 13px;
-          color: #64748b;
-          font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
-        }
-
-        .ab-card-notes {
-          font-size: 13px;
-          color: #94a3b8;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          max-width: 340px;
-        }
-
-        /* ===== Card Actions ===== */
-        .ab-card-actions {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          flex-shrink: 0;
-          margin-left: 12px;
-        }
-
-        .ab-action-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 34px;
-          height: 34px;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          background: #ffffff;
-          cursor: pointer;
-          color: #64748b;
-          transition: background 0.2s, color 0.2s, border-color 0.2s;
-        }
-        .ab-action-btn:hover {
-          background: #f1f5f9;
-          color: #1e293b;
-          border-color: #cbd5e1;
-        }
-
-        .ab-select-btn {
-          width: auto;
-          padding: 0 14px;
-          font-size: 13px;
-          font-weight: 600;
-          color: #0d9488;
-          border-color: #99f6e4;
-          background: #f0fdfa;
-        }
-        .ab-select-btn:hover {
-          background: #ccfbf1;
-          color: #0f766e;
-        }
-
-        .ab-copy-btn:hover {
-          color: #0d9488;
-        }
-
-        .ab-edit-btn:hover {
-          color: #0d9488;
-        }
-
-        .ab-delete-btn:hover {
-          color: #dc2626;
-          border-color: #fecaca;
-          background: #fef2f2;
-        }
-
-        /* ===== Overlay / Modal ===== */
-        .ab-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.45);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 50;
-        }
-
-        .ab-modal {
-          background: #ffffff;
-          border-radius: 16px;
-          padding: 28px;
-          width: 100%;
-          max-width: 480px;
-          margin: 16px;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-          max-height: 90vh;
-          overflow-y: auto;
-        }
-
-        .ab-modal-sm {
-          max-width: 400px;
-          text-align: center;
-        }
-
-        .ab-modal-title {
-          margin: 0 0 20px;
-          font-size: 18px;
-          font-weight: 700;
-          color: #1e293b;
-        }
-
-        .ab-form-error {
-          background: #fef2f2;
-          border: 1px solid #fecaca;
-          color: #dc2626;
-          padding: 10px 14px;
-          border-radius: 8px;
-          font-size: 13px;
-          margin-bottom: 16px;
-        }
-
-        .ab-label {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          margin-bottom: 16px;
-          font-size: 13px;
-          font-weight: 600;
-          color: #475569;
-        }
-
-        .ab-input {
-          padding: 10px 14px;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          font-size: 14px;
-          color: #1e293b;
-          outline: none;
-          background: #ffffff;
-          transition: border-color 0.2s;
-        }
-        .ab-input:focus {
-          border-color: #2dd4bf;
-        }
-        .ab-input::placeholder {
-          color: #94a3b8;
-        }
-
-        .ab-input-mono {
-          font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
-          font-size: 13px;
-        }
-
-        .ab-textarea {
-          padding: 10px 14px;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          font-size: 14px;
-          color: #1e293b;
-          outline: none;
-          background: #ffffff;
-          resize: vertical;
-          font-family: inherit;
-          transition: border-color 0.2s;
-        }
-        .ab-textarea:focus {
-          border-color: #2dd4bf;
-        }
-        .ab-textarea::placeholder {
-          color: #94a3b8;
-        }
-
-        .ab-modal-actions {
-          display: flex;
-          gap: 12px;
-          margin-top: 24px;
-        }
-
-        .ab-modal-cancel {
-          flex: 1;
-          padding: 10px 16px;
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          color: #64748b;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-        .ab-modal-cancel:hover:not(:disabled) {
-          background: #f1f5f9;
-        }
-        .ab-modal-cancel:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .ab-modal-save {
-          flex: 1;
-          padding: 10px 16px;
-          background: #0d9488;
-          border: none;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          color: #fff;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-        .ab-modal-save:hover:not(:disabled) {
-          background: #0f766e;
-        }
-        .ab-modal-save:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .ab-modal-delete {
-          flex: 1;
-          padding: 10px 16px;
-          background: #dc2626;
-          border: none;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          color: #fff;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-        .ab-modal-delete:hover:not(:disabled) {
-          background: #b91c1c;
-        }
-        .ab-modal-delete:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        /* ===== Delete dialog ===== */
-        .ab-delete-icon-wrap {
-          display: flex;
-          justify-content: center;
-          margin-bottom: 12px;
-        }
-
-        .ab-delete-msg {
-          font-size: 14px;
-          color: #64748b;
-          margin: 0 0 4px;
-        }
-      `}</style>
     </div>
   );
 }

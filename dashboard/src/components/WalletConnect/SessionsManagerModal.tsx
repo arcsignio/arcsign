@@ -5,6 +5,7 @@
  */
 
 import React, { useState } from 'react';
+import styles from "./SessionsManagerModal.module.css";
 import { useTranslation } from 'react-i18next';
 import type { SessionTypes } from '@walletconnect/types';
 
@@ -103,32 +104,32 @@ export const SessionsManagerModal: React.FC<SessionsManagerModalProps> = ({
   };
 
   return (
-    <div className="sessions-modal-overlay" onClick={onClose}>
-      <div className="sessions-modal" onClick={e => e.stopPropagation()}>
+    <div className={styles.sessionsModalOverlay} onClick={onClose}>
+      <div className={styles.sessionsModal} onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="sessions-modal-header">
+        <div className={styles.sessionsModalHeader}>
           <h2>{t('walletConnect.connectedDapps')}</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <button className={styles.closeBtn} onClick={onClose}>×</button>
         </div>
 
         {/* Content */}
-        <div className="sessions-modal-content">
+        <div className={styles.sessionsModalContent}>
           {sessions.length === 0 ? (
-            <div className="no-sessions">
-              <div className="no-sessions-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></div>
+            <div className={styles.noSessions}>
+              <div className={styles.noSessionsIcon}><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></div>
               <p>{t('walletConnect.noConnections')}</p>
-              <p className="no-sessions-hint">{t('walletConnect.noConnectionsHint')}</p>
+              <p className={styles.noSessionsHint}>{t('walletConnect.noConnectionsHint')}</p>
             </div>
           ) : (
-            <div className="sessions-list">
+            <div className={styles.sessionsList}>
               {sessions.map(session => {
                 const metadata = session.peer?.metadata;
                 const chainNames = getChainNames(session);
                 const expiringSoon = isExpiringSoon(session);
 
                 return (
-                  <div key={session.topic} className="session-item">
-                    <div className="session-icon">
+                  <div key={session.topic} className={styles.sessionItem}>
+                    <div className={styles.sessionIcon}>
                       {metadata?.icons?.[0] ? (
                         <img
                           src={metadata.icons[0]}
@@ -142,17 +143,17 @@ export const SessionsManagerModal: React.FC<SessionsManagerModalProps> = ({
                       )}
                     </div>
 
-                    <div className="session-info">
-                      <div className="session-name">
+                    <div className={styles.sessionInfo}>
+                      <div className={styles.sessionName}>
                         {metadata?.name || t('walletConnect.unknownDapp')}
-                        <span className={`status-dot ${expiringSoon ? 'expiring' : 'active'}`}>●</span>
+                        <span className={`${styles.statusDot} ${expiringSoon ? styles.expiring : styles.active}`}>●</span>
                       </div>
-                      <div className="session-url">
+                      <div className={styles.sessionUrl}>
                         {metadata?.url?.replace(/^https?:\/\//, '') || '-'}
                       </div>
-                      <div className="session-details">
+                      <div className={styles.sessionDetails}>
                         <span className="chains">{chainNames.join(', ') || '-'}</span>
-                        <span className="separator">·</span>
+                        <span className={styles.separator}>·</span>
                         <span className="time">
                           {/* Use session creation time - approximate from expiry */}
                           {timeAgo(session.expiry - 604800, t)}
@@ -161,7 +162,7 @@ export const SessionsManagerModal: React.FC<SessionsManagerModalProps> = ({
                     </div>
 
                     <button
-                      className="disconnect-btn"
+                      className={styles.disconnectBtn}
                       onClick={() => handleDisconnect(session.topic)}
                       disabled={disconnecting === session.topic}
                     >
@@ -178,14 +179,14 @@ export const SessionsManagerModal: React.FC<SessionsManagerModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="sessions-modal-footer">
-          <button className="add-btn" onClick={onAddNew}>
+        <div className={styles.sessionsModalFooter}>
+          <button className={styles.addBtn} onClick={onAddNew}>
             + {t('walletConnect.addConnection')}
           </button>
 
           {sessions.length > 0 && (
             <button
-              className={`disconnect-all-btn ${confirmDisconnectAll ? 'confirm' : ''}`}
+              className={`${styles.disconnectAllBtn} ${confirmDisconnectAll ? styles.confirm : ''}`}
               onClick={handleDisconnectAll}
               disabled={disconnectingAll}
             >
@@ -199,248 +200,6 @@ export const SessionsManagerModal: React.FC<SessionsManagerModalProps> = ({
           )}
         </div>
       </div>
-
-      <style>{`
-        .sessions-modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-          padding: 20px;
-        }
-
-        .sessions-modal {
-          background: white;
-          border-radius: 16px;
-          width: 100%;
-          max-width: 420px;
-          max-height: 80vh;
-          display: flex;
-          flex-direction: column;
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-        }
-
-        .sessions-modal-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 20px 24px;
-          border-bottom: 1px solid #e5e7eb;
-        }
-
-        .sessions-modal-header h2 {
-          margin: 0;
-          font-size: 18px;
-          font-weight: 600;
-          color: #1e293b;
-        }
-
-        .close-btn {
-          background: none;
-          border: none;
-          font-size: 24px;
-          color: #64748b;
-          cursor: pointer;
-          padding: 0;
-          line-height: 1;
-        }
-
-        .close-btn:hover {
-          color: #1e293b;
-        }
-
-        .sessions-modal-content {
-          flex: 1;
-          overflow-y: auto;
-          padding: 16px 24px;
-        }
-
-        .no-sessions {
-          text-align: center;
-          padding: 40px 20px;
-        }
-
-        .no-sessions-icon {
-          font-size: 48px;
-          margin-bottom: 16px;
-          opacity: 0.5;
-        }
-
-        .no-sessions p {
-          margin: 0;
-          color: #64748b;
-        }
-
-        .no-sessions-hint {
-          font-size: 14px;
-          margin-top: 8px !important;
-        }
-
-        .sessions-list {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .session-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 16px;
-          background: #f8fafc;
-          border-radius: 12px;
-          border: 1px solid #e5e7eb;
-        }
-
-        .session-icon {
-          width: 44px;
-          height: 44px;
-          border-radius: 12px;
-          background: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-          flex-shrink: 0;
-          border: 1px solid #e5e7eb;
-        }
-
-        .session-icon img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .default-icon {
-          font-size: 24px;
-        }
-
-        .session-info {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .session-name {
-          font-weight: 600;
-          color: #1e293b;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .status-dot {
-          font-size: 8px;
-        }
-
-        .status-dot.active {
-          color: #22c55e;
-        }
-
-        .status-dot.expiring {
-          color: #eab308;
-        }
-
-        .session-url {
-          font-size: 13px;
-          color: #64748b;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .session-details {
-          font-size: 12px;
-          color: #94a3b8;
-          margin-top: 4px;
-        }
-
-        .session-details .separator {
-          margin: 0 6px;
-        }
-
-        .disconnect-btn {
-          padding: 8px 12px;
-          background: #fee2e2;
-          color: #dc2626;
-          border: none;
-          border-radius: 8px;
-          font-size: 13px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: background 0.2s;
-          white-space: nowrap;
-        }
-
-        .disconnect-btn:hover:not(:disabled) {
-          background: #fecaca;
-        }
-
-        .disconnect-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .sessions-modal-footer {
-          display: flex;
-          gap: 12px;
-          padding: 16px 24px;
-          border-top: 1px solid #e5e7eb;
-        }
-
-        .add-btn {
-          flex: 1;
-          padding: 12px 16px;
-          background: #2dd4bf;
-          color: white;
-          border: none;
-          border-radius: 10px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-
-        .add-btn:hover {
-          background: #0d9488;
-        }
-
-        .disconnect-all-btn {
-          padding: 12px 16px;
-          background: #f1f5f9;
-          color: #64748b;
-          border: none;
-          border-radius: 10px;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .disconnect-all-btn:hover:not(:disabled) {
-          background: #fee2e2;
-          color: #dc2626;
-        }
-
-        .disconnect-all-btn.confirm {
-          background: #dc2626;
-          color: white;
-        }
-
-        .disconnect-all-btn.confirm:hover:not(:disabled) {
-          background: #b91c1c;
-        }
-
-        .disconnect-all-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-      `}</style>
     </div>
   );
 };

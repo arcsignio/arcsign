@@ -1,8 +1,4 @@
-import React from "react";
-
-export const SwapStyles: React.FC = () => (
-  <style>{`
-.swap-transaction {
+.swapTransaction {
   min-height: 100vh;
   background: #f8fafc;
   padding: 24px;
@@ -11,57 +7,57 @@ export const SwapStyles: React.FC = () => (
 }
 
 /* Token Select Form - Step 1 & 2 */
-.token-select-form {
+.tokenSelectForm {
   background: #ffffff;
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.token-select-form h3 {
+.tokenSelectForm h3 {
   margin: 0 0 8px 0;
   font-size: 20px;
   font-weight: 600;
   color: #111827;
 }
 
-.select-description {
+.selectDescription {
   margin: 0 0 20px 0;
   font-size: 14px;
   color: #6b7280;
 }
 
 /* No Tokens State */
-.no-tokens {
+.noTokens {
   text-align: center;
   padding: 40px 20px;
 }
 
-.no-tokens-icon {
+.noTokensIcon {
   font-size: 48px;
   display: block;
   margin-bottom: 16px;
 }
 
-.no-tokens p {
+.noTokens p {
   margin: 0 0 8px 0;
   color: #6b7280;
   font-size: 14px;
 }
 
-.supported-chains {
+.supportedChains {
   font-size: 12px;
   color: #9ca3af;
   margin-bottom: 20px !important;
 }
 
 /* Token Search */
-.token-search-wrapper {
+.tokenSearchWrapper {
   position: relative;
   margin-bottom: 16px;
 }
 
-.token-search-input {
+.tokenSearchInput {
   width: 100%;
   padding: 12px 40px 12px 16px;
   background: #f9fafb;
@@ -73,16 +69,16 @@ export const SwapStyles: React.FC = () => (
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.token-search-input:focus {
+.tokenSearchInput:focus {
   border-color: #2dd4bf;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.token-search-input::placeholder {
+.tokenSearchInput::placeholder {
   color: #9ca3af;
 }
 
-.search-clear-btn {
+.searchClearBtn {
   position: absolute;
   right: 12px;
   top: 50%;
@@ -101,12 +97,12 @@ export const SwapStyles: React.FC = () => (
   transition: background 0.2s;
 }
 
-.search-clear-btn:hover {
+.searchClearBtn:hover {
   background: #d1d5db;
 }
 
 /* Token Loading State */
-.token-loading {
+.tokenLoading {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -116,7 +112,7 @@ export const SwapStyles: React.FC = () => (
   font-size: 14px;
 }
 
-.token-loading-spinner {
+.tokenLoadingSpinner {
   width: 20px;
   height: 20px;
   border: 2px solid #e5e7eb;
@@ -126,7 +122,7 @@ export const SwapStyles: React.FC = () => (
 }
 
 /* Token Count Info */
-.token-count-info {
+.tokenCountInfo {
   font-size: 12px;
   color: #9ca3af;
   margin-bottom: 12px;
@@ -134,7 +130,7 @@ export const SwapStyles: React.FC = () => (
 }
 
 /* No Tokens Found */
-.no-tokens-found {
+.noTokensFound {
   text-align: center;
   padding: 40px 20px;
   color: #6b7280;
@@ -142,11 +138,11 @@ export const SwapStyles: React.FC = () => (
 }
 
 /* Network Group */
-.network-group {
+.networkGroup {
   margin-bottom: 16px;
 }
 
-.network-header {
+.networkHeader {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -155,24 +151,24 @@ export const SwapStyles: React.FC = () => (
   margin-bottom: 12px;
 }
 
-.network-icon {
+.networkIcon {
   font-size: 18px;
 }
 
-.network-name {
+.networkName {
   font-size: 14px;
   font-weight: 600;
   color: #374151;
 }
 
-.network-tokens {
+.networkTokens {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
 /* Token Option Button */
-.token-option {
+.tokenOption {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -186,12 +182,12 @@ export const SwapStyles: React.FC = () => (
   text-align: left;
 }
 
-.token-option:hover {
+.tokenOption:hover {
   background: #f3f4f6;
   border-color: #d1d5db;
 }
 
-.token-icon {
+.tokenIcon {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -199,13 +195,13 @@ export const SwapStyles: React.FC = () => (
   flex-shrink: 0;
 }
 
-.token-icon img {
+.tokenIcon img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.token-icon-fallback {
+.tokenIconFallback {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -218,12 +214,12 @@ export const SwapStyles: React.FC = () => (
   color: #fff;
 }
 
-.token-icon-small {
+.tokenIconSmall {
   width: 24px;
   height: 24px;
 }
 
-.token-info {
+.tokenInfo {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -231,34 +227,34 @@ export const SwapStyles: React.FC = () => (
   min-width: 0;
 }
 
-.token-symbol {
+.tokenSymbol {
   font-size: 15px;
   font-weight: 600;
   color: #111827;
 }
 
-.token-name {
+.tokenName {
   font-size: 13px;
   color: #6b7280;
 }
 
-.token-balance {
+.tokenBalance {
   text-align: right;
 }
 
-.balance-amount {
+.balanceAmount {
   font-size: 14px;
   font-weight: 600;
   color: #111827;
 }
 
-.token-arrow {
+.tokenArrow {
   font-size: 18px;
   color: #9ca3af;
 }
 
 /* Chain Badge */
-.chain-badge {
+.chainBadge {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -270,58 +266,58 @@ export const SwapStyles: React.FC = () => (
   margin-left: auto;
 }
 
-.chain-icon {
+.chainIcon {
   font-size: 14px;
 }
 
 /* Swap Input Form - Step 3 */
-.swap-input-form {
+.swapInputForm {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.swap-token-card {
+.swapTokenCard {
   background: #ffffff;
   border-radius: 16px;
   padding: 20px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.swap-token-card.from {
+.swapTokenCard.from {
   border: 2px solid #e5e7eb;
 }
 
-.swap-token-card.to {
+.swapTokenCard.to {
   border: 2px solid #e5e7eb;
   background: #f9fafb;
 }
 
-.token-card-header {
+.tokenCardHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
 }
 
-.card-label {
+.cardLabel {
   font-size: 13px;
   font-weight: 500;
   color: #6b7280;
 }
 
-.balance-label {
+.balanceLabel {
   font-size: 12px;
   color: #9ca3af;
 }
 
-.token-card-body {
+.tokenCardBody {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.amount-input-large {
+.amountInputLarge {
   flex: 1;
   font-size: 28px;
   font-weight: 600;
@@ -332,11 +328,11 @@ export const SwapStyles: React.FC = () => (
   padding: 0;
 }
 
-.amount-input-large::placeholder {
+.amountInputLarge::placeholder {
   color: #d1d5db;
 }
 
-.token-selector {
+.tokenSelector {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -346,20 +342,20 @@ export const SwapStyles: React.FC = () => (
   cursor: pointer;
 }
 
-.dropdown-arrow {
+.dropdownArrow {
   font-size: 12px;
   color: #6b7280;
 }
 
-.token-card-footer {
+.tokenCardFooter {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-top: 12px;
 }
 
-.half-button,
-.max-button {
+.halfButton,
+.maxButton {
   padding: 6px 12px;
   background: #f0fdfa;
   border: 1px solid #99f6e4;
@@ -371,13 +367,13 @@ export const SwapStyles: React.FC = () => (
   transition: all 0.2s;
 }
 
-.half-button:hover,
-.max-button:hover {
+.halfButton:hover,
+.maxButton:hover {
   background: #ccfbf1;
 }
 
 /* Swap Direction Button */
-.swap-direction {
+.swapDirection {
   display: flex;
   justify-content: center;
   margin: -8px 0;
@@ -385,7 +381,7 @@ export const SwapStyles: React.FC = () => (
   z-index: 1;
 }
 
-.swap-direction-btn {
+.swapDirectionBtn {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -399,20 +395,20 @@ export const SwapStyles: React.FC = () => (
   transition: all 0.2s;
 }
 
-.swap-direction-btn:hover {
+.swapDirectionBtn:hover {
   background: #f3f4f6;
   border-color: #d1d5db;
 }
 
 /* Quote Details */
-.quote-details {
+.quoteDetails {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
   border-radius: 12px;
   padding: 16px;
 }
 
-.quote-row {
+.quoteRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -420,40 +416,40 @@ export const SwapStyles: React.FC = () => (
   border-bottom: 1px solid #dcfce7;
 }
 
-.quote-row:last-child {
+.quoteRow:last-child {
   border-bottom: none;
 }
 
-.quote-label {
+.quoteLabel {
   font-size: 13px;
   color: #6b7280;
 }
 
-.quote-value {
+.quoteValue {
   font-size: 13px;
   color: #111827;
   font-weight: 500;
 }
 
-.quote-value.route {
+.quoteValue.route {
   font-size: 12px;
   color: #6b7280;
 }
 
-.min-received {
+.minReceived {
   font-size: 12px;
   color: #16a34a;
   margin-top: 4px;
 }
 
-.amount-display {
+.amountDisplay {
   font-size: 24px;
   font-weight: 600;
   color: #111827;
 }
 
 /* Slippage Settings */
-.slippage-settings {
+.slippageSettings {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -462,17 +458,17 @@ export const SwapStyles: React.FC = () => (
   border-radius: 8px;
 }
 
-.slippage-label {
+.slippageLabel {
   font-size: 13px;
   color: #6b7280;
 }
 
-.slippage-options {
+.slippageOptions {
   display: flex;
   gap: 8px;
 }
 
-.slippage-options button {
+.slippageOptions button {
   padding: 6px 12px;
   background: #ffffff;
   border: 1px solid #d1d5db;
@@ -483,47 +479,47 @@ export const SwapStyles: React.FC = () => (
   transition: all 0.2s;
 }
 
-.slippage-options button:hover {
+.slippageOptions button:hover {
   border-color: #9ca3af;
 }
 
-.slippage-options button.selected {
+.slippageOptions button.selected {
   background: #f0fdfa;
   border-color: #2dd4bf;
   color: #0d9488;
 }
 
 /* Loading State */
-.loading-text {
+.loadingText {
   color: #6b7280;
   font-size: 14px;
   text-align: center;
   padding: 20px;
 }
 
-.swap-header {
+.swapHeader {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 24px;
 }
 
-.swap-header h2 {
+.swapHeader h2 {
   flex: 1;
 }
 
-.header-badges {
+.headerBadges {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 /* Provider Selector */
-.provider-selector {
+.providerSelector {
   position: relative;
 }
 
-.provider-badge {
+.providerBadge {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -537,28 +533,28 @@ export const SwapStyles: React.FC = () => (
   transition: all 0.2s;
 }
 
-.provider-badge:hover {
+.providerBadge:hover {
   background: #e5e7eb;
   border-color: #d1d5db;
 }
 
-.provider-logo {
+.providerLogo {
   width: 18px;
   height: 18px;
   border-radius: 4px;
 }
 
-.provider-badge .provider-name {
+.providerBadge .providerName {
   font-weight: 500;
 }
 
-.dropdown-arrow {
+.dropdownArrow {
   font-size: 10px;
   color: #9ca3af;
   margin-left: 2px;
 }
 
-.provider-dropdown {
+.providerDropdown {
   position: absolute;
   top: 100%;
   right: 0;
@@ -572,7 +568,7 @@ export const SwapStyles: React.FC = () => (
   overflow: hidden;
 }
 
-.provider-option {
+.providerOption {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -585,44 +581,44 @@ export const SwapStyles: React.FC = () => (
   transition: background 0.2s;
 }
 
-.provider-option:hover {
+.providerOption:hover {
   background: #f9fafb;
 }
 
-.provider-option.selected {
+.providerOption.selected {
   background: #f0fdfa;
 }
 
-.provider-option .provider-logo {
+.providerOption .providerLogo {
   width: 32px;
   height: 32px;
   border-radius: 8px;
 }
 
-.provider-option .provider-info {
+.providerOption .providerInfo {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.provider-option .provider-name {
+.providerOption .providerName {
   font-weight: 500;
   color: #111827;
   font-size: 14px;
 }
 
-.provider-option .provider-desc {
+.providerOption .providerDesc {
   font-size: 12px;
   color: #6b7280;
 }
 
-.check-mark {
+.checkMark {
   color: #2dd4bf;
   font-weight: bold;
 }
 
-.best-route-badge {
+.bestRouteBadge {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -635,21 +631,21 @@ export const SwapStyles: React.FC = () => (
   color: white;
 }
 
-.best-route-icon {
+.bestRouteIcon {
   font-size: 14px;
 }
 
-.best-route-tag {
+.bestRouteTag {
   color: #0d9488;
   font-weight: 600;
 }
 
-.fee-free {
+.feeFree {
   color: #0d9488 !important;
   font-weight: 600;
 }
 
-.back-button {
+.backButton {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -663,11 +659,11 @@ export const SwapStyles: React.FC = () => (
   transition: background 0.2s;
 }
 
-.back-button:hover {
+.backButton:hover {
   background: #e5e7eb;
 }
 
-.swap-header h2 {
+.swapHeader h2 {
   margin: 0;
   font-size: 24px;
   font-weight: 600;
@@ -675,20 +671,20 @@ export const SwapStyles: React.FC = () => (
 }
 
 /* Token Selection */
-.token-selection {
+.tokenSelection {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.token-selection h3 {
+.tokenSelection h3 {
   margin: 0 0 8px 0;
   font-size: 18px;
   font-weight: 600;
   color: #111827;
 }
 
-.token-list {
+.tokenList {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -696,7 +692,7 @@ export const SwapStyles: React.FC = () => (
   overflow-y: auto;
 }
 
-.token-item {
+.tokenItem {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -708,37 +704,37 @@ export const SwapStyles: React.FC = () => (
   transition: all 0.2s;
 }
 
-.token-item:hover {
+.tokenItem:hover {
   background: #f9fafb;
   border-color: #d1d5db;
 }
 
-.token-item.selected {
+.tokenItem.selected {
   background: #f0fdfa;
   border-color: #2dd4bf;
 }
 
-.token-item.disabled {
+.tokenItem.disabled {
   opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;
 }
 
-.token-icon-wrapper {
+.tokenIconWrapper {
   position: relative;
   width: 40px;
   height: 40px;
   flex-shrink: 0;
 }
 
-.token-icon-wrapper img {
+.tokenIconWrapper img {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
 }
 
-.token-icon-placeholder {
+.tokenIconPlaceholder {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -751,7 +747,7 @@ export const SwapStyles: React.FC = () => (
   color: #fff;
 }
 
-.network-badge {
+.networkBadge {
   position: absolute;
   bottom: -2px;
   right: -2px;
@@ -766,7 +762,7 @@ export const SwapStyles: React.FC = () => (
   border: 2px solid #f8fafc;
 }
 
-.token-details {
+.tokenDetails {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -774,36 +770,36 @@ export const SwapStyles: React.FC = () => (
   min-width: 0;
 }
 
-.token-symbol {
+.tokenSymbol {
   font-size: 15px;
   font-weight: 600;
   color: #111827;
 }
 
-.token-name {
+.tokenName {
   font-size: 13px;
   color: #6b7280;
 }
 
-.token-balance {
+.tokenBalance {
   text-align: right;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.balance-amount {
+.balanceAmount {
   font-size: 14px;
   font-weight: 600;
   color: #111827;
 }
 
-.balance-network {
+.balanceNetwork {
   font-size: 12px;
   color: #6b7280;
 }
 
-.section-divider {
+.sectionDivider {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -814,8 +810,8 @@ export const SwapStyles: React.FC = () => (
   letter-spacing: 0.5px;
 }
 
-.section-divider::before,
-.section-divider::after {
+.sectionDivider::before,
+.sectionDivider::after {
   content: '';
   flex: 1;
   height: 1px;
@@ -823,20 +819,20 @@ export const SwapStyles: React.FC = () => (
 }
 
 /* Swap Input Form */
-.swap-input-form {
+.swapInputForm {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-.swap-input-form h3 {
+.swapInputForm h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: #111827;
 }
 
-.swap-pair-display {
+.swapPairDisplay {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -846,7 +842,7 @@ export const SwapStyles: React.FC = () => (
   border-radius: 12px;
 }
 
-.swap-token-card {
+.swapTokenCard {
   flex: 1;
   display: flex;
   align-items: center;
@@ -856,57 +852,57 @@ export const SwapStyles: React.FC = () => (
   border-radius: 8px;
 }
 
-.swap-token-card img,
-.swap-token-card .token-icon-placeholder {
+.swapTokenCard img,
+.swapTokenCard .tokenIconPlaceholder {
   width: 32px;
   height: 32px;
   border-radius: 50%;
 }
 
-.swap-token-card .token-icon-placeholder {
+.swapTokenCard .tokenIconPlaceholder {
   font-size: 12px;
 }
 
-.swap-token-info {
+.swapTokenInfo {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.swap-token-info .symbol {
+.swapTokenInfo .symbol {
   font-size: 14px;
   font-weight: 600;
   color: #111827;
 }
 
-.swap-token-info .network {
+.swapTokenInfo .network {
   font-size: 11px;
   color: #6b7280;
 }
 
-.swap-arrow {
+.swapArrow {
   font-size: 20px;
   color: #9ca3af;
 }
 
-.amount-input-group {
+.amountInputGroup {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.amount-input-group label {
+.amountInputGroup label {
   font-size: 14px;
   font-weight: 500;
   color: #374151;
 }
 
-.amount-input-wrapper {
+.amountInputWrapper {
   display: flex;
   gap: 8px;
 }
 
-.amount-input-wrapper input {
+.amountInputWrapper input {
   flex: 1;
   padding: 12px 16px;
   background: #ffffff;
@@ -919,16 +915,16 @@ export const SwapStyles: React.FC = () => (
   transition: border-color 0.2s;
 }
 
-.amount-input-wrapper input:focus {
+.amountInputWrapper input:focus {
   border-color: #2dd4bf;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.amount-input-wrapper input.error {
+.amountInputWrapper input.error {
   border-color: #ef4444;
 }
 
-.max-button {
+.maxButton {
   padding: 8px 16px;
   background: #f0fdfa;
   border: 1px solid #99f6e4;
@@ -940,21 +936,21 @@ export const SwapStyles: React.FC = () => (
   transition: all 0.2s;
 }
 
-.max-button:hover {
+.maxButton:hover {
   background: #ccfbf1;
 }
 
-.balance-display {
+.balanceDisplay {
   font-size: 13px;
   color: #6b7280;
 }
 
-.amount-error {
+.amountError {
   font-size: 13px;
   color: #ef4444;
 }
 
-.get-quote-button {
+.getQuoteButton {
   padding: 14px;
   background: var(--brand-gradient);
   border: none;
@@ -966,25 +962,25 @@ export const SwapStyles: React.FC = () => (
   transition: all 0.2s;
 }
 
-.get-quote-button:hover:not(:disabled) {
+.getQuoteButton:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
 }
 
-.get-quote-button:disabled {
+.getQuoteButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 /* Quote Display */
-.quote-display {
+.quoteDisplay {
   padding: 16px;
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
   border-radius: 12px;
 }
 
-.quote-header {
+.quoteHeader {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -994,7 +990,7 @@ export const SwapStyles: React.FC = () => (
   color: #16a34a;
 }
 
-.quote-row {
+.quoteRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1002,37 +998,37 @@ export const SwapStyles: React.FC = () => (
   border-bottom: 1px solid #dcfce7;
 }
 
-.quote-row:last-child {
+.quoteRow:last-child {
   border-bottom: none;
 }
 
-.quote-label {
+.quoteLabel {
   font-size: 13px;
   color: #6b7280;
 }
 
-.quote-value {
+.quoteValue {
   font-size: 13px;
   color: #111827;
   font-weight: 500;
 }
 
-.quote-value.large {
+.quoteValue.large {
   font-size: 16px;
   font-weight: 600;
 }
 
-.quote-value.warning {
+.quoteValue.warning {
   color: #d97706;
 }
 
-.quote-value.route {
+.quoteValue.route {
   font-size: 12px;
   color: #6b7280;
 }
 
 /* Slippage Settings */
-.slippage-settings {
+.slippageSettings {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1041,17 +1037,17 @@ export const SwapStyles: React.FC = () => (
   border-radius: 8px;
 }
 
-.slippage-label {
+.slippageLabel {
   font-size: 13px;
   color: #6b7280;
 }
 
-.slippage-options {
+.slippageOptions {
   display: flex;
   gap: 8px;
 }
 
-.slippage-option {
+.slippageOption {
   padding: 6px 12px;
   background: #ffffff;
   border: 1px solid #d1d5db;
@@ -1062,18 +1058,18 @@ export const SwapStyles: React.FC = () => (
   transition: all 0.2s;
 }
 
-.slippage-option:hover {
+.slippageOption:hover {
   border-color: #9ca3af;
 }
 
-.slippage-option.selected {
+.slippageOption.selected {
   background: #f0fdfa;
   border-color: #2dd4bf;
   color: #0d9488;
 }
 
 /* Primary and Secondary Buttons */
-.primary-button {
+.primaryButton {
   padding: 14px;
   background: var(--brand-gradient);
   border: none;
@@ -1085,17 +1081,17 @@ export const SwapStyles: React.FC = () => (
   transition: all 0.2s;
 }
 
-.primary-button:hover:not(:disabled) {
+.primaryButton:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
 }
 
-.primary-button:disabled {
+.primaryButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.secondary-button {
+.secondaryButton {
   padding: 12px;
   background: #ffffff;
   border: 1px solid #d1d5db;
@@ -1106,85 +1102,85 @@ export const SwapStyles: React.FC = () => (
   transition: all 0.2s;
 }
 
-.secondary-button:hover {
+.secondaryButton:hover {
   background: #f9fafb;
   border-color: #9ca3af;
 }
 
 /* Approval Form */
-.approve-form {
+.approveForm {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.approve-form h3 {
+.approveForm h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: #111827;
 }
 
-.approve-description {
+.approveDescription {
   font-size: 14px;
   color: #6b7280;
   line-height: 1.5;
   margin: 0;
 }
 
-.approval-details {
+.approvalDetails {
   padding: 16px;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
 }
 
-.approval-row {
+.approvalRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 8px 0;
 }
 
-.approval-label {
+.approvalLabel {
   font-size: 13px;
   color: #6b7280;
 }
 
-.approval-value {
+.approvalValue {
   font-size: 14px;
   font-weight: 500;
   color: #111827;
 }
 
-.approval-value.address {
+.approvalValue.address {
   font-family: monospace;
   font-size: 13px;
   color: #374151;
 }
 
 /* Password Form */
-.password-form {
+.passwordForm {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.password-form h3 {
+.passwordForm h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: #111827;
 }
 
-.swap-summary {
+.swapSummary {
   padding: 16px;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
 }
 
-.swap-summary-row {
+.swapSummaryRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1192,38 +1188,38 @@ export const SwapStyles: React.FC = () => (
   border-bottom: 1px solid #f3f4f6;
 }
 
-.swap-summary-row:last-child {
+.swapSummaryRow:last-child {
   border-bottom: none;
 }
 
-.summary-label {
+.summaryLabel {
   font-size: 13px;
   color: #6b7280;
 }
 
-.summary-value {
+.summaryValue {
   font-size: 14px;
   font-weight: 500;
   color: #111827;
 }
 
-.summary-value.highlight {
+.summaryValue.highlight {
   color: #16a34a;
 }
 
-.form-group {
+.formGroup {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.form-group label {
+.formGroup label {
   font-size: 14px;
   font-weight: 500;
   color: #374151;
 }
 
-.password-input {
+.passwordInput {
   padding: 12px 16px;
   background: #ffffff;
   border: 1px solid #d1d5db;
@@ -1234,13 +1230,13 @@ export const SwapStyles: React.FC = () => (
   transition: border-color 0.2s;
 }
 
-.password-input:focus {
+.passwordInput:focus {
   border-color: #2dd4bf;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 /* Processing Form */
-.processing-form {
+.processingForm {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1250,20 +1246,20 @@ export const SwapStyles: React.FC = () => (
   text-align: center;
 }
 
-.processing-form h3 {
+.processingForm h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: #111827;
 }
 
-.processing-description {
+.processingDescription {
   font-size: 14px;
   color: #6b7280;
   margin: 0;
 }
 
-.processing-spinner {
+.processingSpinner {
   width: 48px;
   height: 48px;
   border: 3px solid #e5e7eb;
@@ -1277,7 +1273,7 @@ export const SwapStyles: React.FC = () => (
 }
 
 /* Success Form */
-.success-form {
+.successForm {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1286,20 +1282,20 @@ export const SwapStyles: React.FC = () => (
   text-align: center;
 }
 
-.success-form h3 {
+.successForm h3 {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
   color: #111827;
 }
 
-.success-description {
+.successDescription {
   font-size: 14px;
   color: #6b7280;
   margin: 0;
 }
 
-.success-icon {
+.successIcon {
   width: 64px;
   height: 64px;
   background: #dcfce7;
@@ -1312,7 +1308,7 @@ export const SwapStyles: React.FC = () => (
   color: #22c55e;
 }
 
-.tx-hash-display {
+.txHashDisplay {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1322,14 +1318,14 @@ export const SwapStyles: React.FC = () => (
   border-radius: 12px;
 }
 
-.tx-label {
+.txLabel {
   font-size: 12px;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-.tx-hash-link {
+.txHashLink {
   font-family: monospace;
   font-size: 14px;
   color: #0d9488;
@@ -1337,24 +1333,24 @@ export const SwapStyles: React.FC = () => (
   transition: color 0.2s;
 }
 
-.tx-hash-link:hover {
+.txHashLink:hover {
   color: #0f766e;
 }
 
-.success-actions {
+.successActions {
   display: flex;
   gap: 12px;
   margin-top: 8px;
 }
 
-.success-actions .primary-button,
-.success-actions .secondary-button {
+.successActions .primaryButton,
+.successActions .secondaryButton {
   flex: 1;
   min-width: 120px;
 }
 
 /* Error Form */
-.error-form {
+.errorForm {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1363,14 +1359,14 @@ export const SwapStyles: React.FC = () => (
   text-align: center;
 }
 
-.error-form h3 {
+.errorForm h3 {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
   color: #111827;
 }
 
-.error-description {
+.errorDescription {
   font-size: 14px;
   color: #6b7280;
   margin: 0;
@@ -1378,7 +1374,7 @@ export const SwapStyles: React.FC = () => (
   word-break: break-word;
 }
 
-.error-icon-large {
+.errorIconLarge {
   width: 64px;
   height: 64px;
   background: #fee2e2;
@@ -1391,27 +1387,27 @@ export const SwapStyles: React.FC = () => (
   color: #ef4444;
 }
 
-.error-actions {
+.errorActions {
   display: flex;
   gap: 12px;
   margin-top: 8px;
 }
 
-.error-actions .primary-button,
-.error-actions .secondary-button {
+.errorActions .primaryButton,
+.errorActions .secondaryButton {
   flex: 1;
   min-width: 120px;
 }
 
 /* Error text inline */
-.error-text {
+.errorText {
   font-size: 13px;
   color: #ef4444;
   margin: 4px 0 0 0;
 }
 
 /* Error banner */
-.error-banner {
+.errorBanner {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1422,17 +1418,17 @@ export const SwapStyles: React.FC = () => (
   margin-bottom: 16px;
 }
 
-.error-icon {
+.errorIcon {
   font-size: 16px;
 }
 
-.error-message {
+.errorMessage {
   font-size: 14px;
   color: #991b1b;
 }
 
 /* Approval Amount Section */
-.approval-amount-section {
+.approvalAmountSection {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1441,7 +1437,7 @@ export const SwapStyles: React.FC = () => (
   border-radius: 12px;
 }
 
-.approval-type-toggle {
+.approvalTypeToggle {
   display: flex;
   gap: 8px;
   padding: 4px;
@@ -1449,7 +1445,7 @@ export const SwapStyles: React.FC = () => (
   border-radius: 8px;
 }
 
-.toggle-button {
+.toggleButton {
   flex: 1;
   padding: 10px 16px;
   background: transparent;
@@ -1462,17 +1458,17 @@ export const SwapStyles: React.FC = () => (
   transition: all 0.2s;
 }
 
-.toggle-button:hover {
+.toggleButton:hover {
   color: #374151;
 }
 
-.toggle-button.active {
+.toggleButton.active {
   background: #ffffff;
   color: #111827;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.input-with-suffix {
+.inputWithSuffix {
   display: flex;
   align-items: center;
   background: #ffffff;
@@ -1481,7 +1477,7 @@ export const SwapStyles: React.FC = () => (
   overflow: hidden;
 }
 
-.input-with-suffix input {
+.inputWithSuffix input {
   flex: 1;
   padding: 12px 16px;
   border: none;
@@ -1491,11 +1487,11 @@ export const SwapStyles: React.FC = () => (
   outline: none;
 }
 
-.input-with-suffix input::placeholder {
+.inputWithSuffix input::placeholder {
   color: #9ca3af;
 }
 
-.input-suffix {
+.inputSuffix {
   padding: 12px 16px;
   background: #f3f4f6;
   border-left: 1px solid #e5e7eb;
@@ -1504,13 +1500,13 @@ export const SwapStyles: React.FC = () => (
   color: #6b7280;
 }
 
-.approval-amount-presets {
+.approvalAmountPresets {
   display: flex;
   gap: 8px;
   margin-top: 8px;
 }
 
-.preset-button {
+.presetButton {
   flex: 1;
   padding: 8px 12px;
   background: #f0fdfa;
@@ -1522,11 +1518,11 @@ export const SwapStyles: React.FC = () => (
   transition: all 0.2s;
 }
 
-.preset-button:hover {
+.presetButton:hover {
   background: #ccfbf1;
 }
 
-.unlimited-warning {
+.unlimitedWarning {
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -1539,14 +1535,14 @@ export const SwapStyles: React.FC = () => (
   line-height: 1.4;
 }
 
-.warning-icon {
+.warningIcon {
   color: #f59e0b;
   font-size: 16px;
   flex-shrink: 0;
 }
 
 /* Approving Form (in progress) */
-.approving-form {
+.approvingForm {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1555,20 +1551,20 @@ export const SwapStyles: React.FC = () => (
   text-align: center;
 }
 
-.approving-form h3 {
+.approvingForm h3 {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
   color: #111827;
 }
 
-.approving-description {
+.approvingDescription {
   font-size: 14px;
   color: #6b7280;
   margin: 0;
 }
 
-.approving-spinner {
+.approvingSpinner {
   width: 56px;
   height: 56px;
   border: 4px solid #e5e7eb;
@@ -1577,7 +1573,7 @@ export const SwapStyles: React.FC = () => (
   animation: spin 1s linear infinite;
 }
 
-.approval-tx-info {
+.approvalTxInfo {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1585,13 +1581,13 @@ export const SwapStyles: React.FC = () => (
   max-width: 320px;
 }
 
-.approval-tx-info .tx-hash-display {
+.approvalTxInfo .txHashDisplay {
   padding: 16px;
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
 }
 
-.confirmation-status {
+.confirmationStatus {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1600,14 +1596,14 @@ export const SwapStyles: React.FC = () => (
   color: #16a34a;
 }
 
-.status-indicator {
+.statusIndicator {
   width: 8px;
   height: 8px;
   background: #22c55e;
   border-radius: 50%;
 }
 
-.status-indicator.pulsing {
+.statusIndicator.pulsing {
   animation: pulse 1.5s ease-in-out infinite;
 }
 
@@ -1622,11 +1618,9 @@ export const SwapStyles: React.FC = () => (
   }
 }
 
-.approving-note {
+.approvingNote {
   font-size: 12px;
   color: #9ca3af;
   margin: 8px 0 0 0;
   max-width: 280px;
 }
-  `}</style>
-);

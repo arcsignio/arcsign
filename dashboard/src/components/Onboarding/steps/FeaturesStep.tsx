@@ -3,6 +3,7 @@
  */
 
 import { useTranslation } from 'react-i18next';
+import styles from "./FeaturesStep.module.css";
 import { OnboardingStep } from '../OnboardingStep';
 
 const StarIcon = () => (
@@ -18,8 +19,8 @@ interface FeatureItemProps {
 }
 
 const FeatureItem = ({ title, body, icon }: FeatureItemProps) => (
-  <div className="feature-item">
-    <span className="feature-icon">{icon}</span>
+  <div className={styles.featureItem}>
+    <span className={styles.featureIcon}>{icon}</span>
     <div>
       <h4>{title}</h4>
       <p>{body}</p>
@@ -40,71 +41,12 @@ export const FeaturesStep = () => {
 
   return (
     <OnboardingStep icon={<StarIcon />} title={t('onboarding.featuresTitle')}>
-      <p className="features-intro">{t('onboarding.featuresBody')}</p>
-      <div className="features-grid">
+      <p className={styles.featuresIntro}>{t('onboarding.featuresBody')}</p>
+      <div className={styles.featuresGrid}>
         {features.map((feature, i) => (
           <FeatureItem key={i} {...feature} />
         ))}
       </div>
-
-      <style>{`
-        .features-intro {
-          text-align: center;
-          margin: 0 0 20px;
-          color: #6b7280;
-        }
-
-        .features-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-        }
-
-        .features-grid .feature-item:last-child {
-          grid-column: 1 / -1;
-        }
-
-        .feature-item {
-          display: flex;
-          gap: 12px;
-          padding: 14px;
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
-          border-radius: 10px;
-          transition: border-color 0.2s;
-        }
-
-        .feature-item:hover {
-          border-color: #2dd4bf;
-        }
-
-        .feature-icon {
-          font-size: 20px;
-          flex-shrink: 0;
-          width: 36px;
-          height: 36px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: white;
-          border-radius: 8px;
-          border: 1px solid #e5e7eb;
-        }
-
-        .feature-item h4 {
-          margin: 0 0 2px;
-          font-size: 14px;
-          font-weight: 600;
-          color: #111827;
-        }
-
-        .feature-item p {
-          margin: 0;
-          font-size: 12px;
-          color: #6b7280;
-          line-height: 1.4;
-        }
-      `}</style>
     </OnboardingStep>
   );
 };

@@ -1,0 +1,192 @@
+.apiIntro {
+  text-align: center;
+  margin: 0 0 20px;
+  color: #6b7280;
+}
+
+.apiProviders {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.apiProviderCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  transition: border-color 0.2s;
+}
+
+.apiProviderCard.success {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.apiProviderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.apiProviderHeader strong {
+  font-size: 16px;
+  color: #111827;
+}
+
+.apiLinkButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: none;
+  border: 1px solid #2dd4bf;
+  border-radius: 6px;
+  color: #0d9488;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.apiLinkButton:hover {
+  background: rgba(45, 212, 191, 0.08);
+}
+
+.apiProviderDesc {
+  margin: 0 0 2px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.apiProviderChains {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.apiKeyInputRow {
+  display: flex;
+  gap: 8px;
+}
+
+.apiKeyInputWrapper {
+  flex: 1;
+  position: relative;
+}
+
+.apiKeyInputWrapper input {
+  width: 100%;
+  padding: 8px 60px 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #111827;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.apiKeyInputWrapper input:focus {
+  outline: none;
+  border-color: #2dd4bf;
+}
+
+.apiKeyInputWrapper input:disabled {
+  background: #f3f4f6;
+}
+
+.apiKeyToggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.apiKeyToggle:hover {
+  color: #6b7280;
+}
+
+.apiTestButton {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.apiTestButton:hover:not(:disabled) {
+  box-shadow: 0 2px 8px rgba(45, 212, 191, 0.3);
+}
+
+.apiTestButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.apiStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.apiStatusSuccess {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.apiStatusError {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.apiConfiguredRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.apiConfiguredRow .apiStatus {
+  margin-top: 0;
+}
+
+.apiReconfigureButton {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  text-decoration: underline;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.apiReconfigureButton:hover {
+  color: #0d9488;
+}
+
+.apiSkipHint {
+  text-align: center;
+  margin: 0;
+  font-size: 12px;
+  color: #9ca3af;
+}

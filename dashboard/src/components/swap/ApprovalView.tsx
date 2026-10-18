@@ -1,4 +1,5 @@
 import React from "react";
+import styles from "./swap.module.css";
 import { useTranslation } from "react-i18next";
 import { fromSmallestUnit, shortenAddress } from "@/utils/swapFormat";
 import type { SendableToken } from "@/components/SendTransaction";
@@ -60,46 +61,46 @@ export const ApprovalView: React.FC<ApprovalViewProps> = ({
 
   if (mode === "approve") {
     return (
-      <div className="approve-form">
+      <div className={styles.approveForm}>
         <h3>{t('swap.approveTokenSpending')}</h3>
-        <p className="approve-description">
+        <p className={styles.approveDescription}>
           {t('swap.approveDescription', { symbol: fromToken.tokenSymbol })}
         </p>
 
-        <div className="approval-details">
-          <div className="approval-row">
-            <span className="approval-label">{t('swap.token')}</span>
-            <span className="approval-value">{fromToken.tokenSymbol}</span>
+        <div className={styles.approvalDetails}>
+          <div className={styles.approvalRow}>
+            <span className={styles.approvalLabel}>{t('swap.token')}</span>
+            <span className={styles.approvalValue}>{fromToken.tokenSymbol}</span>
           </div>
-          <div className="approval-row">
-            <span className="approval-label">{t('swap.spender')}</span>
-            <span className="approval-value address">{spenderAddress}</span>
+          <div className={styles.approvalRow}>
+            <span className={styles.approvalLabel}>{t('swap.spender')}</span>
+            <span className={`${styles.approvalValue} ${styles.address}`.trim()}>{spenderAddress}</span>
           </div>
           {currentAllowance && (
-            <div className="approval-row">
-              <span className="approval-label">{t('swap.currentAllowance')}</span>
-              <span className="approval-value">
+            <div className={styles.approvalRow}>
+              <span className={styles.approvalLabel}>{t('swap.currentAllowance')}</span>
+              <span className={styles.approvalValue}>
                 {fromSmallestUnit(currentAllowance, fromToken.decimals)} {fromToken.tokenSymbol}
               </span>
             </div>
           )}
-          <div className="approval-row">
-            <span className="approval-label">{t('swap.swapAmount')}</span>
-            <span className="approval-value">{amount} {fromToken.tokenSymbol}</span>
+          <div className={styles.approvalRow}>
+            <span className={styles.approvalLabel}>{t('swap.swapAmount')}</span>
+            <span className={styles.approvalValue}>{amount} {fromToken.tokenSymbol}</span>
           </div>
         </div>
 
         {/* Approval Amount Settings */}
-        <div className="approval-amount-section">
-          <div className="approval-type-toggle">
+        <div className={styles.approvalAmountSection}>
+          <div className={styles.approvalTypeToggle}>
             <button
-              className={`toggle-button ${!isUnlimitedApproval ? 'active' : ''}`}
+              className={`${styles.toggleButton} ${!isUnlimitedApproval ? styles.active : ''}`}
               onClick={() => onSetUnlimited(false)}
             >
               {t('swap.specificAmount')}
             </button>
             <button
-              className={`toggle-button ${isUnlimitedApproval ? 'active' : ''}`}
+              className={`${styles.toggleButton} ${isUnlimitedApproval ? styles.active : ''}`}
               onClick={() => onSetUnlimited(true)}
             >
               {t('swap.unlimited')}
@@ -107,26 +108,26 @@ export const ApprovalView: React.FC<ApprovalViewProps> = ({
           </div>
 
           {!isUnlimitedApproval && (
-            <div className="form-group">
+            <div className={styles.formGroup}>
               <label>{t('swap.approvalAmount')}</label>
-              <div className="input-with-suffix">
+              <div className={styles.inputWithSuffix}>
                 <input
                   type="text"
                   value={approvalAmount}
                   onChange={(e) => onApprovalAmountChange(e.target.value)}
                   placeholder={`e.g., ${amount}`}
                 />
-                <span className="input-suffix">{fromToken.tokenSymbol}</span>
+                <span className={styles.inputSuffix}>{fromToken.tokenSymbol}</span>
               </div>
-              <div className="approval-amount-presets">
+              <div className={styles.approvalAmountPresets}>
                 <button
-                  className="preset-button"
+                  className={styles.presetButton}
                   onClick={() => onApprovalAmountChange(amount)}
                 >
                   {t('swap.swapAmountPreset', { amount })}
                 </button>
                 <button
-                  className="preset-button"
+                  className={styles.presetButton}
                   onClick={() => {
                     const doubled = (parseFloat(amount) * 2).toString();
                     onApprovalAmountChange(doubled);
@@ -139,23 +140,23 @@ export const ApprovalView: React.FC<ApprovalViewProps> = ({
           )}
 
           {isUnlimitedApproval && (
-            <div className="unlimited-warning">
-              <span className="warning-icon">&#9888;</span>
+            <div className={styles.unlimitedWarning}>
+              <span className={styles.warningIcon}>&#9888;</span>
               <span>{t('swap.unlimitedWarning', { symbol: fromToken.tokenSymbol })}</span>
             </div>
           )}
         </div>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && <div className={styles.errorMessage}>{error}</div>}
 
-        <button className="primary-button" onClick={onApprove} disabled={isLoading}>
+        <button className={styles.primaryButton} onClick={onApprove} disabled={isLoading}>
           {isLoading
             ? t('swap.processing')
             : isUnlimitedApproval
               ? t('swap.approveUnlimited', { symbol: fromToken.tokenSymbol })
               : t('swap.approveAmount', { amount: approvalAmount || amount, symbol: fromToken.tokenSymbol })}
         </button>
-        <button className="secondary-button" onClick={onCancel} disabled={isLoading}>
+        <button className={styles.secondaryButton} onClick={onCancel} disabled={isLoading}>
           {t('actions.cancel')}
         </button>
       </div>
@@ -164,24 +165,24 @@ export const ApprovalView: React.FC<ApprovalViewProps> = ({
 
   // mode === "approvalPassword"
   return (
-    <div className="password-form">
+    <div className={styles.passwordForm}>
       <h3>{t('swap.enterPasswordToApprove')}</h3>
-      <p className="approve-description">
+      <p className={styles.approveDescription}>
         {t('swap.signApprovalDescription', { symbol: fromToken.tokenSymbol })}
       </p>
 
-      <div className="approval-details">
-        <div className="approval-row">
-          <span className="approval-label">{t('swap.token')}</span>
-          <span className="approval-value">{fromToken.tokenSymbol}</span>
+      <div className={styles.approvalDetails}>
+        <div className={styles.approvalRow}>
+          <span className={styles.approvalLabel}>{t('swap.token')}</span>
+          <span className={styles.approvalValue}>{fromToken.tokenSymbol}</span>
         </div>
-        <div className="approval-row">
-          <span className="approval-label">{t('swap.spender')}</span>
-          <span className="approval-value address">{spenderAddress}</span>
+        <div className={styles.approvalRow}>
+          <span className={styles.approvalLabel}>{t('swap.spender')}</span>
+          <span className={`${styles.approvalValue} ${styles.address}`.trim()}>{spenderAddress}</span>
         </div>
       </div>
 
-      <div className="form-group">
+      <div className={styles.formGroup}>
         <label>{t('swap.walletPassword')}</label>
         <PasswordInput
           value={walletPassword}
@@ -197,10 +198,10 @@ export const ApprovalView: React.FC<ApprovalViewProps> = ({
           review before that. */}
       {approvalReview && <SignReview review={approvalReview} />}
 
-      {error && <div className="error-message">{error}</div>}
+      {error && <div className={styles.errorMessage}>{error}</div>}
 
       <button
-        className="primary-button"
+        className={styles.primaryButton}
         onClick={onExecuteApproval}
         disabled={
           isLoading ||
@@ -212,7 +213,7 @@ export const ApprovalView: React.FC<ApprovalViewProps> = ({
         {isLoading ? t('swap.processing') : t('swap.signAndApprove', { symbol: fromToken.tokenSymbol })}
       </button>
       <button
-        className="secondary-button"
+        className={styles.secondaryButton}
         onClick={onCancel}
         disabled={isLoading}
       >

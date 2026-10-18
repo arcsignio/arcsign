@@ -1,0 +1,29 @@
+.onboardingStep {
+  text-align: center;
+}
+
+.onboardingStepIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.1) 0%, rgba(45, 212, 191, 0.1) 100%);
+  border-radius: 16px;
+  color: #0d9488;
+}
+
+.onboardingStepTitle {
+  margin: 0 0 16px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.onboardingStepContent {
+  text-align: left;
+  color: #4b5563;
+  font-size: 15px;
+  line-height: 1.6;
+}

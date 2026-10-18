@@ -1,4 +1,5 @@
 import React from "react";
+import styles from "./swap.module.css";
 import { useTranslation } from "react-i18next";
 import { SignReview } from "@/components/SignReview";
 import type { SignReview as SignReviewData } from "@/hooks/useSignReview";
@@ -45,7 +46,7 @@ export const SwapConfirm: React.FC<SwapConfirmProps> = ({
   const { t } = useTranslation();
 
   return (
-    <div className="password-form">
+    <div className={styles.passwordForm}>
       <h3>{t('swap.confirmSwap')}</h3>
 
       {routeChanged && (
@@ -57,66 +58,66 @@ export const SwapConfirm: React.FC<SwapConfirmProps> = ({
         </div>
       )}
 
-      <div className="swap-summary">
-        <div className="swap-summary-row">
-          <span className="summary-label">{t('swap.youPay')}</span>
-          <span className="summary-value">
+      <div className={styles.swapSummary}>
+        <div className={styles.swapSummaryRow}>
+          <span className={styles.summaryLabel}>{t('swap.youPay')}</span>
+          <span className={styles.summaryValue}>
             {amount} {fromToken.tokenSymbol}
           </span>
         </div>
-        <div className="swap-summary-row">
-          <span className="summary-label">{t('swap.youReceive')}</span>
-          <span className="summary-value highlight">
+        <div className={styles.swapSummaryRow}>
+          <span className={styles.summaryLabel}>{t('swap.youReceive')}</span>
+          <span className={`${styles.summaryValue} ${styles.highlight}`.trim()}>
             ~{fromSmallestUnit(swapQuote.toAmount, toToken.decimals)} {toToken.symbol}
           </span>
         </div>
-        <div className="swap-summary-row">
-          <span className="summary-label">{t('swap.network')}</span>
-          <span className="summary-value">
+        <div className={styles.swapSummaryRow}>
+          <span className={styles.summaryLabel}>{t('swap.network')}</span>
+          <span className={styles.summaryValue}>
             {getNetworkIcon(fromToken.network)} {fromToken.networkLabel}
           </span>
         </div>
-        <div className="swap-summary-row">
-          <span className="summary-label">{t('swap.exchangeRate')}</span>
-          <span className="summary-value">
+        <div className={styles.swapSummaryRow}>
+          <span className={styles.summaryLabel}>{t('swap.exchangeRate')}</span>
+          <span className={styles.summaryValue}>
             1 {fromToken.tokenSymbol} ≈ {swapQuote.exchangeRate} {toToken.symbol}
           </span>
         </div>
-        <div className="swap-summary-row">
-          <span className="summary-label">{t('swap.priceImpact')}</span>
-          <span className="summary-value" style={{ color: parseFloat(swapQuote.priceImpact || '0') < -1 ? 'var(--danger)' : '#10b981' }}>
+        <div className={styles.swapSummaryRow}>
+          <span className={styles.summaryLabel}>{t('swap.priceImpact')}</span>
+          <span className={styles.summaryValue} style={{ color: parseFloat(swapQuote.priceImpact || '0') < -1 ? 'var(--danger)' : '#10b981' }}>
             {swapQuote.priceImpact}%
           </span>
         </div>
-        <div className="swap-summary-row">
-          <span className="summary-label">{t('swap.estimatedGasFee')}</span>
-          <span className="summary-value">
+        <div className={styles.swapSummaryRow}>
+          <span className={styles.summaryLabel}>{t('swap.estimatedGasFee')}</span>
+          <span className={styles.summaryValue}>
             ~{swapQuote.gasCostETH} {getNativeTokenSymbol(fromToken.network)}
           </span>
         </div>
-        <div className="swap-summary-row">
-          <span className="summary-label">{t('swap.swapFee')}</span>
-          <span className={`summary-value ${swapQuote.feeRate === "0" ? "fee-free" : ""}`}>
+        <div className={styles.swapSummaryRow}>
+          <span className={styles.summaryLabel}>{t('swap.swapFee')}</span>
+          <span className={`${styles.summaryValue} ${swapQuote.feeRate === "0" ? styles.feeFree : ""}`}>
             {swapQuote.feeRate === "0"
               ? t('swap.freeSwap')
               : `${swapQuote.feeRate}%`}
           </span>
         </div>
-        <div className="swap-summary-row">
-          <span className="summary-label">{t('swap.minimumReceived')}</span>
-          <span className="summary-value">
+        <div className={styles.swapSummaryRow}>
+          <span className={styles.summaryLabel}>{t('swap.minimumReceived')}</span>
+          <span className={styles.summaryValue}>
             {fromSmallestUnit(swapQuote.toAmountMin, toToken.decimals)} {toToken.symbol}
           </span>
         </div>
       </div>
 
-      <div className="form-group">
+      <div className={styles.formGroup}>
         <label>{t('swap.walletPassword')}</label>
         <PasswordInput
           placeholder={t('swap.enterWalletPassword')}
           value={walletPassword}
           onChange={(e) => onPasswordChange(e.target.value)}
-          className="password-input"
+          className={styles.passwordInput}
           autoFocus
         />
       </div>
@@ -126,7 +127,7 @@ export const SwapConfirm: React.FC<SwapConfirmProps> = ({
       <SignReview review={review} />
 
       <button
-        className="primary-button"
+        className={styles.primaryButton}
         onClick={onConfirm}
         disabled={isLoading || !walletPassword || (review.requiresAcknowledge && !review.acknowledged)}
         style={review.requiresAcknowledge ? { background: "var(--danger)", boxShadow: "none" } : undefined}

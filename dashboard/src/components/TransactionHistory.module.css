@@ -1,0 +1,405 @@
+.transactionHistory {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.historyHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--surface-strong);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: background 0.2s;
+}
+
+.backButton:hover {
+  background: var(--border-default);
+}
+
+.headerInfo {
+  text-align: center;
+}
+
+.headerInfo h2 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--text-primary);
+}
+
+.addressInfo {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.supportedChains {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.refreshButton {
+  padding: 8px 16px;
+  background: var(--brand-accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.refreshButton:hover:not(:disabled) {
+  background: var(--brand);
+}
+
+.refreshButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loadingChains {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: #f0f9ff;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #0369a1;
+}
+
+.loadingSpinnerSmall {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--brand-accent);
+  border-top-color: var(--brand-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.chainStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  justify-content: center;
+}
+
+.chainStat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--surface-sunken);
+  border: 1px solid;
+  border-radius: 16px;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.chainStat.error {
+  background: var(--danger-pale);
+  color: var(--danger);
+}
+
+.scamFilterNotice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, var(--warning-pale) 0%, var(--warning-border) 100%);
+  border: 1px solid var(--warning);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--warning-text);
+}
+
+.scamIcon {
+  font-size: 18px;
+}
+
+.toggleScamButton {
+  padding: 4px 12px;
+  background: var(--warning);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.toggleScamButton:hover {
+  background: var(--warning);
+}
+
+.chainDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.errorMessage {
+  background: var(--danger-pale);
+  border: 1px solid var(--danger-pale);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  color: var(--danger);
+}
+
+.errorMessage button {
+  margin-top: 12px;
+  padding: 8px 16px;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 48px 24px;
+  background: var(--surface-sunken);
+  border-radius: 12px;
+}
+
+.emptyIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.emptyState h3 {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+}
+
+.emptyState p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.transfersList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.transferItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  background: white;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  transition: border-color 0.2s;
+}
+
+.transferItem:hover {
+  border-color: var(--border-input);
+}
+
+/* Warning highlight for unknown tokens */
+.transferItemWarning {
+  background: linear-gradient(135deg, var(--warning-pale) 0%, var(--warning-border) 100%);
+  border-color: var(--warning);
+  border-width: 2px;
+}
+
+.transferItemWarning:hover {
+  background: linear-gradient(135deg, var(--warning-border) 0%, #fcd34d 100%);
+  border-color: var(--warning);
+}
+
+.warningBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: var(--warning-pale);
+  border: 1px solid var(--warning);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--warning-text);
+}
+
+.transferIcon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--surface-strong);
+  flex-shrink: 0;
+}
+
+.directionIndicator {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.directionIndicator.in {
+  color: var(--success);
+}
+
+.directionIndicator.out {
+  color: var(--danger);
+}
+
+.transferDetails {
+  flex: 1;
+  min-width: 0;
+}
+
+.transferMain {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.badges {
+  display: flex;
+  gap: 6px;
+}
+
+.networkBadge {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+}
+
+.categoryBadge {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: white;
+}
+
+.transferValueRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.transferValue {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.txLabelBadge {
+  padding: 3px 8px;
+  background: var(--brand-faint);
+  border: 1px solid var(--brand-accent);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--brand);
+  cursor: pointer;
+  transition: all 0.2s;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.txLabelBadge:hover {
+  background: var(--brand-pale);
+  border-color: #5eead4;
+}
+
+.txLabelEditBtn {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.txLabelEditBtn:hover {
+  color: var(--brand);
+  background: var(--brand-faint);
+}
+
+.transferAddresses {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.transferMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.timestamp {
+  flex-shrink: 0;
+}
+
+.explorerLink {
+  color: var(--brand-accent);
+  text-decoration: none;
+  margin-left: auto;
+}
+
+.explorerLink:hover {
+  text-decoration: underline;
+}
+
+.loadingState {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-default);
+  border-top-color: var(--brand-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

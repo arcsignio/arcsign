@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect } from "react";
+import styles from "./AppUnlock.module.css";
 import { useTranslation } from "react-i18next";
 import tauriApi, { type AppError, type AppConfig } from "@/services/tauri-api";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -102,8 +103,8 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
 
   if (checkingSetup) {
     return (
-      <div className="app-unlock">
-        <div className="unlock-container">
+      <div className={styles.appUnlock}>
+        <div className={styles.unlockContainer}>
           <LoadingSpinner size="lg" message={t("appUnlock.checkingStatus")} />
         </div>
       </div>
@@ -111,26 +112,26 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
   }
 
   return (
-    <div className="app-unlock">
+    <div className={styles.appUnlock}>
       {/* Language Switcher - top left */}
-      <div className="top-left">
+      <div className={styles.topLeft}>
         <LanguageSwitcher variant="toggle" />
       </div>
 
-      <div className="unlock-container">
-        <div className="unlock-header">
-          <img src="/logo.png" alt="ArcSign" className="unlock-logo" />
+      <div className={styles.unlockContainer}>
+        <div className={styles.unlockHeader}>
+          <img src="/logo.png" alt="ArcSign" className={styles.unlockLogo} />
           <h1>ArcSign</h1>
-          <p className="subtitle">{t('appUnlock.tagline')}</p>
+          <p className={styles.subtitle}>{t('appUnlock.tagline')}</p>
         </div>
 
         {isFirstTime ? (
           // First-time setup
-          <div className="setup-form">
-            <h2 className="form-title">{t("appUnlock.welcomeTitle")}</h2>
-            <p className="description">{t("appUnlock.welcomeDescription")}</p>
+          <div className={styles.setupForm}>
+            <h2 className={styles.formTitle}>{t("appUnlock.welcomeTitle")}</h2>
+            <p className={styles.description}>{t("appUnlock.welcomeDescription")}</p>
 
-            <div className="security-note">
+            <div className={styles.securityNote}>
               <strong>{t("appUnlock.securityNote")}</strong>
               <ul>
                 <li>{t("appUnlock.securityNote1")}</li>
@@ -139,9 +140,9 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
               </ul>
             </div>
 
-            {error && <div className="alert alert-error">{error}</div>}
+            {error && <div className={`${styles.alertError} ${styles.alert} `.trim()}>{error}</div>}
 
-            <div className="form-group">
+            <div className={styles.formGroup}>
               <label htmlFor="password">{t("appUnlock.masterPassword")}</label>
               <PasswordInput
                 id="password"
@@ -153,7 +154,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
               />
             </div>
 
-            <div className="form-group">
+            <div className={styles.formGroup}>
               <label htmlFor="confirm-password">
                 {t("appUnlock.confirmPassword")}
               </label>
@@ -173,7 +174,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
 
             <button
               onClick={handleInitialize}
-              className="btn-primary btn-large"
+              className={`${styles.btnPrimary} ${styles.btnLarge}`.trim()}
               disabled={loading || !password || !confirmPassword}
             >
               {loading
@@ -183,13 +184,13 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
           </div>
         ) : (
           // Unlock existing app
-          <div className="unlock-form">
-            <h2 className="form-title">{t("appUnlock.unlockTitle")}</h2>
-            <p className="description">{t("appUnlock.unlockDescription")}</p>
+          <div className={styles.unlockForm}>
+            <h2 className={styles.formTitle}>{t("appUnlock.unlockTitle")}</h2>
+            <p className={styles.description}>{t("appUnlock.unlockDescription")}</p>
 
-            {error && <div className="alert alert-error">{error}</div>}
+            {error && <div className={`${styles.alertError} ${styles.alert} `.trim()}>{error}</div>}
 
-            <div className="form-group">
+            <div className={styles.formGroup}>
               <label htmlFor="unlock-password">
                 {t("appUnlock.masterPassword")}
               </label>
@@ -210,7 +211,7 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
 
             <button
               onClick={handleUnlock}
-              className="btn-primary btn-large"
+              className={`${styles.btnPrimary} ${styles.btnLarge}`.trim()}
               disabled={loading || !password}
             >
               {loading ? t("appUnlock.unlocking") : t("appUnlock.unlock")}
@@ -218,222 +219,12 @@ export function AppUnlock({ usbPath, onUnlockSuccess }: AppUnlockProps) {
           </div>
         )}
 
-        <div className="usb-info">
+        <div className={styles.usbInfo}>
           <small>
             {t("appUnlock.usbDrive")}: {usbPath}
           </small>
         </div>
       </div>
-
-      <style>{`
-        .app-unlock {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: linear-gradient(135deg, #0a1c32 0%, #0f2b46 40%, #134e5e 100%);
-          padding: 20px;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .app-unlock::before {
-          content: '';
-          position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: radial-gradient(circle at 30% 50%, rgba(45, 212, 191, 0.06) 0%, transparent 50%),
-                      radial-gradient(circle at 70% 30%, rgba(94, 234, 212, 0.04) 0%, transparent 40%);
-          pointer-events: none;
-        }
-
-        .top-left {
-          position: absolute;
-          top: 20px;
-          left: 20px;
-          z-index: 10;
-        }
-
-        .top-left button {
-          background: rgba(255, 255, 255, 0.95) !important;
-          border-color: rgba(255, 255, 255, 0.3) !important;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        }
-
-        .top-left button:hover {
-          background: #ffffff !important;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-
-        .unlock-logo {
-          width: 72px;
-          height: 72px;
-          object-fit: contain;
-          margin-bottom: 8px;
-        }
-
-        .unlock-container {
-          width: 100%;
-          max-width: 460px;
-          background: white;
-          border-radius: 16px;
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-          padding: 40px;
-        }
-
-        .unlock-header {
-          text-align: center;
-          margin-bottom: 32px;
-        }
-
-        .unlock-header h1 {
-          margin: 0;
-          font-size: 32px;
-          font-weight: 700;
-          color: #1a1a1a;
-        }
-
-        .subtitle {
-          margin: 8px 0 0;
-          color: #666;
-          font-size: 14px;
-        }
-
-        .form-title {
-          text-align: center;
-          margin: 0 0 8px;
-          font-size: 24px;
-          font-weight: 600;
-          color: #1a1a1a;
-        }
-
-        .setup-form h2,
-        .unlock-form h2 {
-          margin: 0 0 12px;
-          font-size: 24px;
-          font-weight: 600;
-          color: #1a1a1a;
-        }
-
-        .description {
-          margin-bottom: 24px;
-          color: #666;
-          line-height: 1.6;
-          font-size: 14px;
-        }
-
-        .security-note {
-          margin-bottom: 24px;
-          padding: 16px;
-          background: #f0fdfa;
-          border-left: 4px solid #2dd4bf;
-          border-radius: 4px;
-          font-size: 13px;
-          line-height: 1.5;
-        }
-
-        .security-note strong {
-          display: block;
-          margin-bottom: 8px;
-          color: #0f766e;
-        }
-
-        .security-note ul {
-          margin: 0;
-          padding-left: 20px;
-          color: #0f766e;
-        }
-
-        .security-note li {
-          margin-bottom: 4px;
-        }
-
-        .form-group {
-          margin-bottom: 20px;
-        }
-
-        .form-group label {
-          display: block;
-          margin-bottom: 8px;
-          font-weight: 500;
-          color: #333;
-          font-size: 14px;
-        }
-
-        .form-group input {
-          width: 100%;
-          padding: 12px 16px;
-          border: 2px solid #e5e7eb;
-          border-radius: 8px;
-          font-size: 15px;
-          transition: border-color 0.2s;
-          box-sizing: border-box;
-        }
-
-        .form-group input:focus {
-          outline: none;
-          border-color: #2dd4bf;
-        }
-
-        .form-group input:disabled {
-          background-color: #f3f4f6;
-          cursor: not-allowed;
-        }
-
-        .alert {
-          padding: 12px 16px;
-          border-radius: 8px;
-          margin-bottom: 20px;
-          font-size: 14px;
-        }
-
-        .alert-error {
-          background-color: #fee2e2;
-          color: #991b1b;
-          border: 1px solid #fecaca;
-        }
-
-        .btn-primary {
-          width: 100%;
-          padding: 14px 24px;
-          background: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%);
-          color: white;
-          border: none;
-          border-radius: 8px;
-          font-size: 16px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .btn-primary:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(45, 212, 191, 0.4);
-        }
-
-        .btn-primary:active:not(:disabled) {
-          transform: translateY(0);
-        }
-
-        .btn-primary:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .btn-large {
-          padding: 16px 24px;
-          font-size: 17px;
-        }
-
-        .usb-info {
-          margin-top: 24px;
-          text-align: center;
-          color: #999;
-          font-size: 12px;
-        }
-      `}</style>
     </div>
   );
 }

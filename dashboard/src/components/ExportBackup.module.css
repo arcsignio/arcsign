@@ -1,0 +1,122 @@
+.exportBackupOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.exportBackupDialog {
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.exportBackupDialog h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.exportBackupDesc {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.exportBackupWalletInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.exportBackupWalletIcon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e0f2f1;
+  border-radius: 10px;
+  color: #0d9488;
+}
+
+.exportBackupWalletName {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.exportBackupError {
+  padding: 12px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.exportBackupSuccess {
+  padding: 12px 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  color: #16a34a;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.exportBackupActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.exportBackupCancel {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.exportBackupCancel:hover {
+  border-color: #9ca3af;
+  color: #374151;
+}
+
+.exportBackupConfirm {
+  padding: 10px 24px;
+  background: #0d9488;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.exportBackupConfirm:hover {
+  background: #0f766e;
+}
+
+.exportBackupConfirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

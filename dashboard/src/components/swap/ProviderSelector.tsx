@@ -1,4 +1,5 @@
 import React from "react";
+import styles from "./swap.module.css";
 import { AVAILABLE_PROVIDERS, type SwapProvider } from "@/utils/swapFormat";
 
 interface ProviderSelectorProps {
@@ -17,39 +18,39 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
   const currentProvider = AVAILABLE_PROVIDERS.find(p => p.id === selectedProvider) || AVAILABLE_PROVIDERS[0];
 
   return (
-    <div className="provider-selector">
+    <div className={styles.providerSelector}>
       <button
-        className="provider-badge"
+        className={styles.providerBadge}
         onClick={onToggleDropdown}
       >
         <img
           src={currentProvider.logoUrl}
           alt={currentProvider.name}
-          className="provider-logo"
+          className={styles.providerLogo}
           onError={(e) => { e.currentTarget.style.display = 'none'; }}
         />
-        <span className="provider-name">{currentProvider.name}</span>
-        <span className="dropdown-arrow">{showDropdown ? '▲' : '▼'}</span>
+        <span className={styles.providerName}>{currentProvider.name}</span>
+        <span className={styles.dropdownArrow}>{showDropdown ? '▲' : '▼'}</span>
       </button>
       {showDropdown && (
-        <div className="provider-dropdown">
+        <div className={styles.providerDropdown}>
           {AVAILABLE_PROVIDERS.map(provider => (
             <button
               key={provider.id}
-              className={`provider-option ${provider.id === selectedProvider ? 'selected' : ''}`}
+              className={`${styles.providerOption} ${provider.id === selectedProvider ? styles.selected : ''}`}
               onClick={() => onSelectProvider(provider.id)}
             >
               <img
                 src={provider.logoUrl}
                 alt={provider.name}
-                className="provider-logo"
+                className={styles.providerLogo}
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
-              <div className="provider-info">
-                <span className="provider-name">{provider.name}</span>
-                <span className="provider-desc">{provider.description}</span>
+              <div className={styles.providerInfo}>
+                <span className={styles.providerName}>{provider.name}</span>
+                <span className={styles.providerDesc}>{provider.description}</span>
               </div>
-              {provider.id === selectedProvider && <span className="check-mark">✓</span>}
+              {provider.id === selectedProvider && <span className={styles.checkMark}>✓</span>}
             </button>
           ))}
         </div>

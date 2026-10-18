@@ -8,6 +8,7 @@
  */
 
 import { useState } from 'react';
+import styles from "./SessionSettings.module.css";
 import { useTranslation } from 'react-i18next';
 import type { DevSession } from '@/types/developer';
 import { PasswordInput } from "@/components/PasswordInput";
@@ -80,32 +81,32 @@ export function SessionSettings({ session, onStartSession, onEndSession }: Sessi
   };
 
   return (
-    <div className="session-settings">
+    <div className={styles.sessionSettings}>
       <h2>⚙️ {t('developer.sessionSettings', 'Session Settings')}</h2>
-      <p className="description">
+      <p className={styles.description}>
         {t('developer.sessionDesc', 'Enable session mode to auto-sign testnet transactions without entering password each time.')}
       </p>
 
       {/* Session Status Card */}
-      <div className={`session-card ${session?.enabled ? 'active' : ''}`}>
-        <div className="session-header">
-          <div className="session-status">
+      <div className={`${styles.sessionCard} ${session?.enabled ? styles.active : ''}`}>
+        <div className={styles.sessionHeader}>
+          <div className={styles.sessionStatus}>
             {session?.enabled ? (
               <>
-                <span className="status-icon">🔓</span>
-                <span className="status-text">{t('developer.sessionActive', 'Session Active')}</span>
+                <span className={styles.statusIcon}>🔓</span>
+                <span className={styles.statusText}>{t('developer.sessionActive', 'Session Active')}</span>
               </>
             ) : (
               <>
-                <span className="status-icon">🔒</span>
-                <span className="status-text">{t('developer.sessionInactive', 'Session Inactive')}</span>
+                <span className={styles.statusIcon}>🔒</span>
+                <span className={styles.statusText}>{t('developer.sessionInactive', 'Session Inactive')}</span>
               </>
             )}
           </div>
 
           {session?.enabled ? (
             <button
-              className="toggle-button deactivate"
+              className={`${styles.toggleButton} ${styles.deactivate}`.trim()}
               onClick={handleEndSession}
               disabled={isToggling}
             >
@@ -113,7 +114,7 @@ export function SessionSettings({ session, onStartSession, onEndSession }: Sessi
             </button>
           ) : (
             <button
-              className="toggle-button activate"
+              className={`${styles.toggleButton} ${styles.activate}`.trim()}
               onClick={handleStartClick}
               disabled={isToggling}
             >
@@ -123,18 +124,18 @@ export function SessionSettings({ session, onStartSession, onEndSession }: Sessi
         </div>
 
         {session?.enabled && (
-          <div className="session-info">
-            <div className="info-row">
-              <span className="label">⏱️ {t('developer.remaining', 'Remaining')}:</span>
-              <span className="value">{getRemainingTime()}</span>
+          <div className={styles.sessionInfo}>
+            <div className={styles.infoRow}>
+              <span className={styles.label}>⏱️ {t('developer.remaining', 'Remaining')}:</span>
+              <span className={styles.value}>{getRemainingTime()}</span>
             </div>
-            <div className="info-row">
-              <span className="label">📊 {t('developer.signCount', 'Signatures')}:</span>
-              <span className="value">{session.signCount}</span>
+            <div className={styles.infoRow}>
+              <span className={styles.label}>📊 {t('developer.signCount', 'Signatures')}:</span>
+              <span className={styles.value}>{session.signCount}</span>
             </div>
-            <div className="info-row">
-              <span className="label">🧪 {t('developer.autoNetworks', 'Auto-sign Networks')}:</span>
-              <span className="value networks">
+            <div className={styles.infoRow}>
+              <span className={styles.label}>🧪 {t('developer.autoNetworks', 'Auto-sign Networks')}:</span>
+              <span className={`${styles.networks} ${styles.value} `.trim()}>
                 {session.trustedNetworks.join(', ')}
               </span>
             </div>
@@ -144,8 +145,8 @@ export function SessionSettings({ session, onStartSession, onEndSession }: Sessi
 
       {/* Password Dialog */}
       {showPasswordDialog && (
-        <div className="password-dialog-overlay">
-          <div className="password-dialog">
+        <div className={styles.passwordDialogOverlay}>
+          <div className={styles.passwordDialog}>
             <h3>🔐 {t('developer.enterPassword', 'Enter Wallet Password')}</h3>
             <p>{t('developer.passwordForSession', 'Enter your wallet password to start a 30-minute auto-signing session.')}</p>
 
@@ -155,17 +156,17 @@ export function SessionSettings({ session, onStartSession, onEndSession }: Sessi
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('security.password')}
                 autoFocus
-                className="password-input"
+                className={styles.passwordInput}
               />
 
               {error && (
-                <div className="error-message">⚠️ {error}</div>
+                <div className={styles.errorMessage}>⚠️ {error}</div>
               )}
 
-              <div className="dialog-buttons">
+              <div className={styles.dialogButtons}>
                 <button
                   type="button"
-                  className="cancel-button"
+                  className={styles.cancelButton}
                   onClick={handleCancelDialog}
                   disabled={isToggling}
                 >
@@ -173,7 +174,7 @@ export function SessionSettings({ session, onStartSession, onEndSession }: Sessi
                 </button>
                 <button
                   type="submit"
-                  className="submit-button"
+                  className={styles.submitButton}
                   disabled={isToggling || !password}
                 >
                   {isToggling ? '...' : t('developer.startSession', 'Start Session')}
@@ -185,294 +186,43 @@ export function SessionSettings({ session, onStartSession, onEndSession }: Sessi
       )}
 
       {/* Security Rules */}
-      <div className="rules-section">
+      <div className={styles.rulesSection}>
         <h3>🛡️ {t('developer.securityRules', 'Security Rules')}</h3>
 
-        <div className="rules-list">
-          <div className="rule">
-            <span className="rule-icon">✓</span>
-            <div className="rule-content">
-              <span className="rule-title">{t('developer.testnetAuto', 'Testnets: Auto-sign')}</span>
-              <span className="rule-desc">{t('developer.testnetAutoDesc', 'Sepolia, Goerli, BSC Testnet will auto-sign when session is active')}</span>
+        <div className={styles.rulesList}>
+          <div className={styles.rule}>
+            <span className={styles.ruleIcon}>✓</span>
+            <div className={styles.ruleContent}>
+              <span className={styles.ruleTitle}>{t('developer.testnetAuto', 'Testnets: Auto-sign')}</span>
+              <span className={styles.ruleDesc}>{t('developer.testnetAutoDesc', 'Sepolia, Goerli, BSC Testnet will auto-sign when session is active')}</span>
             </div>
           </div>
 
-          <div className="rule">
-            <span className="rule-icon">⚠️</span>
-            <div className="rule-content">
-              <span className="rule-title">{t('developer.mainnetConfirm', 'Mainnets: Always Confirm')}</span>
-              <span className="rule-desc">{t('developer.mainnetConfirmDesc', 'Ethereum, BSC, Polygon mainnet always require confirmation')}</span>
+          <div className={styles.rule}>
+            <span className={styles.ruleIcon}>⚠️</span>
+            <div className={styles.ruleContent}>
+              <span className={styles.ruleTitle}>{t('developer.mainnetConfirm', 'Mainnets: Always Confirm')}</span>
+              <span className={styles.ruleDesc}>{t('developer.mainnetConfirmDesc', 'Ethereum, BSC, Polygon mainnet always require confirmation')}</span>
             </div>
           </div>
 
-          <div className="rule">
-            <span className="rule-icon">⏰</span>
-            <div className="rule-content">
-              <span className="rule-title">{t('developer.sessionTimeout', 'Session Timeout: 30 mins')}</span>
-              <span className="rule-desc">{t('developer.sessionTimeoutDesc', 'Sessions automatically expire after 30 minutes of inactivity')}</span>
+          <div className={styles.rule}>
+            <span className={styles.ruleIcon}>⏰</span>
+            <div className={styles.ruleContent}>
+              <span className={styles.ruleTitle}>{t('developer.sessionTimeout', 'Session Timeout: 30 mins')}</span>
+              <span className={styles.ruleDesc}>{t('developer.sessionTimeoutDesc', 'Sessions automatically expire after 30 minutes of inactivity')}</span>
             </div>
           </div>
 
-          <div className="rule">
-            <span className="rule-icon">🔐</span>
-            <div className="rule-content">
-              <span className="rule-title">{t('developer.manualLock', 'Manual Lock')}</span>
-              <span className="rule-desc">{t('developer.manualLockDesc', 'You can end the session manually at any time')}</span>
+          <div className={styles.rule}>
+            <span className={styles.ruleIcon}>🔐</span>
+            <div className={styles.ruleContent}>
+              <span className={styles.ruleTitle}>{t('developer.manualLock', 'Manual Lock')}</span>
+              <span className={styles.ruleDesc}>{t('developer.manualLockDesc', 'You can end the session manually at any time')}</span>
             </div>
           </div>
         </div>
       </div>
-
-      <style>{`
-        .session-settings h2 {
-          margin: 0 0 8px;
-          font-size: 20px;
-        }
-
-        .session-settings .description {
-          margin: 0 0 24px;
-          color: rgba(255, 255, 255, 0.6);
-        }
-
-        .session-card {
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 12px;
-          padding: 20px;
-          margin-bottom: 32px;
-        }
-
-        .session-card.active {
-          border-color: rgba(34, 197, 94, 0.3);
-          background: rgba(34, 197, 94, 0.05);
-        }
-
-        .session-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .session-status {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .status-icon {
-          font-size: 24px;
-        }
-
-        .status-text {
-          font-size: 18px;
-          font-weight: 600;
-        }
-
-        .toggle-button {
-          padding: 10px 20px;
-          border: none;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .toggle-button.activate {
-          background: rgba(34, 197, 94, 0.2);
-          color: #22c55e;
-        }
-
-        .toggle-button.activate:hover:not(:disabled) {
-          background: rgba(34, 197, 94, 0.3);
-        }
-
-        .toggle-button.deactivate {
-          background: rgba(239, 68, 68, 0.2);
-          color: #ef4444;
-        }
-
-        .toggle-button.deactivate:hover:not(:disabled) {
-          background: rgba(239, 68, 68, 0.3);
-        }
-
-        .toggle-button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .session-info {
-          margin-top: 20px;
-          padding-top: 20px;
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
-          display: grid;
-          gap: 12px;
-        }
-
-        .info-row {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          font-size: 14px;
-        }
-
-        .info-row .label {
-          color: rgba(255, 255, 255, 0.6);
-        }
-
-        .info-row .value {
-          color: rgba(255, 255, 255, 0.9);
-        }
-
-        .info-row .value.networks {
-          font-family: monospace;
-          color: #a5f3fc;
-        }
-
-        /* Password Dialog Styles */
-        .password-dialog-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.7);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-        }
-
-        .password-dialog {
-          background: #1a1a2e;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 16px;
-          padding: 24px;
-          width: 400px;
-          max-width: 90%;
-        }
-
-        .password-dialog h3 {
-          margin: 0 0 8px;
-          font-size: 18px;
-        }
-
-        .password-dialog p {
-          margin: 0 0 20px;
-          color: rgba(255, 255, 255, 0.6);
-          font-size: 14px;
-        }
-
-        .password-input {
-          width: 100%;
-          padding: 12px 16px;
-          background: rgba(0, 0, 0, 0.3);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 8px;
-          color: #fff;
-          font-size: 16px;
-          margin-bottom: 16px;
-        }
-
-        .password-input:focus {
-          outline: none;
-          border-color: #2dd4bf;
-        }
-
-        .error-message {
-          padding: 10px 12px;
-          background: rgba(239, 68, 68, 0.2);
-          border: 1px solid rgba(239, 68, 68, 0.3);
-          border-radius: 6px;
-          color: #fca5a5;
-          font-size: 14px;
-          margin-bottom: 16px;
-        }
-
-        .dialog-buttons {
-          display: flex;
-          gap: 12px;
-          justify-content: flex-end;
-        }
-
-        .cancel-button {
-          padding: 10px 20px;
-          background: rgba(255, 255, 255, 0.1);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 8px;
-          color: #fff;
-          font-size: 14px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .cancel-button:hover:not(:disabled) {
-          background: rgba(255, 255, 255, 0.2);
-        }
-
-        .submit-button {
-          padding: 10px 20px;
-          background: #2dd4bf;
-          border: none;
-          border-radius: 8px;
-          color: #fff;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .submit-button:hover:not(:disabled) {
-          background: #0d9488;
-        }
-
-        .submit-button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .rules-section h3 {
-          margin: 0 0 16px;
-          font-size: 16px;
-          color: rgba(255, 255, 255, 0.8);
-        }
-
-        .rules-list {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .rule {
-          display: flex;
-          gap: 12px;
-          padding: 16px;
-          background: rgba(0, 0, 0, 0.2);
-          border-radius: 8px;
-        }
-
-        .rule-icon {
-          font-size: 18px;
-          flex-shrink: 0;
-        }
-
-        .rule-content {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-
-        .rule-title {
-          font-size: 14px;
-          font-weight: 500;
-          color: rgba(255, 255, 255, 0.9);
-        }
-
-        .rule-desc {
-          font-size: 13px;
-          color: rgba(255, 255, 255, 0.5);
-        }
-      `}</style>
     </div>
   );
 }

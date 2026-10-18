@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import styles from "../../../../src/components/swap/swap.module.css";
 import { render } from "@testing-library/react";
 import { SwapProgress } from "@/components/swap/SwapProgress";
 
@@ -11,8 +12,8 @@ describe("SwapProgress — mode=approving", () => {
         networkLabel="Ethereum"
       />,
     );
-    expect(document.querySelector(".approving-form")).toBeTruthy();
-    expect(document.querySelector(".approving-spinner")).toBeTruthy();
+    expect(document.querySelector(`.${styles.approvingForm}`)).toBeTruthy();
+    expect(document.querySelector(`.${styles.approvingSpinner}`)).toBeTruthy();
   });
 
   it("does NOT show tx link when approvalTxHash is absent", () => {
@@ -23,7 +24,7 @@ describe("SwapProgress — mode=approving", () => {
         networkLabel="Ethereum"
       />,
     );
-    expect(document.querySelector(".approval-tx-info")).toBeNull();
+    expect(document.querySelector(`.${styles.approvalTxInfo}`)).toBeNull();
   });
 
   it("shows tx link when approvalTxHash and approvalTxUrl are provided", () => {
@@ -36,8 +37,8 @@ describe("SwapProgress — mode=approving", () => {
         approvalTxUrl="https://etherscan.io/tx/0xabc123def456"
       />,
     );
-    expect(document.querySelector(".approval-tx-info")).toBeTruthy();
-    const link = document.querySelector(".tx-hash-link") as HTMLAnchorElement;
+    expect(document.querySelector(`.${styles.approvalTxInfo}`)).toBeTruthy();
+    const link = document.querySelector(`.${styles.txHashLink}`) as HTMLAnchorElement;
     expect(link).toBeTruthy();
     expect(link.href).toContain("etherscan.io");
   });
@@ -52,32 +53,32 @@ describe("SwapProgress — mode=approving", () => {
         approvalTxUrl="https://etherscan.io/tx/0xabc"
       />,
     );
-    expect(document.querySelector(".status-indicator.pulsing")).toBeTruthy();
-    expect(document.querySelector(".confirmation-status")).toBeTruthy();
+    expect(document.querySelector(`.${styles.statusIndicator}.${styles.pulsing}`)).toBeTruthy();
+    expect(document.querySelector(`.${styles.confirmationStatus}`)).toBeTruthy();
   });
 });
 
 describe("SwapProgress — mode=signing", () => {
   it("renders processing-form container", () => {
     render(<SwapProgress mode="signing" />);
-    expect(document.querySelector(".processing-form")).toBeTruthy();
-    expect(document.querySelector(".processing-spinner")).toBeTruthy();
+    expect(document.querySelector(`.${styles.processingForm}`)).toBeTruthy();
+    expect(document.querySelector(`.${styles.processingSpinner}`)).toBeTruthy();
   });
 
   it("does NOT render approving-form", () => {
     render(<SwapProgress mode="signing" />);
-    expect(document.querySelector(".approving-form")).toBeNull();
+    expect(document.querySelector(`.${styles.approvingForm}`)).toBeNull();
   });
 });
 
 describe("SwapProgress — mode=broadcasting", () => {
   it("renders processing-form container", () => {
     render(<SwapProgress mode="broadcasting" />);
-    expect(document.querySelector(".processing-form")).toBeTruthy();
+    expect(document.querySelector(`.${styles.processingForm}`)).toBeTruthy();
   });
 
   it("does NOT render approving-form", () => {
     render(<SwapProgress mode="broadcasting" />);
-    expect(document.querySelector(".approving-form")).toBeNull();
+    expect(document.querySelector(`.${styles.approvingForm}`)).toBeNull();
   });
 });
