@@ -196,6 +196,17 @@ jobs:
         working-directory: dashboard
         run: npm ci
 
+      # 缺 secret 時 Vite 會打包空字串，App.tsx 只 console.warn，WalletConnect 靜默失效（v1.6.1–v1.6.3 曾因此出貨）
+      - name: Require WalletConnect Project ID
+        shell: bash
+        env:
+          VITE_WALLETCONNECT_PROJECT_ID: ${{ secrets.VITE_WALLETCONNECT_PROJECT_ID }}
+        run: |
+          if [ -z "$VITE_WALLETCONNECT_PROJECT_ID" ]; then
+            echo "::error::secrets.VITE_WALLETCONNECT_PROJECT_ID is empty; WalletConnect would ship disabled"
+            exit 1
+          fi
+
       - name: Build with Tauri
         uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa # v0.6.1
         env:
