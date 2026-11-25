@@ -208,6 +208,9 @@ type SignMessageFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 type SignTypedDataFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
 
 // Developer Mode session management function types
+/// Error returned by dev-session calls when the loaded library was built without `-tags dev`.
+const DEV_MODE_UNAVAILABLE: &str = "Developer mode is not available in this build";
+
 /// Function signature for CreateDevSession: char* CreateDevSession(char* params)
 /// Creates a developer session for auto-signing testnets
 type CreateDevSessionFn = unsafe extern "C" fn(*const c_char) -> *mut c_char;
@@ -324,11 +327,12 @@ pub struct WalletLibrary {
     // WalletConnect signing function symbols
     sign_message: Symbol<'static, SignMessageFn>,
     sign_typed_data: Symbol<'static, SignTypedDataFn>,
-    // Developer Mode session function symbols
-    create_dev_session: Symbol<'static, CreateDevSessionFn>,
-    dev_session_sign: Symbol<'static, DevSessionSignFn>,
-    get_dev_session: Symbol<'static, GetDevSessionFn>,
-    end_dev_session: Symbol<'static, EndDevSessionFn>,
+    // Developer Mode session function symbols — only exported by the `-tags dev` Go build;
+    // None in production builds so the app still starts without them.
+    create_dev_session: Option<Symbol<'static, CreateDevSessionFn>>,
+    dev_session_sign: Option<Symbol<'static, DevSessionSignFn>>,
+    get_dev_session: Option<Symbol<'static, GetDevSessionFn>>,
+    end_dev_session: Option<Symbol<'static, EndDevSessionFn>>,
 }
 
 impl WalletLibrary {
@@ -644,22 +648,14 @@ impl WalletLibrary {
                 .get(b"SignTypedData")
                 .map_err(|e| format!("SignTypedData symbol not found: {}", e))?;
 
-            // Load Developer Mode session symbols
-            let create_dev_session: Symbol<CreateDevSessionFn> = lib
-                .get(b"CreateDevSession")
-                .map_err(|e| format!("CreateDevSession symbol not found: {}", e))?;
+            // Load Developer Mode session symbols (optional: absent in production libs)
+            let create_dev_session: Option<Symbol<CreateDevSessionFn>> = lib.get(b"CreateDevSession").ok();
 
-            let dev_session_sign: Symbol<DevSessionSignFn> = lib
-                .get(b"DevSessionSign")
-                .map_err(|e| format!("DevSessionSign symbol not found: {}", e))?;
+            let dev_session_sign: Option<Symbol<DevSessionSignFn>> = lib.get(b"DevSessionSign").ok();
 
-            let get_dev_session: Symbol<GetDevSessionFn> = lib
-                .get(b"GetDevSession")
-                .map_err(|e| format!("GetDevSession symbol not found: {}", e))?;
+            let get_dev_session: Option<Symbol<GetDevSessionFn>> = lib.get(b"GetDevSession").ok();
 
-            let end_dev_session: Symbol<EndDevSessionFn> = lib
-                .get(b"EndDevSession")
-                .map_err(|e| format!("EndDevSession symbol not found: {}", e))?;
+            let end_dev_session: Option<Symbol<EndDevSessionFn>> = lib.get(b"EndDevSession").ok();
 
             // Extend symbol lifetime to 'static (safe because Library lives for program duration)
             let go_free: Symbol<'static, GoFreeFn> = std::mem::transmute(go_free);
@@ -721,10 +717,10 @@ impl WalletLibrary {
             let revoke_wallet_session_token: Symbol<'static, RevokeWalletSessionTokenFn> = std::mem::transmute(revoke_wallet_session_token);
             let sign_message: Symbol<'static, SignMessageFn> = std::mem::transmute(sign_message);
             let sign_typed_data: Symbol<'static, SignTypedDataFn> = std::mem::transmute(sign_typed_data);
-            let create_dev_session: Symbol<'static, CreateDevSessionFn> = std::mem::transmute(create_dev_session);
-            let dev_session_sign: Symbol<'static, DevSessionSignFn> = std::mem::transmute(dev_session_sign);
-            let get_dev_session: Symbol<'static, GetDevSessionFn> = std::mem::transmute(get_dev_session);
-            let end_dev_session: Symbol<'static, EndDevSessionFn> = std::mem::transmute(end_dev_session);
+            let create_dev_session: Option<Symbol<'static, CreateDevSessionFn>> = create_dev_session.map(|sym| std::mem::transmute(sym));
+            let dev_session_sign: Option<Symbol<'static, DevSessionSignFn>> = dev_session_sign.map(|sym| std::mem::transmute(sym));
+            let get_dev_session: Option<Symbol<'static, GetDevSessionFn>> = get_dev_session.map(|sym| std::mem::transmute(sym));
+            let end_dev_session: Option<Symbol<'static, EndDevSessionFn>> = end_dev_session.map(|sym| std::mem::transmute(sym));
             let resolve_descriptor: Symbol<'static, ResolveDescriptorFn> = std::mem::transmute(resolve_descriptor);
             let update_descriptors: Symbol<'static, UpdateDescriptorsFn> = std::mem::transmute(update_descriptors);
             let get_descriptor_status: Symbol<'static, GetDescriptorStatusFn> = std::mem::transmute(get_descriptor_status);
@@ -1777,7 +1773,8 @@ impl WalletLibrary {
     /// }
     /// ```
     pub fn create_dev_session(&self, params_json: &str) -> Result<serde_json::Value, String> {
-        self.call_ffi_with_params(*self.create_dev_session, params_json)
+        let func = self.create_dev_session.as_ref().ok_or(DEV_MODE_UNAVAILABLE)?;
+        self.call_ffi_with_params(**func, params_json)
     }
 
     /// Sign a transaction using an active dev session (no password required).
@@ -1807,7 +1804,8 @@ impl WalletLibrary {
     /// }
     /// ```
     pub fn dev_session_sign(&self, params_json: &str) -> Result<serde_json::Value, String> {
-        self.call_ffi_with_params(*self.dev_session_sign, params_json)
+        let func = self.dev_session_sign.as_ref().ok_or(DEV_MODE_UNAVAILABLE)?;
+        self.call_ffi_with_params(**func, params_json)
     }
 
     /// Get information about an active dev session.
@@ -1832,7 +1830,8 @@ impl WalletLibrary {
     /// }
     /// ```
     pub fn get_dev_session(&self, params_json: &str) -> Result<serde_json::Value, String> {
-        self.call_ffi_with_params(*self.get_dev_session, params_json)
+        let func = self.get_dev_session.as_ref().ok_or(DEV_MODE_UNAVAILABLE)?;
+        self.call_ffi_with_params(**func, params_json)
     }
 
     /// End a developer session and clear all stored keys.
@@ -1851,7 +1850,8 @@ impl WalletLibrary {
     /// }
     /// ```
     pub fn end_dev_session(&self, params_json: &str) -> Result<serde_json::Value, String> {
-        self.call_ffi_with_params(*self.end_dev_session, params_json)
+        let func = self.end_dev_session.as_ref().ok_or(DEV_MODE_UNAVAILABLE)?;
+        self.call_ffi_with_params(**func, params_json)
     }
 }
 
@@ -1862,3 +1862,25 @@ impl WalletLibrary {
 // 3. Actual operations serialized through WalletQueue
 unsafe impl Send for WalletLibrary {}
 unsafe impl Sync for WalletLibrary {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Production libs are built without `-tags dev`, so the four dev-session exports are
+    /// absent. Loading must still succeed (v1.4.0–v1.6.4 release apps exited at startup
+    /// with "CreateDevSession symbol not found"), and dev calls must fail cleanly instead.
+    ///
+    /// Needs the real library: `make build-lib-macos` (no DEV=1), then
+    /// `cargo test -- --ignored production_library`.
+    #[test]
+    #[ignore = "requires libarcsign built by `make build-lib-macos`"]
+    fn production_library_loads_without_dev_symbols() {
+        let lib = WalletLibrary::load().expect("production library must load");
+        assert!(lib.create_dev_session.is_none(), "expected a production (non-dev) library");
+        assert_eq!(lib.create_dev_session("{}").unwrap_err(), DEV_MODE_UNAVAILABLE);
+        assert_eq!(lib.dev_session_sign("{}").unwrap_err(), DEV_MODE_UNAVAILABLE);
+        assert_eq!(lib.get_dev_session("{}").unwrap_err(), DEV_MODE_UNAVAILABLE);
+        assert_eq!(lib.end_dev_session("{}").unwrap_err(), DEV_MODE_UNAVAILABLE);
+    }
+}
